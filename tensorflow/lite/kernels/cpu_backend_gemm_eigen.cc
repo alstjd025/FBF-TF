@@ -15,6 +15,8 @@ limitations under the License.
 
 #ifndef TFLITE_WITH_RUY
 
+#include <iostream>
+
 #include "tensorflow/lite/kernels/cpu_backend_gemm_eigen.h"
 
 // See b/131835803: in TFLite code, because eigen_spatial_convolutions.h does
@@ -39,6 +41,7 @@ void GemmImplUsingEigen::Run(
     const MatrixParams<float>& rhs_params, const float* rhs_data,
     const MatrixParams<float>& dst_params, float* dst_data,
     const GemmParams<float, float>& params, CpuBackendContext* /* context */) {
+  std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_eigen.cc/GemmImplUsingEigen::Run()\n";
   // This code assumes specific storage orders, encoded in these Eigen types.
   // These assumptions have been checked by TF_LITE_ASSERT's in the public
   // Gemm entry point already, before the implementation gets to this point.
@@ -72,6 +75,7 @@ void GemmImplUsingEigen::Run(
   } else {
     eigen_dst = eigen_dst.cwiseMin(params.clamp_max).cwiseMax(params.clamp_min);
   }
+  std::cout << "run: dst_data : "<< *dst_data << std::endl;
 }
 
 }  // namespace detail

@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/interpreter.h"
 
+#include <iostream>
 #include <cassert>
 #include <cstdarg>
 #include <cstdint>
@@ -277,6 +278,7 @@ TfLiteStatus Interpreter::ReleaseNonPersistentMemory() {
 }
 
 TfLiteStatus Interpreter::Invoke() {
+  std::cout << "tensorflow/lite/interpreter.cc/Interpreter::Invoke()\n";
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
   TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(

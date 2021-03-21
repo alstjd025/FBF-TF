@@ -1957,7 +1957,7 @@ XlaOp XlaBuilder::Clamp(XlaOp min, XlaOp operand, XlaOp max) {
 XlaOp XlaBuilder::Map(absl::Span<const XlaOp> operands,
                       const XlaComputation& computation,
                       absl::Span<const int64> dimensions,
-                      absl::Span<const XlaOp> static_operands) {
+                      absl::Span<const XlaOp> static_operands) { 
   return ReportErrorOrReturn([&]() -> StatusOr<XlaOp> {
     if (!static_operands.empty()) {
       return Unimplemented("static_operands is not supported in Map");

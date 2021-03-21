@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/core/subgraph.h"
 
+#include <iostream>
 #include <algorithm>
 #include <cstdint>
 
@@ -977,6 +978,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 }
 
 TfLiteStatus Subgraph::Invoke() {
+  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
     return kTfLiteError;

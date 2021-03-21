@@ -16,6 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_KERNELS_CPU_BACKEND_GEMM_H_
 #define TENSORFLOW_LITE_KERNELS_CPU_BACKEND_GEMM_H_
 
+#include <iostream>
 #include <cstdint>
 
 #include "ruy/profiler/instrumentation.h"  // from @ruy
@@ -125,6 +126,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
           const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
           const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
           CpuBackendContext* context) {
+  std::cout << "tensorflow/lite/kernels/cpu_backend_gemm.h/Gemm()" << std::endl;
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm");
   ValidateParams(lhs_params, rhs_params, dst_params, params);
   // In some cases we want to unconditionally use ruy as the backend, overriding
@@ -157,7 +159,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
   // If we did not choose to force usage of ruy above, then we may now consider
   // using custom GEMV code for the matrix*vector cases.
   const bool try_custom_gemv = (dst_params.cols == 1);
-  if (try_custom_gemv) {
+  if (try_custom_gemv) { 
     // GEMV case: try a custom fast GEMV path. It will return true if it
     // actually handled it.
     if (detail::CustomGemv(lhs_params, lhs_data, rhs_params, rhs_data,
@@ -166,6 +168,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
     }
   }
   // Generic case: dispatch to any backend as a general GEMM.
+  
   GemmImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
            quantization_flavor>::Run(lhs_params, lhs_data, rhs_params, rhs_data,
                                      dst_params, dst_data, params, context);

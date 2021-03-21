@@ -16,6 +16,8 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_KERNELS_CPU_BACKEND_GEMM_RUY_H_
 #define TENSORFLOW_LITE_KERNELS_CPU_BACKEND_GEMM_RUY_H_
 
+#include <iostream>
+
 #include "ruy/matrix.h"  // from @ruy
 #include "ruy/mul_params.h"  // from @ruy
 #include "ruy/ruy.h"  // from @ruy
@@ -128,6 +130,7 @@ struct GemmImplUsingRuy {
       const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
       const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
       CpuBackendContext* context) {
+    std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_ruy.h/GemmImpIUsingRuy::Run()\n";
     ruy::Matrix<LhsScalar> ruy_lhs;
     ruy::Matrix<RhsScalar> ruy_rhs;
     ruy::Matrix<DstScalar> ruy_dst;

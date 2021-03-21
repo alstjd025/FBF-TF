@@ -34,6 +34,7 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <iostream>
 #include <algorithm>
 #include <type_traits>
 #include <vector>
@@ -150,6 +151,7 @@ bool CustomGemv(
     const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
     const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
     CpuBackendContext* context) {
+  std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_custom_gemv.h/CustomGemv()\n";
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm: CustomGemv");
   using Impl = CustomGemvImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                               quantization_flavor>;
@@ -157,7 +159,7 @@ bool CustomGemv(
     return false;
   }
   if (!Impl::IsSupportedGivenSufficientlyManyRows(lhs_params, rhs_params,
-                                                  dst_params, params)) {
+                                                  dst_params, params)) {    
     return false;
   }
   TFLITE_DCHECK_GE(lhs_params.rows, Impl::kKernelRows);
@@ -183,6 +185,7 @@ bool CustomGemv(
     }
     cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), context);
   }
+  
   return true;
 }
 

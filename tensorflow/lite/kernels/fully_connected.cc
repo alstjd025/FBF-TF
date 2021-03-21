@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/kernels/internal/optimized/integer_ops/fully_connected.h"
 
+#include <iostream>
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -497,6 +498,7 @@ TfLiteStatus EvalQuantized(TfLiteContext* context, TfLiteNode* node,
                            const TfLiteTensor* input,
                            const TfLiteTensor* filter, const TfLiteTensor* bias,
                            TfLiteTensor* output) {
+  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalQuantized()\n";
   int32_t input_offset = -input->params.zero_point;
   int32_t filter_offset = -filter->params.zero_point;
   int32_t output_offset = output->params.zero_point;
@@ -590,6 +592,7 @@ TfLiteStatus EvalShuffledQuantized(TfLiteContext* context, TfLiteNode* node,
                                    const TfLiteTensor* bias,
                                    TfLiteTensor* output,
                                    TfLiteTensor* shuffled_input_workspace) {
+  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalShuffledQuantized()\n";
   // TODO(b/110697972) decide more consistently if / how / where we want
   // to perform this kind of runtime data type checks.
   if (shuffled_input_workspace->type != kTfLiteUInt8) {
@@ -640,6 +643,7 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
                        TfLiteFullyConnectedParams* params, OpData* data,
                        const TfLiteTensor* input, const TfLiteTensor* filter,
                        const TfLiteTensor* bias, TfLiteTensor* output) {
+  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalFloat()\n";
   float output_activation_min, output_activation_max;
   CalculateActivationRange(params->activation, &output_activation_min,
                            &output_activation_max);
@@ -709,6 +713,7 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
           GetTensorShape(bias), GetTensorData<float>(bias),
           GetTensorShape(output), GetTensorData<float>(output),
           CpuBackendContext::GetFromContext(context));
+      std::cout <<"EvalFloat : " << *(float*)output->data.data << std::endl;
     }
   }
 
@@ -717,6 +722,7 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
 
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
+  std::cout << "tensorflow/lite/kernels/fully_connected.cc/Eval()\n";
   auto* params =
       reinterpret_cast<TfLiteFullyConnectedParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);

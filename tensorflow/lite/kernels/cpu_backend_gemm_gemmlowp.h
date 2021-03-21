@@ -21,6 +21,7 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/compatibility.h"
 #ifndef TFLITE_WITH_RUY
 
+#include <iostream>
 #include <cstdint>
 #include <type_traits>
 
@@ -85,6 +86,7 @@ struct GemmImplUsingGemmlowp<
                        QuantizationFlavor::kIntegerWithUniformMultiplier>&
           params,
       CpuBackendContext* context) {
+    std::cout << "tensorflow/lite/kernels/cpu_backend_gemm.h/GemmImplUsingGemmlowp::Run()\n";
     gemmlowp::MatrixMap<const SrcScalar, gemmlowp::MapOrder::RowMajor>
         gemmlowp_lhs(lhs_data, lhs_params.rows, lhs_params.cols);
     gemmlowp::MatrixMap<const SrcScalar, gemmlowp::MapOrder::ColMajor>
@@ -142,6 +144,7 @@ struct GemmImplUsingGemmlowp<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                        QuantizationFlavor::kIntegerWithPerRowMultiplier>&
           params,
       CpuBackendContext* context) {
+	std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_gemmlowp.h/GemmImplUsingGemmlowp::Run()\n";
     // gemmlowp support for this per-channel path is limited to NEON.
     // We fall back to ruy outside of NEON.
 #ifdef GEMMLOWP_NEON

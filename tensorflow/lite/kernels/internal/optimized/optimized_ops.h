@@ -15,6 +15,7 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_KERNELS_INTERNAL_OPTIMIZED_OPTIMIZED_OPS_H_
 #define TENSORFLOW_LITE_KERNELS_INTERNAL_OPTIMIZED_OPTIMIZED_OPS_H_
 
+#include <iostream>
 #include <assert.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -372,9 +373,11 @@ inline void FullyConnected(
     const float* weights_data, const RuntimeShape& bias_shape,
     const float* optional_bias_data, const RuntimeShape& output_shape,
     float* output_data, CpuBackendContext* cpu_backend_context) {
+  std::cout << "tensorflow/lite/kernels/internal/optimized/optimized_ops.h/FullyConnected(float)\n";
   ruy::profiler::ScopeLabel label("FullyConnected");
   const int dims_count = weights_shape.DimensionsCount();
   const int input_rows = weights_shape.Dims(dims_count - 1);
+   
   cpu_backend_gemm::MatrixParams<float> rhs_params;
   rhs_params.order = cpu_backend_gemm::Order::kColMajor;
   rhs_params.rows = input_rows;
@@ -382,17 +385,20 @@ inline void FullyConnected(
   rhs_params.cache_policy =
       cpu_backend_gemm::DefaultCachePolicy(params.rhs_cacheable);
   TFLITE_DCHECK_EQ(input_shape.FlatSize(), rhs_params.rows * rhs_params.cols);
+  
   cpu_backend_gemm::MatrixParams<float> lhs_params;
   lhs_params.order = cpu_backend_gemm::Order::kRowMajor;
   lhs_params.cols = weights_shape.Dims(dims_count - 1);
   lhs_params.rows = FlatSizeSkipDim(weights_shape, dims_count - 1);
   lhs_params.cache_policy =
       cpu_backend_gemm::DefaultCachePolicy(params.lhs_cacheable);
+  
   cpu_backend_gemm::MatrixParams<float> dst_params;
   dst_params.order = cpu_backend_gemm::Order::kColMajor;
   dst_params.rows = output_shape.Dims(output_shape.DimensionsCount() - 1);
   dst_params.cols =
       FlatSizeSkipDim(output_shape, output_shape.DimensionsCount() - 1);
+  
   cpu_backend_gemm::GemmParams<float, float> gemm_params;
   gemm_params.bias = optional_bias_data;
   gemm_params.clamp_min = params.float_activation_min;
@@ -408,6 +414,7 @@ inline void FullyConnected(
     const uint8* filter_data, const RuntimeShape& bias_shape,
     const int32* bias_data, const RuntimeShape& output_shape,
     uint8* output_data, CpuBackendContext* cpu_backend_context) {
+  std::cout << "tensorflow/lite/kernels/internal/optimized/optimized_ops.h/FullyConnected(uint8)\n";
   ruy::profiler::ScopeLabel label("FullyConnected/8bit");
   const int32 input_offset = params.input_offset;
   const int32 filter_offset = params.weights_offset;
@@ -471,6 +478,7 @@ inline void FullyConnected(
     const uint8* filter_data, const RuntimeShape& bias_shape,
     const int32* bias_data_int32, const RuntimeShape& output_shape,
     int16* output_data, CpuBackendContext* cpu_backend_context) {
+  std::cout << "tensorflow/lite/kernels/internal/optimized/optimized_ops.h/FullyConnected(int16)\n";
   ruy::profiler::ScopeLabel label("FullyConnected/Uint8Int16");
   const int32 input_offset = params.input_offset;
   const int32 filter_offset = params.weights_offset;
