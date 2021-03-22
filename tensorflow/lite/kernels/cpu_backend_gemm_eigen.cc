@@ -75,6 +75,7 @@ void GemmImplUsingEigen::Run(
   } else {
     eigen_dst = eigen_dst.cwiseMin(params.clamp_max).cwiseMax(params.clamp_min);
   }
+  std::cout << "run: rhs_data : "<< *rhs_data << std::endl; 
   std::cout << "run: dst_data : "<< *dst_data << std::endl;
 }
 

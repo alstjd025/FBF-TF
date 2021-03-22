@@ -652,6 +652,7 @@ TfLiteStatus Subgraph::BytesRequired(TfLiteType type, const int* dims,
 }
 
 TfLiteStatus Subgraph::AllocateTensors() {
+  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::AllocateTensors()\n";
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(), "AllocateTensors");
   if (!consistent_) {
     ReportError("AllocateTensors() called on inconsistent model.");
@@ -916,6 +917,7 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
 }
 
 TfLiteStatus Subgraph::PrepareOpsAndTensors() {
+  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::PrepareOpsAndTensors()\n";
   if (!memory_planner_) {
     memory_planner_.reset(new ArenaPlanner(
         &context_, std::unique_ptr<GraphInfo>(new InterpreterInfo(this)),
@@ -1004,6 +1006,8 @@ TfLiteStatus Subgraph::Invoke() {
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
+ 
+  //std::cout << "execution_plan_.size(): "<< execution_plan_.size() << std::endl; 
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
@@ -1017,6 +1021,7 @@ TfLiteStatus Subgraph::Invoke() {
         nodes_and_registration_[node_index].second;
 
     const char* op_name = nullptr;
+    std::cout << std::endl << GetTFLiteOpName(registration) << std::endl;
     if (profiler_) op_name = GetTFLiteOpName(registration);
     TFLITE_SCOPED_TAGGED_OPERATOR_PROFILE(profiler_.get(), op_name, node_index);
 
@@ -1057,6 +1062,8 @@ TfLiteStatus Subgraph::Invoke() {
 
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
+    
+    //std::cout << execution_plan_index << std::endl;
     if (OpInvoke(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
@@ -1458,6 +1465,7 @@ TfLiteStatus Subgraph::UndoAllDelegates() {
 }
 
 TfLiteStatus Subgraph::RedoAllDelegates() {
+  //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::RedoAllDelegates()\n";
   if (!delegates_undone_) return kTfLiteOk;
 
   delegates_undone_ = false;

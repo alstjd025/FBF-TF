@@ -12,6 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+#include <iostream>
 #include <algorithm>
 #include <complex>
 
@@ -101,6 +102,7 @@ TfLiteStatus copyToTensor(TfLiteContext* context, const FromT* in,
 }
 
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
+  std::cout << "tensorflow/lite/kernels/cast.cc/Eval()\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));
   TfLiteTensor* output;
@@ -108,6 +110,7 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
                     GetOutputSafe(context, node, kOutputTensor, &output));
   const int num_elements = NumElements(input);
   TF_LITE_ENSURE_EQ(context, num_elements, NumElements(output));
+  std::cout << "cast intput :" << *input->data.i64 << std::endl;
   switch (input->type) {
     case kTfLiteInt64:
       return copyToTensor(context, input->data.i64, output, num_elements);

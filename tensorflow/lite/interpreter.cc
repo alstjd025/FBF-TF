@@ -182,6 +182,7 @@ TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
 TfLiteStatus Interpreter::AllocateTensors() {
   // Apply the default delegate that TFLite will enable at this point to allow
   // other user-level delegates to be applied first.
+  std::cout << "tensorflow/lite/interpreter.cc/interpreter::AllocateTensors()\n";
   if (!lazy_delegate_providers_.empty()) {
     TFLITE_LOG(TFLITE_LOG_INFO,
                "Applying %zu TensorFlow Lite delegate(s) lazily.",
