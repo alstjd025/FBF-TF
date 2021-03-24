@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/delegates/utils/dummy_delegate/dummy_delegate.h"
 
+#include <iostream>
 #include <utility>
 
 #include "tensorflow/lite/delegates/utils/simple_delegate.h"
@@ -37,6 +38,7 @@ class DummyDelegateKernel : public SimpleDelegateKernelInterface {
   }
 
   TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) override {
+    std::cout << "tensorflow/lite/delegates/utils/dummy_delegate/dummy_delegate.cc/Eval()\n";
     return !options_.error_during_invoke ? kTfLiteOk : kTfLiteError;
   }
 

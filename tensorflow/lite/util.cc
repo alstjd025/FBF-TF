@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/util.h"
 
+#include <iostream>
 #include <complex>
 #include <cstring>
 
@@ -147,6 +148,7 @@ bool IsUnresolvedCustomOp(const TfLiteRegistration& registration) {
 }
 
 std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
+  std::cout << "tensorflow/lite/util.cc/GetOpNameByRegistration()\n";
   auto op = registration.builtin_code;
   std::string result =
       EnumNameBuiltinOperator(static_cast<BuiltinOperator>(op));

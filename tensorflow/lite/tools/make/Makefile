@@ -210,7 +210,7 @@ ifeq ($(TARGET_ARCH),aarch64)
 	BUILD_WITH_RUY=true
 endif
 ifeq ($(BUILD_WITH_RUY),true)
-  CXXFLAGS += -DTFLITE_WITH_RUY
+	CXXFLAGS += -DTFLITE_WITH_RUY
 endif
 
 BUILD_WITH_RUY_PROFILER ?= false

@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 
+#include <iostream>
 #include <cstdint>
 #include <memory>
 #include <thread>  // NOLINT(build/c++11)
@@ -202,6 +203,7 @@ class DelegateKernel {
   }
 
   absl::Status Invoke(TfLiteContext* context) {
+    std::cout << "tensorflow/lite/delegates/gpu/delegate.cc/Invoke()\n";
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
@@ -228,6 +230,7 @@ class DelegateKernel {
 
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
+    std::cout << "tensorflow/lite/delegates/gpu/delegate.cc/SetInputsAndOutputs()\n";
     for (int i = 0; i < input_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetInputObject(
           i, GetTensorObject(input_indices_[i], context)));
@@ -364,6 +367,7 @@ inline Delegate* GetDelegate(TfLiteDelegate* delegate) {
 }
 
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
+  std::cout << "tensorflow/lite/delegates/gpu/delegate.cc/DelegatePrepare()\n";
   const TfLiteRegistration kRegistration = {
       // .init
       [](TfLiteContext* context, const char* buffer, size_t) -> void* {

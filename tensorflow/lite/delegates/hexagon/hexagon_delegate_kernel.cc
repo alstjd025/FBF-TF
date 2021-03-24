@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/delegates/hexagon/hexagon_delegate_kernel.h"
 
+#include <iostream>
 #include <vector>
 
 #include "tensorflow/lite/builtin_ops.h"
@@ -88,6 +89,7 @@ TfLiteStatus HexagonDelegateKernel::Init(TfLiteContext* context,
 
 TfLiteStatus HexagonDelegateKernel::Eval(TfLiteContext* context,
                                          TfLiteNode* node) {
+  std::cout << "tensorflow/lite/delegates/hexagon/hexagon_delegate_kernel.cc/HexagonDelegateKernel::Eval()\n";
   if (hexagon_nn_ == nullptr) {
     TF_LITE_KERNEL_LOG(context, "Hexagon interface not available.");
     return kTfLiteError;

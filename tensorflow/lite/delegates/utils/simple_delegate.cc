@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/delegates/utils/simple_delegate.h"
 
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -28,7 +29,8 @@ limitations under the License.
 namespace tflite {
 namespace {
 TfLiteRegistration GetDelegateKernelRegistration(
-    SimpleDelegateInterface* delegate) {
+    SimpleDelegateInterface* delegate){
+  std::cout << "tensorflow/lite/delegates/utils/simple_delegate.cc/GetDelegateKernelRegistration()\n";
   TfLiteRegistration kernel_registration;
   kernel_registration.profiling_string = nullptr;
   kernel_registration.builtin_code = kTfLiteBuiltinDelegate;

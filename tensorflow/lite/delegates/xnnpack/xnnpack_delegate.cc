@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 
+#include <iostream>
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -273,6 +274,7 @@ class Subgraph {
   TfLiteStatus Prepare(TfLiteContext* context) { return kTfLiteOk; }
 
   TfLiteStatus Invoke(TfLiteContext* context) {
+    std::cout << "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.cc/Invoke()\n";
     if (first_run_) {
       std::vector<xnn_external_value> external_values;
       for (int t : externals_) {

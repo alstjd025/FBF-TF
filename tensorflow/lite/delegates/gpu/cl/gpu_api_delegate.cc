@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/gpu/cl/gpu_api_delegate.h"
 
+#include <iostream>
 #include <cstdint>
 
 #include "absl/types/span.h"
@@ -226,7 +227,8 @@ class Delegate {
   }
 
   absl::Status Invoke(TfLiteContext* context) {
-    RETURN_IF_ERROR(SetInputsAndOutputs(context));
+    std::cout << "tensorflow/lite/delegates/gpu/cl/gpu_api_delegate.cc/Invoke()\n";
+	RETURN_IF_ERROR(SetInputsAndOutputs(context));
     return runner_->Run();
   }
 
@@ -310,6 +312,7 @@ inline Delegate* GetDelegate(TfLiteDelegate* delegate) {
 }
 
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
+  std::cout << "tensorflow/lite/delegates/gpu/cl/gpu_api_delegate.cc/DelegatePrepare()\n";
   const TfLiteRegistration kRegistration = {
       // .init
       [](TfLiteContext* context, const char* buffer, size_t) -> void* {
@@ -359,7 +362,6 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   TfLiteIntArray* ops_to_replace = GetOpsToReplace(context);
   const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
       context, kRegistration, ops_to_replace, delegate);
-  TfLiteIntArrayFree(ops_to_replace);
   return status;
 }
 

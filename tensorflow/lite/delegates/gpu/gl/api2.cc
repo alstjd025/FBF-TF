@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/gpu/gl/api2.h"
 
+#include <iostream>
 #include <algorithm>
 #include <cstring>
 #include <string>
@@ -130,7 +131,8 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status SetExternalObject(TensorObject obj) final {
-    if (!def().external_def.object_def.user_provided) {
+    std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/DefaultTensorTie::SetExtenrnalObject()\n";
+	if (!def().external_def.object_def.user_provided) {
       return absl::InvalidArgumentError("External object is read-only");
     }
     if (!IsValid(def().external_def, obj)) {
@@ -404,7 +406,8 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status SetInputObject(int index, TensorObject object) override {
-    if (index < 0 || index >= inputs_.size()) {
+    std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/SetInputObject()\n";
+	if (index < 0 || index >= inputs_.size()) {
       return absl::OutOfRangeError("Index is out of range");
     }
     return inputs_[index]->SetExternalObject(object);

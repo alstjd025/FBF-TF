@@ -18,6 +18,7 @@ limitations under the License.
 #include <EGL/egl.h>
 #include <GLES3/gl31.h>
 
+#include <iostream>
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -379,6 +380,7 @@ inline Delegate* GetGpuDelegate(TfLiteDelegate* delegate) {
 }
 
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
+  std::cout << "tensorflow/lite/delegates/gpu/gl_delegate.cc/DelegatePrepare()\n";
   const TfLiteRegistration kRegistration = {
       // .init
       [](TfLiteContext* context, const char* buffer, size_t) -> void* {

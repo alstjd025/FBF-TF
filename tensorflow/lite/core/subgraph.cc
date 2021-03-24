@@ -360,6 +360,7 @@ void PopulatePreviewDelegateParams(const NodeSubset& node_subset,
 TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
     TfLiteRegistration registration, const TfLiteIntArray* nodes_to_replace,
     TfLiteDelegate* delegate) {
+  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::ReplaceNodeSubsetWithDelegateKernels()\n";
   // Ignore empty node replacement sets.
   if (!nodes_to_replace->size) {
     return kTfLiteOk;
@@ -673,7 +674,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
       // of memory-planning change (for eg, ResizeInputTensor), the state would
       // be kStateUninvokable.
       memory_planner_->AcquireNonPersistentMemory();
-    }
+    }	
     return kTfLiteOk;
   }
 
@@ -888,6 +889,7 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
 TfLiteStatus Subgraph::PrepareOpsStartingAt(
     int first_execution_plan_index, const std::vector<int>& execution_plan,
     int* last_execution_plan_index_prepared) {
+  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::PrepareOpsStartingAt()\n";
   if (first_execution_plan_index == 0) {
     has_dynamic_tensors_ = false;
   }
@@ -1355,6 +1357,7 @@ void Subgraph::UseNNAPI(bool enable) {
 }
 
 void Subgraph::SwitchToDelegateContext() {
+  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::SwitchToDelegateContext()\n";
   context_.GetNodeAndRegistration = GetNodeAndRegistration;
   context_.ReplaceNodeSubsetsWithDelegateKernels =
       ReplaceNodeSubsetsWithDelegateKernels;
@@ -1512,6 +1515,7 @@ TfLiteStatus Subgraph::EnsureMemoryAllocations() {
 }
 
 TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
+  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::ModifyGraphWithDelegate()\n";
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(),
                                        "ModifyGraphWithDelegate");
 

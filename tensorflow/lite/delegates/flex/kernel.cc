@@ -12,6 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+#include <iostream>
+
 #include "tensorflow/lite/delegates/flex/kernel.h"
 
 #include "flatbuffers/flexbuffers.h"  // from @flatbuffers
@@ -595,6 +597,7 @@ TfLiteStatus DelegateKernel::ValidateOutputTensorShapeConsistency(
 }
 
 TfLiteStatus DelegateKernel::Eval(TfLiteContext* context, TfLiteNode* node) {
+  std::cout << "tensorflow/lite/delegates/flex/kernel.cc/DelegateKernel::Eval()\n";
   BufferMap* buffer_map = op_data_->buffer_map;
 
   // Insert a tensor in the buffer map for all inputs that are not constant.

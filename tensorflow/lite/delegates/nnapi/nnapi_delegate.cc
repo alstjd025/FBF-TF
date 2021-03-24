@@ -3670,6 +3670,7 @@ TfLiteStatus NNAPIDelegateKernel::GetOperationsSupportedByTargetNnApiDevices(
 
 TfLiteStatus NNAPIDelegateKernel::Invoke(TfLiteContext* context,
                                          TfLiteNode* node, int* nnapi_errno) {
+  std::cout << "tensorflow/lite/delegates/nnapi/nnapi_delegate.cc/NNAPIDelegateKernel::Inveok()\n;
   ANeuralNetworksExecution* execution = nullptr;
   RETURN_TFLITE_ERROR_IF_NN_ERROR(context,
                                   nnapi_->ANeuralNetworksExecution_create(

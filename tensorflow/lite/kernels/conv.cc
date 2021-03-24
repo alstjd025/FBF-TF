@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/kernels/internal/optimized/integer_ops/conv.h"
 
+#include <iostream>
 #include <stddef.h>
 
 #include <cstdint>
@@ -1053,6 +1054,7 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
 
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
+  std::cout << "tensorflow/lite/kernels/conv.cc/Eval()\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));
 
