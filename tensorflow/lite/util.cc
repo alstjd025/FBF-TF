@@ -14,13 +14,14 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/util.h"
 
-#include <iostream>
 #include <complex>
 #include <cstring>
 
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+
+#include "tensorflow/lite/kmdebug.h"
 
 namespace tflite {
 namespace {
@@ -148,7 +149,8 @@ bool IsUnresolvedCustomOp(const TfLiteRegistration& registration) {
 }
 
 std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
-  std::cout << "tensorflow/lite/util.cc/GetOpNameByRegistration()\n";
+  SFLAG();
+  //std::cout << "tensorflow/lite/util.cc/GetOpNameByRegistration()\n";
   auto op = registration.builtin_code;
   std::string result =
       EnumNameBuiltinOperator(static_cast<BuiltinOperator>(op));
@@ -156,6 +158,7 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
       registration.custom_name) {
     result += " " + std::string(registration.custom_name);
   }
+  EFLAG();
   return result;
 }
 

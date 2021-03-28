@@ -12,7 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#include <iostream>
 #include <algorithm>
 #include <complex>
 
@@ -22,6 +21,8 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
 #include "tensorflow/lite/kernels/kernel_util.h"
 #include "tensorflow/lite/kernels/op_macros.h"
+
+#include "tensorflow/lite/kmdebug.h"
 
 namespace tflite {
 namespace ops {
@@ -102,7 +103,8 @@ TfLiteStatus copyToTensor(TfLiteContext* context, const FromT* in,
 }
 
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
-  std::cout << "tensorflow/lite/kernels/cast.cc/Eval()\n";
+  SFLAG();
+  //std::cout << "tensorflow/lite/kernels/cast.cc/Eval()\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));
   TfLiteTensor* output;
@@ -113,17 +115,23 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
   std::cout << "cast intput :" << *input->data.i64 << std::endl;
   switch (input->type) {
     case kTfLiteInt64:
+	  EFLAG();
       return copyToTensor(context, input->data.i64, output, num_elements);
     case kTfLiteInt32:
+	  EFLAG();
       return copyToTensor(context, input->data.i32, output, num_elements);
     case kTfLiteUInt8:
+	  EFLAG();
       return copyToTensor(context, input->data.uint8, output, num_elements);
     case kTfLiteFloat32:
+	  EFLAG();
       return copyToTensor(context, GetTensorData<float>(input), output,
                           num_elements);
     case kTfLiteBool:
+	  EFLAG();
       return copyToTensor(context, input->data.b, output, num_elements);
     case kTfLiteComplex64:
+	  EFLAG();
       return copyToTensor(
           context, reinterpret_cast<std::complex<float>*>(input->data.c64),
           output, num_elements);
@@ -131,6 +139,7 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
       // Unsupported type.
       TF_LITE_UNSUPPORTED_TYPE(context, input->type, "Cast");
   }
+  EFLAG();
   return kTfLiteOk;
 }
 }  // namespace cast

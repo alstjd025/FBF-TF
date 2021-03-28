@@ -16,6 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_DELEGATES_GPU_GL_GL_CALL_H_
 #define TENSORFLOW_LITE_DELEGATES_GPU_GL_GL_CALL_H_
 
+#include <iostream>
 #include <string>
 #include <type_traits>
 
@@ -69,6 +70,7 @@ struct Caller<void> {
   template <typename F, typename ErrorF, typename... Params>
   absl::Status operator()(const std::string& context, F func, ErrorF error_func,
                           Params&&... params) {
+    //std::cout << "tensorflow/lite/delegates/gpu/gl/gl_call.h/Caller<void>()\n";
     func(std::forward<Params>(params)...);
     const auto status = error_func();
     if (status.ok()) return absl::OkStatus();

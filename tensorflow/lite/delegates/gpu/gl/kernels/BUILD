@@ -228,7 +228,7 @@ cc_test(
 cc_library(
     name = "fully_connected",
     srcs = ["fully_connected.cc"],
-    hdrs = ["fully_connected.h"],
+    hdrs = ["fully_connected.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         "//tensorflow/lite/delegates/gpu/common:convert",
         "//tensorflow/lite/delegates/gpu/common:operations",

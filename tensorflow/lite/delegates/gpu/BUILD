@@ -29,7 +29,7 @@ config_setting(
 cc_library(
     name = "gl_delegate",
     srcs = ["gl_delegate.cc"],
-    hdrs = ["gl_delegate.h"],
+    hdrs = ["gl_delegate.h","//tensorflow/lite:kmdebug.h"],
     linkopts = select({
         "//tensorflow:android": [
             "-lEGL",

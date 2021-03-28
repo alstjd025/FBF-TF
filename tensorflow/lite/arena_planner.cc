@@ -14,13 +14,15 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/arena_planner.h"
 
-#include <iostream>
+//#include <iostream>
 #include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <set>
 #include <type_traits>
 #include <utility>
+
+#include "tensorflow/lite/kmdebug.h"
 
 namespace tflite {
 namespace {
@@ -191,7 +193,8 @@ TfLiteStatus ArenaPlanner::PlanAllocations() {
 }
 
 TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
-  std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::ExecuteAllocations()\n";
+  SFLAG();
+  //std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::ExecuteAllocations()\n";
   // Grow the size of `allocs_` if necessary. This allows allocating temporary
   // tensors in op's `prepare` function.
   TF_LITE_ENSURE(context_, graph_info_->num_tensors() >= allocs_.size());
@@ -221,7 +224,7 @@ TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
     // SimpleMemoryArena::Commit() could move the base pointer.
     TF_LITE_ENSURE_STATUS(ResolveTensorAllocation(i));
   }
-
+  EFLAG();
   return kTfLiteOk;
 }
 
@@ -303,7 +306,8 @@ std::vector<int32_t> ArenaPlanner::CreateTensorAllocationVector(int first_node,
 }
 
 TfLiteStatus ArenaPlanner::CalculateAllocations(int first_node, int last_node) {
-  std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::CalculateAllocations()\n";
+  SFLAG();
+  //std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::CalculateAllocations()\n";
   // Indices of tensors in order their allocation offsets will be calculated.
   const std::vector<int32_t> tensor_order =
       CreateTensorAllocationVector(first_node, last_node);
@@ -336,6 +340,7 @@ TfLiteStatus ArenaPlanner::CalculateAllocations(int first_node, int last_node) {
           &allocs_[tensor_index]));
     }
   }
+  EFLAG();
   return kTfLiteOk;
 }
 

@@ -54,6 +54,8 @@ limitations under the License.
 #include "tensorflow/lite/kernels/kernel_util.h"
 #include "tensorflow/lite/util.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace {
@@ -2843,6 +2845,8 @@ bool IsAllAllowedTensors(TfLiteContext* context,
 // TODO(impjdi): Check ops' parameters.
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
+  SFLAG();
+  //std::cout << "tensorflow/lite/delegates/gpu/common/model_builder.cc/GetOpsToReplace()\n";
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
@@ -2871,6 +2875,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                                        node_supported_fn);
   std::set<std::string> unsupported_nodes_info;
   if (partition_helper.Partition(&unsupported_nodes_info) != kTfLiteOk) {
+	EFLAG();
     return TfLiteIntArrayCreate(0);
   }
 
@@ -2898,6 +2903,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     absl::StrAppend(&error_message, " operations will run on the CPU.");
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
+  EFLAG();
   return ConvertVectorToTfLiteIntArray(ops_to_replace);
 }
 

@@ -24,6 +24,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace gl {
@@ -209,10 +211,14 @@ absl::Status GlProgram::SetParameter(const Variable& param) {
 }
 
 absl::Status GlProgram::Dispatch(const uint3& workgroups) const {
+  SFLAG();
+  //std::cout << "tensorflow/lite/delegates/gpu/gl/gl_program.cc/GlProgram::Dispatch()\n";
   if (workgroups.x == 0 || workgroups.y == 0 || workgroups.z == 0) {
+	EFLAG();
     return absl::InvalidArgumentError("Invalid workgroups");
   }
   RETURN_IF_ERROR(TFLITE_GPU_CALL_GL(glUseProgram, id_));
+  EFLAG();
   return TFLITE_GPU_CALL_GL(glDispatchCompute, workgroups.x, workgroups.y,
                             workgroups.z);
 }

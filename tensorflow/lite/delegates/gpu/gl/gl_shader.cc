@@ -19,6 +19,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/gl_call.h"
 #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace gl {
@@ -45,6 +47,8 @@ GlShader::~GlShader() { Invalidate(); }
 absl::Status GlShader::CompileShader(GLenum shader_type,
                                      const std::string& shader_source,
                                      GlShader* gl_shader) {
+  SFLAG();
+  //std::cout << "tensorflow/lite/delegates/gpu/gl/gl_shader.cc/GlShader::CompileShader()\n";
   // NOTE: code compilation can fail due to gl errors happened before
   GLuint shader_id;
   RETURN_IF_ERROR(TFLITE_GPU_CALL_GL(glCreateShader, &shader_id, shader_type));
@@ -64,11 +68,13 @@ absl::Status GlShader::CompileShader(GLenum shader_type,
     glGetShaderiv(shader.id(), GL_INFO_LOG_LENGTH, &info_log_len);
     std::string errors(info_log_len, 0);
     glGetShaderInfoLog(shader.id(), info_log_len, nullptr, &errors[0]);
+    EFLAG();
     return absl::InternalError("Shader compilation failed: " + errors +
                                "\nProblem shader is:\n" + shader_source);
   }
 
   *gl_shader = std::move(shader);
+  EFLAG();
   return absl::OkStatus();
 }
 

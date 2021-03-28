@@ -8,6 +8,8 @@ package(
     licenses = ["notice"],  # Apache 2.0
 )
 
+exports_files(["kmdebug.h"])
+
 exports_files(glob([
     "testdata/*.bin",
     "testdata/*.pb",
@@ -636,7 +638,7 @@ cc_test(
 cc_library(
     name = "util",
     srcs = ["util.cc"],
-    hdrs = ["util.h"],
+    hdrs = ["util.h", "kmdebug.h"],
     compatible_with = get_compatible_with_portable(),
     copts = TFLITE_DEFAULT_COPTS + tflite_copts(),
     deps = [

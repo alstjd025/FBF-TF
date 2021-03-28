@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/gpu/gl/kernels/fully_connected.h"
 
+#include <iostream>
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -27,6 +28,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/types.h"
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace gl {
@@ -36,7 +39,9 @@ class FullyConnectedBuffers : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
-    const auto& attr =
+    SFLAG();
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/kernels/fully_connected.cc/FullyConnectedBuffers::GenerateCode()\n";
+	const auto& attr =
         absl::any_cast<const FullyConnectedAttributes&>(ctx.op_attr);
 
     const int src_depth = DivideRoundUp(attr.weights.shape.i, 4);
@@ -61,7 +66,7 @@ class FullyConnectedBuffers : public NodeShader {
   const int threads = int(gl_WorkGroupSize.y);
   const int workers = int(gl_WorkGroupSize.x);
   ivec3 tid = ivec3(gl_LocalInvocationID);
-
+ 
   if (gid.x < $dst_depth$) {
     int offset = 4 * gid.x * $src_depth$ + 4 * tid.y;
     int iterations = ($src_depth$ + threads-1) / threads;
@@ -113,6 +118,7 @@ class FullyConnectedBuffers : public NodeShader {
         /*input=*/IOStructure::ONLY_DEFINITIONS,
         /*output=*/IOStructure::ONLY_DEFINITIONS,
     };
+	EFLAG();
     return absl::OkStatus();
   }
 };

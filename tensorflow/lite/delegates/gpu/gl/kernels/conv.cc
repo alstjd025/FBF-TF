@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/gpu/gl/kernels/conv.h"
 
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -39,7 +40,8 @@ class Convolution : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
-    if (ctx.input_shapes.size() != 1) {
+    std::cout << "tensorflow/lite/delegates/gpu/gl/kernels/conv.cc/Convolution::GenerateCode()\n";
+	if (ctx.input_shapes.size() != 1) {
       return absl::UnimplementedError(
           "Convolution does not support more than 1 runtime tensor");
     }
@@ -165,7 +167,8 @@ class Convolution1x1 : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
-    if (ctx.input_shapes.size() != 1) {
+    std::cout << "tensorflow/lite/delegates/gpu/gl/kernels/conv.cc/Convolution1x1::GenerateCode()\n";
+	if (ctx.input_shapes.size() != 1) {
       return absl::UnimplementedError(
           "Convolution does not support more than 1 runtime tensor");
     }
@@ -231,8 +234,7 @@ class Convolution1x1 : public NodeShader {
     } else {
       absl::StrAppend(&source, "value_0 = result0;\n");
     }
-
-    auto dst_depth = DivideRoundUp(ctx.output_shapes[0][3], 4);
+	auto dst_depth = DivideRoundUp(ctx.output_shapes[0][3], 4);
     uint3 workgroup = uint3(16, 16, 1);
     if (ctx.gpu_info->type == GpuType::ADRENO) {
       if (dst_depth >= 2) {

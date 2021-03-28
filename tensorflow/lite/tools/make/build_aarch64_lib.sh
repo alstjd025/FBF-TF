@@ -23,7 +23,7 @@ TENSORFLOW_DIR="${SCRIPT_DIR}/../../../.."
 FREE_MEM="$(free -m | awk '/^Mem/ {print $2}')"
 # Use "-j 4" only memory is larger than 2GB
 if [[ "FREE_MEM" -gt "2000" ]]; then
-  NO_JOB=4
+  NO_JOB=6
 else
   NO_JOB=1
 fi

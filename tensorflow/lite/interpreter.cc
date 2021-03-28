@@ -15,7 +15,6 @@ limitations under the License.
 
 #include "tensorflow/lite/interpreter.h"
 
-#include <iostream>
 #include <cassert>
 #include <cstdarg>
 #include <cstdint>
@@ -31,6 +30,9 @@ limitations under the License.
 #include "tensorflow/lite/minimal_logging.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/util.h"
+
+#include "tensorflow/lite/kmdebug.h"
+KmDebug kmdebug;
 
 // TODO(b/139446230): Move to portable platform header.
 #if defined(__ANDROID__)
@@ -182,7 +184,8 @@ TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
 TfLiteStatus Interpreter::AllocateTensors() {
   // Apply the default delegate that TFLite will enable at this point to allow
   // other user-level delegates to be applied first.
-  std::cout << "tensorflow/lite/interpreter.cc/interpreter::AllocateTensors()\n";
+  SFLAG();
+  //std::cout << "tensorflow/lite/interpreter.cc/interpreter::AllocateTensors()\n";
   if (!lazy_delegate_providers_.empty()) {
     TFLITE_LOG(TFLITE_LOG_INFO,
                "Applying %zu TensorFlow Lite delegate(s) lazily.",
@@ -207,7 +210,8 @@ TfLiteStatus Interpreter::AllocateTensors() {
                                "Failed to apply the default TensorFlow Lite "
                                "delegate indexed at %zu.",
                                i);
-          return kTfLiteError;
+          EFLAG();
+		  return kTfLiteError;
         case kTfLiteDelegateError:
           TF_LITE_REPORT_ERROR(
               error_reporter_,
@@ -226,12 +230,13 @@ TfLiteStatus Interpreter::AllocateTensors() {
                                "Unknown status (%d) after applying the default "
                                "TensorFlow Lite delegate indexed at %zu.",
                                status, i);
-          return kTfLiteError;
+          EFLAG();
+		  return kTfLiteError;
       }
     }
     lazy_delegate_providers_.clear();
   }
-
+  EFLAG();
   return primary_subgraph().AllocateTensors();
 }
 
@@ -279,7 +284,8 @@ TfLiteStatus Interpreter::ReleaseNonPersistentMemory() {
 }
 
 TfLiteStatus Interpreter::Invoke() {
-  std::cout << "tensorflow/lite/interpreter.cc/Interpreter::Invoke()\n";
+	//std::cout << "tensorflow/lite/interpreter.cc/Interpreter::Invoke()\n";
+  SFLAG();
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
   TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
@@ -292,7 +298,7 @@ TfLiteStatus Interpreter::Invoke() {
           primary_subgraph().EnsureTensorDataIsReadable(tensor_index));
     }
   }
-
+  EFLAG(); 
   return kTfLiteOk;
 }
 

@@ -136,7 +136,7 @@ cc_library(
 cc_library(
     name = "model_builder",
     srcs = ["model_builder.cc"],
-    hdrs = ["model_builder.h"],
+    hdrs = ["model_builder.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":data_type",
         ":lstm_parser",

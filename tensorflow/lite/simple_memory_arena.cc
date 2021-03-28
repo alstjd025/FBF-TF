@@ -15,11 +15,12 @@ limitations under the License.
 
 #include "tensorflow/lite/simple_memory_arena.h"
 
-#include <iostream>
 #include <algorithm>
 #include <cstring>
 #include <limits>
 #include <vector>
+
+#include "kmdebug.h"
 
 namespace {
 
@@ -36,7 +37,8 @@ TfLiteStatus SimpleMemoryArena::Allocate(
     TfLiteContext* context, size_t alignment, size_t size, int32_t tensor,
     int32_t first_node, int32_t last_node,
     ArenaAllocWithUsageInterval* new_alloc) {
-  std::cout << "tensorflow/lite/simple_memory_arena.cc/SimpleMemoryArena::Allocate()\n";
+  SFLAG();
+	//std::cout << "tensorflow/lite/simple_memory_arena.cc/SimpleMemoryArena::Allocate()\n";
   TF_LITE_ENSURE(context, alignment <= arena_alignment_);
   new_alloc->tensor = tensor;
   new_alloc->first_node = first_node;
@@ -44,6 +46,7 @@ TfLiteStatus SimpleMemoryArena::Allocate(
   new_alloc->size = size;
   if (size == 0) { 
     new_alloc->offset = 0;
+	EFLAG();
     return kTfLiteOk;
   }
 
@@ -83,6 +86,7 @@ TfLiteStatus SimpleMemoryArena::Allocate(
     ++insertion_it;
   }
   ordered_allocs_.insert(insertion_it, *new_alloc);
+  EFLAG();
   return kTfLiteOk;
 }
 

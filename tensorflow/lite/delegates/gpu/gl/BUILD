@@ -48,7 +48,7 @@ cc_library(
 cc_library(
     name = "api2",
     srcs = ["api2.cc"],
-    hdrs = ["api2.h"],
+    hdrs = ["api2.h","//tensorflow/lite:kmdebug.h"],
     deps = [
         ":command_queue",
         ":compiler",
@@ -109,7 +109,7 @@ flatbuffer_cc_library(
 cc_library(
     name = "compiler",
     srcs = ["compiler.cc"],
-    hdrs = ["compiler.h"],
+    hdrs = ["compiler.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":compiler_options",
         ":float16_conversions",
@@ -250,7 +250,7 @@ cc_library(
 cc_library(
     name = "gl_program",
     srcs = ["gl_program.cc"],
-    hdrs = ["gl_program.h"],
+    hdrs = ["gl_program.h","//tensorflow/lite:kmdebug.h"],
     deps = [
         ":gl_call",
         ":gl_errors",
@@ -266,7 +266,7 @@ cc_library(
 cc_library(
     name = "gl_shader",
     srcs = ["gl_shader.cc"],
-    hdrs = ["gl_shader.h"],
+    hdrs = ["gl_shader.h","//tensorflow/lite:kmdebug.h"],
     deps = [
         ":gl_call",
         ":gl_errors",
@@ -382,7 +382,7 @@ cc_library(
 cc_library(
     name = "runtime",
     srcs = ["runtime.cc"],
-    hdrs = ["runtime.h"],
+    hdrs = ["runtime.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":command_queue",
         ":gl_buffer",

@@ -15,7 +15,6 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/gpu/gl/api2.h"
 
-#include <iostream>
 #include <algorithm>
 #include <cstring>
 #include <string>
@@ -38,6 +37,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/runtime.h"
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 #include "tensorflow/lite/delegates/gpu/gl/workgroups/default_calculator.h"
+
+#include "tensorflow/lite/kmdebug.h"
 
 namespace tflite {
 namespace gpu {
@@ -124,21 +125,29 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status CopyFromExternalObject() final {
+	SFLAG();
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/DefaultTensorTie::CopyFromExternalObject()\n";
     if (!converter_from_) {
-      return absl::OkStatus();
+      EFLAG();
+	  return absl::OkStatus();
     }
+	EFLAG();
     return converter_from_->Convert(GetExternalObject(), internal_obj_);
   }
 
   absl::Status SetExternalObject(TensorObject obj) final {
-    std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/DefaultTensorTie::SetExtenrnalObject()\n";
+    SFLAG();
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/DefaultTensorTie::SetExtenrnalObject()\n";
 	if (!def().external_def.object_def.user_provided) {
-      return absl::InvalidArgumentError("External object is read-only");
+      EFLAG();
+	  return absl::InvalidArgumentError("External object is read-only");
     }
     if (!IsValid(def().external_def, obj)) {
+	  EFLAG();
       return absl::InvalidArgumentError("Given object is not valid");
     }
     external_obj_ = obj;
+    EFLAG();
     return absl::OkStatus();
   }
 
@@ -282,12 +291,18 @@ class TwoStepTensorTie : public TensorTie {
   }
 
   absl::Status CopyFromExternalObject() final {
-    RETURN_IF_ERROR(outer_tie_->CopyFromExternalObject());
+    SFLAG();
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/TwoStepTensorTie::CopyFromExternalObject()\n";
+	RETURN_IF_ERROR(outer_tie_->CopyFromExternalObject());
+	EFLAG();
     return inner_tie_->CopyFromExternalObject();
   }
 
   absl::Status SetExternalObject(TensorObject obj) final {
-    return outer_tie_->SetExternalObject(obj);
+    SFLAG();
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/TwoStepTensorTie::SetExternalObject()\n";
+	EFLAG();
+	return outer_tie_->SetExternalObject(obj);
   }
 
   TensorObject GetExternalObject() final {
@@ -324,9 +339,12 @@ class TwoStepTensorTie : public TensorTie {
 
   absl::Status Init(TensorObjectConverterBuilder* converter_builder,
                     ObjectManager* objects) {
+	SFLAG();
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/TwoStepTensorTie::Init()\n";
     auto defs = MakeOuterInnerDefs(def());
     RETURN_IF_ERROR(DefaultTensorTie::New(defs.second, converter_builder,
                                           objects, &inner_tie_));
+    EFLAG();
     return DefaultTensorTie::New(defs.first, converter_builder,
                                  inner_tie_->GetExternalObject(), &outer_tie_);
   }
@@ -406,10 +424,13 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status SetInputObject(int index, TensorObject object) override {
-    std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/SetInputObject()\n";
+    SFLAG();
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/InferenceRunnerImpl::SetInputObject()\n";
 	if (index < 0 || index >= inputs_.size()) {
+	  EFLAG();
       return absl::OutOfRangeError("Index is out of range");
     }
+ 	EFLAG();
     return inputs_[index]->SetExternalObject(object);
   }
 
@@ -421,6 +442,8 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
+    SFLAG();  
+	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/InferneceRunnerImpl::Run()\n";
     for (auto& obj : inputs_) {
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
     }
@@ -432,6 +455,7 @@ class InferenceRunnerImpl : public InferenceRunner {
     if (output_to_cpu_) {
       RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());
     }
+	EFLAG();
     return absl::OkStatus();
   }
 
