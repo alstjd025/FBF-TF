@@ -28,6 +28,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/types.h"
 #include "tensorflow/lite/delegates/gpu/gl/compiler/compiled_node.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace gl {
@@ -44,18 +46,19 @@ std::pair<std::string, std::string> MakeDataReplacement(int n, int k) {
 }  // namespace
 
 TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
+  SFLAG();
   auto& node_attr =
       absl::any_cast<CompiledNodeAttributes&>(node->operation.attributes);
   auto& node_code = node_attr.code;
 
   if (node_code.input != IOStructure::AUTO) {
+    EFLAG();
     return {TransformStatus::SKIPPED, ""};
   }
   uint3 workgroup = node_code.workgroup;
 
   auto node_outputs = graph->FindOutputs(node->id);
-
-  // Check which inputs could be fused into the current node.
+	  // Check which inputs could be fused into the current node.
   std::vector<std::pair<Node*, int>> nodes_to_fuse;
   std::vector<std::pair<ValueId, int>> input_values;
   int input_num = -1;
@@ -97,6 +100,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     input_values.pop_back();  // this value will not be used as input.
   }
   if (nodes_to_fuse.empty()) {
+    EFLAG();
     return {TransformStatus::SKIPPED, ""};
   }
 
@@ -106,6 +110,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     for (const auto& node_to_fuse : nodes_to_fuse) {
       for (const auto& input : graph->FindInputs(node_to_fuse.first->id)) {
         if (all_inputs.find(input->id) != all_inputs.end()) {
+		  EFLAG();
           return {TransformStatus::SKIPPED, ""};
         }
         all_inputs.insert(input->id);
@@ -113,6 +118,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     }
     for (const auto& input : graph->FindInputs(node->id)) {
       if (all_inputs.find(input->id) != all_inputs.end()) {
+		EFLAG();
         return {TransformStatus::SKIPPED, ""};
       }
       all_inputs.insert(input->id);
@@ -122,6 +128,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
   // Break connections between current node and its inputs.
   for (auto value : graph->FindInputs(node->id)) {
     if (!graph->RemoveConsumer(node->id, value->id).ok()) {
+	  EFLAG();
       return {TransformStatus::INVALID, ""};
     }
   }
@@ -196,6 +203,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
       }
 
       if (!graph->AddConsumer(node->id, super_inputs[i]->id).ok()) {
+		EFLAG();
         return {TransformStatus::INVALID, ""};
       }
       input_num++;
@@ -210,6 +218,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
 
     // Merge all objects, parameters and source code.
     if (!MergeCode(&attr, &node_attr).ok()) {
+	  EFLAG();
       return {TransformStatus::INVALID, "Unable to merge the code"};
     }
     absl::StrAppend(&node_attr.code.source_code, "{\n", attr.code.source_code,
@@ -221,6 +230,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     operation_type += input->operation.type;
 
     if (!graph->DeleteNode(input->id).ok()) {
+	  EFLAG();
       return {TransformStatus::INVALID, ""};
     }
   }
@@ -233,6 +243,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
                       "[gid.x, gid.y, gid.z]$;\n");
     }
     if (!graph->AddConsumer(node->id, input_values[i].first).ok()) {
+	  EFLAG();
       return {TransformStatus::INVALID, ""};
     }
     input_num++;
@@ -244,7 +255,7 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
   node_code.source_code =
       absl::StrCat(values, node_code.source_code, "{//FUSED",
                    node->operation.type, "\n", source_code, "\n}");
-
+  EFLAG();
   return {TransformStatus::APPLIED, ""};
 }
 

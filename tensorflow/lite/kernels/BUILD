@@ -465,6 +465,7 @@ cc_library(
     ],
     hdrs = [
         "kernel_util.h",
+		"//tensorflow/lite:kmdebug.h"
     ],
     compatible_with = get_compatible_with_portable(),
     copts = tflite_copts() + micro_copts(),

@@ -71,7 +71,7 @@ struct Caller<void> {
   absl::Status operator()(const std::string& context, F func, ErrorF error_func,
                           Params&&... params) {
     //std::cout << "tensorflow/lite/delegates/gpu/gl/gl_call.h/Caller<void>()\n";
-    func(std::forward<Params>(params)...);
+	func(std::forward<Params>(params)...);
     const auto status = error_func();
     if (status.ok()) return absl::OkStatus();
     return absl::Status(status.code(),

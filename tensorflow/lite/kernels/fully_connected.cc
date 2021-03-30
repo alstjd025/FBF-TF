@@ -15,7 +15,6 @@ limitations under the License.
 
 #include "tensorflow/lite/kernels/internal/optimized/integer_ops/fully_connected.h"
 
-#include <iostream>
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -35,6 +34,8 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/tensor_utils.h"
 #include "tensorflow/lite/kernels/internal/types.h"
 #include "tensorflow/lite/kernels/kernel_util.h"
+
+#include "tensorflow/lite/kmdebug.h"
 
 namespace tflite {
 namespace ops {
@@ -498,7 +499,8 @@ TfLiteStatus EvalQuantized(TfLiteContext* context, TfLiteNode* node,
                            const TfLiteTensor* input,
                            const TfLiteTensor* filter, const TfLiteTensor* bias,
                            TfLiteTensor* output) {
-  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalQuantized()\n";
+  SFLAG();
+	//std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalQuantized()\n";
   int32_t input_offset = -input->params.zero_point;
   int32_t filter_offset = -filter->params.zero_point;
   int32_t output_offset = output->params.zero_point;
@@ -519,6 +521,7 @@ TfLiteStatus EvalQuantized(TfLiteContext* context, TfLiteNode* node,
     TfLiteTensor* row_sums;
     TF_LITE_ENSURE_OK(context,
                       GetTemporarySafe(context, node, /*index=*/4, &row_sums));
+	EFLAG();
     return EvalHybrid(context, node, params, data, input, filter, bias,
                       input_quantized, scaling_factors, accum_scratch, row_sums,
                       input_offsets, output);
@@ -577,10 +580,11 @@ TfLiteStatus EvalQuantized(TfLiteContext* context, TfLiteNode* node,
         context->ReportError(context,
                              "Quantized FullyConnected expects output data "
                              "type uint8, int8 or int16");
+		EFLAG();
         return kTfLiteError;
     }
   }
-
+  EFLAG();
   return kTfLiteOk;
 }
 
@@ -592,11 +596,13 @@ TfLiteStatus EvalShuffledQuantized(TfLiteContext* context, TfLiteNode* node,
                                    const TfLiteTensor* bias,
                                    TfLiteTensor* output,
                                    TfLiteTensor* shuffled_input_workspace) {
-  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalShuffledQuantized()\n";
+  SFLAG();
+	//std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalShuffledQuantized()\n";
   // TODO(b/110697972) decide more consistently if / how / where we want
   // to perform this kind of runtime data type checks.
   if (shuffled_input_workspace->type != kTfLiteUInt8) {
     context->ReportError(context, "Unexpected data type");
+	EFLAG();
     return kTfLiteError;
   }
 
@@ -634,7 +640,7 @@ TfLiteStatus EvalShuffledQuantized(TfLiteContext* context, TfLiteNode* node,
         CpuBackendContext::GetFromContext(context));
   }
 #undef TF_LITE_SHUFFLED_FULLY_CONNECTED
-
+  EFLAG();
   return kTfLiteOk;
 }
 
@@ -643,7 +649,8 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
                        TfLiteFullyConnectedParams* params, OpData* data,
                        const TfLiteTensor* input, const TfLiteTensor* filter,
                        const TfLiteTensor* bias, TfLiteTensor* output) {
-  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalFloat()\n";
+  SFLAG();
+  //std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalFloat()\n";
   float output_activation_min, output_activation_max;
   CalculateActivationRange(params->activation, &output_activation_min,
                            &output_activation_max);
@@ -667,6 +674,7 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
           GetTensorShape(output), GetTensorData<float>(output));
     }
   } else if (kernel_type == kLegacyPie) {
+	EFLAG();
     return EvalPie(context, node, params, data, input, filter, bias, output);
   } else {
     FullyConnectedParams op_params;
@@ -677,6 +685,7 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
       if (!SupportedSparsityFormat(sparsity)) {
         TF_LITE_KERNEL_LOG(context,
                            "Unsupported sparse fully-connected weight format.");
+		EFLAG();
         return kTfLiteError;
       }
 
@@ -701,6 +710,7 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
       } else {
         TF_LITE_KERNEL_LOG(context,
                            "Unsupported sparse fully-connected weight format.");
+		EFLAG();
         return kTfLiteError;
       }
 
@@ -713,16 +723,17 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
           GetTensorShape(bias), GetTensorData<float>(bias),
           GetTensorShape(output), GetTensorData<float>(output),
           CpuBackendContext::GetFromContext(context));
-      //std::cout <<"EvalFloat : " << *(float*)output->data.data << std::endl;
+      std::cout <<"EvalFloat : " << *(float*)output->data.data << std::endl;
     }
   }
-
+  EFLAG();
   return kTfLiteOk;
 }
 
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
-  std::cout << "tensorflow/lite/kernels/fully_connected.cc/Eval()\n";
+  SFLAG();
+  //std::cout << "tensorflow/lite/kernels/fully_connected.cc/Eval()\n";
   auto* params =
       reinterpret_cast<TfLiteFullyConnectedParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
@@ -739,9 +750,9 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
   TfLiteTensor* output;
   TF_LITE_ENSURE_OK(context,
                     GetOutputSafe(context, node, kOutputTensor, &output));
-
   switch (filter->type) {
     case kTfLiteFloat32:
+	  EFLAG();
       return EvalFloat<kernel_type>(context, node, params, data, input, filter,
                                     bias, output);
     case kTfLiteUInt8:
@@ -751,33 +762,40 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
         TF_LITE_ENSURE_OK(
             context, GetOutputSafe(context, node, kShuffledInputWorkspaceTensor,
                                    &shuffled_input_workspace));
+		EFLAG();
         return EvalShuffledQuantized<kernel_type>(context, node, params, data,
                                                   input, filter, bias, output,
                                                   shuffled_input_workspace);
       } else if (params->weights_format ==
                  kTfLiteFullyConnectedWeightsFormatDefault) {
+		EFLAG();
         return EvalQuantized<kernel_type>(context, node, params, data, input,
                                           filter, bias, output);
       } else {
         context->ReportError(context,
                              "Unhandled fully-connected weights format");
+		EFLAG();
         return kTfLiteError;
       }
     case kTfLiteInt8:
       if (params->weights_format == kTfLiteFullyConnectedWeightsFormatDefault) {
+		EFLAG();
         return EvalQuantized<kernel_type>(context, node, params, data, input,
                                           filter, bias, output);
       } else {
         context->ReportError(context,
                              "Unhandled fully-connected weights format");
+		EFLAG();
         return kTfLiteError;
       }
     default:
       context->ReportError(context,
                            "Filter data type %s currently not supported.",
                            TfLiteTypeGetName(filter->type));
+	  EFLAG();
       return kTfLiteError;
   }
+  EFLAG();
   return kTfLiteOk;
 }
 

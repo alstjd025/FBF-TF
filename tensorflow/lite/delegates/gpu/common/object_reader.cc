@@ -29,6 +29,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/utils.h"
 #include "tensorflow/lite/kernels/kernel_util.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 
@@ -215,6 +217,8 @@ TfLiteTensor* ObjectReader::GetInputTensor(int index) const {
 }
 
 TfLiteTensor* ObjectReader::GetOutputTensor(int index) const {
+  SFLAG();
+  EFLAG();
   return index >= 0 && index < node_->outputs->size
              ? context_->tensors + node_->outputs->data[index]
              : nullptr;

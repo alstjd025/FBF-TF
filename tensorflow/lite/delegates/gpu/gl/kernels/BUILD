@@ -12,7 +12,7 @@ package(
 cc_library(
     name = "converter",
     srcs = ["converter.cc"],
-    hdrs = ["converter.h"],
+    hdrs = ["converter.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         "//tensorflow/lite/delegates/gpu:spi",
         "//tensorflow/lite/delegates/gpu/common:shape",

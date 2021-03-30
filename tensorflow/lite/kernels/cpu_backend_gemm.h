@@ -31,6 +31,8 @@ limitations under the License.
 #include "tensorflow/lite/kernels/cpu_backend_gemm_x86.h"
 #endif
 
+//#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 
 namespace cpu_backend_gemm {
@@ -126,6 +128,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
           const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
           const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
           CpuBackendContext* context) {
+  //SFLAG();
   std::cout << "tensorflow/lite/kernels/cpu_backend_gemm.h/Gemm()" << std::endl;
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm");
   ValidateParams(lhs_params, rhs_params, dst_params, params);
@@ -154,6 +157,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
                                                        rhs_params, rhs_data,
                                                        dst_params, dst_data,
                                                        params, context);
+    //EFLAG();
     return;
   }
   // If we did not choose to force usage of ruy above, then we may now consider
@@ -164,6 +168,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
     // actually handled it.
     if (detail::CustomGemv(lhs_params, lhs_data, rhs_params, rhs_data,
                            dst_params, dst_data, params, context)) {
+      //EFLAG();
       return;
     }
   }
@@ -172,6 +177,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
   GemmImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
            quantization_flavor>::Run(lhs_params, lhs_data, rhs_params, rhs_data,
                                      dst_params, dst_data, params, context);
+  //EFLAG();
 }
 
 // Special path for gemm with raw accumulator case. i.e. AccumScalar ==

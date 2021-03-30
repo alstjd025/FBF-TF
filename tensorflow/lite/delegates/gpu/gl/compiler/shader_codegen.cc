@@ -25,6 +25,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/compiler/variable_accessor.h"
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace gl {
@@ -35,6 +37,7 @@ ShaderCodegen::ShaderCodegen(const CompilationOptions& options,
 
 absl::Status ShaderCodegen::Build(CompiledNodeAttributes attr,
                                   ShaderCode* shader_code) const {
+  SFLAG();
   VariableAccessor variable_accessor(options_.inline_parameters,
                                      options_.vulkan_support);
   ObjectAccessor object_accessor(gpu_type_ == GpuType::MALI,
@@ -68,6 +71,7 @@ absl::Status ShaderCodegen::Build(CompiledNodeAttributes attr,
   for (auto&& variable : attr.code.shared_variables) {
     const std::string name = variable.name;
     if (!variable_accessor.AddSharedVariable(std::move(variable))) {
+	  EFLAG();
       return absl::AlreadyExistsError(
           absl::StrCat("Shared variable \"", name, "\""));
     }
@@ -176,6 +180,7 @@ absl::Status ShaderCodegen::Build(CompiledNodeAttributes attr,
       ShaderCode(variable_accessor.GetUniformParameters(),
                  object_accessor.GetObjects(), attr.code.workload,
                  attr.code.workgroup, partial_source_code, attr.node_indices);
+  EFLAG();
   return absl::OkStatus();
 }
 

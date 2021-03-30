@@ -735,10 +735,22 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
     const std::vector<int>& intermediates, const char* init_data,
     size_t init_data_size, void* builtin_data,
     const TfLiteRegistration* registration, int* node_index) {
+  SFLAG();
+  std::cout << "in: ";
+  for(int i = 0; i < inputs.size(); ++i) {
+  	std::cout << inputs[i] << " ";
+  }std::cout << std::endl;
+
+  std::cout << "out: ";
+  for(int i = 0; i < outputs.size(); ++i) {
+	std::cout << outputs[i] << " ";
+  } std::cout << std::endl;
+
   std::unique_ptr<void, decltype(free)*> builtin_data_deleter(builtin_data,
                                                               free);
   if (state_ == kStateInvokableAndImmutable) {
     ReportError("AddNodeWithParameters is disallowed when graph is immutable.");
+    EFLAG();
     return kTfLiteError;
   }
   state_ = kStateUninvokable;
@@ -748,7 +760,6 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   TF_LITE_ENSURE_OK(
       &context_,
       CheckTensorIndices("node outputs", outputs.data(), outputs.size()));
-
   // For builtin ops, inputs and outputs must not overlap. Custom ops must do
   // this check by themselves if they don't support overlapping tensors. This
   // distinction is to allow custom ops to just forward a tensor, reusing it as
@@ -801,6 +812,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   // Copying of registration is required to support unresolved custom ops.
   node_and_reg.second = *registration;
   execution_plan_.push_back(new_node_index);
+  EFLAG();
   return kTfLiteOk;
 }
 
@@ -1092,8 +1104,7 @@ TfLiteStatus Subgraph::Invoke() {
 	  return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-
-    // Force execution prep for downstream ops if the latest op triggered the
+	// Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
         HasDynamicTensor(context_, node.outputs)) {
@@ -1112,7 +1123,11 @@ TfLiteStatus Subgraph::Invoke() {
         }
       }
     }
-  } 
+  }/*
+  for(int i = 0; i < 11; ++i) {
+     if (i >7 && i < 10) continue; 
+ 	 std::cout << i <<" TEST : " << *(float*)context_.tensors[i].data.data  << std::endl;
+}*/
   EFLAG();
   return status;
 }

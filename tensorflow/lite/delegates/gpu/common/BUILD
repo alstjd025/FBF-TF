@@ -217,7 +217,7 @@ cc_library(
 cc_library(
     name = "object_reader",
     srcs = ["object_reader.cc"],
-    hdrs = ["object_reader.h"],
+    hdrs = ["object_reader.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":model",
         ":model_builder_helper",

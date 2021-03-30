@@ -20,12 +20,15 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 #include "tensorflow/lite/delegates/gpu/gl/compiler/rename.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace gl {
 
 absl::Status MergeCode(CompiledNodeAttributes* attr,
                        CompiledNodeAttributes* merged_attr) {
+  SFLAG();
   // build a map of known names.
   absl::flat_hash_set<std::string> known_names;
   for (const auto& parameter : merged_attr->code.parameters) {
@@ -55,6 +58,7 @@ absl::Status MergeCode(CompiledNodeAttributes* attr,
             std::back_inserter(merged_attr->code.parameters));
   std::move(attr->node_indices.begin(), attr->node_indices.end(),
             std::back_inserter(merged_attr->node_indices));
+  EFLAG();
   return absl::OkStatus();
 }
 

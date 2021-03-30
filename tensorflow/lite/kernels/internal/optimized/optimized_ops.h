@@ -57,6 +57,8 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/transpose_utils.h"
 #include "tensorflow/lite/kernels/internal/types.h"
 
+//#include "tensorflow/lite/kmdebug.h"
+
 #if __aarch64__ && __clang__
 #define TFLITE_SOFTMAX_USE_UINT16_LUT
 #endif
@@ -373,6 +375,7 @@ inline void FullyConnected(
     const float* weights_data, const RuntimeShape& bias_shape,
     const float* optional_bias_data, const RuntimeShape& output_shape,
     float* output_data, CpuBackendContext* cpu_backend_context) {
+  //SFLAG();
   std::cout << "tensorflow/lite/kernels/internal/optimized/optimized_ops.h/FullyConnected(float)\n";
   ruy::profiler::ScopeLabel label("FullyConnected");
   const int dims_count = weights_shape.DimensionsCount();
@@ -406,6 +409,7 @@ inline void FullyConnected(
   cpu_backend_gemm::Gemm(lhs_params, weights_data, rhs_params, input_data,
                          dst_params, output_data, gemm_params,
                          cpu_backend_context);
+  //EFLAG();
 }
 
 inline void FullyConnected(

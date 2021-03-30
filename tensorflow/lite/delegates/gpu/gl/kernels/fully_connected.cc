@@ -66,7 +66,7 @@ class FullyConnectedBuffers : public NodeShader {
   const int threads = int(gl_WorkGroupSize.y);
   const int workers = int(gl_WorkGroupSize.x);
   ivec3 tid = ivec3(gl_LocalInvocationID);
- 
+
   if (gid.x < $dst_depth$) {
     int offset = 4 * gid.x * $src_depth$ + 4 * tid.y;
     int iterations = ($src_depth$ + threads-1) / threads;

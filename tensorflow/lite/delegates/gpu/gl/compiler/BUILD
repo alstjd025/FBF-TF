@@ -74,7 +74,7 @@ cc_library(
 cc_library(
     name = "shader_codegen",
     srcs = ["shader_codegen.cc"],
-    hdrs = ["shader_codegen.h"],
+    hdrs = ["shader_codegen.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":compiled_node",
         ":object_accessor",
@@ -95,7 +95,7 @@ cc_library(
 cc_library(
     name = "compiled_node",
     srcs = ["compiled_node.cc"],
-    hdrs = ["compiled_node.h"],
+    hdrs = ["compiled_node.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":rename",
         "//tensorflow/lite/delegates/gpu/common:model",
@@ -160,7 +160,7 @@ cc_library(
 cc_library(
     name = "fuse_auto_input",
     srcs = ["fuse_auto_input.cc"],
-    hdrs = ["fuse_auto_input.h"],
+    hdrs = ["fuse_auto_input.h", "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":compiled_node",
         "//tensorflow/lite/delegates/gpu/common:model",

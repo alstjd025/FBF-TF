@@ -33,6 +33,7 @@ limitations under the License.
 //       runner->SetInputObject(0, OpenGlTexture{texture_ud, texture_format}));
 //   RETURN_IF_ERROR(runner->Run());
 
+#include <iostream>
 #include <cstdint>
 #include <memory>
 #include <vector>

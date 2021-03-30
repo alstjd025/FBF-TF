@@ -2840,6 +2840,8 @@ bool IsAllAllowedTensors(TfLiteContext* context,
   return true;
 }
 }  // namespace
+absl::Status a()
+ { return absl::UnimplementedError("TEST");}
 
 // TODO(impjdi): Check number of input/output tensors and their dimensions.
 // TODO(impjdi): Check ops' parameters.
@@ -2847,18 +2849,32 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
   SFLAG();
   //std::cout << "tensorflow/lite/delegates/gpu/common/model_builder.cc/GetOpsToReplace()\n";
+	
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-    if (!status.ok()) {
+	std::cout << " TEST ";
+    std::cout << node->outputs->data[0] << std::endl;
+	if(node->outputs->data[0]==10){
+		const auto test_status = a();
+		if (!test_status.ok()) {
+      	if (unsupported_details) {
+       			*unsupported_details = std::string(test_status.message());
+      		}
+      		return false;
+    	}
+	}
+    else{
+	if (!status.ok()) {
       if (unsupported_details) {
-        *unsupported_details = std::string(status.message());
-      }
-      return false;
-    }
+		*unsupported_details = std::string(status.message());
+	  }
+	  return false;
+	}
+	}
 
     if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
         !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) {

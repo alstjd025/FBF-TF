@@ -229,6 +229,7 @@ class DelegateKernel {
           QuantizeOutputs(context, output_indices_, quant_conversion_map_));
     }
 	EFLAG();
+	//std::cout << "TEST : " << *(float*)context->tensors->data.data << std::endl;
     return absl::OkStatus();
   }
 
@@ -258,7 +259,10 @@ class DelegateKernel {
   }
 
   TensorObject GetTensorObject(int index, TfLiteContext* context) const {
+    SFLAG();
     auto& tensor = context->tensors[index];
+    std::cout << "tflitegpudelegatev2 input : " << *(float*)tensor.data.data << std::endl;
+	EFLAG();
     return MakeCpuMemory(absl::MakeSpan(tensor.data.raw, tensor.bytes));
   }
 

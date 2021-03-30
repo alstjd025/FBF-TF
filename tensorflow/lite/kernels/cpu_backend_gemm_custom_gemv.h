@@ -47,6 +47,8 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/compatibility.h"
 #include "tensorflow/lite/kernels/internal/optimized/neon_check.h"
 
+//#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace cpu_backend_gemm {
 namespace detail {
@@ -156,10 +158,12 @@ bool CustomGemv(
   using Impl = CustomGemvImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                               quantization_flavor>;
   if (lhs_params.rows < Impl::kKernelRows) {
+    //EFLAG();
     return false;
   }
   if (!Impl::IsSupportedGivenSufficientlyManyRows(lhs_params, rhs_params,
                                                   dst_params, params)) {    
+	//EFLAG();
     return false;
   }
   TFLITE_DCHECK_GE(lhs_params.rows, Impl::kKernelRows);
@@ -185,7 +189,7 @@ bool CustomGemv(
     }
     cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), context);
   }
-  
+  //EFLAG();
   return true;
 }
 

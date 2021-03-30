@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/kernels/kernel_util.h"
 
+#include <iostream>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -25,6 +26,8 @@ limitations under the License.
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/kernels/internal/cppmath.h"
 #include "tensorflow/lite/kernels/internal/quantization_util.h"
+
+#include "tensorflow/lite/kmdebug.h"
 
 namespace tflite {
 
@@ -88,11 +91,15 @@ inline TfLiteTensor* GetMutableInput(const TfLiteContext* context,
 inline TfLiteStatus GetMutableInputSafe(const TfLiteContext* context,
                                         const TfLiteNode* node, int index,
                                         const TfLiteTensor** tensor) {
+  SFLAG();
   int tensor_index;
   TF_LITE_ENSURE_OK(
       context, ValidateTensorIndexingSafe(context, index, node->inputs->size,
                                           node->inputs->data, &tensor_index));
   *tensor = GetTensorAtIndex(context, tensor_index);
+/*  if ((*tensor)->data.data != 0) 
+	  std::cout << "TEST : " << *(float*)(*tensor)->data.data << std::endl;*/
+  EFLAG();
   return kTfLiteOk;
 }
 
