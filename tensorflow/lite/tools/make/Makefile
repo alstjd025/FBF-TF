@@ -2,6 +2,16 @@
 # below.
 SHELL := /bin/bash
 
+# Choose between DEBUG and RELEASE
+ifeq ($(RELEASE), 1)
+	DBG_FLAGS = -O2 -DNKMDEBUG
+else
+	DBG_FLAGS = -g -O0 -DKMDEBUG
+endif
+
+
+
+
 # Find where we're running from, so we can store generated files here.
 ifeq ($(origin MAKEFILE_DIR), undefined)
 	MAKEFILE_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
@@ -327,16 +337,16 @@ $(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(BENCHMARK_LIB_SRCS))))
 # For normal manually-created TensorFlow Lite C++ source files.
 $(OBJDIR)%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DBG_FLAGS) -c $< -o $@
 
 $(OBJDIR)%.o: %.cc
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DBG_FLAGS) -c $< -o $@
 
 # For normal manually-created TensorFlow Lite C source files.
 $(OBJDIR)%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDES) $(DBG_FLAGS) -c $< -o $@
 
 # The target that's compiled if there's no command-line arguments.
 all: $(LIB_PATH)  $(MINIMAL_BINARY) $(BENCHMARK_BINARY) $(BENCHMARK_PERF_OPTIONS_BINARY)
@@ -357,7 +367,7 @@ lib: $(LIB_PATH)
 
 $(MINIMAL_BINARY): $(MINIMAL_OBJS) $(LIB_PATH)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) \
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DBG_FLAGS)\
 	-o $(MINIMAL_BINARY) $(MINIMAL_OBJS) \
 	$(LIBFLAGS) $(LIB_PATH) $(LDFLAGS) $(LIBS)
 
@@ -365,7 +375,7 @@ minimal: $(MINIMAL_BINARY)
 
 $(LABEL_IMAGE_BINARY): $(LABEL_IMAGE_OBJS) $(LIB_PATH)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) \
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DBG_FLAGS)\
 	-o $(LABEL_IMAGE_BINARY) $(LABEL_IMAGE_OBJS) \
 	$(LIBFLAGS) $(LIB_PATH) $(LDFLAGS) $(LIBS)
 
@@ -386,13 +396,13 @@ endif
 
 $(BENCHMARK_BINARY) : $(BENCHMARK_MAIN_OBJ) $(BENCHMARK_LIB)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) \
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DBG_FLAGS) \
 	-o $(BENCHMARK_BINARY) $(BENCHMARK_MAIN_OBJ) \
 	$(LIBFLAGS) $(BENCHMARK_LINKOPTS)
 
 $(BENCHMARK_PERF_OPTIONS_BINARY) : $(BENCHMARK_PERF_OPTIONS_OBJ) $(BENCHMARK_LIB)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) \
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DBG_FLAGS) \
 	-o $(BENCHMARK_PERF_OPTIONS_BINARY) $(BENCHMARK_PERF_OPTIONS_OBJ) \
 	$(LIBFLAGS) $(BENCHMARK_LIB) $(LDFLAGS) $(LIBS)
 

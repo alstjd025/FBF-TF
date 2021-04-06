@@ -285,6 +285,11 @@ TfLiteStatus Interpreter::ReleaseNonPersistentMemory() {
 
 TfLiteStatus Interpreter::Invoke() {
 	//std::cout << "tensorflow/lite/interpreter.cc/Interpreter::Invoke()\n";
+#ifdef KMDEBUG
+  std::cout << "DEBUG TEST" << std::endl;
+  std::cout << "TEST" << std::endl;
+
+#endif
   SFLAG();
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
