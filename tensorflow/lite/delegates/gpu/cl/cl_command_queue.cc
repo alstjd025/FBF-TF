@@ -26,6 +26,9 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 #include "tensorflow/lite/delegates/gpu/common/types.h"
 
+#include <iostream>
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -60,6 +63,9 @@ absl::Status CLCommandQueue::Dispatch(const CLKernel& kernel,
                                       const int3& work_groups_count,
                                       const int3& work_group_size,
                                       CLEvent* event) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   std::vector<size_t> local(3);
   std::vector<size_t> global(3);
   for (int i = 0; i < 3; ++i) {
@@ -70,6 +76,7 @@ absl::Status CLCommandQueue::Dispatch(const CLKernel& kernel,
   const int error_code = clEnqueueNDRangeKernel(
       queue_, kernel.kernel(), 3, nullptr, global.data(), local.data(), 0,
       nullptr, event ? &resulting_event : nullptr);
+  //std::cout << local[0] << " " << local[1] << " " << local[2] << std::endl;
   if (event) {
     *event = CLEvent(resulting_event);
   }

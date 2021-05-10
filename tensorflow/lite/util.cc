@@ -149,8 +149,9 @@ bool IsUnresolvedCustomOp(const TfLiteRegistration& registration) {
 }
 
 std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
+#ifdef DEBUG
   SFLAG();
-  //std::cout << "tensorflow/lite/util.cc/GetOpNameByRegistration()\n";
+#endif
   auto op = registration.builtin_code;
   std::string result =
       EnumNameBuiltinOperator(static_cast<BuiltinOperator>(op));
@@ -158,7 +159,6 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
       registration.custom_name) {
     result += " " + std::string(registration.custom_name);
   }
-  EFLAG();
   return result;
 }
 

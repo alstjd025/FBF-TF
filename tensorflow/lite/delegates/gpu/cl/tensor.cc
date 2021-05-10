@@ -24,6 +24,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/data_type.h"
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -31,6 +33,9 @@ namespace {
 absl::Status AllocateTensorMemory(const CLContext& context, const BHWDC& shape,
                                   const TensorDescriptor& descriptor,
                                   const void* data_ptr, CLMemory* result) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   const int slices = DivideRoundUp(shape.c, 4);
   cl_mem_flags mem_flags = CL_MEM_READ_WRITE;
   if (data_ptr) {

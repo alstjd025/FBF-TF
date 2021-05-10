@@ -22,6 +22,7 @@ limitations under the License.
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -636,8 +637,13 @@ absl::Status InferenceContext::AddToQueue(CLCommandQueue* queue) {
     RETURN_IF_ERROR(queue->EnqueueEvent(&prev_enqueue_start_point_));
   }
   int counter = 0;
+
   for (auto& node : nodes_) {
     RETURN_IF_ERROR(node.operation->AddToQueue(queue));
+    Tensor* t = node.operation->GetSrc()[0];
+    //std::cout << "addtoQ : " <<t->GetDescriptor().data.size() << std::endl;
+    //for (int i = 0; i < 100; ++i)
+      //std::cout << "addtoQ : " << *((float*)t->GetMemoryPtr()+i) << std::endl;
     counter++;
     if (flush_periodically_ && counter % flush_period_ == 0) {
       clFlush(queue->queue());

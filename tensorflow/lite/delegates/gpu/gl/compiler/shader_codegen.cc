@@ -71,7 +71,6 @@ absl::Status ShaderCodegen::Build(CompiledNodeAttributes attr,
   for (auto&& variable : attr.code.shared_variables) {
     const std::string name = variable.name;
     if (!variable_accessor.AddSharedVariable(std::move(variable))) {
-	  EFLAG();
       return absl::AlreadyExistsError(
           absl::StrCat("Shared variable \"", name, "\""));
     }
@@ -180,7 +179,6 @@ absl::Status ShaderCodegen::Build(CompiledNodeAttributes attr,
       ShaderCode(variable_accessor.GetUniformParameters(),
                  object_accessor.GetObjects(), attr.code.workload,
                  attr.code.workgroup, partial_source_code, attr.node_indices);
-  EFLAG();
   return absl::OkStatus();
 }
 

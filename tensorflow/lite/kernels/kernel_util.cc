@@ -91,7 +91,9 @@ inline TfLiteTensor* GetMutableInput(const TfLiteContext* context,
 inline TfLiteStatus GetMutableInputSafe(const TfLiteContext* context,
                                         const TfLiteNode* node, int index,
                                         const TfLiteTensor** tensor) {
+#ifdef DEBUG
   SFLAG();
+#endif
   int tensor_index;
   TF_LITE_ENSURE_OK(
       context, ValidateTensorIndexingSafe(context, index, node->inputs->size,
@@ -99,7 +101,6 @@ inline TfLiteStatus GetMutableInputSafe(const TfLiteContext* context,
   *tensor = GetTensorAtIndex(context, tensor_index);
 /*  if ((*tensor)->data.data != 0) 
 	  std::cout << "TEST : " << *(float*)(*tensor)->data.data << std::endl;*/
-  EFLAG();
   return kTfLiteOk;
 }
 

@@ -47,6 +47,9 @@ limitations under the License.
 #include "tensorflow/lite/kernels/kernel_util.h"
 #include "tensorflow/lite/kernels/padding.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
+
 namespace tflite {
 namespace ops {
 namespace builtin {
@@ -751,6 +754,9 @@ void EvalFloat(TfLiteContext* context, TfLiteNode* node,
                const TfLiteTensor* input, const TfLiteTensor* filter,
                const TfLiteTensor* bias, TfLiteTensor* im2col,
                TfLiteTensor* hwcn_weights, TfLiteTensor* output) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   float output_activation_min, output_activation_max;
   CalculateActivationRange(params->activation, &output_activation_min,
                            &output_activation_max);
@@ -1054,7 +1060,10 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
 
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
-  std::cout << "tensorflow/lite/kernels/conv.cc/Eval()\n";
+#ifdef DEBUG
+  SFLAG();
+#endif
+  //std::cout << "tensorflow/lite/kernels/conv.cc/Eval()\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));
 

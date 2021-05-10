@@ -24,6 +24,9 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/data_type.h"
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 
+#include <stdio.h>
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -564,6 +567,9 @@ std::string Arguments::GetListOfArgs() {
 }
 
 absl::Status Arguments::Bind(cl_kernel kernel, int offset) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   for (auto& t : buffers_) {
     const int error_code =
         clSetKernelArg(kernel, offset, sizeof(cl_mem), &t.second.memory);

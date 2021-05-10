@@ -118,7 +118,6 @@ class FullyConnectedBuffers : public NodeShader {
         /*input=*/IOStructure::ONLY_DEFINITIONS,
         /*output=*/IOStructure::ONLY_DEFINITIONS,
     };
-	EFLAG();
     return absl::OkStatus();
   }
 };

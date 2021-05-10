@@ -115,6 +115,8 @@ class GPUOperation {
 
   void SetSrc(Tensor* ptr, int index = 0);
   void SetDst(Tensor* ptr, int index = 0);
+  std::vector<Tensor*> GetSrc() { return src_; };
+  std::vector<Tensor*> GetDst() { return dst_; };
 
   // should be called after changes of inputs/outputs.
   absl::Status UpdateParams();

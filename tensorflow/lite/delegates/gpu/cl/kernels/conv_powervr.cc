@@ -28,6 +28,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/shape.h"
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -326,6 +328,9 @@ std::string ConvPowerVR::GenerateConv(const DeviceInfo& device_info,
                                       const OperationDef& op_def,
                                       bool stride_correction,
                                       const ConvParams& conv_params) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   auto src_desc = op_def.src_tensors[0];
   src_desc.SetTextureAddressMode(TextureAddressMode::ZERO);
   if (op_def.IsBatchSupported()) {

@@ -115,23 +115,17 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
   std::cout << "cast intput :" << *input->data.i64 << std::endl;
   switch (input->type) {
     case kTfLiteInt64:
-	  EFLAG();
       return copyToTensor(context, input->data.i64, output, num_elements);
     case kTfLiteInt32:
-	  EFLAG();
       return copyToTensor(context, input->data.i32, output, num_elements);
     case kTfLiteUInt8:
-	  EFLAG();
       return copyToTensor(context, input->data.uint8, output, num_elements);
     case kTfLiteFloat32:
-	  EFLAG();
       return copyToTensor(context, GetTensorData<float>(input), output,
                           num_elements);
     case kTfLiteBool:
-	  EFLAG();
       return copyToTensor(context, input->data.b, output, num_elements);
     case kTfLiteComplex64:
-	  EFLAG();
       return copyToTensor(
           context, reinterpret_cast<std::complex<float>*>(input->data.c64),
           output, num_elements);
@@ -139,7 +133,6 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
       // Unsupported type.
       TF_LITE_UNSUPPORTED_TYPE(context, input->type, "Cast");
   }
-  EFLAG();
   return kTfLiteOk;
 }
 }  // namespace cast

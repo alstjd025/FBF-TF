@@ -142,17 +142,14 @@ class FromTensorConverter : public OpenGlConverterImpl {
 	SFLAG();
     auto output = absl::get_if<OpenGlBuffer>(&output_obj);
     if (!output || !output->id) {
-	  EFLAG();
       return absl::InvalidArgumentError("Missing output in converter");
     }
     auto input = absl::get_if<OpenGlBuffer>(&input_obj);
 
     if (!input || !input->id) {
-	  EFLAG();
       return absl::InvalidArgumentError("Missing input in converter");
     }
     if (input->id == output->id) {
-	  EFLAG();
       return absl::InvalidArgumentError("Can not execute inplace conversion");
     }
     GlBuffer input_ssbo;
@@ -161,12 +158,10 @@ class FromTensorConverter : public OpenGlConverterImpl {
     RETURN_IF_ERROR(WrapSSBO(*output, &output_ssbo));
 	
     if (input_ssbo.bytes_size() != SizeInBytesDHWC4(shape_)) {
-      EFLAG();
       return absl::InvalidArgumentError(
           "FromTensorConverter: input data size does not match expected size.");
     }
     if (output_ssbo.bytes_size() != SizeInBytesBHWC(shape_)) {
-      EFLAG();
       return absl::InvalidArgumentError(
           "FromTensorConverter: output data size does not match expected "
           "size.");
@@ -177,7 +172,6 @@ class FromTensorConverter : public OpenGlConverterImpl {
               static_cast<int32_t>(shape_.c), 0)}));
     RETURN_IF_ERROR(input_ssbo.BindToIndex(0));
     RETURN_IF_ERROR(output_ssbo.BindToIndex(1));
-	EFLAG();
     return Dispatch(uint3(shape_.w, shape_.h, shape_.c));
   }
 

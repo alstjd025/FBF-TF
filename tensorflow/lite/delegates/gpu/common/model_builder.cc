@@ -2856,10 +2856,10 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-	std::cout << " TEST ";
-    std::cout << node->outputs->data[0] << std::endl;
+	/*std::cout << " TEST ";
+    std::cout << node->outputs->data[0] << std::endl;*/
 	//if(tflite::EnumNamesBuiltinOperator()[registration->builtin_code] == "DEPTHWISE_CONV_2D"){
-	if(node->outputs->data[0]==15){
+	if(node->outputs->data[0]==14){
 		std::cout << "TSETASETASETAES" << std::endl;
 		const auto test_status = a();
 		if (!test_status.ok()) {
@@ -2893,7 +2893,6 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                                        node_supported_fn);
   std::set<std::string> unsupported_nodes_info;
   if (partition_helper.Partition(&unsupported_nodes_info) != kTfLiteOk) {
-	EFLAG();
     return TfLiteIntArrayCreate(0);
   }
 
@@ -2921,7 +2920,6 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     absl::StrAppend(&error_message, " operations will run on the CPU.");
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
-  EFLAG();
   return ConvertVectorToTfLiteIntArray(ops_to_replace);
 }
 

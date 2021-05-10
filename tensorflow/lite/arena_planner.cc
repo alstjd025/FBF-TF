@@ -224,7 +224,6 @@ TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
     // SimpleMemoryArena::Commit() could move the base pointer.
     TF_LITE_ENSURE_STATUS(ResolveTensorAllocation(i));
   }
-  EFLAG();
   return kTfLiteOk;
 }
 
@@ -340,7 +339,6 @@ TfLiteStatus ArenaPlanner::CalculateAllocations(int first_node, int last_node) {
           &allocs_[tensor_index]));
     }
   }
-  EFLAG();
   return kTfLiteOk;
 }
 

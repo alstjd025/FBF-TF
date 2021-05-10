@@ -17,7 +17,8 @@ config_setting(
 cc_library(
     name = "api",
     srcs = ["api.cc"],
-    hdrs = ["api.h"],
+    hdrs = ["api.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = select({
         ":opencl_delegate_no_gl": [],
         "//conditions:default": [
@@ -50,7 +51,8 @@ cc_library(
 cc_library(
     name = "arguments",
     srcs = ["arguments.cc"],
-    hdrs = ["arguments.h"],
+    hdrs = ["arguments.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":cl_device",
         ":gpu_object",
@@ -135,7 +137,8 @@ cc_library(
 cc_library(
     name = "cl_command_queue",
     srcs = ["cl_command_queue.cc"],
-    hdrs = ["cl_command_queue.h"],
+    hdrs = ["cl_command_queue.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":cl_context",
         ":cl_device",
@@ -505,7 +508,8 @@ cc_library(
 cc_library(
     name = "tensor",
     srcs = ["tensor.cc"],
-    hdrs = ["tensor.h"],
+    hdrs = ["tensor.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":buffer",
         ":cl_command_queue",

@@ -31,6 +31,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/operations.h"
 #include "tensorflow/lite/delegates/gpu/common/types.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -81,6 +83,9 @@ FullyConnected& FullyConnected::operator=(FullyConnected&& kernel) {
 
 std::string FullyConnected::GetFullyConnectedKernelCode(
     const OperationDef& op_def, const DeviceInfo& device_info) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
 
@@ -145,7 +150,6 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     args.dst_tensor.Write(r0, 0, 0, gid);
   }
 })";
-
   return c;
 }
 

@@ -589,7 +589,6 @@ absl::Status Runtime::AssignInternalObjects(
 
 absl::Status Runtime::Execute() {
   SFLAG();
-  //std::cout << "tensorflow/lite/delegates/gpu/gl/runtime.cc/Runtime::Execute()\n";
   for (const auto& descriptor : programs_) {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());
@@ -597,7 +596,6 @@ absl::Status Runtime::Execute() {
     RETURN_IF_ERROR(command_queue_->Dispatch(descriptor.program,
                                              descriptor.num_workgroups));
   }
-  EFLAG();
   return absl::OkStatus();
 }
 

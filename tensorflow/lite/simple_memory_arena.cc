@@ -46,7 +46,6 @@ TfLiteStatus SimpleMemoryArena::Allocate(
   new_alloc->size = size;
   if (size == 0) { 
     new_alloc->offset = 0;
-	EFLAG();
     return kTfLiteOk;
   }
 
@@ -86,7 +85,6 @@ TfLiteStatus SimpleMemoryArena::Allocate(
     ++insertion_it;
   }
   ordered_allocs_.insert(insertion_it, *new_alloc);
-  EFLAG();
   return kTfLiteOk;
 }
 

@@ -195,7 +195,8 @@ cc_test(
 cc_library(
     name = "conv_powervr",
     srcs = ["conv_powervr.cc"],
-    hdrs = ["conv_powervr.h"],
+    hdrs = ["conv_powervr.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":conv_common",
         ":gpu_operation",
@@ -586,7 +587,8 @@ cc_test(
 cc_library(
     name = "fully_connected",
     srcs = ["fully_connected.cc"],
-    hdrs = ["fully_connected.h"],
+    hdrs = ["fully_connected.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":gpu_operation",
         ":tuning_parameters",

@@ -30,6 +30,7 @@ limitations under the License.
 #include "tensorflow/lite/util.h"
 
 #include "tensorflow/lite/kmdebug.h"
+#include "tensorflow/lite/kmcontext.h"
 //extern char  kmdir[256];
 //extern KmDebug kmdebug;
 
@@ -363,11 +364,11 @@ void PopulatePreviewDelegateParams(const NodeSubset& node_subset,
 TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
     TfLiteRegistration registration, const TfLiteIntArray* nodes_to_replace,
     TfLiteDelegate* delegate) {
+  #ifdef DEBUG
   	SFLAG();
-	//std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::ReplaceNodeSubsetWithDelegateKernels()\n";
+  #endif
   // Ignore empty node replacement sets.
   if (!nodes_to_replace->size) {
-    EFLAG();
 	return kTfLiteOk;
   }
 
@@ -422,13 +423,11 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
         TfLiteNode* node = &nodes_and_registration_[node_index].first;
         node->delegate = delegate;
       } break;
-      case NodeSubset::kTfUnexplored: 
-        EFLAG();
+      case NodeSubset::kTfUnexplored: ;
 		return kTfLiteError;
         break;
     }
   }
-  EFLAG();
   return kTfLiteOk;
 }
 
@@ -660,12 +659,13 @@ TfLiteStatus Subgraph::BytesRequired(TfLiteType type, const int* dims,
 }
 
 TfLiteStatus Subgraph::AllocateTensors() {
-  SFLAG();
+  #ifdef DEBUG
+    SFLAG();
+  #endif
 	//std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::AllocateTensors()\n";
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(), "AllocateTensors");
   if (!consistent_) {
     ReportError("AllocateTensors() called on inconsistent model.");
-    EFLAG();
 	return kTfLiteError;
   }
 
@@ -683,8 +683,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
       // of memory-planning change (for eg, ResizeInputTensor), the state would
       // be kStateUninvokable.
       memory_planner_->AcquireNonPersistentMemory();
-    }
-    EFLAG();	
+    }	
     return kTfLiteOk;
   }
 
@@ -704,7 +703,6 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors(); 
-  EFLAG();
   return kTfLiteOk;
 }
 
@@ -735,7 +733,10 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
     const std::vector<int>& intermediates, const char* init_data,
     size_t init_data_size, void* builtin_data,
     const TfLiteRegistration* registration, int* node_index) {
-  SFLAG();
+  #ifdef DEBUG
+    SFLAG();
+  #endif
+  /*
   std::cout << "in: ";
   for(int i = 0; i < inputs.size(); ++i) {
   	std::cout << inputs[i] << " ";
@@ -744,13 +745,11 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   std::cout << "out: ";
   for(int i = 0; i < outputs.size(); ++i) {
 	std::cout << outputs[i] << " ";
-  } std::cout << std::endl;
-
+  } std::cout << std::endl;*/
   std::unique_ptr<void, decltype(free)*> builtin_data_deleter(builtin_data,
                                                               free);
   if (state_ == kStateInvokableAndImmutable) {
     ReportError("AddNodeWithParameters is disallowed when graph is immutable.");
-    EFLAG();
     return kTfLiteError;
   }
   state_ = kStateUninvokable;
@@ -812,7 +811,9 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   // Copying of registration is required to support unresolved custom ops.
   node_and_reg.second = *registration;
   execution_plan_.push_back(new_node_index);
-  EFLAG();
+  #ifdef DEBUG
+  std::cout << "addnode : " << node.outputs->data[0] << std::endl;
+  #endif
   return kTfLiteOk;
 }
 
@@ -924,7 +925,6 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
         nodes_and_registration_[node_index].second;
     EnsureTensorsVectorCapacity();
     if (OpPrepare(registration, &node) != kTfLiteOk) {
-      EFLAG();
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to prepare");
     }
@@ -936,16 +936,16 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
     // sizes of other tensors in the graph.
     if (HasDynamicTensor(context_, node.outputs)) {
       has_dynamic_tensors_ = true;
-		EFLAG();
 		return kTfLiteOk;
     }
   }
-  EFLAG();
   return kTfLiteOk;
 }
 
 TfLiteStatus Subgraph::PrepareOpsAndTensors() {
+#ifdef DEBUG
   SFLAG();
+#endif
 	//std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::PrepareOpsAndTensors()\n";
   if (!memory_planner_) {
     memory_planner_.reset(new ArenaPlanner(
@@ -1004,7 +1004,6 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 
   next_execution_plan_index_to_plan_allocation_ =
       last_exec_plan_index_prepared + 1; 
-  EFLAG();
   return kTfLiteOk;
 }
 
@@ -1013,18 +1012,15 @@ TfLiteStatus Subgraph::Invoke() {
   //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
-	EFLAG();
     return kTfLiteError;
   }
 
   TfLiteStatus status = kTfLiteOk;
   if (state_ == kStateUninvokable) {
     ReportError("Invoke called on model that is not ready.");
-    EFLAG();
 	return kTfLiteError;
   } else if (memory_planner_ && !memory_planner_->HasNonPersistentMemory()) {
     ReportError("Non-persistent memory is not available.");
-    EFLAG();
 	return kTfLiteError;
   }
 
@@ -1041,6 +1037,7 @@ TfLiteStatus Subgraph::Invoke() {
   // called.
  
   //std::cout << "execution_plan_.size(): "<< execution_plan_.size() << std::endl; 
+  KMCONTEXT();
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
@@ -1049,7 +1046,7 @@ TfLiteStatus Subgraph::Invoke() {
                                     execution_plan_index);
     }
     int node_index = execution_plan_[execution_plan_index];
-    TfLiteNode& node = nodes_and_registration_[node_index].first;
+    TfLiteNode& node = nodes_and_registration_[node_index].first; KMNODE();
     const TfLiteRegistration& registration =
         nodes_and_registration_[node_index].second;
 
@@ -1062,6 +1059,7 @@ TfLiteStatus Subgraph::Invoke() {
     // need to be copied from Delegate buffer to raw memory, which is often not
     // needed. We may want to cache this in prepare to know if this needs to be
     // done for a node or not.
+    
     for (int i = 0; i < node.inputs->size; ++i) {
       int tensor_index = node.inputs->data[i];
       if (tensor_index == kTfLiteOptionalTensor) {
@@ -1082,7 +1080,6 @@ TfLiteStatus Subgraph::Invoke() {
           // In all other cases, we need to return an error as otherwise we will
           // trigger a null pointer dereference (likely).
           ReportError("Input tensor %d lacks data", tensor_index);
-          EFLAG();
 		  return kTfLiteError;
         }
       }
@@ -1091,7 +1088,6 @@ TfLiteStatus Subgraph::Invoke() {
     if (check_cancelled_func_ != nullptr &&
         check_cancelled_func_(cancellation_data_)) {
       ReportError("Client requested cancel during Invoke()");
-      EFLAG();
 	  return kTfLiteError;
     }
 
@@ -1099,11 +1095,17 @@ TfLiteStatus Subgraph::Invoke() {
     tensor_resized_since_op_invoke_ = false;
     
     //std::cout << execution_plan_index << std::endl;
-    if (OpInvoke(registration, &node) != kTfLiteOk) {
-      EFLAG();	
-	  return ReportOpError(&context_, node, registration, node_index,
+    
+    std::cout << node.outputs->data[0] << std::endl;
+    if (OpInvoke(registration, &node) != kTfLiteOk) {	
+	    return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+    std::cout << "context_.tensors->dims->data[3] : " <<
+      context_.tensors[node.outputs->data[0]].dims->data[3] << std::endl;
+    std::cout << *(float*)context_.tensors[node.outputs->data[0]].data.data << std::endl;
+//std::cout << "gpu test : "
+//  <<  *(float*)node.delegate->data_ << std::endl;
 	// Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1111,7 +1113,7 @@ TfLiteStatus Subgraph::Invoke() {
       next_execution_plan_index_to_prepare_ = execution_plan_index + 1;
 
       // This happens when an intermediate dynamic tensor is resized.
-      // We don't have to prepare all the ops, but we need to recompute
+      // We don't have vim to prepare all the ops, but we need to recompute
       // the allocation plan.
       if (next_execution_plan_index_to_plan_allocation_ >
           next_execution_plan_index_to_prepare_) {
@@ -1128,7 +1130,6 @@ TfLiteStatus Subgraph::Invoke() {
      if (i >7 && i < 10) continue; 
  	 std::cout << i <<" TEST : " << *(float*)context_.tensors[i].data.data  << std::endl;
 }*/
-  EFLAG();
   return status;
 }
 
@@ -1401,7 +1402,6 @@ void Subgraph::SwitchToDelegateContext() {
       ReplaceNodeSubsetsWithDelegateKernels;
   context_.GetExecutionPlan = GetExecutionPlan;
   context_.PreviewDelegatePartitioning = PreviewDelegatePartitioning;
-  EFLAG(); 
 }
 
 void Subgraph::SwitchToKernelContext() {
@@ -1565,7 +1565,6 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   if (state_ == kStateInvokableAndImmutable) {
     ReportError(
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
-    EFLAG();
 	return kTfLiteApplicationError;
   }
 
@@ -1581,7 +1580,6 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
       ReportError(
           "Attempting to use a delegate that only supports static-sized "
           "tensors with a graph that has dynamic-sized tensors.");
-        EFLAG();
 		return kTfLiteApplicationError;
     }
   }
@@ -1632,7 +1630,6 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         reset_delegation_if_not_ok(EnsureMemoryAllocations()));
   }
   delegates_applied_.push_back(delegate);
-  EFLAG();
   return status;
 }
 

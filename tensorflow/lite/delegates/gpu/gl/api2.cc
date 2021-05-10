@@ -125,29 +125,26 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status CopyFromExternalObject() final {
-	SFLAG();
-	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/DefaultTensorTie::CopyFromExternalObject()\n";
+	#ifdef DEBUG
+    SFLAG();
+  #endif
     if (!converter_from_) {
-      EFLAG();
 	  return absl::OkStatus();
     }
-	EFLAG();
     return converter_from_->Convert(GetExternalObject(), internal_obj_);
   }
 
   absl::Status SetExternalObject(TensorObject obj) final {
+  #ifdef DEBUG
     SFLAG();
-	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/DefaultTensorTie::SetExtenrnalObject()\n";
+  #endif
 	if (!def().external_def.object_def.user_provided) {
-      EFLAG();
 	  return absl::InvalidArgumentError("External object is read-only");
     }
     if (!IsValid(def().external_def, obj)) {
-	  EFLAG();
       return absl::InvalidArgumentError("Given object is not valid");
     }
     external_obj_ = obj;
-    EFLAG();
     return absl::OkStatus();
   }
 
@@ -291,17 +288,17 @@ class TwoStepTensorTie : public TensorTie {
   }
 
   absl::Status CopyFromExternalObject() final {
+  #ifdef DEBUG
     SFLAG();
-	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/TwoStepTensorTie::CopyFromExternalObject()\n";
+  #endif
 	RETURN_IF_ERROR(outer_tie_->CopyFromExternalObject());
-	EFLAG();
     return inner_tie_->CopyFromExternalObject();
   }
 
   absl::Status SetExternalObject(TensorObject obj) final {
+  #ifdef DEBUG
     SFLAG();
-	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/TwoStepTensorTie::SetExternalObject()\n";
-	EFLAG();
+  #endif
 	return outer_tie_->SetExternalObject(obj);
   }
 
@@ -344,7 +341,6 @@ class TwoStepTensorTie : public TensorTie {
     auto defs = MakeOuterInnerDefs(def());
     RETURN_IF_ERROR(DefaultTensorTie::New(defs.second, converter_builder,
                                           objects, &inner_tie_));
-    EFLAG();
     return DefaultTensorTie::New(defs.first, converter_builder,
                                  inner_tie_->GetExternalObject(), &outer_tie_);
   }
@@ -424,13 +420,12 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status SetInputObject(int index, TensorObject object) override {
+  #ifdef DEBUG
     SFLAG();
-	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/InferenceRunnerImpl::SetInputObject()\n";
+  #endif
 	if (index < 0 || index >= inputs_.size()) {
-	  EFLAG();
       return absl::OutOfRangeError("Index is out of range");
     }
- 	EFLAG();
     return inputs_[index]->SetExternalObject(object);
   }
 
@@ -442,8 +437,9 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
+  #ifdef DEBUG
     SFLAG();  
-	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/InferneceRunnerImpl::Run()\n";
+  #endif
     for (auto& obj : inputs_) {
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
     }
@@ -455,7 +451,6 @@ class InferenceRunnerImpl : public InferenceRunner {
     if (output_to_cpu_) {
       RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());
     }
-	EFLAG();
     return absl::OkStatus();
   }
 

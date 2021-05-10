@@ -409,7 +409,6 @@ inline void FullyConnected(
   cpu_backend_gemm::Gemm(lhs_params, weights_data, rhs_params, input_data,
                          dst_params, output_data, gemm_params,
                          cpu_backend_context);
-  //EFLAG();
 }
 
 inline void FullyConnected(

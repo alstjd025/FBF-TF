@@ -68,13 +68,11 @@ absl::Status GlShader::CompileShader(GLenum shader_type,
     glGetShaderiv(shader.id(), GL_INFO_LOG_LENGTH, &info_log_len);
     std::string errors(info_log_len, 0);
     glGetShaderInfoLog(shader.id(), info_log_len, nullptr, &errors[0]);
-    EFLAG();
     return absl::InternalError("Shader compilation failed: " + errors +
                                "\nProblem shader is:\n" + shader_source);
   }
 
   *gl_shader = std::move(shader);
-  EFLAG();
   return absl::OkStatus();
 }
 

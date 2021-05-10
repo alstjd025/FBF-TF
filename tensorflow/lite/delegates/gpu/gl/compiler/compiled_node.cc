@@ -58,7 +58,6 @@ absl::Status MergeCode(CompiledNodeAttributes* attr,
             std::back_inserter(merged_attr->code.parameters));
   std::move(attr->node_indices.begin(), attr->node_indices.end(),
             std::back_inserter(merged_attr->node_indices));
-  EFLAG();
   return absl::OkStatus();
 }
 

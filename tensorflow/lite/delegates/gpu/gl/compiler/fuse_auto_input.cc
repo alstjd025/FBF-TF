@@ -52,7 +52,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
   auto& node_code = node_attr.code;
 
   if (node_code.input != IOStructure::AUTO) {
-    EFLAG();
     return {TransformStatus::SKIPPED, ""};
   }
   uint3 workgroup = node_code.workgroup;
@@ -100,7 +99,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     input_values.pop_back();  // this value will not be used as input.
   }
   if (nodes_to_fuse.empty()) {
-    EFLAG();
     return {TransformStatus::SKIPPED, ""};
   }
 
@@ -110,7 +108,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     for (const auto& node_to_fuse : nodes_to_fuse) {
       for (const auto& input : graph->FindInputs(node_to_fuse.first->id)) {
         if (all_inputs.find(input->id) != all_inputs.end()) {
-		  EFLAG();
           return {TransformStatus::SKIPPED, ""};
         }
         all_inputs.insert(input->id);
@@ -118,7 +115,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     }
     for (const auto& input : graph->FindInputs(node->id)) {
       if (all_inputs.find(input->id) != all_inputs.end()) {
-		EFLAG();
         return {TransformStatus::SKIPPED, ""};
       }
       all_inputs.insert(input->id);
@@ -128,7 +124,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
   // Break connections between current node and its inputs.
   for (auto value : graph->FindInputs(node->id)) {
     if (!graph->RemoveConsumer(node->id, value->id).ok()) {
-	  EFLAG();
       return {TransformStatus::INVALID, ""};
     }
   }
@@ -203,7 +198,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
       }
 
       if (!graph->AddConsumer(node->id, super_inputs[i]->id).ok()) {
-		EFLAG();
         return {TransformStatus::INVALID, ""};
       }
       input_num++;
@@ -218,7 +212,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
 
     // Merge all objects, parameters and source code.
     if (!MergeCode(&attr, &node_attr).ok()) {
-	  EFLAG();
       return {TransformStatus::INVALID, "Unable to merge the code"};
     }
     absl::StrAppend(&node_attr.code.source_code, "{\n", attr.code.source_code,
@@ -230,7 +223,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
     operation_type += input->operation.type;
 
     if (!graph->DeleteNode(input->id).ok()) {
-	  EFLAG();
       return {TransformStatus::INVALID, ""};
     }
   }
@@ -243,7 +235,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
                       "[gid.x, gid.y, gid.z]$;\n");
     }
     if (!graph->AddConsumer(node->id, input_values[i].first).ok()) {
-	  EFLAG();
       return {TransformStatus::INVALID, ""};
     }
     input_num++;
@@ -255,7 +246,6 @@ TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
   node_code.source_code =
       absl::StrCat(values, node_code.source_code, "{//FUSED",
                    node->operation.type, "\n", source_code, "\n}");
-  EFLAG();
   return {TransformStatus::APPLIED, ""};
 }
 

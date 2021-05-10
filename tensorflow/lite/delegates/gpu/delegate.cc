@@ -210,7 +210,6 @@ class DelegateKernel {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
       if (enforce_same_thread_) {
-		EFLAG();
         return absl::FailedPreconditionError(
             "GpuDelegate must run on the same thread where it was "
             "initialized.");
@@ -228,15 +227,16 @@ class DelegateKernel {
       RETURN_IF_ERROR(
           QuantizeOutputs(context, output_indices_, quant_conversion_map_));
     }
-	EFLAG();
 	//std::cout << "TEST : " << *(float*)context->tensors->data.data << std::endl;
     return absl::OkStatus();
   }
 
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
+  #ifdef DEBUG
     SFLAG();
-	//std::cout << "tensorflow/lite/delegates/gpu/delegate.cc/SetInputsAndOutputs()\n";
+  #endif
+    //std::cout << "input_indices_.size() : " << output_indices_[0] << std::endl;
     for (int i = 0; i < input_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetInputObject(
           i, GetTensorObject(input_indices_[i], context)));
@@ -245,7 +245,6 @@ class DelegateKernel {
       RETURN_IF_ERROR(runner_->SetOutputObject(
           i, GetTensorObject(output_indices_[i], context)));
     }
-	EFLAG();
     return absl::OkStatus();
   }
 
@@ -259,10 +258,11 @@ class DelegateKernel {
   }
 
   TensorObject GetTensorObject(int index, TfLiteContext* context) const {
+  #ifdef DEBUG
     SFLAG();
+  #endif
     auto& tensor = context->tensors[index];
-    std::cout << "tflitegpudelegatev2 input : " << *(float*)tensor.data.data << std::endl;
-	EFLAG();
+    //std::cout << "tflitegpudelegatev2 input : " << *(float*)tensor.data.data << std::endl;
     return MakeCpuMemory(absl::MakeSpan(tensor.data.raw, tensor.bytes));
   }
 
@@ -447,7 +447,6 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   TFLITE_LOG_PROD(TFLITE_LOG_INFO, "Created %d GPU delegate kernels.",
                   gpu_delegate->num_delegate_kernels());
   TfLiteIntArrayFree(ops_to_replace);
-  EFLAG();
   return status;
 }
 

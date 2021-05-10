@@ -46,6 +46,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/cl/gl_interop.h"
 #endif
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -504,6 +506,9 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
+#ifdef DEBUG
+  SFLAG();
+#endif
 #ifdef CL_DELEGATE_ALLOW_GL
     if (gl_interop_fabric_) {
       RETURN_IF_ERROR(gl_interop_fabric_->Start());
@@ -521,7 +526,7 @@ class InferenceRunnerImpl : public InferenceRunner {
     if (gl_interop_fabric_) {
       RETURN_IF_ERROR(gl_interop_fabric_->Finish());
     }
-#endif
+#endif 
     return absl::OkStatus();
   }
 

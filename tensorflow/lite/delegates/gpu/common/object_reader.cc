@@ -217,8 +217,9 @@ TfLiteTensor* ObjectReader::GetInputTensor(int index) const {
 }
 
 TfLiteTensor* ObjectReader::GetOutputTensor(int index) const {
-  SFLAG();
-  EFLAG();
+  #ifdef DEBUG
+    SFLAG();
+  #endif
   return index >= 0 && index < node_->outputs->size
              ? context_->tensors + node_->outputs->data[index]
              : nullptr;

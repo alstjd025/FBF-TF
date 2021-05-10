@@ -157,7 +157,6 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
                                                        rhs_params, rhs_data,
                                                        dst_params, dst_data,
                                                        params, context);
-    //EFLAG();
     return;
   }
   // If we did not choose to force usage of ruy above, then we may now consider
@@ -168,7 +167,6 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
     // actually handled it.
     if (detail::CustomGemv(lhs_params, lhs_data, rhs_params, rhs_data,
                            dst_params, dst_data, params, context)) {
-      //EFLAG();
       return;
     }
   }
@@ -177,7 +175,6 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
   GemmImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
            quantization_flavor>::Run(lhs_params, lhs_data, rhs_params, rhs_data,
                                      dst_params, dst_data, params, context);
-  //EFLAG();
 }
 
 // Special path for gemm with raw accumulator case. i.e. AccumScalar ==
