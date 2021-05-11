@@ -19,6 +19,8 @@ limitations under the License.
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/context_util.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace {
 
@@ -50,6 +52,9 @@ class PartitionGraphIntoIndependentNodeSubsetsImpl {
   // Actually partition the graph.
   void Partition() {
     // Initialize here to make Partition() re-entrant.
+    #ifdef DEBUG
+      SFLAG();
+    #endif
     node_subsets_->clear();
     tensor_epochs_.clear();
     tensor_epochs_.resize(info_->num_tensors(), kEpochAlwaysReady);
@@ -74,6 +79,8 @@ class PartitionGraphIntoIndependentNodeSubsetsImpl {
         node_subsets_->pop_back();
         break;
       }
+            NodeSubset& test = node_subsets_[0][1];
+      std::cout << "TEST : " << test.input_tensors.size() << std::endl;
     }
 
     // Mark model outputs as node sub set outputs. All the rest have already
@@ -100,6 +107,10 @@ class PartitionGraphIntoIndependentNodeSubsetsImpl {
       uniquefy(&node_subset.input_tensors);
       uniquefy(&node_subset.output_tensors);
     }
+      //NodeSubset& test = node_subsets_[0][1];
+     // std::cout << "TEST : " << test.input_tensors.size() << std::endl;
+     // std::cout << "TEST : "  << test.output_tensors[0] << std::endl;
+
   }
 
  private:

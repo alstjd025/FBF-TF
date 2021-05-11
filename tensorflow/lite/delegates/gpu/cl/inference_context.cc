@@ -46,6 +46,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/types.h"
 #include "tensorflow/lite/delegates/gpu/common/util.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -630,6 +632,9 @@ absl::Status InferenceContext::UpdateParams() {
 }
 
 absl::Status InferenceContext::AddToQueue(CLCommandQueue* queue) {
+  #ifdef DEBUG
+    SFLAG();
+  #endif
   if (need_manual_release_) {
     if (prev_enqueue_start_point_.is_valid()) {
       prev_enqueue_start_point_.Wait();
@@ -637,10 +642,10 @@ absl::Status InferenceContext::AddToQueue(CLCommandQueue* queue) {
     RETURN_IF_ERROR(queue->EnqueueEvent(&prev_enqueue_start_point_));
   }
   int counter = 0;
-
   for (auto& node : nodes_) {
     RETURN_IF_ERROR(node.operation->AddToQueue(queue));
-    Tensor* t = node.operation->GetSrc()[0];
+    //Tensor* t = node.operation->GetSrc()[0];
+    //std::cout << "addtoQ : " <<t->Channels() << std::endl;
     //std::cout << "addtoQ : " <<t->GetDescriptor().data.size() << std::endl;
     //for (int i = 0; i < 100; ++i)
       //std::cout << "addtoQ : " << *((float*)t->GetMemoryPtr()+i) << std::endl;

@@ -213,7 +213,8 @@ cc_library(
 cc_library(
     name = "cl_kernel",
     srcs = ["cl_kernel.cc"],
-    hdrs = ["cl_kernel.h"],
+    hdrs = ["cl_kernel.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":cl_context",
         ":cl_device",
@@ -378,6 +379,7 @@ cc_library(
     hdrs = [
         "inference_context.h",
         "serialization.h",
+        "//tensorflow/lite:kmdebug.h"
     ],
     deps = [
         ":arguments",

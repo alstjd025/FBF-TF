@@ -92,7 +92,7 @@ inline TfLiteStatus GetMutableInputSafe(const TfLiteContext* context,
                                         const TfLiteNode* node, int index,
                                         const TfLiteTensor** tensor) {
 #ifdef DEBUG
-  SFLAG();
+  //SFLAG();
 #endif
   int tensor_index;
   TF_LITE_ENSURE_OK(

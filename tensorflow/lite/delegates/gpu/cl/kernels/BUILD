@@ -259,7 +259,8 @@ cc_library(
 cc_library(
     name = "converter",
     srcs = ["converter.cc"],
-    hdrs = ["converter.h"],
+    hdrs = ["converter.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":util",
         "//tensorflow/lite/delegates/gpu:spi",

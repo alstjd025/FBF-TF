@@ -34,6 +34,8 @@ limitations under the License.
 #include "tensorflow/lite/util.h"
 #include "tensorflow/lite/version.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 // aligned_alloc is available (via cstdlib/stdlib.h) with C++17/C11.
 #if __cplusplus >= 201703L || __STDC_VERSION__ >= 201112L
 #if !defined(__ANDROID__) || __ANDROID_API__ >= 28
@@ -260,6 +262,10 @@ class MallocDataAllocator : public BuiltinDataAllocator {
 TfLiteStatus InterpreterBuilder::ParseNodes(
     const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
     Subgraph* subgraph) {
+  #ifdef DEBUG
+    SFLAG();
+  #endif
+
   TfLiteStatus status = kTfLiteOk;
 
   // Reduce the number of redundant allocations
@@ -312,6 +318,7 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
       MallocDataAllocator malloc_allocator;
       TF_LITE_ENSURE_STATUS(ParseOpData(op, op_type, error_reporter_,
                                         &malloc_allocator, &builtin_data));
+      
       subgraph->AddNodeWithParameters(
           FlatBufferIntArrayToVector(op->inputs()),
           FlatBufferIntArrayToVector(op->outputs()),
@@ -319,7 +326,6 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
           builtin_data, registration);
     }
   }
-
   return status;
 }
 

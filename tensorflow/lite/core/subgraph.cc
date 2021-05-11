@@ -388,9 +388,11 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
       nodes_to_replace->size,
       registration.custom_name ? registration.custom_name : "unknown",
       node_subsets.size());
+    
+
 
   execution_plan_.clear();
-
+  
   for (auto& node_subset : node_subsets) {
     // Subsets claimed by the delegate should have a "macro" op created, the
     // other node_subsets (kTfNonPartition) just have their nodes added back to
@@ -422,6 +424,7 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
         // Associate the node with the delegate.
         TfLiteNode* node = &nodes_and_registration_[node_index].first;
         node->delegate = delegate;
+
       } break;
       case NodeSubset::kTfUnexplored: ;
 		return kTfLiteError;
@@ -736,7 +739,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   #ifdef DEBUG
     SFLAG();
   #endif
-  /*
+  
   std::cout << "in: ";
   for(int i = 0; i < inputs.size(); ++i) {
   	std::cout << inputs[i] << " ";
@@ -745,7 +748,12 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   std::cout << "out: ";
   for(int i = 0; i < outputs.size(); ++i) {
 	std::cout << outputs[i] << " ";
-  } std::cout << std::endl;*/
+  } std::cout << std::endl;
+
+    std::cout << "intermediates: ";
+  for(int i = 0; i < intermediates.size(); ++i) {
+	std::cout << intermediates[i] << " ";
+  } std::cout << std::endl;
   std::unique_ptr<void, decltype(free)*> builtin_data_deleter(builtin_data,
                                                               free);
   if (state_ == kStateInvokableAndImmutable) {
@@ -812,7 +820,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   node_and_reg.second = *registration;
   execution_plan_.push_back(new_node_index);
   #ifdef DEBUG
-  std::cout << "addnode : " << node.outputs->data[0] << std::endl;
+  //std::cout << "addnode : " << node.outputs->data[0] << std::endl;
   #endif
   return kTfLiteOk;
 }
@@ -1188,6 +1196,9 @@ void Subgraph::ReportError(const char* format, ...) {
 
 TfLiteStatus Subgraph::AddTensors(int tensors_to_add,
                                   int* first_new_tensor_index) {
+  #ifdef DEBUG
+    SFLAG();
+  #endif
   const size_t base_index = tensors_.size();
   if (first_new_tensor_index) *first_new_tensor_index = base_index;
   tensors_.resize(tensors_.size() + tensors_to_add);

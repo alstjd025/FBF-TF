@@ -124,12 +124,16 @@ absl::Status CLCommandQueue::EnqueueWriteImage(cl_mem memory, int3 region,
 
 absl::Status CLCommandQueue::EnqueueReadImage(cl_mem memory, int3 region,
                                               void* data) {
+  #ifdef DEBUG
+    SFLAG();
+  #endif
   const size_t origin[] = {0, 0, 0};
   const size_t r[] = {static_cast<size_t>(region.x),
                       static_cast<size_t>(region.y),
                       static_cast<size_t>(region.z)};
   auto error_code = clEnqueueReadImage(queue_, memory, CL_TRUE, origin, r, 0, 0,
                                        data, 0, nullptr, nullptr);
+  //std::cout << "TEST : " << *(float*)data << std::endl;
   if (error_code != CL_SUCCESS) {
     return absl::UnknownError(
         absl::StrCat("Failed to read data from GPU (clEnqueueReadImage) - ",
@@ -142,6 +146,9 @@ absl::Status CLCommandQueue::EnqueueReadImage(cl_mem memory, int3 region,
 absl::Status CLCommandQueue::EnqueueWriteBuffer(cl_mem memory,
                                                 size_t size_in_bytes,
                                                 const void* data) {
+  #ifdef DEBUG
+    SFLAG();
+  #endif
   auto error_code = clEnqueueWriteBuffer(
       queue_, memory, CL_TRUE, 0, size_in_bytes, data, 0, nullptr, nullptr);
   if (error_code != CL_SUCCESS) {
@@ -155,6 +162,9 @@ absl::Status CLCommandQueue::EnqueueWriteBuffer(cl_mem memory,
 absl::Status CLCommandQueue::EnqueueReadBuffer(cl_mem memory,
                                                size_t size_in_bytes,
                                                void* data) {
+  #ifdef DEBUG
+    SFLAG();
+  #endif
   auto error_code = clEnqueueReadBuffer(
       queue_, memory, CL_TRUE, 0, size_in_bytes, data, 0, nullptr, nullptr);
   if (error_code != CL_SUCCESS) {

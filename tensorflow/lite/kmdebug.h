@@ -1,13 +1,15 @@
 #include <iostream>
 #include <vector>
+#include <string>
 
 #define DEBUG
-#define SFLAG() FunctionFlow func_flow(__FILE__, __func__);
+#define SFLAG() FunctionFlow func_flow(__FILE__, __PRETTY_FUNCTION__);
 
 
 struct FuncInformation {
-	const char* fileName;
-	const char* funcName;	
+	std::string fileName;
+	std::string className;
+	std::string funcName;	
 };
 
 class FunctionFlow {

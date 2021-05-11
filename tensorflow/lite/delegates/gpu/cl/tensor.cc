@@ -344,6 +344,7 @@ absl::Status Tensor::GetGPUResources(const GPUObjectDescriptor* obj_ptr,
     resources->buffers.push_back({"buffer", memory_});
     return absl::OkStatus();
   }
+
   const auto* tensor_desc = dynamic_cast<const TensorDescriptor*>(obj_ptr);
   if (!tensor_desc) {
     return absl::InvalidArgumentError("Expected TensorDescriptor on input.");
@@ -549,6 +550,9 @@ absl::Status Tensor::WriteData(CLCommandQueue* queue,
 
 absl::Status Tensor::ReadDataBHWDC(absl::Span<float> out,
                                    CLCommandQueue* queue) const {
+  #ifdef DEBUG
+    SFLAG();
+  #endif
   void* data_ptr = nullptr;
   const int aligned_channels = GetAlignedChannels();
   const int elements_count =

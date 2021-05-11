@@ -204,8 +204,9 @@ class DelegateKernel {
   }
 
   absl::Status Invoke(TfLiteContext* context) {
-    SFLAG();
-	//std::cout << "tensorflow/lite/delegates/gpu/delegate.cc/Invoke()\n";
+    #ifdef DEBUG
+      SFLAG();
+    #endif
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
@@ -215,7 +216,6 @@ class DelegateKernel {
             "initialized.");
       }
     }
-
     const bool is_dequant_required = !quant_conversion_map_.empty();
     if (is_dequant_required) {
       RETURN_IF_ERROR(
@@ -223,11 +223,11 @@ class DelegateKernel {
     }
     RETURN_IF_ERROR(SetInputsAndOutputs(context));
     RETURN_IF_ERROR(runner_->Run());
+
     if (is_dequant_required) {
       RETURN_IF_ERROR(
           QuantizeOutputs(context, output_indices_, quant_conversion_map_));
     }
-	//std::cout << "TEST : " << *(float*)context->tensors->data.data << std::endl;
     return absl::OkStatus();
   }
 
@@ -240,10 +240,13 @@ class DelegateKernel {
     for (int i = 0; i < input_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetInputObject(
           i, GetTensorObject(input_indices_[i], context)));
+
+  //std::cout << "delegate invoke : " << input_indices_[i] << std::endl;
     }
     for (int i = 0; i < output_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetOutputObject(
           i, GetTensorObject(output_indices_[i], context)));
+            //std::cout << "delegate invoke : " << output_indices_[i] << std::endl;
     }
     return absl::OkStatus();
   }
@@ -263,6 +266,7 @@ class DelegateKernel {
   #endif
     auto& tensor = context->tensors[index];
     //std::cout << "tflitegpudelegatev2 input : " << *(float*)tensor.data.data << std::endl;
+    //std::cout << "makecpumemory : " << ((float*)tensor.data.raw)[0] << std::endl;
     return MakeCpuMemory(absl::MakeSpan(tensor.data.raw, tensor.bytes));
   }
 

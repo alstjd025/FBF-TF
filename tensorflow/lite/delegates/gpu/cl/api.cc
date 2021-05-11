@@ -120,6 +120,9 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status CopyToExternalObject() final {
+    #ifdef DEBUG
+      SFLAG();
+    #endif
     if (!converter_to_) {
       return absl::UnavailableError("Conversion is not available");
     }
@@ -178,6 +181,9 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status MaybeAllocateExternalObject(Environment* env) {
+    #ifdef DEBUG
+      SFLAG();
+    #endif
     const TensorObjectDef& d = def().external_def;
     if (d.object_def.user_provided) {
       return absl::OkStatus();
@@ -492,6 +498,10 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status SetInputObject(int index, TensorObject object) override {
+    #ifdef DEBUG
+      CpuMemory* m = absl::get_if<CpuMemory>(&object);
+      std::cout << "CpuMemory : " << *(float*)m->data << std::endl;
+    #endif
     if (index < 0 || index >= inputs_.size()) {
       return absl::OutOfRangeError("Input index is out of range");
     }
@@ -521,6 +531,7 @@ class InferenceRunnerImpl : public InferenceRunner {
     clFlush(queue_->queue());
     for (auto& obj : outputs_) {
       RETURN_IF_ERROR(obj->CopyToExternalObject());
+      
     }
 #ifdef CL_DELEGATE_ALLOW_GL
     if (gl_interop_fabric_) {
@@ -732,6 +743,9 @@ class InferenceBuilderImpl : public InferenceBuilder {
   }
 
   absl::Status Build(std::unique_ptr<InferenceRunner>* runner) override {
+#ifdef DEBUG
+  SFLAG();
+#endif
 #ifdef CL_DELEGATE_ALLOW_GL
     if (gl_interop_fabric_ && !HasGlObjects()) {
       // destroy interop layer when there are no GL objects to avoid

@@ -29,6 +29,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/cl/tensor_type_util.h"
 #include "tensorflow/lite/delegates/gpu/common/util.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -111,6 +113,9 @@ class TensorToTensorConverter : public OpenClConverterImpl {
   absl::Status Init(const TensorObjectDef& input_def,
                     const TensorObjectDef& output_def,
                     Environment* environment) final {
+    #ifdef DEBUG
+      SFLAG();
+    #endif
     src_tensor_descriptor_.layout = Layout::BHWC;
     src_tensor_descriptor_.storage_type = ToTensorStorageType(
         input_def.object_def.object_type, input_def.object_def.data_layout);
@@ -476,6 +481,9 @@ class CpuCopier : public OpenClConverterImpl {
 
   absl::Status Convert(const TensorObject& input_obj,
                        const TensorObject& output_obj) override {
+    #ifdef DEBUG
+      SFLAG();
+    #endif
     auto cpu_input = absl::get_if<CpuMemory>(&input_obj);
     auto cpu_output = absl::get_if<CpuMemory>(&output_obj);
     if (cpu_input) {
@@ -493,12 +501,14 @@ class CpuCopier : public OpenClConverterImpl {
     } else if (cpu_output) {
       auto texture_input = absl::get_if<OpenClTexture>(&input_obj);
       if (texture_input) {
+
         return queue_->EnqueueReadImage(
             texture_input->memobj, int3(region_[0], region_[1], region_[2]),
             cpu_output->data);
       }
       auto buffer_input = absl::get_if<OpenClBuffer>(&input_obj);
       if (buffer_input) {
+
         return queue_->EnqueueReadBuffer(
             buffer_input->memobj, cpu_output->size_bytes, cpu_output->data);
       }
