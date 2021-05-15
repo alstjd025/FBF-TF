@@ -424,6 +424,10 @@ class Subgraph {
     if (op_reg.invoke == nullptr) return kTfLiteError;
     return op_reg.invoke(&context_, node);
   }
+  TfLiteStatus OpInvokeCPU(const TfLiteRegistration& op_reg, TfLiteNode* node) {
+    if (op_reg.invoke == nullptr) return kTfLiteError;
+    return op_reg.invoke(&context_cpu, node);
+  }
 
   // Call OpPrepare() for as many ops as possible, allocating memory for their
   // tensors. If an op containing dynamic tensors is found, preparation will be
@@ -625,6 +629,7 @@ class Subgraph {
   // interface. To avoid copying tensor metadata, this is also the definitive
   // structure to store tensors.
   TfLiteContext context_ = {};
+  TfLiteContext context_cpu = {};
 
   // A pointer to the external contexts (kTfLiteMaxExternalContexts) array that
   // sits inside the associated TFLite interpreter instance.
@@ -665,6 +670,7 @@ class Subgraph {
   // to allocate successors. This process repeats until all nodes are executed.
   // NOTE: this relies on the order of nodes that is in topological order.
   int next_execution_plan_index_to_prepare_;
+  int next_execution_plan_index_to_prepare_cpu;
 
   // Only used in cases where a delegate supporting dynamic tensors is applied.
   // This helps prepare the original execution before the post-delegation one,
@@ -685,6 +691,7 @@ class Subgraph {
   // plan. In particular, it is valid for this ordering to contain only a
   // subset of the node indices.
   std::vector<int> execution_plan_;
+  std::vector<int> execution_plan_cpu;
 
   // This is a copy of the first execution_plan_ before any delegates were
   // applied. It is empty if no delegates were applied to this Subgraph.

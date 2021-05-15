@@ -315,6 +315,9 @@ static TfLiteStatus AllocateTemporaryTensorsIfRequired(TfLiteContext* context,
 
 TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
                      TfLiteNode* node) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
 

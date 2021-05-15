@@ -79,9 +79,10 @@ class PartitionGraphIntoIndependentNodeSubsetsImpl {
         node_subsets_->pop_back();
         break;
       }
-            NodeSubset& test = node_subsets_[0][1];
-      std::cout << "TEST : " << test.input_tensors.size() << std::endl;
+       //     NodeSubset& test = node_subsets_[0][1];
+      //std::cout << "TEST : " << test.input_tensors.size() << std::endl;
     }
+
 
     // Mark model outputs as node sub set outputs. All the rest have already
     // been identified.
@@ -97,6 +98,7 @@ class PartitionGraphIntoIndependentNodeSubsetsImpl {
     // Make sure every node sub set's inputs and outputs are unique. Since the
     // list of inputs and outputs is generated in a way that produces
     // duplicates.
+
     for (NodeSubset& node_subset : *node_subsets_) {
       // Sort and uniquefy using standard library algorithms.
       auto uniquefy = [](std::vector<int>* items) {
@@ -171,6 +173,7 @@ class PartitionGraphIntoIndependentNodeSubsetsImpl {
         }
         int input_epoch = tensor_epochs_[input_tensor_index];
         int node_epoch = current_epoch;
+
         if (input_epoch != node_epoch) {
           current_subset.input_tensors.push_back(input_tensor_index);
           // Set inputs to be outputs of the node sub set where they reside.

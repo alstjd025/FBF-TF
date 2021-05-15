@@ -35,14 +35,14 @@ FunctionFlow::FunctionFlow(const char* filename, const char* funcname) {
 
 	depth = info.size()-1;
 	std::cout << depth+1 << " : ";
- 	std::cout << info[depth].fileName << "/"; 
+ 	std::cout << info[depth].fileName.substr(16) << "/"; 
 	std::cout << info[depth].className << "::";
     std::cout << info[depth].funcName << "()\n";
 }
 
 FunctionFlow::~FunctionFlow() {
 	std::cout <<"END " << depth+1 << " : ";
-	std::cout << info[depth].fileName << "/";
+	std::cout << info[depth].fileName.substr(16) << "/";
 	std::cout << info[depth].className << "::";
     std::cout << info[depth].funcName << "()" << endl;
     info.pop_back();

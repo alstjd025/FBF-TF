@@ -21,6 +21,8 @@ limitations under the License.
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/context_util.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace delegates {
 
@@ -48,6 +50,9 @@ TfLiteStatus CreateNewTensorWithDifferentType(TfLiteContext* context,
 
 TfLiteStatus GraphPartitionHelper::Partition(
     std::set<std::string>* unsupported_nodes_info) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   const auto prepare_status = PrepareSupportedNodes(unsupported_nodes_info);
   if (prepare_status != kTfLiteOk) return prepare_status;
 

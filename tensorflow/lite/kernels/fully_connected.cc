@@ -643,8 +643,9 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
                        TfLiteFullyConnectedParams* params, OpData* data,
                        const TfLiteTensor* input, const TfLiteTensor* filter,
                        const TfLiteTensor* bias, TfLiteTensor* output) {
+#ifdef DEBUG 
   SFLAG();
-  //std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalFloat()\n";
+#endif
   float output_activation_min, output_activation_max;
   CalculateActivationRange(params->activation, &output_activation_min,
                            &output_activation_max);

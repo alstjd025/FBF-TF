@@ -390,7 +390,8 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
       node_subsets.size());
     
 
-
+  context_cpu = context_;
+  execution_plan_cpu = execution_plan_;
   execution_plan_.clear();
   
   for (auto& node_subset : node_subsets) {
@@ -424,7 +425,8 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
         // Associate the node with the delegate.
         TfLiteNode* node = &nodes_and_registration_[node_index].first;
         node->delegate = delegate;
-
+        //TfLiteRegistration* reg = &nodes_and_registration_[node_index].second;
+        //std::cout << reg->custom_name << std::endl;
       } break;
       case NodeSubset::kTfUnexplored: ;
 		return kTfLiteError;
@@ -920,8 +922,9 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
 TfLiteStatus Subgraph::PrepareOpsStartingAt(
     int first_execution_plan_index, const std::vector<int>& execution_plan,
     int* last_execution_plan_index_prepared) {
+#ifdef DEBUG 
   SFLAG();
-	//std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::PrepareOpsStartingAt()\n";
+#endif
   if (first_execution_plan_index == 0) {
     has_dynamic_tensors_ = false;
   }
@@ -954,7 +957,6 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 #ifdef DEBUG
   SFLAG();
 #endif
-	//std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::PrepareOpsAndTensors()\n";
   if (!memory_planner_) {
     memory_planner_.reset(new ArenaPlanner(
         &context_, std::unique_ptr<GraphInfo>(new InterpreterInfo(this)),
@@ -1046,8 +1048,106 @@ TfLiteStatus Subgraph::Invoke() {
  
   //std::cout << "execution_plan_.size(): "<< execution_plan_.size() << std::endl; 
   KMCONTEXT();
+
+#ifdef DEBUG
+  for (int execution_plan_index = 0;
+       execution_plan_index < execution_plan_cpu.size(); execution_plan_index++) {
+    int node_index = execution_plan_cpu[execution_plan_index];
+    TfLiteNode& node = nodes_and_registration_[node_index].first; KMNODE();
+    const TfLiteRegistration& registration =
+        nodes_and_registration_[node_index].second;
+
+    const char* op_name = nullptr;
+    std::cout << std::endl << GetTFLiteOpName(registration) << std::endl;
+    if (profiler_) op_name = GetTFLiteOpName(registration);
+    TFLITE_SCOPED_TAGGED_OPERATOR_PROFILE(profiler_.get(), op_name, node_index);
+
+    // TODO(ycling): This is an extra loop through inputs to check if the data
+    // need to be copied from Delegate buffer to raw memory, which is often not
+    // needed. We may want to cache this in prepare to know if this needs to be
+    // done for a node or not.
+    
+    for (int i = 0; i < node.inputs->size; ++i) {
+      int tensor_index = node.inputs->data[i];
+      if (tensor_index == kTfLiteOptionalTensor) {
+        continue;
+      }
+      TfLiteTensor* tensor = &tensors_[tensor_index];
+      if (tensor->delegate && tensor->delegate != node.delegate &&
+          tensor->data_is_stale) {
+        TF_LITE_ENSURE_STATUS(EnsureTensorDataIsReadable(tensor_index));
+      }
+      if (tensor->data.raw == nullptr && tensor->bytes > 0) {
+        if (registration.builtin_code == kTfLiteBuiltinReshape && i == 1) {
+          // In general, having a tensor here with no buffer will be an error.
+          // However, for the reshape operator, the second input tensor is only
+          // used for the shape, not for the data. Thus, null buffer is ok.
+          continue;
+        } else {
+          // In all other cases, we need to return an error as otherwise we will
+          // trigger a null pointer dereference (likely).
+          ReportError("Input tensor %d lacks data", tensor_index);
+		  return kTfLiteError;
+        }
+      }
+    }
+
+    if (check_cancelled_func_ != nullptr &&
+        check_cancelled_func_(cancellation_data_)) {
+      ReportError("Client requested cancel during Invoke()");
+	  return kTfLiteError;
+    }
+
+    EnsureTensorsVectorCapacity();
+    tensor_resized_since_op_invoke_ = false;
+    
+    //std::cout << execution_plan_index << std::endl;
+    
+    //std::cout << node.outputs->data[0] << std::endl;
+
+ //   std::cout << "context_.tensors->dims->data[3] : " <<
+ //     context_.tensors[node.inputs->data[0]].dims->data[3] << std::endl;
+
+    //std::cout << *(float*)context_.tensors[node.inputs->data[1]].data.data << std::endl;
+    if (OpInvoke(registration, &node) != kTfLiteOk) {	
+	    return ReportOpError(&context_, node, registration, node_index,
+                           "failed to invoke");
+    }
+    std::cout << "input : " << node.inputs->data[0] << " ";
+    std::cout << node.inputs->data[1] << " ";
+    std::cout << node.inputs->data[2] << std::endl;
+
+    std::cout << "output : " << node.outputs->data[0] << std::endl;
+
+    std::cout << *(float*)context_.tensors[node.outputs->data[0]].data.data << std::endl;
+    //std::cout << *(float*)context_.tensors[node.outputs->data[0]].data.data << std::endl;
+//std::cout << "gpu test : "
+//  <<  *(float*)node.delegate->data_ << std::endl;
+	// Force execution prep for downstream ops if the latest op triggered the
+    // resize of a dynamic tensor.
+    if (tensor_resized_since_op_invoke_ &&
+        HasDynamicTensor(context_, node.outputs)) {
+      next_execution_plan_index_to_prepare_ = execution_plan_index + 1;
+
+      // This happens when an intermediate dynamic tensor is resized.
+      // We don't have vim to prepare all the ops, but we need to recompute
+      // the allocation plan.
+      if (next_execution_plan_index_to_plan_allocation_ >
+          next_execution_plan_index_to_prepare_) {
+        next_execution_plan_index_to_plan_allocation_ =
+            next_execution_plan_index_to_prepare_;
+        if (memory_planner_) {
+          TF_LITE_ENSURE_STATUS(memory_planner_->ResetAllocationsAfter(
+              next_execution_plan_index_to_plan_allocation_ - 1));
+        }
+      }
+    }
+  }
+#endif
+
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
+         //if(execution_plan_index == 2) break;
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
       TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
@@ -1104,14 +1204,18 @@ TfLiteStatus Subgraph::Invoke() {
     
     //std::cout << execution_plan_index << std::endl;
     
-    std::cout << node.outputs->data[0] << std::endl;
+    //std::cout << node.outputs->data[0] << std::endl;
+
+ //   std::cout << "context_.tensors->dims->data[3] : " <<
+ //     context_.tensors[node.inputs->data[0]].dims->data[3] << std::endl;
+
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
 	    return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    std::cout << "context_.tensors->dims->data[3] : " <<
-      context_.tensors[node.outputs->data[0]].dims->data[3] << std::endl;
-    std::cout << *(float*)context_.tensors[node.outputs->data[0]].data.data << std::endl;
+           std::cout << "context_.tensors.bytes : " <<
+        context_.tensors[node.inputs->data[1]].type << std::endl;
+    //std::cout << *(float*)context_cpu.tensors[10].data.data << std::endl;
 //std::cout << "gpu test : "
 //  <<  *(float*)node.delegate->data_ << std::endl;
 	// Force execution prep for downstream ops if the latest op triggered the
@@ -1406,8 +1510,9 @@ void Subgraph::UseNNAPI(bool enable) {
 }
 
 void Subgraph::SwitchToDelegateContext() {
+#ifdef DEBUG
   SFLAG();
-  //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::SwitchToDelegateContext()\n";
+#endif
   context_.GetNodeAndRegistration = GetNodeAndRegistration;
   context_.ReplaceNodeSubsetsWithDelegateKernels =
       ReplaceNodeSubsetsWithDelegateKernels;

@@ -34,7 +34,8 @@ cc_library(
 cc_library(
     name = "utils",
     srcs = ["utils.cc"],
-    hdrs = ["utils.h"],
+    hdrs = ["utils.h",
+            "//tensorflow/lite:kmdebug.h"],
     compatible_with = get_compatible_with_portable(),
     copts = tflite_copts(),
     deps = [

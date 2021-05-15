@@ -54,6 +54,21 @@ void GemmImplUsingEigen::Run(
   using EigenMatrixMapColMajorMutable = Eigen::Map<
       Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>>;
 
+  std::cout << "run: lhs_data : "<< *lhs_data << std::endl;
+
+std::cout << lhs_params.rows << std::endl;
+  std::cout << lhs_params.cols << std::endl;
+
+  std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
+
+std::cout << rhs_params.rows << std::endl;
+  std::cout << rhs_params.cols << std::endl;
+  std::cout << "run: dst_data : "<< *dst_data << std::endl;
+
+
+  std::cout << dst_params.rows << std::endl;
+  std::cout << dst_params.cols << std::endl;
+
   EigenMatrixMapRowMajorConst eigen_lhs(lhs_data, lhs_params.rows,
                                         lhs_params.cols);
   EigenMatrixMapColMajorConst eigen_rhs(rhs_data, rhs_params.rows,
@@ -61,13 +76,25 @@ void GemmImplUsingEigen::Run(
   EigenMatrixMapColMajorMutable eigen_dst(dst_data, dst_params.rows,
                                           dst_params.cols);
 
+
+
   if (rhs_params.cols == 1) {
+      std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
+
+  std::cout << "run: dst_data : "<< *dst_data << std::endl;
+ 
     eigen_dst.col(0).noalias() = eigen_lhs * eigen_rhs.col(0);
+    std::cout << "TEST : " << eigen_rhs.col(0) << std::endl;
+
+  std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
+
+  std::cout << "run: dst_data : "<< *dst_data << std::endl;
   } else if (lhs_params.rows == 1) {
     eigen_dst.row(0).noalias() = eigen_lhs.row(0) * eigen_rhs;
   } else {
     eigen_dst.noalias() = eigen_lhs * eigen_rhs;
   }
+
 
   if (params.bias) {
     BiasAndClamp(params.clamp_min, params.clamp_max, dst_params.rows,
@@ -75,7 +102,9 @@ void GemmImplUsingEigen::Run(
   } else {
     eigen_dst = eigen_dst.cwiseMin(params.clamp_max).cwiseMax(params.clamp_min);
   }
-  std::cout << "run: rhs_data : "<< *rhs_data << std::endl; 
+
+  std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
+
   std::cout << "run: dst_data : "<< *dst_data << std::endl;
 }
 

@@ -2847,9 +2847,9 @@ absl::Status a()
 // TODO(impjdi): Check ops' parameters.
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
-  SFLAG();
-  //std::cout << "tensorflow/lite/delegates/gpu/common/model_builder.cc/GetOpsToReplace()\n";
-	
+#ifdef DEBUG
+  SFLAG();	
+#endif
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
@@ -2859,7 +2859,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
 	/*std::cout << " TEST ";
     std::cout << node->outputs->data[0] << std::endl;*/
 	//if(tflite::EnumNamesBuiltinOperator()[registration->builtin_code] == "DEPTHWISE_CONV_2D"){
-	if(node->outputs->data[0]==14){
+	if(node->outputs->data[0]== 10){
 		std::cout << "TSETASETASETAES" << std::endl;
 		const auto test_status = a();
 		if (!test_status.ok()) {

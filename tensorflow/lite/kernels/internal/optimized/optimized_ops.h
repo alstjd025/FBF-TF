@@ -406,6 +406,7 @@ inline void FullyConnected(
   gemm_params.bias = optional_bias_data;
   gemm_params.clamp_min = params.float_activation_min;
   gemm_params.clamp_max = params.float_activation_max;
+  
   cpu_backend_gemm::Gemm(lhs_params, weights_data, rhs_params, input_data,
                          dst_params, output_data, gemm_params,
                          cpu_backend_context);
