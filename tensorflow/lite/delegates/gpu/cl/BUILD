@@ -171,7 +171,8 @@ cc_library(
 cc_library(
     name = "cl_device",
     srcs = ["cl_device.cc"],
-    hdrs = ["cl_device.h"],
+    hdrs = ["cl_device.h",
+            "//tensorflow/lite:kmdebug.h"],
     deps = [
         ":device_info",
         ":opencl_wrapper",

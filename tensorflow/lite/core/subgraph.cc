@@ -1049,7 +1049,7 @@ TfLiteStatus Subgraph::Invoke() {
   //std::cout << "execution_plan_.size(): "<< execution_plan_.size() << std::endl; 
   KMCONTEXT();
 
-#ifdef DEBUG
+#ifdef DEBUGFFF
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_cpu.size(); execution_plan_index++) {
     int node_index = execution_plan_cpu[execution_plan_index];

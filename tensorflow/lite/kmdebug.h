@@ -16,6 +16,8 @@ class FunctionFlow {
   public:
 	FunctionFlow(const char* filename, const char* funcname);
 	~FunctionFlow();
+  private:
+	float timer;
 };
 
 /*

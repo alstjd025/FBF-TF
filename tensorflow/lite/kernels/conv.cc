@@ -994,6 +994,9 @@ TfLiteStatus EvalHybrid(TfLiteContext* context, TfLiteNode* node,
 
 template <KernelType kernel_type, TfLiteType input_type>
 TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
 
@@ -1013,6 +1016,8 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
       data->need_hwcn_weights
           ? &context->tensors[node->temporaries->data[data->hwcn_weights_index]]
           : nullptr;
+
+  std::cout << "TEST : " << !data->have_weights_been_transposed << std::endl; 
 
   if (data->need_hwcn_weights && !data->have_weights_been_transposed) {
     TransposeFloatTensor(filter, hwcn_weights);
@@ -1037,6 +1042,7 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
                                                     accum_scratch, output));
         }
       } else {
+
         EvalFloat<kernel_type>(context, node, params, data, input, filter, bias,
                                im2col, hwcn_weights, output);
       }
@@ -1066,12 +1072,11 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 #ifdef DEBUG
   SFLAG();
 #endif
-  //std::cout << "tensorflow/lite/kernels/conv.cc/Eval()\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));
 
   switch (input->type) {
-    case kTfLiteFloat32:
+    case kTfLiteFloat32:;
       return EvalImpl<kernel_type, kTfLiteFloat32>(context, node);
     case kTfLiteUInt8:
       return EvalImpl<kernel_type, kTfLiteUInt8>(context, node);

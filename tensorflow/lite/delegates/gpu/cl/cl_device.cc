@@ -24,6 +24,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/cl/util.h"
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 
+#include "tensorflow/lite/kmdebug.h"
+
 namespace tflite {
 namespace gpu {
 namespace cl {
@@ -364,6 +366,9 @@ void CLDevice::DisableOneLayerTextureArray() {
 }
 
 absl::Status CreateDefaultGPUDevice(CLDevice* result) {
+#ifdef DEBUG
+  SFLAG();
+#endif
   cl_uint num_platforms;
   clGetPlatformIDs(0, nullptr, &num_platforms);
   if (num_platforms == 0) {
@@ -382,7 +387,8 @@ absl::Status CreateDefaultGPUDevice(CLDevice* result) {
   std::vector<cl_device_id> devices(num_devices);
   clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_GPU, num_devices, devices.data(),
                  nullptr);
-
+  
+  
   *result = CLDevice(devices[0], platform_id);
   return absl::OkStatus();
 }

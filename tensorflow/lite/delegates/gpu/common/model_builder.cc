@@ -2859,7 +2859,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
 	/*std::cout << " TEST ";
     std::cout << node->outputs->data[0] << std::endl;*/
 	//if(tflite::EnumNamesBuiltinOperator()[registration->builtin_code] == "DEPTHWISE_CONV_2D"){
-	if(node->outputs->data[0]== 10){
+	if(node->outputs->data[0]== 1000){
 		std::cout << "TSETASETASETAES" << std::endl;
 		const auto test_status = a();
 		if (!test_status.ok()) {
