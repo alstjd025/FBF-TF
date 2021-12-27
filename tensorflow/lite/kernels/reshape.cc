@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include <stdint.h>
 #include <string.h>
+#include <iostream>
 
 #include <memory>
 
@@ -49,24 +50,30 @@ TfLiteStatus ResizeOutput(TfLiteContext* context, TfLiteNode* node) {
   // input. Here we calculate what that dimension should be so that the number
   // of output elements in the same as the number of input elements.
   int num_input_elements = NumElements(input);
-
+  //std::cout << "reshape input : " << num_input_elements << "\n";
   int num_output_elements = 1;
   int stretch_dim = -1;
+  //std::cout << "output_shape : " << output_shape->size << "\n";
   for (int i = 0; i < output_shape->size; ++i) {
     int value = output_shape->data[i];
+    //std::cout << "value : " << value << "\n";
     if (value == -1) {
       TF_LITE_ENSURE_EQ(context, stretch_dim, -1);
       stretch_dim = i;
+      //std::cout << "stretch_dim a : " << stretch_dim << "\n";
     } else {
       num_output_elements *= value;
+      //std::cout << "num_output_elements : " << num_output_elements << "\n";
     }
   }
+  //std::cout << "stretch_dim b : " << stretch_dim << "\n";
   if (stretch_dim != -1) {
     output_shape->data[stretch_dim] = num_input_elements / num_output_elements;
     num_output_elements *= output_shape->data[stretch_dim];
   }
-
-  TF_LITE_ENSURE_EQ(context, num_input_elements, num_output_elements);
+  //std::cout << "reshape output : " << num_output_elements << "\n";
+  //Minsung
+  //TF_LITE_ENSURE_EQ(context, num_input_elements, num_output_elements);
   return context->ResizeTensor(context, output, scoped_output_shape.release());
 }
 

@@ -380,7 +380,7 @@ inline Delegate* GetGpuDelegate(TfLiteDelegate* delegate) {
 }
 
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
-  std::cout << "tensorflow/lite/delegates/gpu/gl_delegate.cc/DelegatePrepare()\n";
+  //std::cout << "tensorflow/lite/delegates/gpu/gl_delegate.cc/DelegatePrepare()\n";
   const TfLiteRegistration kRegistration = {
       // .init
       [](TfLiteContext* context, const char* buffer, size_t) -> void* {

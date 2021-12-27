@@ -103,7 +103,9 @@ TfLiteStatus copyToTensor(TfLiteContext* context, const FromT* in,
 }
 
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
+  #ifdef DEBUG
   SFLAG();
+  #endif
   //std::cout << "tensorflow/lite/kernels/cast.cc/Eval()\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));

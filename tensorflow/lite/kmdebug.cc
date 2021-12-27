@@ -48,7 +48,7 @@ FunctionFlow::~FunctionFlow() {
 	std::cout <<"END " << depth+1 << " : ";
 	std::cout << info[depth].fileName.substr(16) << "/";
 	std::cout << info[depth].className << "::";
-    std::cout << info[depth].funcName << "() >> " << execution_time << endl;
+    std::cout << info[depth].funcName << "()" << endl; //>> " << execution_time << endl;
     info.pop_back();
     depth = info.size()-1;
 }

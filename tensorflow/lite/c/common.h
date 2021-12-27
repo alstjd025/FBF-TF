@@ -44,6 +44,26 @@ limitations under the License.
 extern "C" {
 #endif  // __cplusplus
 
+typedef enum UnitType{
+  NONE,
+  CPU0,
+  CPU1,
+  CPU2,
+  CPU3,
+  GPU0,
+  GPU1,
+  GPU2,
+  GPU3
+} UnitType;
+
+//Minsung
+//DistributeOptions For Distribute Strategy(Units)
+typedef struct{
+  int small_unit;
+  int big_unit;
+  int small_unit_ratio;
+} DistributeOptions;
+
 typedef enum TfLiteStatus {
   kTfLiteOk = 0,
 
@@ -820,7 +840,20 @@ typedef struct TfLiteContext {
   // WARNING: This method may not be available on all platforms.
   TfLiteEvalTensor* (*GetEvalTensor)(const struct TfLiteContext* context,
                                      int tensor_idx);
+  bool use_distribute_strategy_context;
 } TfLiteContext;
+
+//Minsung
+//Tflite SharedContext for Context Sharing between Multiple Interpreters
+typedef struct SharedContext{
+  UnitType eType;
+  TfLiteTensor* tensor;
+} SharedContext;
+
+typedef struct ContextShareOptions{
+  int nDevices;
+  int ratio;
+} ContextShareOptions;
 
 typedef struct TfLiteRegistration {
   // Initializes the op from serialized data.
@@ -962,6 +995,34 @@ typedef struct TfLiteDelegate {
 // Build a 'null' delegate, with all the fields properly set to their default
 // values.
 TfLiteDelegate TfLiteDelegateCreate();
+
+
+// Minsung
+// C Struct for Distributed Computing (CPU&GPU) 
+typedef struct UnitSettings {
+  int partitioning_plan;
+} UnitSettings;
+
+// Minsung
+// C Struct for Time Measure
+// Usage
+/*
+double elepsed_time = 0;
+clock_t start = clock();
+##CODE HERE##
+clock_t end = clock();
+elepsed_time += (double)(start - end);
+std::cout << elepsed_time/CLOCKS_PER_SEC << "us" << "\n";
+*/
+
+typedef struct ClockMeasure{
+  double* ary;
+  int size;
+}ClockMeasure;
+
+//Minsung
+//Use this Func
+ClockMeasure* CreateClockMeasure(int n);
 
 #ifdef __cplusplus
 }  // extern "C"

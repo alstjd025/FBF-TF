@@ -41,7 +41,7 @@ void GemmImplUsingEigen::Run(
     const MatrixParams<float>& rhs_params, const float* rhs_data,
     const MatrixParams<float>& dst_params, float* dst_data,
     const GemmParams<float, float>& params, CpuBackendContext* /* context */) {
-  std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_eigen.cc/GemmImplUsingEigen::Run()\n";
+  
   // This code assumes specific storage orders, encoded in these Eigen types.
   // These assumptions have been checked by TF_LITE_ASSERT's in the public
   // Gemm entry point already, before the implementation gets to this point.
@@ -54,20 +54,6 @@ void GemmImplUsingEigen::Run(
   using EigenMatrixMapColMajorMutable = Eigen::Map<
       Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>>;
 
-  std::cout << "run: lhs_data : "<< *lhs_data << std::endl;
-
-std::cout << lhs_params.rows << std::endl;
-  std::cout << lhs_params.cols << std::endl;
-
-  std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
-
-std::cout << rhs_params.rows << std::endl;
-  std::cout << rhs_params.cols << std::endl;
-  std::cout << "run: dst_data : "<< *dst_data << std::endl;
-
-
-  std::cout << dst_params.rows << std::endl;
-  std::cout << dst_params.cols << std::endl;
 
   EigenMatrixMapRowMajorConst eigen_lhs(lhs_data, lhs_params.rows,
                                         lhs_params.cols);
@@ -79,16 +65,9 @@ std::cout << rhs_params.rows << std::endl;
 
 
   if (rhs_params.cols == 1) {
-      std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
-
-  std::cout << "run: dst_data : "<< *dst_data << std::endl;
- 
+     
     eigen_dst.col(0).noalias() = eigen_lhs * eigen_rhs.col(0);
-    std::cout << "TEST : " << eigen_rhs.col(0) << std::endl;
-
-  std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
-
-  std::cout << "run: dst_data : "<< *dst_data << std::endl;
+   
   } else if (lhs_params.rows == 1) {
     eigen_dst.row(0).noalias() = eigen_lhs.row(0) * eigen_rhs;
   } else {
@@ -103,9 +82,6 @@ std::cout << rhs_params.rows << std::endl;
     eigen_dst = eigen_dst.cwiseMin(params.clamp_max).cwiseMax(params.clamp_min);
   }
 
-  std::cout << "run: rhs_data : "<< *rhs_data << std::endl;
-
-  std::cout << "run: dst_data : "<< *dst_data << std::endl;
 }
 
 }  // namespace detail

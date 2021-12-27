@@ -645,7 +645,7 @@ absl::Status InferenceContext::AddToQueue(CLCommandQueue* queue) {
   for (auto& node : nodes_) {
     RETURN_IF_ERROR(node.operation->AddToQueue(queue));
     Tensor* t = node.operation->GetSrc()[0];
-    std::cout << "addtoQ : " <<t->Channels() << std::endl;
+    //std::cout << "addtoQ : " <<t->Channels() << std::endl;
     //std::cout << "addtoQ : " <<t->GetDescriptor().data.size() << std::endl;
     //for (int i = 0; i < 100; ++i)
       //std::cout << "addtoQ : " << *((float*)t->GetMemoryPtr()+i) << std::endl;

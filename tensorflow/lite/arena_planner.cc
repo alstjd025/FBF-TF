@@ -193,7 +193,9 @@ TfLiteStatus ArenaPlanner::PlanAllocations() {
 }
 
 TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
+  #ifdef DEBUG
   SFLAG();
+  #endif
   //std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::ExecuteAllocations()\n";
   // Grow the size of `allocs_` if necessary. This allows allocating temporary
   // tensors in op's `prepare` function.
@@ -305,7 +307,9 @@ std::vector<int32_t> ArenaPlanner::CreateTensorAllocationVector(int first_node,
 }
 
 TfLiteStatus ArenaPlanner::CalculateAllocations(int first_node, int last_node) {
+  #ifdef DEBUG
   SFLAG();
+  #endif
   //std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::CalculateAllocations()\n";
   // Indices of tensors in order their allocation offsets will be calculated.
   const std::vector<int32_t> tensor_order =

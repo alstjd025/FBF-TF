@@ -336,7 +336,9 @@ class TwoStepTensorTie : public TensorTie {
 
   absl::Status Init(TensorObjectConverterBuilder* converter_builder,
                     ObjectManager* objects) {
-	SFLAG();
+	#ifdef DEBUG
+  SFLAG();
+  #endif
 	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/TwoStepTensorTie::Init()\n";
     auto defs = MakeOuterInnerDefs(def());
     RETURN_IF_ERROR(DefaultTensorTie::New(defs.second, converter_builder,
@@ -437,9 +439,6 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
-  #ifdef DEBUG
-    SFLAG();  
-  #endif
     for (auto& obj : inputs_) {
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
     }

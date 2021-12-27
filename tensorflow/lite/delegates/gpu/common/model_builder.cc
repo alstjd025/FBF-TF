@@ -55,6 +55,7 @@ limitations under the License.
 #include "tensorflow/lite/util.h"
 
 #include "tensorflow/lite/kmdebug.h"
+#define GPUONLY
 
 namespace tflite {
 namespace gpu {
@@ -2840,50 +2841,38 @@ bool IsAllAllowedTensors(TfLiteContext* context,
   return true;
 }
 }  // namespace
-absl::Status a()
- { return absl::UnimplementedError("TEST");}
 
 // TODO(impjdi): Check number of input/output tensors and their dimensions.
 // TODO(impjdi): Check ops' parameters.
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
-#ifdef DEBUG
-  SFLAG();	
-#endif
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-	/*std::cout << " TEST ";
-    std::cout << node->outputs->data[0] << std::endl;*/
-	//if(tflite::EnumNamesBuiltinOperator()[registration->builtin_code] == "DEPTHWISE_CONV_2D"){
-	if(node->outputs->data[0]== 1000){
-		std::cout << "TSETASETASETAES" << std::endl;
-		const auto test_status = a();
-		if (!test_status.ok()) {
-      	if (unsupported_details) {
-       			*unsupported_details = std::string(test_status.message());
-      		}
-      		return false;
-    	}
-	}
-	else {
-	if (!status.ok()) {
-      if (unsupported_details) {
-		*unsupported_details = std::string(status.message());
-	  }
-	  return false;
-	}
-	}
-
-    if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
-        !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) {
-      if (unsupported_details) {
-        *unsupported_details =
-            "OP is supported, but tensor type isn't matched!";
+	printf("CHECKING LAYER %d \n", registration->builtin_code);
+  if(context->use_distribute_strategy_context){
+    if(registration->builtin_code == 2){ //check if concat layer
+        printf("FOUND A CONCAT LAYER... MAKE GPU DEL NODE \n");
+        return false;
+    }
+    else {
+      if (!status.ok()) {
+        if (unsupported_details) {
+          *unsupported_details = std::string(status.message());
+        }
+        return false;  
       }
+    }
+  }
+  if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
+      !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) {
+    if (unsupported_details) {
+      *unsupported_details =
+          "OP is supported, but tensor type isn't matched!";
+    }
       return false;
     }
     return true;

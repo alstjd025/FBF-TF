@@ -37,7 +37,9 @@ ShaderCodegen::ShaderCodegen(const CompilationOptions& options,
 
 absl::Status ShaderCodegen::Build(CompiledNodeAttributes attr,
                                   ShaderCode* shader_code) const {
+  #ifdef DEBUG
   SFLAG();
+  #endif
   VariableAccessor variable_accessor(options_.inline_parameters,
                                      options_.vulkan_support);
   ObjectAccessor object_accessor(gpu_type_ == GpuType::MALI,

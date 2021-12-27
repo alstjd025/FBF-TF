@@ -263,7 +263,7 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
     const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
     Subgraph* subgraph) {
   #ifdef DEBUG
-    SFLAG();
+    ();
   #endif
 
   TfLiteStatus status = kTfLiteOk;
@@ -611,12 +611,13 @@ TfLiteStatus InterpreterBuilder::operator()(
     interpreter->reset();
     return kTfLiteError;
   };
-
+  
   if (!model_) {
     error_reporter_->Report("Null pointer passed in as model.");
+    
     return cleanup_and_error();
   }
-
+  
   if (model_->version() != TFLITE_SCHEMA_VERSION) {
     error_reporter_->Report(
         "Model provided is schema version %d not equal "
@@ -624,7 +625,6 @@ TfLiteStatus InterpreterBuilder::operator()(
         model_->version(), TFLITE_SCHEMA_VERSION);
     return cleanup_and_error();
   }
-
   if (BuildLocalIndexToRegistrationMapping() != kTfLiteOk) {
     error_reporter_->Report("Registration failed.\n");
     return cleanup_and_error();
@@ -637,7 +637,6 @@ TfLiteStatus InterpreterBuilder::operator()(
   // Construct interpreter with correct number of tensors and operators.
   auto* subgraphs = model_->subgraphs();
   auto* buffers = model_->buffers();
-
   if (subgraphs->size() == 0) {
     TF_LITE_REPORT_ERROR(error_reporter_, "No subgraph in the model.\n");
     return cleanup_and_error();
@@ -647,7 +646,6 @@ TfLiteStatus InterpreterBuilder::operator()(
     TF_LITE_REPORT_ERROR(error_reporter_, "No buffers in the model.\n");
     return cleanup_and_error();
   }
-
   interpreter->reset(new Interpreter(error_reporter_));
   (*interpreter)->SetNumThreads(num_threads);
   if (subgraphs->size() > 1) {
@@ -655,7 +653,6 @@ TfLiteStatus InterpreterBuilder::operator()(
   }
 
   (*interpreter)->SetProfiler(tflite::profiling::MaybeCreatePlatformProfiler());
-
   for (int subgraph_index = 0; subgraph_index < subgraphs->size();
        ++subgraph_index) {
     const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
@@ -694,7 +691,6 @@ TfLiteStatus InterpreterBuilder::operator()(
     }
     modified_subgraph->SetVariables(std::move(variables));
   }
-
   if (num_fp32_tensors_ > 0) {
     (*interpreter)->lazy_delegate_providers_ =
         op_resolver_.GetDelegates(num_threads);
@@ -702,7 +698,6 @@ TfLiteStatus InterpreterBuilder::operator()(
 
   if (ApplyDelegates(interpreter->get(), num_threads) != kTfLiteOk)
     return cleanup_and_error();
-
   return kTfLiteOk;
 }
 

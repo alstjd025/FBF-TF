@@ -211,7 +211,10 @@ absl::Status GlProgram::SetParameter(const Variable& param) {
 }
 
 absl::Status GlProgram::Dispatch(const uint3& workgroups) const {
+  //std::cout << "GLProgram::Dispatch \n";
+  #ifdef DEBUG
   SFLAG();
+  #endif
   if (workgroups.x == 0 || workgroups.y == 0 || workgroups.z == 0) {
     return absl::InvalidArgumentError("Invalid workgroups");
   }

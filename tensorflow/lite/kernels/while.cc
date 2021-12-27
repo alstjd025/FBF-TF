@@ -268,7 +268,7 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
                       cond_subgraph, cond_subgraph->inputs()));
 
   while (true) {
-    TF_LITE_ENSURE_OK(context, cond_subgraph->Invoke());
+    TF_LITE_ENSURE_OK(context, cond_subgraph->Invoke(UnitType::NONE));
     int cond_subgraph_output_index = cond_subgraph->outputs()[0];
     cond_subgraph->EnsureTensorDataIsReadable(cond_subgraph_output_index);
     TfLiteTensor* cond_output =
@@ -293,7 +293,7 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
         CopyTensorsData(context, cond_subgraph, cond_subgraph->inputs(),
                         body_subgraph, body_subgraph->inputs()));
 
-    TF_LITE_ENSURE_OK(context, body_subgraph->Invoke());
+    TF_LITE_ENSURE_OK(context, body_subgraph->Invoke(UnitType::NONE));
 
     for (int tensor_index : body_subgraph->outputs()) {
       body_subgraph->EnsureTensorDataIsReadable(tensor_index);

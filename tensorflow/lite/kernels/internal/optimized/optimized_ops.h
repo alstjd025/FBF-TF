@@ -376,7 +376,6 @@ inline void FullyConnected(
     const float* optional_bias_data, const RuntimeShape& output_shape,
     float* output_data, CpuBackendContext* cpu_backend_context) {
   //SFLAG();
-  std::cout << "tensorflow/lite/kernels/internal/optimized/optimized_ops.h/FullyConnected(float)\n";
   ruy::profiler::ScopeLabel label("FullyConnected");
   const int dims_count = weights_shape.DimensionsCount();
   const int input_rows = weights_shape.Dims(dims_count - 1);

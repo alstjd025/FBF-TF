@@ -316,7 +316,7 @@ static TfLiteStatus AllocateTemporaryTensorsIfRequired(TfLiteContext* context,
 TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
                      TfLiteNode* node) {
 #ifdef DEBUG
-  SFLAG();
+  //SFLAG();
 #endif
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
@@ -336,7 +336,9 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
   TF_LITE_ENSURE_EQ(context, input->dims->size, 4);
   TF_LITE_ENSURE_EQ(context, filter->dims->size, 4);
   // Check input channels matching filter
-  TF_LITE_ENSURE_EQ(context, input->dims->data[3], filter->dims->data[3]);
+  
+  //MINSUNG
+  //TF_LITE_ENSURE_EQ(context, input->dims->data[3], filter->dims->data[3]);
 
   // Check types. (We assume that UINT8 refers to quantized tensors)
   TfLiteType input_type = input->type;
@@ -758,7 +760,7 @@ void EvalFloat(TfLiteContext* context, TfLiteNode* node,
                const TfLiteTensor* bias, TfLiteTensor* im2col,
                TfLiteTensor* hwcn_weights, TfLiteTensor* output) {
 #ifdef DEBUG
-  SFLAG();
+  //SFLAG();
 #endif
   float output_activation_min, output_activation_max;
   CalculateActivationRange(params->activation, &output_activation_min,
@@ -995,7 +997,7 @@ TfLiteStatus EvalHybrid(TfLiteContext* context, TfLiteNode* node,
 template <KernelType kernel_type, TfLiteType input_type>
 TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
 #ifdef DEBUG
-  SFLAG();
+  //SFLAG();
 #endif
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
@@ -1016,8 +1018,6 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
       data->need_hwcn_weights
           ? &context->tensors[node->temporaries->data[data->hwcn_weights_index]]
           : nullptr;
-
-  std::cout << "TEST : " << !data->have_weights_been_transposed << std::endl; 
 
   if (data->need_hwcn_weights && !data->have_weights_been_transposed) {
     TransposeFloatTensor(filter, hwcn_weights);
@@ -1070,7 +1070,7 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 #ifdef DEBUG
-  SFLAG();
+  //SFLAG();
 #endif
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));

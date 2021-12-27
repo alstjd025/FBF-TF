@@ -53,7 +53,7 @@ class PartitionGraphIntoIndependentNodeSubsetsImpl {
   void Partition() {
     // Initialize here to make Partition() re-entrant.
     #ifdef DEBUG
-      SFLAG();
+      //SFLAG();
     #endif
     node_subsets_->clear();
     tensor_epochs_.clear();

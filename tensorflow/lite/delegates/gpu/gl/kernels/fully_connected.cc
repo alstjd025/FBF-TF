@@ -39,7 +39,9 @@ class FullyConnectedBuffers : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
-    SFLAG();
+  #ifdef DEBUG
+  SFLAG();
+  #endif
 	//std::cout << "tensorflow/lite/delegates/gpu/gl/kernels/fully_connected.cc/FullyConnectedBuffers::GenerateCode()\n";
 	const auto& attr =
         absl::any_cast<const FullyConnectedAttributes&>(ctx.op_attr);

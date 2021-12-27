@@ -588,11 +588,15 @@ absl::Status Runtime::AssignInternalObjects(
 }
 
 absl::Status Runtime::Execute() {
+  //std::cout<<"runtime.cc :: Execute() \n";
+  #ifdef DEBUG
   SFLAG();
+  #endif
   for (const auto& descriptor : programs_) {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());
     }
+    //std::cout << "Execute:: Program Queue loop \n";
     RETURN_IF_ERROR(command_queue_->Dispatch(descriptor.program,
                                              descriptor.num_workgroups));
   }

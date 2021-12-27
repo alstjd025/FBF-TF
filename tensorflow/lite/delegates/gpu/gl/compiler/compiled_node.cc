@@ -28,7 +28,9 @@ namespace gl {
 
 absl::Status MergeCode(CompiledNodeAttributes* attr,
                        CompiledNodeAttributes* merged_attr) {
+  #ifdef DEBUG
   SFLAG();
+  #endif
   // build a map of known names.
   absl::flat_hash_set<std::string> known_names;
   for (const auto& parameter : merged_attr->code.parameters) {

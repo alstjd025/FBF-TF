@@ -20,6 +20,10 @@ limitations under the License.
 #include <map>
 #include <utility>
 #include <vector>
+#include <queue>
+#include <mutex>
+#include "condition_variable"
+#include "cstring"
 
 #include "tensorflow/lite/allocation.h"
 #include "tensorflow/lite/c/common.h"
@@ -30,10 +34,26 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/util.h"
 
+#include "tensorflow/lite/schema/schema_generated.h"
+
+#define C_NRML "\033[0m"
+#define C_BLCK "\033[30m"
+#define C_RED  "\033[31m"
+#define C_GREN "\033[32m"
+#define C_YLLW "\033[33m"
+#define C_BLUE "\033[34m"
+#define C_PRPL "\033[35m"
+#define C_AQUA "\033[36m"
+
+
+
 namespace tflite {
 
 // Forward declare since NNAPIDelegate uses Interpreter.
 class NNAPIDelegate;
+
+//Forward declare of UnitHandler since UnitHander Uses Interpreter & Subgraph
+class UnitHandler;
 
 class Subgraph {
  public:
@@ -142,6 +162,106 @@ class Subgraph {
     return &context_.tensors[tensor_index];
   }
 
+  //Minsung
+  //Returns the output tensor of given node
+  //Return tensor is the last tensor of given node's tensor index.
+  //The node must have only one output tensor
+  TfLiteTensor* GetOutputTensor(TfLiteNode& node){
+    if(node.outputs->size <= 0)
+      return nullptr;
+    return tensor(node.outputs->data[node.outputs->size-1]);
+  }
+
+  //Minsung 
+  //Returns Output Tensor index of given node
+  int GetOutputTensorIndex(TfLiteNode& node){
+    return node.outputs->data[node.outputs->size-1];
+  }
+
+  //Minsung
+  //Prints Information of given node
+  void PrintNodeInfo(int node_index, TfLiteNode& node,
+                     const TfLiteRegistration& registration);
+  //Minsung
+  //Prints Output tensor's data of given node
+  //Use after invoke
+  void PrintOutputTensor(TfLiteNode& node, UnitType eType);
+
+
+  //Minsung
+  //Prints given Tensor 
+  void PrintTensor(TfLiteTensor& tensor, UnitType eType);
+
+  //Minsung
+  //Changes Output channels order of given node
+  //Will be implemented later..
+
+  //Minsung
+  //Context Sharing API
+  //Changes Dimensions and Tensor layout before Invoke
+  TfLiteStatus PrepareTensorsSharing(UnitType eType);
+  //Minsung
+  TfLiteStatus CheckConv2dNodes();
+
+  //Minsung
+  //Handle overall Context Sharing procedure
+  //Handler works differently depending on given UnitType
+  TfLiteStatus ContextHandler(UnitType eType, TfLiteTensor* tensor,
+                               std::queue<SharedContext*>* qSharedData,
+                               std::mutex& mtx_lock, std::mutex& mtx_lock_,
+                               std::condition_variable& Ucontroller,
+                               int execution_plan_index);
+  
+  //Minsung
+  //Context Sharing API
+  TfLiteStatus ConcatContext(TfLiteTensor* tensor, int execution_plan_index,
+                              std::condition_variable& Ucontroller,
+                              std::mutex& mtx_lock,
+                              std::mutex& mtx_lock_,
+                              std::queue<SharedContext*>* qSharedData,
+                              SharedContext* SlaveData);
+
+  //Minsung
+  //Context Sharing API
+  TfLiteStatus PushContextToQueue(SharedContext* context, std::mutex& mtx_lock, 
+                                  std::mutex& mtx_lock_,
+                                  std::queue<SharedContext*>* qSharedData,
+                                  std::condition_variable& Ucontroller);
+  
+  //Minsung
+  //Context Sharing API
+  SharedContext* GPUPopContextFromQueue(std::queue<SharedContext*>* qSharedData,
+                                    std::mutex& mtx_lock, std::mutex& mtx_lock_);
+  
+  //Minsung
+  //Context Sharing API
+  TfLiteStatus CPUPopContextFromQueue(std::queue<SharedContext*>* qSharedData,
+                                    int execution_plan_index,
+                                    std::mutex& mtx_lock,
+                                    std::mutex& mtx_lock_);
+  
+  //Minsung
+  //Context Sharing API
+  SharedContext* CreateSharedContext(UnitType eType,
+                                         TfLiteTensor* tensor);
+
+  //Minsung
+  //Context Sharing API
+  void DeleteSharedContext(SharedContext* dataTobeCleared);
+
+  //Minsung
+  //Thread Control Wait
+  void WaitForNotify(std::mutex& mtx_lock, std::condition_variable& Ucontroller);
+
+  //Thread Control Notify(wake)
+  void Notify(std::mutex& mtx_lock, std::condition_variable& Ucontroller);
+
+  //Km
+  //Get OP Name by registration
+  const char* GetOpName(const TfLiteRegistration& op_reg){
+    return tflite::EnumNamesBuiltinOperator()[op_reg.builtin_code];
+  }
+
   // Get an immutable tensor data structure.
   const TfLiteTensor* tensor(int tensor_index) const {
     if (tensor_index < 0 ||
@@ -242,7 +362,14 @@ class Subgraph {
   // to evaluate (i.e. if a ResizeTensor() has been performed without an
   // AllocateTensors().
   // Returns status of success or failure.
-  TfLiteStatus Invoke();
+  TfLiteStatus Invoke(UnitType eType, std::mutex& mtx_lock, 
+                        std::mutex& mtx_lock_,
+                        std::condition_variable& Ucontroller,
+                        std::queue<SharedContext*>* qSharedData);
+
+  //Minsung
+  //Overloaded Invoke Function for while.cc ..etc
+  TfLiteStatus Invoke(UnitType eType);
 
   // Entry point for C node plugin API to report an error.
   void ReportError(const char* format, ...);
@@ -748,6 +875,19 @@ class Subgraph {
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap* resources_ = nullptr;
+
+  //Minsung
+  //True if Unithandler uses multiple Units
+  bool use_distribute_strategy = false;
+  //Initialized in 
+  int partitioning_plan = 0;
+  //
+  int conv_filter_before_modification = 0;
+  UnitType subgraph_Type = UnitType::NONE;
+  int number_of_conv = 0;
+  int number_of_conv_temp = 0;
+  //C Struct for Time Measure
+  ClockMeasure* clock_measure_data;
 };
 
 }  // namespace tflite

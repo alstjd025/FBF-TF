@@ -227,7 +227,7 @@ class Delegate {
   }
 
   absl::Status Invoke(TfLiteContext* context) {
-    std::cout << "tensorflow/lite/delegates/gpu/cl/gpu_api_delegate.cc/Invoke()\n";
+    //std::cout << "tensorflow/lite/delegates/gpu/cl/gpu_api_delegate.cc/Invoke()\n";
 	RETURN_IF_ERROR(SetInputsAndOutputs(context));
     return runner_->Run();
   }
@@ -312,7 +312,7 @@ inline Delegate* GetDelegate(TfLiteDelegate* delegate) {
 }
 
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
-  std::cout << "tensorflow/lite/delegates/gpu/cl/gpu_api_delegate.cc/DelegatePrepare()\n";
+  //std::cout << "tensorflow/lite/delegates/gpu/cl/gpu_api_delegate.cc/DelegatePrepare()\n";
   const TfLiteRegistration kRegistration = {
       // .init
       [](TfLiteContext* context, const char* buffer, size_t) -> void* {

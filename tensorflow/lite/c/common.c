@@ -230,3 +230,11 @@ TfLiteDelegate TfLiteDelegateCreate() {
   };
   return d;
 }
+
+//Minsung
+ClockMeasure* CreateClockMeasure(int n){
+  ClockMeasure* temp = (ClockMeasure*)malloc(sizeof(ClockMeasure));
+  temp->size = n;
+  temp->ary = (double*)malloc(sizeof(double) * n);
+  return temp;
+}

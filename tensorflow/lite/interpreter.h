@@ -24,6 +24,8 @@ limitations under the License.
 #include <functional>
 #include <memory>
 #include <vector>
+#include <queue>
+#include <mutex>
 
 #include "tensorflow/lite/allocation.h"
 #include "tensorflow/lite/c/common.h"  // IWYU pragma: export
@@ -36,11 +38,14 @@ limitations under the License.
 #include "tensorflow/lite/stderr_reporter.h"
 #include "tensorflow/lite/type_to_tflitetype.h"
 
+#include "condition_variable"
+
 namespace tflite {
 
 class InterpreterTest;
 class TestDelegate;
 namespace delegates {
+class UnitHandler; //Forward declare of UnitHandler since UnitHander Uses Interpreter & Subgraph
 class InterpreterUtils;  // Class for friend declarations.
 }  // namespace delegates
 
@@ -355,13 +360,31 @@ class Interpreter {
   // success or failure.
   TfLiteStatus AllocateTensors();
 
+  //Minsung
+  //
+  TfLiteStatus SetPartitioning(int partitioning, UnitType eType);
+  
+
+
   /// Invoke the interpreter (run the whole graph in dependency order).
   ///
   /// NOTE: It is possible that the interpreter is not in a ready state
   /// to evaluate (i.e. if a ResizeTensor() has been performed without an
   /// AllocateTensors().
   /// Returns status of success or failure.
+  TfLiteStatus Invoke(UnitType eType, std::mutex& mtx_lock, 
+                     std::mutex& mtx_lock_,
+                     std::condition_variable& Ucontroller,
+                     std::queue<SharedContext*>* qSharedData);
+
+  //Minsung 
+  //Overloaded Invoke for other invoke calling parts
   TfLiteStatus Invoke();
+
+  //Minsung
+  //Prepares Tensor Sharing between
+  TfLiteStatus PrepareTensorsSharing(UnitType eType);
+
 
   /// Enable or disable NNAPI (true to enable). Disabled by default.
   ///

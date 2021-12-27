@@ -40,7 +40,6 @@ class Convolution : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
-    std::cout << "tensorflow/lite/delegates/gpu/gl/kernels/conv.cc/Convolution::GenerateCode()\n";
 	if (ctx.input_shapes.size() != 1) {
       return absl::UnimplementedError(
           "Convolution does not support more than 1 runtime tensor");
@@ -167,7 +166,6 @@ class Convolution1x1 : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
-    std::cout << "tensorflow/lite/delegates/gpu/gl/kernels/conv.cc/Convolution1x1::GenerateCode()\n";
 	if (ctx.input_shapes.size() != 1) {
       return absl::UnimplementedError(
           "Convolution does not support more than 1 runtime tensor");

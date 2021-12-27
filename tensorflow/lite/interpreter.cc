@@ -184,10 +184,7 @@ TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
 TfLiteStatus Interpreter::AllocateTensors() {
   // Apply the default delegate that TFLite will enable at this point to allow
   // other user-level delegates to be applied first.
-#ifdef DEBUG
-  SFLAG();
-#endif
-  //std::cout << "tensorflow/lite/interpreter.cc/interpreter::AllocateTensors()\n";
+
   if (!lazy_delegate_providers_.empty()) {
     TFLITE_LOG(TFLITE_LOG_INFO,
                "Applying %zu TensorFlow Lite delegate(s) lazily.",
@@ -282,15 +279,57 @@ TfLiteStatus Interpreter::ReleaseNonPersistentMemory() {
   return primary_subgraph().ReleaseNonPersistentMemory();
 }
 
-TfLiteStatus Interpreter::Invoke() {
-	//std::cout << "tensorflow/lite/interpreter.cc/Interpreter::Invoke()\n";
-#ifdef DEBUG
-  SFLAG();
-#endif
+//Minsung
+//Sets partitioning ratios of subgraphs
+//TODO : Set Filter Tensor for partitioning  
+TfLiteStatus Interpreter::SetPartitioning(int partitioning, UnitType eType){
+  int subgraph_size = subgraphs_size();
+  std::cout << "Interpreter has " << subgraph_size << " subgraphs \n";
+  if(subgraph_size <= 0){
+    std::cout << "ERROR Interpreter has " << subgraph_size << " subgraphs \n";
+    return kTfLiteError;
+  }
+  for(int i=0; i<subgraph_size; i++){
+    subgraph(i)->subgraph_Type = eType;
+    subgraph(i)->partitioning_plan = partitioning;
+    subgraph(i)->use_distribute_strategy = true;
+    subgraph(i)->clock_measure_data = CreateClockMeasure(4);
+    if(subgraph(i)->CheckConv2dNodes() != kTfLiteOk){
+      std::cout << "Error in number of Conv2d" << "\n";
+      return kTfLiteError;
+    }
+    context_->use_distribute_strategy_context = true;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
+                     std::mutex& mtx_lock_,
+                     std::condition_variable& Ucontroller,
+                     std::queue<SharedContext*>* qSharedData) {
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
   TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
-      scoped_runtime_event, primary_subgraph().Invoke());
+      scoped_runtime_event, primary_subgraph().Invoke(eType, mtx_lock, mtx_lock_,
+                                                      Ucontroller, qSharedData));
+
+  if (!allow_buffer_handle_output_) {
+    for (int tensor_index : outputs()) {
+      TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
+          scoped_runtime_event,
+          primary_subgraph().EnsureTensorDataIsReadable(tensor_index));
+    }
+  }
+  return kTfLiteOk;
+}
+
+//Minsung 
+//Overloaded Invoke for other invoke calling parts
+TfLiteStatus Interpreter::Invoke() {
+  ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
+                                                           "invoke");
+  TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
+      scoped_runtime_event, primary_subgraph().Invoke(UnitType::NONE));
 
   if (!allow_buffer_handle_output_) {
     for (int tensor_index : outputs()) {
@@ -482,4 +521,9 @@ Profiler* Interpreter::GetProfiler() {
   return primary_subgraph().GetProfiler();
 }
 
+TfLiteStatus Interpreter::PrepareTensorsSharing(UnitType eType){
+  if(subgraph(0)->PrepareTensorsSharing(eType) == kTfLiteOk)
+    return kTfLiteOk;
+  return kTfLiteError;
+}
 }  // namespace tflite

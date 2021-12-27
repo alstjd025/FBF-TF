@@ -109,7 +109,9 @@ class CompilerImpl : public Compiler {
       const GraphFloat32& graph,
       const std::unordered_set<int>& tflite_graph_io,  // NOLINT
       const ShaderCodeCallback& callback) final {
-	SFLAG();
+	#ifdef DEBUG
+  SFLAG();
+  #endif
 	//std::cout << "tensorflow/delegates/gpu/gl/compiler.cc/CompilerImpl::Compile()\n";
     // It is important to have ids in a compiled graph identical to the given
     // graph.

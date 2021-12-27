@@ -37,7 +37,9 @@ TfLiteStatus SimpleMemoryArena::Allocate(
     TfLiteContext* context, size_t alignment, size_t size, int32_t tensor,
     int32_t first_node, int32_t last_node,
     ArenaAllocWithUsageInterval* new_alloc) {
+  #ifdef DEBUG
   SFLAG();
+  #endif
 	//std::cout << "tensorflow/lite/simple_memory_arena.cc/SimpleMemoryArena::Allocate()\n";
   TF_LITE_ENSURE(context, alignment <= arena_alignment_);
   new_alloc->tensor = tensor;

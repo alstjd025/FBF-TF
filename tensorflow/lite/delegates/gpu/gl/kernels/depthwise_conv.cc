@@ -29,6 +29,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 #include "tensorflow/lite/delegates/gpu/gl/workgroups/ideal_workgroup_picker.h"
 
+#include "iostream"
+
 namespace tflite {
 namespace gpu {
 namespace gl {
@@ -38,6 +40,7 @@ class DepthwiseConvolution : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
+    std::cout << "tensorflow/lite/delegates/gpu/gl/kernels/DepthwiseConvolution::GenerateCode" << "\n";
     if (ctx.input_shapes.size() != 1) {
       return absl::UnimplementedError(
           "DepthWise Convolution does not support more than 1 runtime tensor");

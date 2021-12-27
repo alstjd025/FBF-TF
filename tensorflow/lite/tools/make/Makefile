@@ -55,6 +55,9 @@ INCLUDES := \
 -I$(MAKEFILE_DIR)/downloads/cpuinfo/include \
 -I$(MAKEFILE_DIR)/downloads/cpuinfo/src \
 -I$(MAKEFILE_DIR)/downloads/cpuinfo/deps/clog/include \
+-I/usr/include/opencv4\
+-I/home/xavier/tensorflow/tensorflow/lite\
+-I/home/xavier/tensorflow/tensorflow/lite/delegates/gpu\
 -I$(OBJDIR)
 # This is at the end so any globally-installed frameworks like protobuf don't
 # override local versions in the source tree.
@@ -67,7 +70,26 @@ LIBS := \
 -lpthread \
 -lm \
 -lz \
--ldl
+-ldl \
+-lopencv_gapi\
+-lflatbuffers /lib/aarch64-linux-gnu/libdl.so.2\
+-lopencv_stitching -lopencv_alphamat -lopencv_aruco -lopencv_bgsegm\
+-lopencv_bioinspired -lopencv_ccalib -lopencv_cudabgsegm -lopencv_cudafeatures2d\
+-lopencv_cudaobjdetect -lopencv_cudastereo -lopencv_dnn_objdetect\
+-lopencv_dnn_superres -lopencv_dpm -lopencv_highgui -lopencv_face -lopencv_freetype\
+-lopencv_fuzzy -lopencv_hdf -lopencv_hfs -lopencv_img_hash -lopencv_intensity_transform\
+-lopencv_line_descriptor -lopencv_mcc -lopencv_quality -lopencv_rapid -lopencv_reg\
+-lopencv_rgbd -lopencv_saliency -lopencv_sfm -lopencv_stereo -lopencv_structured_light\
+-lopencv_phase_unwrapping -lopencv_superres -lopencv_cudacodec -lopencv_surface_matching\
+-lopencv_tracking -lopencv_datasets -lopencv_text -lopencv_dnn -lopencv_plot -lopencv_videostab\
+-lopencv_cudaoptflow -lopencv_optflow -lopencv_cudalegacy -lopencv_videoio -lopencv_cudawarping\
+-lopencv_xfeatures2d -lopencv_shape -lopencv_ml -lopencv_ximgproc -lopencv_video -lopencv_xobjdetect\
+-lopencv_objdetect -lopencv_calib3d -lopencv_imgcodecs -lopencv_features2d -lopencv_flann\
+-lopencv_xphoto -lopencv_photo -lopencv_cudaimgproc -lopencv_cudafilters -lopencv_imgproc\
+-lopencv_cudaarithm -lopencv_core -lopencv_cudev\
+-l/home/xavier/tensorflow/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so\
+-l/usr/lib/aarch64-linux-gnu/libEGL.so\
+-l/usr/lib/aarch64-linux-gnu/libGL.so /usr/lib/aarch64-linux-gnu/libGLESv2.so
 
 # There are no rules for compiling objects for the host system (since we don't
 # generate things like the protobuf compiler that require that), so all of
@@ -115,8 +137,6 @@ BENCHMARK_BINARY_NAME := benchmark_model
 BENCHMARK_PERF_OPTIONS_BINARY_NAME := benchmark_model_performance_options
 
 # A small example program that shows how to link against the library.
-MINIMAL_SRCS := \
-	tensorflow/lite/examples/minimal/minimal.cc
 
 LABEL_IMAGE_SRCS := \
 	tensorflow/lite/examples/label_image/bitmap_helpers.cc \
@@ -149,7 +169,7 @@ $(wildcard tensorflow/lite/core/*.cc) \
 $(wildcard tensorflow/lite/core/api/*.cc) \
 $(wildcard tensorflow/lite/experimental/resource/*.cc) \
 $(wildcard tensorflow/lite/schema/schema_utils.cc) \
-$(wildcard tensorflow/lite/tools/make/downloads/ruy/ruy/*.cc)
+$(wildcard tensorflow/lite/tools/make/downloads/ruy/ruy/*.cc) 
 ifeq ($(TFLITE_HAVE_CPUINFO),true)
 CORE_CC_ALL_SRCS += \
 $(wildcard tensorflow/lite/tools/make/downloads/cpuinfo/src/*.c) \
@@ -200,7 +220,7 @@ $(wildcard tensorflow/lite/kernels/*test_main.cc) \
 $(wildcard tensorflow/lite/kernels/*test_util*.cc) \
 $(wildcard tensorflow/lite/tools/make/downloads/cpuinfo/src/*/mock*.c) \
 tensorflow/lite/tflite_with_xnnpack.cc \
-$(MINIMAL_SRCS)
+
 
 BUILD_WITH_MMAP ?= true
 ifeq ($(BUILD_TYPE),micro)
@@ -291,7 +311,6 @@ BENCHMARK_LIB_SRCS := $(filter-out \
 include $(wildcard $(MAKEFILE_DIR)/targets/*_makefile.inc)
 
 ALL_SRCS := \
-	$(MINIMAL_SRCS) \
 	$(PROFILER_SRCS) \
 	$(PROFILER_SUMMARIZER_SRCS) \
 	$(TF_LITE_CC_SRCS) \
@@ -306,18 +325,15 @@ BINDIR := $(GENDIR)bin/
 LIBDIR := $(GENDIR)lib/
 
 LIB_PATH := $(LIBDIR)$(LIB_NAME)
-BENCHMARK_LIB := $(LIBDIR)$(BENCHMARK_LIB_NAME)
-BENCHMARK_BINARY := $(BINDIR)$(BENCHMARK_BINARY_NAME)
-BENCHMARK_PERF_OPTIONS_BINARY := $(BINDIR)$(BENCHMARK_PERF_OPTIONS_BINARY_NAME)
-MINIMAL_BINARY := $(BINDIR)minimal
-LABEL_IMAGE_BINARY := $(BINDIR)label_image
+#BENCHMARK_LIB := $(LIBDIR)$(BENCHMARK_LIB_NAME)
+#BENCHMARK_BINARY := $(BINDIR)$(BENCHMARK_BINARY_NAME)
+#BENCHMARK_PERF_OPTIONS_BINARY := $(BINDIR)$(BENCHMARK_PERF_OPTIONS_BINARY_NAME)
+#LABEL_IMAGE_BINARY := $(BINDIR)label_image
 
 CXX := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}g++
 CC := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}gcc
 AR := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}ar
 
-MINIMAL_OBJS := $(addprefix $(OBJDIR), \
-$(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(MINIMAL_SRCS))))
 
 LABEL_IMAGE_OBJS := $(addprefix $(OBJDIR), \
 $(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(LABEL_IMAGE_SRCS))))
@@ -349,7 +365,7 @@ $(OBJDIR)%.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) $(DBG_FLAGS) -c $< -o $@
 
 # The target that's compiled if there's no command-line arguments.
-all: $(LIB_PATH)  $(MINIMAL_BINARY) $(BENCHMARK_BINARY) $(BENCHMARK_PERF_OPTIONS_BINARY)
+all: $(LIB_PATH) $(BENCHMARK_BINARY) $(BENCHMARK_PERF_OPTIONS_BINARY)
 
 # The target that's compiled for micro-controllers
 micro: $(LIB_PATH)
@@ -364,14 +380,6 @@ $(LIB_PATH): tensorflow/lite/schema/schema_generated.h $(LIB_OBJS)
 	$(AR) $(ARFLAGS) $(LIB_PATH) $(LIB_OBJS)
 
 lib: $(LIB_PATH)
-
-$(MINIMAL_BINARY): $(MINIMAL_OBJS) $(LIB_PATH)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DBG_FLAGS)\
-	-o $(MINIMAL_BINARY) $(MINIMAL_OBJS) \
-	$(LIBFLAGS) $(LIB_PATH) $(LDFLAGS) $(LIBS)
-
-minimal: $(MINIMAL_BINARY)
 
 $(LABEL_IMAGE_BINARY): $(LABEL_IMAGE_OBJS) $(LIB_PATH)
 	@mkdir -p $(dir $@)

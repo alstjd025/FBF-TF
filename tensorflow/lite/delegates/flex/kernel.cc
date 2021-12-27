@@ -597,7 +597,7 @@ TfLiteStatus DelegateKernel::ValidateOutputTensorShapeConsistency(
 }
 
 TfLiteStatus DelegateKernel::Eval(TfLiteContext* context, TfLiteNode* node) {
-  std::cout << "tensorflow/lite/delegates/flex/kernel.cc/DelegateKernel::Eval()\n";
+  //std::cout << "tensorflow/lite/delegates/flex/kernel.cc/DelegateKernel::Eval()\n";
   BufferMap* buffer_map = op_data_->buffer_map;
 
   // Insert a tensor in the buffer map for all inputs that are not constant.

@@ -500,7 +500,7 @@ class InferenceRunnerImpl : public InferenceRunner {
   absl::Status SetInputObject(int index, TensorObject object) override {
     #ifdef DEBUG
       CpuMemory* m = absl::get_if<CpuMemory>(&object);
-      std::cout << "CpuMemory : " << *(float*)m->data << std::endl;
+      //std::cout << "CpuMemory : " << *(float*)m->data << std::endl;
     #endif
     if (index < 0 || index >= inputs_.size()) {
       return absl::OutOfRangeError("Input index is out of range");

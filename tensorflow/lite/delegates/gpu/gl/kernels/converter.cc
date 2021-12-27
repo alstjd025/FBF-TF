@@ -139,7 +139,9 @@ class FromTensorConverter : public OpenGlConverterImpl {
 
   absl::Status Convert(const TensorObject& input_obj,
                        const TensorObject& output_obj) override {
-	SFLAG();
+	#ifdef DEBUG
+  SFLAG();
+  #endif
     auto output = absl::get_if<OpenGlBuffer>(&output_obj);
     if (!output || !output->id) {
       return absl::InvalidArgumentError("Missing output in converter");

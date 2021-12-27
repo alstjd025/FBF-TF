@@ -73,6 +73,7 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
       if (d == axis) {
         sum_axis += t->dims->data[axis];
       } else {
+        //minsung
         TF_LITE_ENSURE_EQ(context, t->dims->data[d], t0->dims->data[d]);
       }
     }
@@ -105,6 +106,7 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
+  //std::cout << "CPU Concate EVAL \n";
   auto* params =
       reinterpret_cast<TfLiteConcatenationParams*>(node->builtin_data);
   int axis = params->axis;

@@ -47,7 +47,9 @@ GlShader::~GlShader() { Invalidate(); }
 absl::Status GlShader::CompileShader(GLenum shader_type,
                                      const std::string& shader_source,
                                      GlShader* gl_shader) {
+  #ifdef DEBUG
   SFLAG();
+  #endif
   //std::cout << "tensorflow/lite/delegates/gpu/gl/gl_shader.cc/GlShader::CompileShader()\n";
   // NOTE: code compilation can fail due to gl errors happened before
   GLuint shader_id;

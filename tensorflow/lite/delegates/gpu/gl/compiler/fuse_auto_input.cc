@@ -46,7 +46,9 @@ std::pair<std::string, std::string> MakeDataReplacement(int n, int k) {
 }  // namespace
 
 TransformResult FuseAutoInput::ApplyToNode(Node* node, GraphFloat32* graph) {
+  #ifdef DEBUG
   SFLAG();
+  #endif
   auto& node_attr =
       absl::any_cast<CompiledNodeAttributes&>(node->operation.attributes);
   auto& node_code = node_attr.code;

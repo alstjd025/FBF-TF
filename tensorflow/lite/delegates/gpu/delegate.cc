@@ -204,9 +204,7 @@ class DelegateKernel {
   }
 
   absl::Status Invoke(TfLiteContext* context) {
-    #ifdef DEBUG
-      SFLAG();
-    #endif
+    //std::cout << "Delegate.cc absl:: Invoke() \n";
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
@@ -233,9 +231,6 @@ class DelegateKernel {
 
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
-  #ifdef DEBUG
-    SFLAG();
-  #endif
     //std::cout << "input_indices_.size() : " << output_indices_[0] << std::endl;
     for (int i = 0; i < input_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetInputObject(
@@ -261,9 +256,6 @@ class DelegateKernel {
   }
 
   TensorObject GetTensorObject(int index, TfLiteContext* context) const {
-  #ifdef DEBUG
-    SFLAG();
-  #endif
     auto& tensor = context->tensors[index];
     //std::cout << "tflitegpudelegatev2 input : " << *(float*)tensor.data.data << std::endl;
     //std::cout << "makecpumemory : " << ((float*)tensor.data.raw)[0] << std::endl;
@@ -381,9 +373,7 @@ inline Delegate* GetDelegate(TfLiteDelegate* delegate) {
 }
 
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
-#ifdef DEBUG
-  SFLAG();
-#endif
+
   const TfLiteRegistration kRegistration = {
       // .init
       [](TfLiteContext* context, const char* buffer, size_t) -> void* {

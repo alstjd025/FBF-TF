@@ -28,11 +28,16 @@ limitations under the License.
 #include "tensorflow/lite/minimal_logging.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/util.h"
+#include "tensorflow/lite/kernels/kernel_util.h"
 
+#include <cmath>
+#include "thread"
 #include "tensorflow/lite/kmdebug.h"
 #include "tensorflow/lite/kmcontext.h"
-//extern char  kmdir[256];
-//extern KmDebug kmdebug;
+
+#define MULTITHREAD
+
+
 
 namespace tflite {
 
@@ -111,7 +116,6 @@ TfLiteQuantizationParams GetLegacyQuantization(
   TfLiteQuantizationParams legacy_quantization;
   legacy_quantization.scale = 0;
   legacy_quantization.zero_point = 0;
-
   // If the quantization type isn't affine, return the empty
   // legacy_quantization.
   if (quantization.type != kTfLiteAffineQuantization) {
@@ -221,6 +225,8 @@ Subgraph::Subgraph(ErrorReporter* error_reporter,
   context_.profiler = nullptr;
   context_.GetTensor = nullptr;
   context_.GetEvalTensor = nullptr;
+  //Minsung
+  context_.use_distribute_strategy_context = false;
 
   // Reserve some space for the tensors to avoid excessive resizing.
   tensors_.reserve(kTensorsReservedCapacity);
@@ -664,10 +670,6 @@ TfLiteStatus Subgraph::BytesRequired(TfLiteType type, const int* dims,
 }
 
 TfLiteStatus Subgraph::AllocateTensors() {
-  #ifdef DEBUG
-    SFLAG();
-  #endif
-	//std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::AllocateTensors()\n";
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(), "AllocateTensors");
   if (!consistent_) {
     ReportError("AllocateTensors() called on inconsistent model.");
@@ -676,7 +678,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
 
   // Restore delegation state if applicable.
   TF_LITE_ENSURE_STATUS(RedoAllDelegates());
-
+  
   // Explicit (re)allocation is necessary if nodes have been changed or tensors
   // have been resized. For inputs marked as dynamic, we can't short-circuit the
   // allocation as the client may have done the resize manually.
@@ -708,6 +710,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors(); 
+  KMCONTEXT();
   return kTfLiteOk;
 }
 
@@ -742,6 +745,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
     SFLAG();
   #endif
   
+  #ifdef DEBUG
   std::cout << "in: ";
   for(int i = 0; i < inputs.size(); ++i) {
   	std::cout << inputs[i] << " ";
@@ -756,6 +760,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   for(int i = 0; i < intermediates.size(); ++i) {
 	std::cout << intermediates[i] << " ";
   } std::cout << std::endl;
+  #endif
   std::unique_ptr<void, decltype(free)*> builtin_data_deleter(builtin_data,
                                                               free);
   if (state_ == kStateInvokableAndImmutable) {
@@ -1017,9 +1022,17 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
   return kTfLiteOk;
 }
 
-TfLiteStatus Subgraph::Invoke() {
-  SFLAG();
-  //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
+TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock, 
+                            std::mutex& mtx_lock_,
+                            std::condition_variable& Ucontroller,
+                            std::queue<SharedContext*>* qSharedData) {
+                    
+
+  if(qSharedData == nullptr){
+    ReportError("Got NULLPTR for qSharedData!");
+    return kTfLiteError;
+  }
+
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
     return kTfLiteError;
@@ -1040,126 +1053,32 @@ TfLiteStatus Subgraph::Invoke() {
     // only need to modify the graph once upon the first invocation.
     applied_nnapi_delegate_ = true;
   }
+  
+  //TfLiteIntArrayFree(temp);
 
   // Invocations are always done in node order.
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
  
-  //std::cout << "execution_plan_.size(): "<< execution_plan_.size() << std::endl; 
-  KMCONTEXT();
-
-#ifdef DEBUGFFF
-  for (int execution_plan_index = 0;
-       execution_plan_index < execution_plan_cpu.size(); execution_plan_index++) {
-    int node_index = execution_plan_cpu[execution_plan_index];
-    TfLiteNode& node = nodes_and_registration_[node_index].first; KMNODE();
-    const TfLiteRegistration& registration =
-        nodes_and_registration_[node_index].second;
-
-    const char* op_name = nullptr;
-    std::cout << std::endl << GetTFLiteOpName(registration) << std::endl;
-    if (profiler_) op_name = GetTFLiteOpName(registration);
-    TFLITE_SCOPED_TAGGED_OPERATOR_PROFILE(profiler_.get(), op_name, node_index);
-
-    // TODO(ycling): This is an extra loop through inputs to check if the data
-    // need to be copied from Delegate buffer to raw memory, which is often not
-    // needed. We may want to cache this in prepare to know if this needs to be
-    // done for a node or not.
-    
-    for (int i = 0; i < node.inputs->size; ++i) {
-      int tensor_index = node.inputs->data[i];
-      if (tensor_index == kTfLiteOptionalTensor) {
-        continue;
-      }
-      TfLiteTensor* tensor = &tensors_[tensor_index];
-      if (tensor->delegate && tensor->delegate != node.delegate &&
-          tensor->data_is_stale) {
-        TF_LITE_ENSURE_STATUS(EnsureTensorDataIsReadable(tensor_index));
-      }
-      if (tensor->data.raw == nullptr && tensor->bytes > 0) {
-        if (registration.builtin_code == kTfLiteBuiltinReshape && i == 1) {
-          // In general, having a tensor here with no buffer will be an error.
-          // However, for the reshape operator, the second input tensor is only
-          // used for the shape, not for the data. Thus, null buffer is ok.
-          continue;
-        } else {
-          // In all other cases, we need to return an error as otherwise we will
-          // trigger a null pointer dereference (likely).
-          ReportError("Input tensor %d lacks data", tensor_index);
-		  return kTfLiteError;
-        }
-      }
-    }
-
-    if (check_cancelled_func_ != nullptr &&
-        check_cancelled_func_(cancellation_data_)) {
-      ReportError("Client requested cancel during Invoke()");
-	  return kTfLiteError;
-    }
-
-    EnsureTensorsVectorCapacity();
-    tensor_resized_since_op_invoke_ = false;
-    
-    //std::cout << execution_plan_index << std::endl;
-    
-    //std::cout << node.outputs->data[0] << std::endl;
-
- //   std::cout << "context_.tensors->dims->data[3] : " <<
- //     context_.tensors[node.inputs->data[0]].dims->data[3] << std::endl;
-
-    //std::cout << *(float*)context_.tensors[node.inputs->data[1]].data.data << std::endl;
-    if (OpInvoke(registration, &node) != kTfLiteOk) {	
-	    return ReportOpError(&context_, node, registration, node_index,
-                           "failed to invoke");
-    }
-    std::cout << "input : " << node.inputs->data[0] << " ";
-    std::cout << node.inputs->data[1] << " ";
-    std::cout << node.inputs->data[2] << std::endl;
-
-    std::cout << "output : " << node.outputs->data[0] << std::endl;
-
-    std::cout << *(float*)context_.tensors[node.outputs->data[0]].data.data << std::endl;
-    //std::cout << *(float*)context_.tensors[node.outputs->data[0]].data.data << std::endl;
-//std::cout << "gpu test : "
-//  <<  *(float*)node.delegate->data_ << std::endl;
-	// Force execution prep for downstream ops if the latest op triggered the
-    // resize of a dynamic tensor.
-    if (tensor_resized_since_op_invoke_ &&
-        HasDynamicTensor(context_, node.outputs)) {
-      next_execution_plan_index_to_prepare_ = execution_plan_index + 1;
-
-      // This happens when an intermediate dynamic tensor is resized.
-      // We don't have vim to prepare all the ops, but we need to recompute
-      // the allocation plan.
-      if (next_execution_plan_index_to_plan_allocation_ >
-          next_execution_plan_index_to_prepare_) {
-        next_execution_plan_index_to_plan_allocation_ =
-            next_execution_plan_index_to_prepare_;
-        if (memory_planner_) {
-          TF_LITE_ENSURE_STATUS(memory_planner_->ResetAllocationsAfter(
-              next_execution_plan_index_to_plan_allocation_ - 1));
-        }
-      }
-    }
-  }
-#endif
-
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
-         //if(execution_plan_index == 2) break;
+    //if(eType == UnitType::GPU0)
+      //std::cout << "\n" << "Execution_Plan LOOP : " << execution_plan_index << "\n";
+    //std::cout << "Number of Tensors in current Context : " << context_.tensors_size << "\n";
+
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
       TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
                                     execution_plan_index);
     }
     int node_index = execution_plan_[execution_plan_index];
-    TfLiteNode& node = nodes_and_registration_[node_index].first; KMNODE();
+    TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration =
         nodes_and_registration_[node_index].second;
 
     const char* op_name = nullptr;
-    std::cout << std::endl << GetTFLiteOpName(registration) << std::endl;
+    
     if (profiler_) op_name = GetTFLiteOpName(registration);
     TFLITE_SCOPED_TAGGED_OPERATOR_PROFILE(profiler_.get(), op_name, node_index);
 
@@ -1201,24 +1120,41 @@ TfLiteStatus Subgraph::Invoke() {
 
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
-    
-    //std::cout << execution_plan_index << std::endl;
-    
-    //std::cout << node.outputs->data[0] << std::endl;
-
- //   std::cout << "context_.tensors->dims->data[3] : " <<
- //     context_.tensors[node.inputs->data[0]].dims->data[3] << std::endl;
+    //=============== INVOKE =============== 
+    //=============== INVOKE =============== 
+    //=============== INVOKE =============== 
+    //=============== INVOKE =============== 
 
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
-	    return ReportOpError(&context_, node, registration, node_index,
+      return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-           std::cout << "context_.tensors.bytes : " <<
-        context_.tensors[node.inputs->data[1]].type << std::endl;
-    //std::cout << *(float*)context_cpu.tensors[10].data.data << std::endl;
-//std::cout << "gpu test : "
-//  <<  *(float*)node.delegate->data_ << std::endl;
-	// Force execution prep for downstream ops if the latest op triggered the
+    if(use_distribute_strategy){
+      if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
+                eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
+      if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
+                        Ucontroller, node_index)
+          != kTfLiteOk) {return kTfLiteError;}
+      }
+      
+      if(strcmp(GetOpName(registration), "CONCATENATION") == 0 &&
+                eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
+        if(CPUPopContextFromQueue(qSharedData, node_index, mtx_lock, mtx_lock_) != kTfLiteOk) 
+          return kTfLiteError;
+      }
+
+      if(strcmp(GetOpName(registration), "CONCATENATION") == 0 && 
+                eType == UnitType::GPU0){ //Call ContextHandler right after Conv 2d
+      if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock,
+                        mtx_lock_, Ucontroller, node_index)
+          != kTfLiteOk) {return kTfLiteError;}
+      }
+    }
+    //if(eType == UnitType::GPU0)
+    //  PrintOutputTensor(node, eType);
+    //if(eType == UnitType::GPU0)
+    //   PrintOutputTensor(node, eType);
+	  // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
         HasDynamicTensor(context_, node.outputs)) {
@@ -1237,12 +1173,27 @@ TfLiteStatus Subgraph::Invoke() {
         }
       }
     }
-  }/*
-  for(int i = 0; i < 11; ++i) {
-     if (i >7 && i < 10) continue; 
- 	 std::cout << i <<" TEST : " << *(float*)context_.tensors[i].data.data  << std::endl;
-}*/
+    if(number_of_conv_temp <= 0 && eType == UnitType::GPU0 && 
+                                                  use_distribute_strategy){
+      number_of_conv_temp = number_of_conv;
+    }
+    if(number_of_conv_temp <= 0 && eType == UnitType::CPU0 && 
+                                                  use_distribute_strategy){
+      status = kTfLiteOk;
+      number_of_conv_temp = number_of_conv;
+      return status;
+    }
+  }
   return status;
+}
+
+//Minsung
+//Overloaded Invoke function for while.cc if.cc ... etc
+TfLiteStatus Subgraph::Invoke(UnitType eType){
+  std::mutex mtx_lock;
+  std::mutex mtx_lock_;
+  std::condition_variable temp_cond;
+  Invoke(eType, mtx_lock, mtx_lock_, temp_cond, nullptr);
 }
 
 TfLiteStatus Subgraph::ResizeTensor(TfLiteContext* context,
@@ -1670,8 +1621,6 @@ TfLiteStatus Subgraph::EnsureMemoryAllocations() {
 }
 
 TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
-  SFLAG();
-  //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::ModifyGraphWithDelegate()\n";
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(),
                                        "ModifyGraphWithDelegate");
 
@@ -1681,11 +1630,61 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   if (state_ == kStateInvokableAndImmutable) {
     ReportError(
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
-	return kTfLiteApplicationError;
+	  return kTfLiteApplicationError;
   }
 
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
+    // Runtime Filter Modification for CPU&GPU Multithreading
+    if(use_distribute_strategy){
+      for (int node_index = 0;
+        node_index < nodes_and_registration_.size(); node_index++) {
+        TfLiteNode& node = nodes_and_registration_[node_index].first;
+        const TfLiteRegistration& registration =
+            nodes_and_registration_[node_index].second;
+        int tensor_filter = 0;
+        int tensor_bias = 0;
+        if(!strcmp(GetOpName(registration), "CONV_2D")){
+          tensor_filter = node.inputs->data[1];
+          tensor_bias = node.inputs->data[2];
+          conv_filter_before_modification =
+                context_.tensors[tensor_filter].dims->data[0];
+          int modified_value = 
+                ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+          context_.tensors[tensor_filter].dims->data[0] = modified_value;
+          context_.tensors[tensor_bias].dims->data[0] = modified_value;
+          int modified_bytes = 1 * sizeof(float);
+          for(int i=0; i<4; i++){
+            modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+          }
+          context_.tensors[tensor_filter].bytes = modified_bytes;
+          context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
+        }
+        else if(!strcmp(GetOpName(registration), "CONCATENATION")){
+          if(conv_filter_before_modification <= 0){
+            std::cout << "Error in filter Partitioning \n";
+            return kTfLiteError;
+          }
+          tensor_filter = node.inputs->data[1];
+          int modified_value =  conv_filter_before_modification - \
+                ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+          TfLiteIntArray* ary = TfLiteIntArrayCreate(4);
+          for(int i=0; i<4; i++){
+            if(i==3){
+              ary->data[i] = context_.tensors[tensor_filter].dims->data[i] + \
+                              modified_value;
+            }
+            else{
+              ary->data[i] = context_.tensors[tensor_filter].dims->data[i];
+            }
+          }
+          SetTensorToDynamic(tensor(tensor_filter));
+          ResizeTensorImpl(tensor(tensor_filter), ary);
+        }
+      }
+    }
+    state_ = kStateInvokable;
+
     TF_LITE_ENSURE_OK(
         &context_, PrepareOpsStartingAt(0, execution_plan_,
                                         &last_execution_plan_index_prepared));
@@ -1699,7 +1698,6 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
 		return kTfLiteApplicationError;
     }
   }
-
   const bool was_invokable_before_delegate = state_ == kStateInvokable;
   if (delegates_applied_.empty()) {
     // This is the first delegate being applied, so remember original execution
@@ -1708,11 +1706,9 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     // application fails.
     pre_delegation_execution_plan_ = execution_plan_;
   }
-
   // TODO(aselle): Consider if it is worth storing pointers to delegates.
   // Setup additional context interface.
   SwitchToDelegateContext();
-
   auto reset_delegation_if_not_ok = [this](TfLiteStatus status) {
     if (status != kTfLiteOk) {
       TF_LITE_ENSURE_STATUS(RemoveAllDelegates());
@@ -1723,14 +1719,10 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     } 
     return kTfLiteOk;
   };
-
   TfLiteStatus status = delegate->Prepare(&context_, delegate);
-
   // Remove additional context info.
   SwitchToKernelContext();
-
   TF_LITE_ENSURE_STATUS(reset_delegation_if_not_ok(status));
-
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     // Reset the state to force tensor/op reallocation.
     state_ = kStateUninvokable;
@@ -1778,4 +1770,263 @@ TfLiteStatus Subgraph::SetCustomAllocationForTensor(
   return kTfLiteOk;
 }
 
+void Subgraph::PrintNodeInfo(int node_index, TfLiteNode& node,
+                     const TfLiteRegistration& registration){
+  std::cout << "\n" << "[Print Node Info]" << "\n";
+  std::cout << "OP Name : " << GetTFLiteOpName(registration) << "\n";
+  std::cout << "Node Index : " << node_index << "\n";
+  std::cout << "Tensor Data type : " << tensor(node.outputs->data[0])->type << "\n";
+  int tensor_index = node.outputs->data[node.outputs->size-1]; //output tensor index
+  std::cout << "[" << tensor_index 
+            << "] Tensor Size : " << tensor(tensor_index)->bytes << "\n";
+  std::cout << "[" << tensor_index << "] Tensor Dimension : ";
+  int tensor_data_size = 1;
+  int tensor_data_dims_size = tensor(tensor_index)->dims->size-1;
+  int tensor_data_ch_size = tensor(tensor_index)->dims->data[tensor_data_dims_size];
+  for(int i=0; i< tensor(tensor_index)->dims->size; i++){
+    std::cout << tensor(tensor_index)->dims->data[i] << " ";  //print dimension info
+    tensor_data_size *= tensor(tensor_index)->dims->data[i]; 
+  }
+  std::cout << "\n";
+}
+
+void Subgraph::PrintOutputTensor(TfLiteNode& node, UnitType eType){
+  std::cout << "[Print OutPut Tensor] \n";
+  TfLiteTensor* temp = GetOutputTensor(node);
+  int tensor_index = GetOutputTensorIndex(node);
+  int tensor_data_dims_size = temp->dims->size-1;
+  int tensor_data_ch_size = temp->dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< temp->dims->size; i++){
+    if(i == 1){
+      tensor_axis = temp->dims->data[i];
+    }
+    tensor_data_size *= temp->dims->data[i]; 
+  }
+  std::cout << "\n";
+  std::cout << "[" << tensor_index << "] Nunber of Tensors : "\
+                                           << tensor_data_size << "\n";
+  std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
+  auto data_st = (float*)temp->data.data;
+  for(int i=0; i<tensor_data_ch_size; i++){
+    std::cout << "CH [" << i << "] \n";
+    for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+      float data = *(data_st+(i+j*tensor_data_ch_size));
+      if (data == 0) {
+        printf("%0.6f ", data);
+      }
+      else if (data != 0) {
+        if(eType == UnitType::CPU0)
+          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+        else if(eType == UnitType::GPU0)
+          printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
+      }
+      if (j % tensor_axis == tensor_axis-1) {
+        printf("\n");
+      }
+    }
+    std::cout << "\n";
+  }
+}
+
+void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
+  std::cout << "[Print Tensor]" << "\n";
+  
+  int tensor_data_dims_size = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< tensor.dims->size; i++){
+    if(i == 1){
+      tensor_axis = tensor.dims->data[i];
+    }
+    tensor_data_size *= tensor.dims->data[i]; 
+  }
+  std::cout << "\n";
+  std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
+  std::cout << " Tensor DATA " << "\n";
+  auto data_st = (float*)tensor.data.data;
+  for(int i=0; i<tensor_data_ch_size; i++){
+    std::cout << "CH [" << i << "] \n";
+    for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+      float data = *(data_st+(i+j*tensor_data_ch_size));
+      if (data == 0) {
+        printf("%0.6f ", data);
+      }
+      else if (data != 0) {
+        if(eType == UnitType::CPU0)
+          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+        else if(eType == UnitType::GPU0)
+          printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
+      }
+      if (j % tensor_axis == tensor_axis-1) {
+        printf("\n");
+      }
+    }
+    std::cout << "\n";
+  }
+}
+
+
+TfLiteStatus Subgraph::PrepareTensorsSharing(UnitType eType){
+  if(eType == UnitType::CPU0){ 
+  }
+  return kTfLiteOk;
+}
+
+//Minsung
+//ContextHandler Controls Invoking Conv2d Layer.
+//When executionplan Invokes Conv2d node,
+//After Invoke, (Slave)ContextHandler will push one output tensor pointer to queue
+//After Invoke, (Master)ContextHandler will pop output tensor pointer from queue
+//(Master)ContextHandler will concat the tensor before invoking next node
+TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
+                                    std::queue<SharedContext*>* qSharedData,
+                                    std::mutex& mtx_lock, 
+                                    std::mutex& mtx_lock_,
+                                    std::condition_variable& Ucontroller,
+                                    int execution_plan_index){
+  if(eType == UnitType::CPU0){
+    //std::cout << "Slave ContextHandler Called" << "\n";
+    SharedContext* slaveData = CreateSharedContext(eType, tensor);
+    if(PushContextToQueue(slaveData, mtx_lock, mtx_lock_,
+                           qSharedData, Ucontroller) != kTfLiteOk){
+        return kTfLiteError;
+    }
+    number_of_conv_temp--;
+    return kTfLiteOk;
+  }
+  else if(eType == UnitType::GPU0){
+    //std::cout << "Master ContextHandler Called" << "\n";
+    if(ConcatContext(tensor, execution_plan_index, Ucontroller, 
+                      mtx_lock, mtx_lock_, qSharedData,
+                      GPUPopContextFromQueue(qSharedData, mtx_lock, mtx_lock_))
+       != kTfLiteOk){
+        return kTfLiteError;
+    }
+    number_of_conv_temp--;
+    return kTfLiteOk;
+  }
+  //TODO : After GPU recieving & concating are done, GPU sends tensor back to CPU
+  //       And the CPU uses the tensor as input of next layer.
+  //       Than, CPU don't have to re-write data from gpu
+  //       (This way should be more effective than writing data back from GPU)   
+}
+
+//Concate CPU Tensor Context and GPU Tensor Context in Concat Layer
+TfLiteStatus Subgraph::ConcatContext(TfLiteTensor* rc_tensor, 
+                                int execution_plan_index,
+                                std::condition_variable& Ucontroller,
+                                std::mutex& mtx_lock,
+                                std::mutex& mtx_lock_,
+                                std::queue<SharedContext*>* qSharedData,
+                                SharedContext* SlaveData){
+  //rc : recieve
+  //sd : send
+  //st : start
+  //cp : copy
+  //ch : channel
+  int concat_tensor_index = \
+            nodes_and_registration_[execution_plan_index].first.inputs->data[1];
+  int concat_tensor_filter = \
+            tensor(concat_tensor_index)->dims->data[3];    
+  TfLiteTensor* sd_tensor = SlaveData->tensor;
+  int tensor_rc_data_ch_index = rc_tensor->dims->size-1;
+  int tensor_rc_ch_size = \
+            rc_tensor->dims->data[tensor_rc_data_ch_index] - concat_tensor_filter;
+  int tensor_sd_data_ch_index = sd_tensor->dims->size-1;
+  int tensor_sd_ch_size = sd_tensor->dims->data[tensor_sd_data_ch_index];
+  int tensor_data_size = 1; 
+  for(int i=0; i< rc_tensor->dims->size; i++){   //get number of tensor data to copy
+                                              // ex)26x26 -> 676
+    tensor_data_size *= rc_tensor->dims->data[i]; 
+  }
+  auto data_send = (float*)sd_tensor->data.data;    //data send pointer
+  auto data_recieve = (float*)rc_tensor->data.data;  //data recieve pointer
+  int ch_size = tensor_rc_ch_size + concat_tensor_filter; 
+  //int ch_st = (ch_size * (0.1 * partitioning_plan));
+  int ch_st = tensor_rc_ch_size;
+  int tensor_data_per_ch = tensor_data_size / ch_size;
+  for(int n=0; n<tensor_data_per_ch; n++){
+    memcpy((data_recieve + (ch_st + n*ch_size)),
+          (data_send + (n * tensor_sd_ch_size)), sizeof(float) * tensor_sd_ch_size);
+  }
+  if(!(number_of_conv_temp <= 1)){ //this needs to be modified
+    SharedContext* newSharedContext = new SharedContext;
+    newSharedContext->eType = UnitType::GPU0;
+    newSharedContext->tensor = rc_tensor;
+    std::unique_lock<std::mutex> lock(mtx_lock);
+    qSharedData->push(newSharedContext);
+  }
+  Ucontroller.notify_one();
+  return kTfLiteOk;
+} 
+
+
+TfLiteStatus Subgraph::PushContextToQueue(SharedContext* slaveData,
+                                  std::mutex& mtx_lock,
+                                  std::mutex& mtx_lock_,
+                                  std::queue<SharedContext*>* qSharedData,
+                                  std::condition_variable& Ucontroller){
+  if(slaveData != nullptr){
+    std::unique_lock<std::mutex> lock(mtx_lock);
+    qSharedData->push(slaveData);
+    mtx_lock_.unlock();
+    Ucontroller.wait(lock);
+    return kTfLiteOk;
+  }
+  return kTfLiteError;
+}
+
+SharedContext* Subgraph::GPUPopContextFromQueue(std::queue<SharedContext*>* qSharedData,
+                                            std::mutex& mtx_lock, std::mutex& mtx_lock_){
+  SharedContext* temp;
+  mtx_lock_.lock();
+  std::unique_lock<std::mutex> lock(mtx_lock);
+  temp = qSharedData->front();
+  qSharedData->pop();
+  return temp;
+}
+
+TfLiteStatus Subgraph::CPUPopContextFromQueue(std::queue<SharedContext*>* qSharedData,
+                                            int execution_plan_index,
+                                            std::mutex& mtx_lock,
+                                            std::mutex& mtx_lock_){
+  int output_tensor_index = \
+              nodes_and_registration_[execution_plan_index].first.outputs->data[0];
+  std::unique_lock<std::mutex> lock(mtx_lock);
+  if(qSharedData->empty()){
+    std::cout << "Oh Yeah!! Welcome to error world!! lollo!!!!" << "\n";
+    return kTfLiteError;
+  }
+  context_.tensors[output_tensor_index].data.data = \
+                                    qSharedData->front()->tensor->data.data;
+  qSharedData->pop();
+  return kTfLiteOk;
+}
+
+
+SharedContext* Subgraph::CreateSharedContext(UnitType eType,
+                                         TfLiteTensor* tensor){
+  return new SharedContext{eType, tensor};
+}
+
+TfLiteStatus Subgraph::CheckConv2dNodes(){
+  for (int node_index = 0;
+    node_index < nodes_and_registration_.size(); node_index++) {
+    TfLiteNode& node = nodes_and_registration_[node_index].first;
+    const TfLiteRegistration& registration =
+        nodes_and_registration_[node_index].second;
+    if(strcmp(GetOpName(registration), "CONV_2D") == 0){
+      number_of_conv++;
+    }
+  }
+  if(number_of_conv >= 1){
+    number_of_conv_temp = number_of_conv;
+    return kTfLiteOk;
+  }
+  else  
+    return kTfLiteError;
+}
 }  // namespace tflite
