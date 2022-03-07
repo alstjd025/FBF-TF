@@ -1914,6 +1914,12 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
   //       (This way should be more effective than writing data back from GPU)   
 }
 
+
+TfLiteStatus Subgraph::QuantizeSelectedSubgraph(){
+
+}
+
+
 //Concate CPU Tensor Context and GPU Tensor Context in Concat Layer
 TfLiteStatus Subgraph::ConcatContext(TfLiteTensor* rc_tensor, 
                                 int execution_plan_index,

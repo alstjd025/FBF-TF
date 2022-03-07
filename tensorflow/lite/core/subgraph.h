@@ -213,7 +213,7 @@ class Subgraph {
                                int execution_plan_index);
   //Minsung
   //
-  TfLiteStatus QuantizeSelectedFilter(int layer, int filter, TfLiteTensor* tensor);
+  TfLiteStatus QuantizeSelectedSubgraph();
 
   //Minsung
   //Context Sharing API

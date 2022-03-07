@@ -303,6 +303,15 @@ TfLiteStatus Interpreter::SetPartitioning(int partitioning, UnitType eType){
   return kTfLiteOk;
 }
 
+//Minsung Quantize all Conv2d Layer of Current Context
+//Only works in CPU Context
+TfLiteStatus Interpreter::QuantizeSubgraph(){
+  int subgraph_size = subgraphs_size();
+  for(int i=0; i<subgraph_size; i++){
+    subgraph(i)->QuantizeSelectedSubgraph();
+  }
+}
+
 TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                      std::mutex& mtx_lock_,
                      std::condition_variable& Ucontroller,
