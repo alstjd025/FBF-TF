@@ -161,8 +161,6 @@ inline void Conv(const Eigen::ThreadPoolDevice& device,
   const int batches = MatchingDim(input_shape, 0, output_shape, 0);
   const int input_depth = MatchingDim(input_shape, 3, filter_shape, 3);
   const int output_depth = MatchingDim(filter_shape, 0, output_shape, 3);
-  std::cout << "input_depth : " << input_depth << std::endl;
-  std::cout << "output_depth : " << output_depth << std::endl;
   const int input_height = input_shape.Dims(1);
   const int input_width = input_shape.Dims(2);
   const int filter_height = filter_shape.Dims(1);

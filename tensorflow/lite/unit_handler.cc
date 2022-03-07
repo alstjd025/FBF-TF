@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define GPUONLY
+#define MULTITHREAD
 
 
 extern std::mutex mtx_lock;
@@ -41,7 +41,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     }
     std::unique_ptr<tflite::Interpreter>* interpreter;
     interpreter = new std::unique_ptr<tflite::Interpreter>;
-    (*builder_)(interpreter);
+    (*builder_)(interpreter, 8);
     #ifdef MULTITHREAD
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(2, eType) == kTfLiteOk);  
     #endif
@@ -100,10 +100,11 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-        .experimental_flags = 4,
+        .experimental_flags = 1,
         .max_delegated_partitions = 30,
     };
     #ifdef MULTITHREAD
+    //Set Partitioning Value : GPU Side Filters
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(8, eType) == kTfLiteOk); 
     TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
@@ -186,7 +187,7 @@ TfLiteStatus UnitHandler::Invoke(UnitType eType, UnitType eType_,
     cpu.join();
     #endif
     
-    PrintMsg("ALl Jobs Done");
+    PrintMsg("ALL Jobs Done");
 }
 } // End of namespace tflite
 

@@ -56,8 +56,8 @@ INCLUDES := \
 -I$(MAKEFILE_DIR)/downloads/cpuinfo/src \
 -I$(MAKEFILE_DIR)/downloads/cpuinfo/deps/clog/include \
 -I/usr/include/opencv4\
--I/home/xavier/tensorflow/tensorflow/lite\
--I/home/xavier/tensorflow/tensorflow/lite/delegates/gpu\
+-I/home/odroid/tensorflow/tensorflow/lite\
+-I/home/odroid/tensorflow/tensorflow/lite/delegates/gpu\
 -I$(OBJDIR)
 # This is at the end so any globally-installed frameworks like protobuf don't
 # override local versions in the source tree.
@@ -72,24 +72,25 @@ LIBS := \
 -lz \
 -ldl \
 -lopencv_gapi\
--lflatbuffers /lib/aarch64-linux-gnu/libdl.so.2\
--lopencv_stitching -lopencv_alphamat -lopencv_aruco -lopencv_bgsegm\
--lopencv_bioinspired -lopencv_ccalib -lopencv_cudabgsegm -lopencv_cudafeatures2d\
--lopencv_cudaobjdetect -lopencv_cudastereo -lopencv_dnn_objdetect\
+-lflatbuffers /lib/arm-linux-gnueabihf/libdl.so.2\
+-lopencv_stitching -lopencv_aruco -lopencv_bgsegm\
+-lopencv_bioinspired -lopencv_ccalib\
+-lopencv_dnn_objdetect\
 -lopencv_dnn_superres -lopencv_dpm -lopencv_highgui -lopencv_face -lopencv_freetype\
 -lopencv_fuzzy -lopencv_hdf -lopencv_hfs -lopencv_img_hash -lopencv_intensity_transform\
 -lopencv_line_descriptor -lopencv_mcc -lopencv_quality -lopencv_rapid -lopencv_reg\
--lopencv_rgbd -lopencv_saliency -lopencv_sfm -lopencv_stereo -lopencv_structured_light\
--lopencv_phase_unwrapping -lopencv_superres -lopencv_cudacodec -lopencv_surface_matching\
+-lopencv_rgbd -lopencv_saliency -lopencv_structured_light\
+-lopencv_phase_unwrapping -lopencv_superres -lopencv_surface_matching\
 -lopencv_tracking -lopencv_datasets -lopencv_text -lopencv_dnn -lopencv_plot -lopencv_videostab\
--lopencv_cudaoptflow -lopencv_optflow -lopencv_cudalegacy -lopencv_videoio -lopencv_cudawarping\
+-lopencv_optflow -lopencv_videoio\
 -lopencv_xfeatures2d -lopencv_shape -lopencv_ml -lopencv_ximgproc -lopencv_video -lopencv_xobjdetect\
 -lopencv_objdetect -lopencv_calib3d -lopencv_imgcodecs -lopencv_features2d -lopencv_flann\
--lopencv_xphoto -lopencv_photo -lopencv_cudaimgproc -lopencv_cudafilters -lopencv_imgproc\
--lopencv_cudaarithm -lopencv_core -lopencv_cudev\
--l/home/xavier/tensorflow/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so\
--l/usr/lib/aarch64-linux-gnu/libEGL.so\
--l/usr/lib/aarch64-linux-gnu/libGL.so /usr/lib/aarch64-linux-gnu/libGLESv2.so
+-lopencv_xphoto -lopencv_photo -lopencv_imgproc\
+-lopencv_core\
+/home/odroid/tensorflow/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so\
+/usr/lib/arm-linux-gnueabihf/libGL.so\
+/usr/lib/arm-linux-gnueabihf/libEGL.so\
+/usr/lib/arm-linux-gnueabihf/libGLESv2.so
 
 # There are no rules for compiling objects for the host system (since we don't
 # generate things like the protobuf compiler that require that), so all of

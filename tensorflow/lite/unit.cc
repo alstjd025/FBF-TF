@@ -1,9 +1,10 @@
 #include "unit.h"
 #define SEQ 1
-#define OUT_SEQ 1000
+#define OUT_SEQ 1
 //#define MULTITHREAD
-#define GPUONLY
-#define catdog
+#define MULTITHREAD
+//#define MONITORING
+#define mnist
 
 std::mutex mtx_lock;
 
@@ -78,6 +79,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::queue<SharedContext*>* qSharedData,
                             int* C_Counter, int* G_Counter) { 
     double time = 0;
+    struct timespec begin, end;
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             std::cout << "CPU " << *C_Counter << "\n";
@@ -95,7 +97,6 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 }
             }
             #endif
-
             #ifdef mnist
             for (int i=0; i<Image_x; i++){
                 for (int j=0; j<Image_y; j++){
@@ -105,17 +106,18 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             } 
             #endif
             // Run inference
-            clock_t tstart = clock();
+            clock_gettime(CLOCK_MONOTONIC, &begin);
             if(interpreterCPU->get()->Invoke(eType, mtx_lock, mtx_lock_, Ucontroller, qSharedData) 
                                             != kTfLiteOk){
                 return kTfLiteError;
             }
-            clock_t tEnd = clock();
+            clock_gettime(CLOCK_MONOTONIC, &end);
             *C_Counter += 1;
-            clock_t t = tEnd - tstart;
-            time += ((double)t / CLOCKS_PER_SEC);;
+            double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+            printf("time : %.6fs \n", temp_time);
+            time += temp_time;
             #ifdef MONITORING
-            for (int i =0; i<2; i++){
+            for (int i =0; i<10; i++){
                 printf("%0.5f", interpreterCPU->get()->typed_output_tensor<float>(0)[i] );
                 std:: cout << " ";
             }
@@ -156,6 +158,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::queue<SharedContext*>* qSharedData,
                             int* C_Counter, int* G_Counter) {
     std::cout << "Starting GPU Job" << "\n";
+    struct timespec begin, end;
     double time = 0;
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
@@ -185,15 +188,15 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             } 
             #endif
             // Run inference
-            clock_t tstart = clock();
+            clock_gettime(CLOCK_MONOTONIC, &begin);
             if(interpreterGPU->get()->Invoke(eType, mtx_lock, mtx_lock_, Ucontroller, qSharedData) 
                                             != kTfLiteOk){
                 return kTfLiteError;
             }
-            clock_t tEnd = clock();
-            clock_t t = tEnd - tstart;
-            time += ((double)t / CLOCKS_PER_SEC);
+            clock_gettime(CLOCK_MONOTONIC, &end);
             *G_Counter += 1;
+            double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+            time += temp_time;
             if(*G_Counter > *C_Counter){
                 std::unique_lock<std::mutex>lock (mtx_lock);
                 mtx_lock_timing.unlock();
@@ -201,6 +204,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }else{
                 mtx_lock_timing.unlock();
             }
+            printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
             for (int i =0; i<1; i++){
                 printf("%0.5f", interpreterGPU->get()->typed_output_tensor<float>(0)[i] );
@@ -208,12 +212,12 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }
             std::cout << "\n";
             #endif
-            std::cout << *G_Counter << "\n";
+            //std::cout << *G_Counter << "\n";
             if(!(*G_Counter % 100))
                 std::cout << "Progress " << int(*G_Counter/100) << "% \n";
         }
     }
-    std::cout << time << "\n";
+    //std::cout << time << "\n";
     time = time / (SEQ * OUT_SEQ);
     printf("Average elepsed time : %.6fs \n", time);
     std::cout << "\n";
@@ -232,6 +236,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                             int* C_Counter, int* G_Counter) {
     std::cout << "Starting GPU Job" << "\n";
     double time = 0;
+    struct timespec begin, end;
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             //std::cout << "GPU " << *G_Counter << "\n";
@@ -259,15 +264,16 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             } 
             #endif
             // Run inference
-            clock_t tstart = clock();
+            clock_gettime(CLOCK_MONOTONIC, &begin);
             if(interpreterGPU->get()->Invoke(eType, mtx_lock, mtx_lock_, Ucontroller, qSharedData) 
                                             != kTfLiteOk){
                 return kTfLiteError;
             }
-            clock_t tEnd = clock();
+            clock_gettime(CLOCK_MONOTONIC, &end);
             *G_Counter += 1;
-            clock_t t = tEnd - tstart;
-            time += ((double)t / CLOCKS_PER_SEC);
+            double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+            time += temp_time;
+            printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
             for (int i =0; i<1; i++){
                 printf("%0.5f", interpreterGPU->get()->typed_output_tensor<float>(0)[i] );

@@ -211,7 +211,10 @@ class Subgraph {
                                std::mutex& mtx_lock, std::mutex& mtx_lock_,
                                std::condition_variable& Ucontroller,
                                int execution_plan_index);
-  
+  //Minsung
+  //
+  TfLiteStatus QuantizeSelectedFilter(int layer, int filter, TfLiteTensor* tensor);
+
   //Minsung
   //Context Sharing API
   TfLiteStatus ConcatContext(TfLiteTensor* tensor, int execution_plan_index,
