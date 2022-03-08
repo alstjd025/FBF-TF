@@ -365,7 +365,7 @@ class Interpreter {
   TfLiteStatus SetPartitioning(int partitioning, UnitType eType);
   
   //Minsung
-  TfliteStatus QuantizeSubgraph();
+  TfLiteStatus QuantizeSubgraph();
 
   /// Invoke the interpreter (run the whole graph in dependency order).
   ///

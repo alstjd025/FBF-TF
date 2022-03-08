@@ -887,6 +887,7 @@ class Subgraph {
   //
   int conv_filter_before_modification = 0;
   UnitType subgraph_Type = UnitType::NONE;
+  std::vector<int> conv_node_index;
   int number_of_conv = 0;
   int number_of_conv_temp = 0;
   //C Struct for Time Measure

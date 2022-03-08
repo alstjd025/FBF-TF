@@ -1914,9 +1914,62 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
   //       (This way should be more effective than writing data back from GPU)   
 }
 
+//Minsung
+// Quantize Conv2d Layer of called Interpreter
+// This is an initial process
+// FLoat32 -> Int8
+//  <How-It-Works>
+// Get Conv2d Node.
+// Get Original Weight & bias Tensors from Node.
+// Allocate New int8 Tensor which has same dim with Original one. 
+// Quantize Values from Original Tensors and copy to New one.
+// Swap Tensor index of original context to new ones.
 
 TfLiteStatus Subgraph::QuantizeSelectedSubgraph(){
-
+  int node_index;
+  std::vector<TfLiteTensor> tensors;
+  for(int i = 0; i<conv_node_index.size(); ++i){
+    TfLiteNode node = nodes_and_registration_[conv_node_index[i]].first;
+    std::vector<TfLiteTensor*> weight_bias_vector;
+    weight_bias_vector.push_back(tensor(node.inputs->data[1]));
+    weight_bias_vector.push_back(tensor(node.inputs->data[2]));
+    for(int j=0; j<2; j++){
+      TfLiteTensor* working_tensor = weight_bias_vector[j];
+      int tensor_data_dims_size = working_tensor->dims->size-1;
+      int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
+      int tensor_data_size = 1;
+      int tensor_axis;
+      for(int i=0; i< working_tensor->dims->size; i++){
+        if(i == 1){
+          tensor_axis = working_tensor->dims->data[i];
+        }
+        tensor_data_size *= working_tensor->dims->data[i]; 
+      }
+      std::cout << "\n";
+      std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
+      std::cout << " Tensor DATA " << "\n";
+      auto data_st = (float*)working_tensor->data.data;
+      for(int i=0; i<tensor_data_ch_size; i++){
+        std::cout << "CH [" << i << "] \n";
+        for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+          float data = *(data_st+(i+j*tensor_data_ch_size));
+          if (data == 0) {
+            printf("%0.6f ", data);
+          }
+          else if (data != 0) {
+            if(eType == UnitType::CPU0)
+              printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+            else if(eType == UnitType::GPU0)
+              printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
+          }
+          if (j % tensor_axis == tensor_axis-1) {
+            printf("\n");
+          }
+        }
+        std::cout << "\n";
+      }
+    }  
+  }
 }
 
 
@@ -2018,14 +2071,15 @@ SharedContext* Subgraph::CreateSharedContext(UnitType eType,
   return new SharedContext{eType, tensor};
 }
 
+//Check number of Conv2d Layer & Node index
 TfLiteStatus Subgraph::CheckConv2dNodes(){
   for (int node_index = 0;
     node_index < nodes_and_registration_.size(); node_index++) {
-    TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration =
         nodes_and_registration_[node_index].second;
     if(strcmp(GetOpName(registration), "CONV_2D") == 0){
       number_of_conv++;
+      conv_node_index.push_back(node_index);
     }
   }
   if(number_of_conv >= 1){
