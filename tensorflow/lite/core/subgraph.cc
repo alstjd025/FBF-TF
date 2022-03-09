@@ -1942,8 +1942,12 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
   auto data_st_origin_float = (float*)working_tensor->data.data;
   float* scaling_factors;
   int32_t* zero_points;
+
+  
   BatchQuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
                           scaling_factors, zero_points, false);
+
+
   working_tensor->type = TfLiteType::kTfLiteInt8;
   working_tensor->data.data = quantized_values;
   working_tensor->bytes = tensor_data_size;
@@ -1954,6 +1958,7 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
   working_tensor->params.zero_point = *zero_points;
   working_tensor->quantization.params = &quant_params;
   working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteAffineQuantization;
+  PrintTensor(*working_tensor, UnitType::CPU0);
   return kTfLiteOk;
 }
 
@@ -1971,25 +1976,35 @@ TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
     tensor_data_size *= working_tensor->dims->data[i]; 
   }
   auto data_st_origin = (int8_t*)tensor->data.data;
-  auto data_st_float = (float*)malloc(tensor_data_size);
+  auto dequantized_values = (float*)malloc(tensor_data_size);
   float scaling_factor = 
         ((TfLiteQuantizationParams *)(working_tensor->quantization.params))->scale;
   for(int i=0; i<tensor_data_size; ++i){
-    data_st_float[i] = data_st_origin[i] * scaling_factor;
+    dequantized_values[i] = data_st_origin[i] * scaling_factor;
   }
+  working_tensor->type = TfLiteType::kTfLiteFloat32;
+  working_tensor->data.data = dequantized_values;
+  working_tensor->bytes = tensor_data_size * sizeof(float);
+  working_tensor->params.scale = NULL;
+  working_tensor->params.zero_point = NULL;
+  working_tensor->quantization.params = NULL;
+  working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteNoQuantization;
+  return kTfLiteOk;
 }
 
-TfLiteStatus Subgraph::QuantizeSelectedSubgraph(){
+TfLiteStatus Subgraph::QuantizeCurrentSubgraph(){
+  
   for(int i = 0; i<conv_node_index.size(); ++i){
     TfLiteNode node = nodes_and_registration_[conv_node_index[i]].first;
-    std::vector<TfLiteTensor*> weight_bias_vector;
-    weight_bias_vector.push_back(tensor(node.inputs->data[1]));
-    weight_bias_vector.push_back(tensor(node.inputs->data[2]));
-    for(int j=0; j<weight_bias_vector.size(); j++){
+    std::vector<TfLiteTensor*> weight_bias_tensors;
+    weight_bias_tensors.push_back(tensor(0)); //Input Tensor;
+    weight_bias_tensors.push_back(tensor(node.inputs->data[1]));
+    weight_bias_tensors.push_back(tensor(node.inputs->data[2]));
+    for(int j=0; j<weight_bias_tensors.size(); j++){
       //Initial process for quantization.
       //Get size and dim info of Original Tensor.
-      TfLiteTensor* working_tensor = weight_bias_vector[j];
-      
+      if(QuantizeSelectedTensor(weight_bias_tensors[j]) != kTfLiteOk)
+        return kTfLiteError;
     }  
   }
 }

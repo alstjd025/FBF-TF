@@ -310,8 +310,10 @@ TfLiteStatus Interpreter::SetPartitioning(int partitioning, UnitType eType){
 TfLiteStatus Interpreter::QuantizeSubgraph(){
   int subgraph_size = subgraphs_size();
   for(int i=0; i<subgraph_size; i++){
-    subgraph(i)->QuantizeSelectedSubgraph();
+    if(subgraph(i)->QuantizeCurrentSubgraph() != kTfLiteOk)
+      return kTfLiteError;
   }
+  return kTfLiteOk;
 }
 
 TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,

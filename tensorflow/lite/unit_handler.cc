@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define MULTITHREAD
+#define CPUONLY
 
 
 extern std::mutex mtx_lock;
@@ -56,6 +56,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     #ifdef MULTITHREAD
     kmcontext.channelPartitioning("CONV_2D", 0.2);
     #endif
+    TFLITE_MINIMAL_CHECK(interpreter->get()->QuantizeSubgraph() == kTfLiteOk);  
     //tflite::PrintInterpreterState(interpreter->get());
     return kTfLiteOk;
 }
