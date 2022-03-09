@@ -1920,11 +1920,10 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
 // This is an initial process
 // FLoat32 -> Int8
 //  <How-It-Works>
-// Get Conv2d Node.
-// Get Original Weight & bias Tensors from Node.
-// Allocate New int8 Tensor which has same dim with Original one. 
-// Quantize Values from Original Tensors and copy to New one.
-// Swap Tensor index of original context to new ones.
+// Get Tensor.
+// Allocate New int8 data array which has same dim with Original one. 
+// Quantize Values from Original Tensor and allocate to New one.
+// Swap Tensor data pointer to quantized one.
 
 TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
   using namespace tensor_utils;
@@ -1933,7 +1932,7 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
   int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
   int tensor_axis;
-  for(int i=0; i< working_tensor->dims->size; i++){
+  for(int i=0; i<working_tensor->dims->size; ++i){
     tensor_data_size *= working_tensor->dims->data[i]; 
   }
   //Initial process done.
@@ -1944,12 +1943,15 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
   float* scaling_factors;
   int32_t* zero_points;
   BatchQuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
-                          scaling_factors, zero_points, true);
+                          scaling_factors, zero_points, false);
   working_tensor->type = TfLiteType::kTfLiteInt8;
   working_tensor->data.data = quantized_values;
+  working_tensor->bytes = tensor_data_size;
   TfLiteQuantizationParams* quant_params = new TfLiteQuantizationParams;
   quant_params->scale = *scaling_factors;
   quant_params->zero_point = *zero_points;
+  working_tensor->params.scale = *scaling_factors;
+  working_tensor->params.zero_point = *zero_points;
   working_tensor->quantization.params = &quant_params;
   working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteAffineQuantization;
   return kTfLiteOk;
@@ -1957,7 +1959,24 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
 
 TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
   TfLiteTensor* working_tensor = tensor;
-  
+  if(working_tensor->allocation_type != kTfLiteDynamic || 
+    working_tensor->quantization.type != kTfLiteAffineQuantization){
+    return kTfLiteError;
+  }
+  int tensor_data_dims_size = working_tensor->dims->size-1; 
+  int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i<working_tensor->dims->size; i++){
+    tensor_data_size *= working_tensor->dims->data[i]; 
+  }
+  auto data_st_origin = (int8_t*)tensor->data.data;
+  auto data_st_float = (float*)malloc(tensor_data_size);
+  float scaling_factor = 
+        ((TfLiteQuantizationParams *)(working_tensor->quantization.params))->scale;
+  for(int i=0; i<tensor_data_size; ++i){
+    data_st_float[i] = data_st_origin[i] * scaling_factor;
+  }
 }
 
 TfLiteStatus Subgraph::QuantizeSelectedSubgraph(){

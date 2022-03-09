@@ -42,6 +42,7 @@ const int32_t kInt16Min = std::numeric_limits<int16_t>::min();
 void PortableSymmetricQuantizeFloats(const float* values, const int size,
                                      int8_t* quantized_values, float* min_value,
                                      float* max_value, float* scaling_factor) {
+   //Get min max of given values         
   auto minmax = std::minmax_element(values, values + size);
   *min_value = *minmax.first;
   *max_value = *minmax.second;
@@ -53,10 +54,11 @@ void PortableSymmetricQuantizeFloats(const float* values, const int size,
 void PortableSymmetricQuantizeFloats(const float* values, const int size,
                                      int8_t* quantized_values, float min_value,
                                      float max_value, float* scaling_factor) {
+  //min, max not used in this func
   std::cout << "PortableSymmetricQuantizeFloats \n";
   const int32_t kScale = 127;
   const float range = std::max(std::abs(min_value), std::abs(max_value));
-  if (range == 0) {
+  if (range == 0) { //means given array is zero
     memset(quantized_values, 0, size * sizeof(int8_t));
     *scaling_factor = 1;
     return;
