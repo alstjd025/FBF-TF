@@ -303,8 +303,10 @@ TfLiteStatus Interpreter::SetPartitioning(int partitioning, UnitType eType){
   return kTfLiteOk;
 }
 
-//Minsung Quantize all Conv2d Layer of Current Context
+//Minsung 
+//Quantize all Conv2d Layer of Current Context
 //Only works in CPU Context
+//Must call after SetPartitioning & channelPartitioning
 TfLiteStatus Interpreter::QuantizeSubgraph(){
   int subgraph_size = subgraphs_size();
   for(int i=0; i<subgraph_size; i++){

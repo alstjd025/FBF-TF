@@ -1914,8 +1914,9 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
   //       (This way should be more effective than writing data back from GPU)   
 }
 
+
 //Minsung
-// Quantize Conv2d Layer of called Interpreter
+// Quantize Selected Tensor of called Interpreter
 // This is an initial process
 // FLoat32 -> Int8
 //  <How-It-Works>
@@ -1925,49 +1926,51 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
 // Quantize Values from Original Tensors and copy to New one.
 // Swap Tensor index of original context to new ones.
 
+TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
+  using namespace tensor_utils;
+  TfLiteTensor* working_tensor = tensor;
+  int tensor_data_dims_size = working_tensor->dims->size-1; 
+  int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< working_tensor->dims->size; i++){
+    tensor_data_size *= working_tensor->dims->data[i]; 
+  }
+  //Initial process done.
+  //Do quantization process
+  //And save quantization info to TfLiteAffineQuantization in tensor.
+  int8_t* quantized_values = (int8_t*)malloc(tensor_data_size);
+  auto data_st_origin_float = (float*)working_tensor->data.data;
+  float* scaling_factors;
+  int32_t* zero_points;
+  BatchQuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
+                          scaling_factors, zero_points, true);
+  working_tensor->type = TfLiteType::kTfLiteInt8;
+  working_tensor->data.data = quantized_values;
+  TfLiteQuantizationParams* quant_params = new TfLiteQuantizationParams;
+  quant_params->scale = *scaling_factors;
+  quant_params->zero_point = *zero_points;
+  working_tensor->quantization.params = &quant_params;
+  working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteAffineQuantization;
+  return kTfLiteOk;
+}
+
+TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
+  TfLiteTensor* working_tensor = tensor;
+  
+}
+
 TfLiteStatus Subgraph::QuantizeSelectedSubgraph(){
-  int node_index;
-  std::vector<TfLiteTensor> tensors;
   for(int i = 0; i<conv_node_index.size(); ++i){
     TfLiteNode node = nodes_and_registration_[conv_node_index[i]].first;
     std::vector<TfLiteTensor*> weight_bias_vector;
     weight_bias_vector.push_back(tensor(node.inputs->data[1]));
     weight_bias_vector.push_back(tensor(node.inputs->data[2]));
-    for(int j=0; j<2; j++){
+    for(int j=0; j<weight_bias_vector.size(); j++){
+      //Initial process for quantization.
+      //Get size and dim info of Original Tensor.
       TfLiteTensor* working_tensor = weight_bias_vector[j];
-      int tensor_data_dims_size = working_tensor->dims->size-1;
-      int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
-      int tensor_data_size = 1;
-      int tensor_axis;
-      for(int i=0; i< working_tensor->dims->size; i++){
-        if(i == 1){
-          tensor_axis = working_tensor->dims->data[i];
-        }
-        tensor_data_size *= working_tensor->dims->data[i]; 
-      }
-      std::cout << "\n";
-      std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
-      std::cout << " Tensor DATA " << "\n";
-      auto data_st = (float*)working_tensor->data.data;
-      for(int i=0; i<tensor_data_ch_size; i++){
-        std::cout << "CH [" << i << "] \n";
-        for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-          float data = *(data_st+(i+j*tensor_data_ch_size));
-          if (data == 0) {
-            printf("%0.6f ", data);
-          }
-          else if (data != 0) {
-            if(eType == UnitType::CPU0)
-              printf("%s%0.6f%s ", C_GREN, data, C_NRML);
-            else if(eType == UnitType::GPU0)
-              printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
-          }
-          if (j % tensor_axis == tensor_axis-1) {
-            printf("\n");
-          }
-        }
-        std::cout << "\n";
-      }
+      
     }  
   }
 }

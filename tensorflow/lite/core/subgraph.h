@@ -34,8 +34,15 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/util.h"
 
+//Minsung
+//For Quantization
+#include "tensorflow/lite/kernels/internal/tensor_utils.h"
+
 #include "tensorflow/lite/schema/schema_generated.h"
 
+
+//Minsung
+//For Marking color
 #define C_NRML "\033[0m"
 #define C_BLCK "\033[30m"
 #define C_RED  "\033[31m"
@@ -215,6 +222,11 @@ class Subgraph {
   //
   TfLiteStatus QuantizeSelectedSubgraph();
 
+  //Minsung
+  TfLiteStatus QuantizeSelectedTensor(TfLiteTensor* tensor);
+
+  TfLiteStatus DequantizeSelectedTensor(TfLiteTensor* tensor);
+  
   //Minsung
   //Context Sharing API
   TfLiteStatus ConcatContext(TfLiteTensor* tensor, int execution_plan_index,

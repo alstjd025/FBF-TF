@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 #include <algorithm>
+#include <iostream>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -52,6 +53,7 @@ void PortableSymmetricQuantizeFloats(const float* values, const int size,
 void PortableSymmetricQuantizeFloats(const float* values, const int size,
                                      int8_t* quantized_values, float min_value,
                                      float max_value, float* scaling_factor) {
+  std::cout << "PortableSymmetricQuantizeFloats \n";
   const int32_t kScale = 127;
   const float range = std::max(std::abs(min_value), std::abs(max_value));
   if (range == 0) {
