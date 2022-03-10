@@ -29,6 +29,7 @@ inline void ConvPerChannel(
     const int32_t* bias_data, const RuntimeShape& output_shape,
     int8_t* output_data) {
   // Get parameters.
+  printf("int Conv1 \n");
   const int32_t input_offset = params.input_offset;  // r = s(q - Z)
   const int stride_width = params.stride_width;
   const int stride_height = params.stride_height;
@@ -133,6 +134,7 @@ inline void ConvPerChannel(
     const int8_t* filter_data, const RuntimeShape& bias_shape,
     const std::int64_t* bias_data, const RuntimeShape& output_shape,
     int16_t* output_data) {
+      printf("int Conv2 \n");
   // Get parameters.
   const int stride_width = params.stride_width;
   const int stride_height = params.stride_height;

@@ -1027,7 +1027,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::condition_variable& Ucontroller,
                             std::queue<SharedContext*>* qSharedData) {
                     
-
+  std::cout << "0000 \n";                         
   if(qSharedData == nullptr){
     ReportError("Got NULLPTR for qSharedData!");
     return kTfLiteError;
@@ -1060,7 +1060,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
- 
+  std::cout << "1111 \n";
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     //if(eType == UnitType::GPU0)
@@ -1072,6 +1072,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
                                     execution_plan_index);
     }
+    std::cout << "2222 \n";
     int node_index = execution_plan_[execution_plan_index];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration =
@@ -1086,8 +1087,9 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     // need to be copied from Delegate buffer to raw memory, which is often not
     // needed. We may want to cache this in prepare to know if this needs to be
     // done for a node or not.
-    
+    std::cout << "3333 \n";
     for (int i = 0; i < node.inputs->size; ++i) {
+      std::cout << "4444 \n";
       int tensor_index = node.inputs->data[i];
       if (tensor_index == kTfLiteOptionalTensor) {
         continue;
@@ -1111,7 +1113,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
         }
       }
     }
-
+    std::cout << "5555 \n";
     if (check_cancelled_func_ != nullptr &&
         check_cancelled_func_(cancellation_data_)) {
       ReportError("Client requested cancel during Invoke()");
@@ -1124,11 +1126,12 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
-
+    std::cout << "pre invoke \n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+    std::cout << "After invoke \n";
     if(use_distribute_strategy){
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
@@ -1150,8 +1153,9 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           != kTfLiteOk) {return kTfLiteError;}
       }
     }
-    //if(eType == UnitType::GPU0)
-    //  PrintOutputTensor(node, eType);
+    std::cout << "invoke \n";
+    //if(eType == UnitType::CPU0)
+      //PrintOutputTensor(node, eType);
     //if(eType == UnitType::GPU0)
     //   PrintOutputTensor(node, eType);
 	  // Force execution prep for downstream ops if the latest op triggered the
@@ -1846,19 +1850,19 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
   std::cout << "\n";
   std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
-  auto data_st = (float*)tensor.data.data;
+  auto data_st = (int8_t*)tensor.data.data;
   for(int i=0; i<tensor_data_ch_size; i++){
     std::cout << "CH [" << i << "] \n";
     for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-      float data = *(data_st+(i+j*tensor_data_ch_size));
+      int data = *(data_st+(i+j*tensor_data_ch_size));
       if (data == 0) {
-        printf("%0.6f ", data);
+        printf("%d ", data);
       }
       else if (data != 0) {
         if(eType == UnitType::CPU0)
-          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+          printf("%s%d%s ", C_GREN, data, C_NRML);
         else if(eType == UnitType::GPU0)
-          printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
+          printf("%s%d%s ", C_YLLW, data, C_NRML);
       }
       if (j % tensor_axis == tensor_axis-1) {
         printf("\n");
@@ -1924,10 +1928,40 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
 // Allocate New int8 data array which has same dim with Original one. 
 // Quantize Values from Original Tensor and allocate to New one.
 // Swap Tensor data pointer to quantized one.
+void Subgraph::QuantizeSymFloats(const float* values, const int size,
+                                     int8_t* quantized_values, float* min_value,
+                                     float* max_value, float* scaling_factor){
+  auto minmax = std::minmax_element(values, values + size);
+  *min_value = *minmax.first;
+  *max_value = *minmax.second;
+  QuantizeSymFloatsMain(values, size, quantized_values, *min_value,
+                                  *max_value, scaling_factor);
+}
+
+void Subgraph::QuantizeSymFloatsMain(const float* values, const int size,
+                                     int8_t* quantized_values, float min_value,
+                                     float max_value, float* scaling_factor){
+  const int32_t kScale = 127;
+  const float range = std::max(std::abs(min_value), std::abs(max_value));
+  if (range == 0) { //means given array is zero
+    memset(quantized_values, 0, size * sizeof(int8_t));
+    *scaling_factor = 1;
+    return;
+  }
+  *scaling_factor = range / kScale;
+  const float scaling_factor_inv = kScale / range;
+  for (int i = 0; i < size; ++i) {
+    const int32_t quantized_value =
+        static_cast<int32_t>(TfLiteRound(values[i] * scaling_factor_inv));
+    // Clamp: just in case some odd numeric offset.
+    quantized_values[i] = static_cast<int8_t>(
+        std::min(kScale, std::max(-kScale, quantized_value)));
+  }
+}
 
 TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
-  using namespace tensor_utils;
   TfLiteTensor* working_tensor = tensor;
+  working_tensor->allocation_type = kTfLiteDynamic;
   int tensor_data_dims_size = working_tensor->dims->size-1; 
   int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
@@ -1940,14 +1974,10 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
   //And save quantization info to TfLiteAffineQuantization in tensor.
   int8_t* quantized_values = (int8_t*)malloc(tensor_data_size);
   auto data_st_origin_float = (float*)working_tensor->data.data;
-  float* scaling_factors;
-  int32_t* zero_points;
-
-  
-  BatchQuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
+  float* scaling_factors = new float;
+  int32_t* zero_points = new int32_t;
+  QuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
                           scaling_factors, zero_points, false);
-
-
   working_tensor->type = TfLiteType::kTfLiteInt8;
   working_tensor->data.data = quantized_values;
   working_tensor->bytes = tensor_data_size;
@@ -1958,7 +1988,7 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
   working_tensor->params.zero_point = *zero_points;
   working_tensor->quantization.params = &quant_params;
   working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteAffineQuantization;
-  PrintTensor(*working_tensor, UnitType::CPU0);
+  //PrintTensor(*working_tensor, UnitType::CPU0);
   return kTfLiteOk;
 }
 
@@ -1993,13 +2023,18 @@ TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
 }
 
 TfLiteStatus Subgraph::QuantizeCurrentSubgraph(){
-  
+  conv_node_index.push_back(0);
+  conv_node_index.push_back(3);
+  conv_node_index.push_back(6);
+  QuantizeSelectedTensor(tensor(0)); 
+  QuantizeSelectedTensor(tensor(15)); 
   for(int i = 0; i<conv_node_index.size(); ++i){
     TfLiteNode node = nodes_and_registration_[conv_node_index[i]].first;
     std::vector<TfLiteTensor*> weight_bias_tensors;
-    weight_bias_tensors.push_back(tensor(0)); //Input Tensor;
+    weight_bias_tensors.push_back(tensor(node.inputs->data[0]));
     weight_bias_tensors.push_back(tensor(node.inputs->data[1]));
     weight_bias_tensors.push_back(tensor(node.inputs->data[2]));
+    weight_bias_tensors.push_back(tensor(node.inputs->data[3]));
     for(int j=0; j<weight_bias_tensors.size(); j++){
       //Initial process for quantization.
       //Get size and dim info of Original Tensor.
@@ -2007,6 +2042,8 @@ TfLiteStatus Subgraph::QuantizeCurrentSubgraph(){
         return kTfLiteError;
     }  
   }
+  std::cout << "Quantization Complete \n";
+  return kTfLiteOk;
 }
 
 

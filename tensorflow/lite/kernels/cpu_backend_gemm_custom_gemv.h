@@ -153,25 +153,30 @@ bool CustomGemv(
     const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
     const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
     CpuBackendContext* context) {
-  
+  std::cout << "CustomGemv \n";
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm: CustomGemv");
   using Impl = CustomGemvImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                               quantization_flavor>;
   if (lhs_params.rows < Impl::kKernelRows) {
     return false;
   }
+  std::cout << "CustomGemv2 \n";
   if (!Impl::IsSupportedGivenSufficientlyManyRows(lhs_params, rhs_params,
                                                   dst_params, params)) {    
     return false;
   }
+  std::cout << "CustomGemv3 \n";
   TFLITE_DCHECK_GE(lhs_params.rows, Impl::kKernelRows);
   int thread_count = LegacyHowManyThreads<Impl::kKernelRows>(
       context->max_num_threads(), dst_params.rows, dst_params.cols,
       lhs_params.cols);
+  std::cout << "CustomGemv4 \n";
   if (thread_count == 1) {
     Impl::Run(lhs_params, lhs_data, rhs_params, rhs_data, dst_params, dst_data,
               params, 0, lhs_params.rows);
+  std::cout << "CustomGemv5 \n";
   } else {
+  std::cout << "CustomGemv6 \n";
     using Task = CustomGemvTask<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                                 quantization_flavor>;
     std::vector<Task> tasks;
@@ -179,13 +184,16 @@ bool CustomGemv(
     const int kRowsPerThread =
         RoundUp<Impl::kKernelRows>(CeilQuotient(dst_params.rows, thread_count));
     int row_start = 0;
+  std::cout << "CustomGemv7 \n";
     for (int i = 0; i < thread_count; i++) {
       int row_end = std::min(dst_params.rows, row_start + kRowsPerThread);
       tasks.emplace_back(lhs_params, lhs_data, rhs_params, rhs_data, dst_params,
                          dst_data, params, row_start, row_end);
       row_start = row_end;
     }
+  std::cout << "CustomGemv8 \n";
     cpu_backend_threadpool::Execute(tasks.size(), tasks.data(), context);
+  std::cout << "CustomGemv8 \n";
   }
   return true;
 }

@@ -44,7 +44,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     (*builder_)(interpreter, 8);
     #ifdef MULTITHREAD
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(2, eType) == kTfLiteOk);  
-    #endif
+    #endif 
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  
     UnitCPU* temp;
@@ -56,8 +56,11 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     #ifdef MULTITHREAD
     kmcontext.channelPartitioning("CONV_2D", 0.2);
     #endif
-    TFLITE_MINIMAL_CHECK(interpreter->get()->QuantizeSubgraph() == kTfLiteOk);  
-    //tflite::PrintInterpreterState(interpreter->get());
+    if(interpreter->get()->QuantizeSubgraph() != kTfLiteOk){
+        std::cout << "Quantization Error \n";
+        return kTfLiteError;  
+    }
+    tflite::PrintInterpreterState(interpreter->get());
     return kTfLiteOk;
 }
 /*
@@ -123,7 +126,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     iUnitCount++;
     PrintMsg("Build GPU Interpreter");
     PrintMsg("GPU Interpreter Pre Invoke State");
-    //tflite::PrintInterpreterState(interpreter->get());
+    tflite::PrintInterpreterState(interpreter->get());
     return kTfLiteOk;
 }
 

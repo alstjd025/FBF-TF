@@ -3,6 +3,7 @@
 #define OUT_SEQ 1
 //#define MULTITHREAD
 #define CPUONLY
+#define quantize
 //#define MONITORING
 #define mnist
 
@@ -98,12 +99,18 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }
             #endif
             #ifdef mnist
-            for (int i=0; i<Image_x; i++){
-                for (int j=0; j<Image_y; j++){
-                    interpreterCPU->get()->typed_input_tensor<float>(0)[i*28 + j] = \
-                     ((float)input[k].at<uchar>(i, j)/255.0);          
-                }
-            } 
+                #ifdef quantize
+                for (int i=0; i<Image_x; i++){
+                    for (int j=0; j<Image_y; j++){
+                        interpreterCPU->get()->typed_input_tensor<int8_t>(0)[i*28 + j] = 100;
+                        //static_cast<int8_t>((float)input[k].at<uchar>(i, j)/255.0);          
+                    }
+                } 
+                #endif
+                
+                #ifndef quantize
+                
+                #endif
             #endif
             // Run inference
             clock_gettime(CLOCK_MONOTONIC, &begin);

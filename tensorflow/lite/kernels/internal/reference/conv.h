@@ -31,6 +31,7 @@ inline void Conv(const ConvParams& params, const RuntimeShape& input_shape,
                  const float* bias_data, const RuntimeShape& output_shape,
                  float* output_data, const RuntimeShape& im2col_shape,
                  float* im2col_data) {
+  printf("CONV 1 \n");
   const int stride_width = params.stride_width;
   const int stride_height = params.stride_height;
   const int dilation_width_factor = params.dilation_width_factor;
@@ -107,6 +108,7 @@ inline void Conv(const ConvParams& params, const RuntimeShape& input_shape,
                  const int32_t* bias_data, const RuntimeShape& output_shape,
                  uint8_t* output_data, const RuntimeShape& im2col_shape,
                  uint8_t* im2col_data, void* cpu_backend_context) {
+  printf("CONV 2 \n");
   (void)cpu_backend_context;  // only used in optimized code.
   (void)im2col_data;   // only used in optimized code.
   (void)im2col_shape;  // only used in optimized code.
@@ -195,6 +197,7 @@ inline void HybridConvPerChannel(
     const RuntimeShape& output_shape, float* output_data,
     const RuntimeShape& im2col_shape, int8_t* im2col_data,
     const float* per_channel_scale, int32_t* input_offset) {
+  printf("CONV3 \n");
   (void)im2col_data;   // only used in optimized code.
   (void)im2col_shape;  // only used in optimized code.
   const int stride_width = params.stride_width;

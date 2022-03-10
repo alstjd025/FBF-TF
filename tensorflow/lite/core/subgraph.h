@@ -15,6 +15,7 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_CORE_SUBGRAPH_H_
 #define TENSORFLOW_LITE_CORE_SUBGRAPH_H_
 
+#include <iostream>
 #include <cstdint>
 #include <cstdlib>
 #include <map>
@@ -36,8 +37,12 @@ limitations under the License.
 
 //Minsung
 //For Quantization
-#include "tensorflow/lite/kernels/internal/tensor_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include "tensorflow/lite/kernels/internal/cppmath.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
 
@@ -226,6 +231,33 @@ class Subgraph {
   TfLiteStatus QuantizeSelectedTensor(TfLiteTensor* tensor);
 
   TfLiteStatus DequantizeSelectedTensor(TfLiteTensor* tensor);
+
+  inline void QuantizeFloats(const float* float_data_ptr, int n_batch,
+                                int n_data, int8_t* quantized_data_ptr,
+                                float* scaling_factors, int32_t* zero_points,
+                                bool do_asymmetric) {
+  for (int b = 0; b < n_batch; ++b) {
+    const int offset = b * n_data;
+    if (do_asymmetric) {
+      std::cout << "Asymmetric Quantization Not Implemented \n";
+    } else {
+      float unused_min, unused_max;
+      QuantizeSymFloats(
+          float_data_ptr + offset, n_data, quantized_data_ptr + offset,
+          &unused_min, &unused_max, &scaling_factors[b]);
+    }
+  }
+}
+
+  void QuantizeSymFloats(const float* values, const int size,
+                                     int8_t* quantized_values, float* min_value,
+                                     float* max_value, float* scaling_factor);
+
+  void QuantizeSymFloatsMain(const float* values, const int size,
+                                     int8_t* quantized_values, float min_value,
+                                     float max_value, float* scaling_factor);
+
+
   
   //Minsung
   //Context Sharing API

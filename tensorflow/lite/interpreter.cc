@@ -308,11 +308,13 @@ TfLiteStatus Interpreter::SetPartitioning(int partitioning, UnitType eType){
 //Only works in CPU Context
 //Must call after SetPartitioning & channelPartitioning
 TfLiteStatus Interpreter::QuantizeSubgraph(){
+  std::cout << "QuantizeSubgraph \n";
   int subgraph_size = subgraphs_size();
   for(int i=0; i<subgraph_size; i++){
     if(subgraph(i)->QuantizeCurrentSubgraph() != kTfLiteOk)
       return kTfLiteError;
   }
+  std::cout << "QuantizeSubgraph Good \n";
   return kTfLiteOk;
 }
 
