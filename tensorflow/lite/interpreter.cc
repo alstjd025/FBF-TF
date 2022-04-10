@@ -311,7 +311,7 @@ TfLiteStatus Interpreter::QuantizeSubgraph(){
   std::cout << "QuantizeSubgraph \n";
   int subgraph_size = subgraphs_size();
   for(int i=0; i<subgraph_size; i++){
-    if(subgraph(i)->QuantizeCurrentSubgraph() != kTfLiteOk)
+    if(subgraph(i)->QuantizeCurrentSubgraph(true) != kTfLiteOk)
       return kTfLiteError;
   }
   std::cout << "QuantizeSubgraph Good \n";

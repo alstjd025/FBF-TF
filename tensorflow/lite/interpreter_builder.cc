@@ -216,6 +216,7 @@ TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping() {
       has_flex_op_ |= IsFlexOp(op_name);
       status = kTfLiteOk;
     }
+    std::cout << "Layer reg code : " << registration->builtin_code << "\n";
     flatbuffer_op_index_to_registration_.push_back(registration);
   }
   return status;
@@ -314,6 +315,7 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
             nullptr, registration);
       }
     } else {
+      std::cout << "Parse Node :: AddNodeWithParameters \n";
       void* builtin_data = nullptr;
       MallocDataAllocator malloc_allocator;
       TF_LITE_ENSURE_STATUS(ParseOpData(op, op_type, error_reporter_,
@@ -468,7 +470,7 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
     const flatbuffers::Vector<flatbuffers::Offset<Tensor>>* tensors,
     Subgraph* subgraph) {
   TfLiteStatus status = kTfLiteOk;
-
+  std::cout << "ParseTensors \n";
   // A little helper to get the names of inputs and outputs. Note that they
   // must outlive the subgraph.
   auto get_name = [](const tflite::Tensor* t) -> const char* {
@@ -592,6 +594,7 @@ TfLiteStatus InterpreterBuilder::operator()(
 
 TfLiteStatus InterpreterBuilder::operator()(
     std::unique_ptr<Interpreter>* interpreter, int num_threads) {
+  std::cout << "Interpreter Builder Called Operator () \n";
   if (!interpreter) {
     error_reporter_->Report(
         "Null output pointer passed to InterpreterBuilder.");
@@ -679,8 +682,11 @@ TfLiteStatus InterpreterBuilder::operator()(
     // Finally setup nodes and tensors
     if (ParseNodes(operators, modified_subgraph) != kTfLiteOk)
       return cleanup_and_error();
+    //Minsung
+    //Parse Tensors Do Check QuantizedTensors & Tensor type, allocation type?
     if (ParseTensors(buffers, tensors, modified_subgraph) != kTfLiteOk)
       return cleanup_and_error();
+    //modified_subgraph->QuantizeCurrentSubgraph(false);
 
     std::vector<int> variables;
     for (int i = 0; i < modified_subgraph->tensors_size(); ++i) {

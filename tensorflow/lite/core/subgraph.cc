@@ -744,7 +744,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   #ifdef DEBUG
     SFLAG();
   #endif
-  
+  std::cout << "Add Node With Parameters \n";
   #ifdef DEBUG
   std::cout << "in: ";
   for(int i = 0; i < inputs.size(); ++i) {
@@ -826,8 +826,8 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   // Copying of registration is required to support unresolved custom ops.
   node_and_reg.second = *registration;
   execution_plan_.push_back(new_node_index);
+  std::cout << "addnode : " << node.outputs->data[0] << std::endl;
   #ifdef DEBUG
-  //std::cout << "addnode : " << node.outputs->data[0] << std::endl;
   #endif
   return kTfLiteOk;
 }
@@ -1390,7 +1390,7 @@ TfLiteStatus Subgraph::SetTensorParametersReadWrite(
   } else if (is_variable) {
     allocation_type = kTfLiteArenaRwPersistent;
   }
-
+  std::cout << "SetTensorParametersReadWrite \n";
   TfLiteTensor& tensor = context_.tensors[tensor_index];
   TfLiteTensorReset(type, name, ConvertArrayToTfLiteIntArray(rank, dims),
                     GetLegacyQuantization(quantization),
@@ -1636,7 +1636,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
 	  return kTfLiteApplicationError;
   }
-
+  
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
     // Runtime Filter Modification for CPU&GPU Multithreading
@@ -1959,36 +1959,55 @@ void Subgraph::QuantizeSymFloatsMain(const float* values, const int size,
   }
 }
 
-TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
+TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor, bool do_){
+  std::cout << "QuantizeSelectedTensor \n";
   TfLiteTensor* working_tensor = tensor;
-  working_tensor->allocation_type = kTfLiteDynamic;
-  int tensor_data_dims_size = working_tensor->dims->size-1; 
-  int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
-  int tensor_data_size = 1;
-  int tensor_axis;
-  for(int i=0; i<working_tensor->dims->size; ++i){
-    tensor_data_size *= working_tensor->dims->data[i]; 
+  if(working_tensor->allocation_type == kTfLiteArenaRwPersistent\
+      || working_tensor->allocation_type == kTfLiteMmapRo){
+    working_tensor->type = TfLiteType::kTfLiteUInt8;
+    std::cout << "QuantizeSelectedTensor2 \n";
   }
-  //Initial process done.
-  //Do quantization process
-  //And save quantization info to TfLiteAffineQuantization in tensor.
-  int8_t* quantized_values = (int8_t*)malloc(tensor_data_size);
-  auto data_st_origin_float = (float*)working_tensor->data.data;
-  float* scaling_factors = new float;
-  int32_t* zero_points = new int32_t;
-  QuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
-                          scaling_factors, zero_points, false);
-  working_tensor->type = TfLiteType::kTfLiteInt8;
-  working_tensor->data.data = quantized_values;
-  working_tensor->bytes = tensor_data_size;
-  TfLiteQuantizationParams* quant_params = new TfLiteQuantizationParams;
-  quant_params->scale = *scaling_factors;
-  quant_params->zero_point = *zero_points;
-  working_tensor->params.scale = *scaling_factors;
-  working_tensor->params.zero_point = *zero_points;
-  working_tensor->quantization.params = &quant_params;
-  working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteAffineQuantization;
-  //PrintTensor(*working_tensor, UnitType::CPU0);
+  else
+    working_tensor->allocation_type = kTfLiteDynamic;
+  std::cout << "QuantizeSelectedTensor3 \n";
+  working_tensor->type = TfLiteType::kTfLiteUInt8;
+  if(do_){
+    int tensor_data_dims_size = working_tensor->dims->size-1; 
+    int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
+    int tensor_data_size = 1;
+    int tensor_axis;
+    std::cout << "QuantizeSelectedTensor4 \n";
+    for(int i=0; i<working_tensor->dims->size; ++i){
+      tensor_data_size *= working_tensor->dims->data[i]; 
+    }
+    std::cout << "QuantizeSelectedTensor5 \n";
+    //Initial process done.
+    //Do quantization process
+    //And save quantization info to TfLiteAffineQuantization in tensor.
+    std::cout << "QuantizeSelectedTensor6 \n";
+    int8_t* quantized_values = (int8_t*)malloc(tensor_data_size);
+    auto data_st_origin_float = (float*)working_tensor->data.data;
+    float* scaling_factors = new float;
+    int32_t* zero_points = new int32_t;
+    std::cout << "QuantizeSelectedTensor7 \n";
+    QuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
+                            scaling_factors, zero_points, false);
+    std::cout << "QuantizeSelectedTensor8 \n";
+    working_tensor->data.data = quantized_values;
+    std::cout << "QuantizeSelectedTensor9 \n";
+    memset(data_st_origin_float, tensor_data_size*sizeof(float), 0);
+    data_st_origin_float = nullptr;
+    working_tensor->bytes = tensor_data_size;
+    std::cout << "QuantizeSelectedTensor10 \n";
+    //TfLiteQuantizationParams* quant_params = new TfLiteQuantizationParams;
+    //quant_params->scale = *scaling_factors;
+    //quant_params->zero_point = *zero_points;
+    working_tensor->params.scale = *scaling_factors;
+    working_tensor->params.zero_point = *zero_points;
+    //working_tensor->quantization.params = &quant_params;
+    //working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteAffineQuantization;
+    //PrintTensor(*working_tensor, UnitType::CPU0);
+  }
   return kTfLiteOk;
 }
 
@@ -2022,23 +2041,42 @@ TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
   return kTfLiteOk;
 }
 
-TfLiteStatus Subgraph::QuantizeCurrentSubgraph(){
-  conv_node_index.push_back(0);
-  conv_node_index.push_back(3);
-  conv_node_index.push_back(6);
-  QuantizeSelectedTensor(tensor(0)); 
-  QuantizeSelectedTensor(tensor(15)); 
+TfLiteStatus Subgraph::QuantizeCurrentSubgraph(bool do_){
+  std::cout << "QuantizeCurrentSubgraph \n";
+  if(!do_){
+    conv_node_index.push_back(0);
+    conv_node_index.push_back(3);
+    conv_node_index.push_back(6);
+  }
+  
+  //QuantizeSelectedTensor(tensor(0)); 
+  //QuantizeSelectedTensor(tensor(15)); 
+  //QuantizeSelectedTensor(tensor(37)); 
+  //QuantizeSelectedTensor(tensor(38)); 
+  //PrintTensor(*tensor(37), UnitType::CPU0);
+   TfLiteNode node = nodes_and_registration_[0].first;
+   std::cout << " conv node output size : " << node.outputs->size << "\n";
+   
   for(int i = 0; i<conv_node_index.size(); ++i){
+    std::cout << "Quantization Node Index : " << conv_node_index[i] << " \n";
     TfLiteNode node = nodes_and_registration_[conv_node_index[i]].first;
     std::vector<TfLiteTensor*> weight_bias_tensors;
+    //tensor(node.outputs->data[0])->type = kTfLiteInt32;
+    weight_bias_tensors.push_back(tensor(node.outputs->data[0]));
+    std::cout << "quant tensor : " << node.outputs->data[0] << "\n";
     weight_bias_tensors.push_back(tensor(node.inputs->data[0]));
+    std::cout << "quant tensor : " << node.inputs->data[0] << "\n";
     weight_bias_tensors.push_back(tensor(node.inputs->data[1]));
+    std::cout << "quant tensor : " << node.inputs->data[1] << "\n";
     weight_bias_tensors.push_back(tensor(node.inputs->data[2]));
+    std::cout << "quant tensor : " << node.inputs->data[2] << "\n";
     weight_bias_tensors.push_back(tensor(node.inputs->data[3]));
+    std::cout << "quant tensor : " << node.inputs->data[3] << "\n";
     for(int j=0; j<weight_bias_tensors.size(); j++){
+      std::cout << "Quantization Tensor Index : " << j << " \n";
       //Initial process for quantization.
       //Get size and dim info of Original Tensor.
-      if(QuantizeSelectedTensor(weight_bias_tensors[j]) != kTfLiteOk)
+      if(QuantizeSelectedTensor(weight_bias_tensors[j], do_) != kTfLiteOk)
         return kTfLiteError;
     }  
   }

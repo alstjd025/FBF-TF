@@ -111,10 +111,12 @@ TfLiteStatus AddIntermediateTensorsToFusedOp(
 
 bool WriteFile(const std::string& out_file, const uint8_t* bytes,
                size_t num_bytes) {
+  std::cout << "Write File \n";
   std::fstream stream(out_file, std::ios::binary | std::ios::out);
   for (size_t i = 0; i < num_bytes; i++) {
     stream << bytes[i];
   }
+  std::cout << "Write File \n";
   return (!stream.bad() && !stream.fail());
 }
 

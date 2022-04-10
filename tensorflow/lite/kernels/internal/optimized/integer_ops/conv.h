@@ -36,7 +36,7 @@ inline void ConvPerChannel(
     const int32* bias_data, const RuntimeShape& output_shape, int8* output_data,
     const RuntimeShape& im2col_shape, int8* im2col_data,
     CpuBackendContext* cpu_backend_context) {
-  printf("opt int Conv1 \n");
+
   ruy::profiler::ScopeLabel label("Conv/8bit");
   const int stride_width = params.stride_width;
   const int stride_height = params.stride_height;
@@ -50,7 +50,6 @@ inline void ConvPerChannel(
   TFLITE_DCHECK_EQ(input_shape.DimensionsCount(), 4);
   TFLITE_DCHECK_EQ(filter_shape.DimensionsCount(), 4);
   TFLITE_DCHECK_EQ(output_shape.DimensionsCount(), 4);
-  printf("opt int Conv2 \n");
 
   const int8* gemm_input_data = nullptr;
   const RuntimeShape* gemm_input_shape = nullptr;
@@ -63,9 +62,7 @@ inline void ConvPerChannel(
   const int8 input_zero_point = -input_offset;
   const uint8 zero_point_byte =
       *reinterpret_cast<const uint8*>(&input_zero_point);
-  printf("opt int Conv3 \n");
   if (need_dilated_im2col) {
-  printf("opt int Conv4 \n");
     TFLITE_DCHECK(im2col_data);
     optimized_ops::DilatedIm2col(params, zero_point_byte, input_shape,
                                  input_data, filter_shape, output_shape,
@@ -73,20 +70,18 @@ inline void ConvPerChannel(
     gemm_input_data = im2col_data;
     gemm_input_shape = &im2col_shape;
   } else if (need_im2col) {
-  printf("opt int Conv5 \n");
     TFLITE_DCHECK(im2col_data);
     optimized_ops::Im2col(params, filter_height, filter_width, zero_point_byte,
                           input_shape, input_data, im2col_shape, im2col_data);
     gemm_input_data = im2col_data;
     gemm_input_shape = &im2col_shape;
+    //std::cout << "gemm_input_shape_dims3 : " << gemm_input_shape->Dims(3) << "\n";
   } else {
-  printf("opt int Conv6 \n");
     TFLITE_DCHECK(!im2col_data);
     gemm_input_data = input_data;
     gemm_input_shape = &input_shape;
   }
 
-  printf("opt int Conv7 \n");
   const int gemm_input_rows = gemm_input_shape->Dims(3);
   const int gemm_input_cols = FlatSizeSkipDim(*gemm_input_shape, 3);
   const int filter_rows = filter_shape.Dims(0);
@@ -100,7 +95,6 @@ inline void ConvPerChannel(
   TFLITE_DCHECK_EQ(output_cols, gemm_input_cols);
   TFLITE_DCHECK_EQ(filter_cols, gemm_input_rows);
   TFLITE_DCHECK_EQ(bias_shape.FlatSize(), output_rows);
-  printf("opt int Conv8 \n");
 
   cpu_backend_gemm::MatrixParams<int8> lhs_params;
   lhs_params.rows = filter_rows;
@@ -126,11 +120,9 @@ inline void ConvPerChannel(
   gemm_params.clamp_max = output_activation_max;
   gemm_params.multiplier_fixedpoint_perchannel = output_multiplier;
   gemm_params.multiplier_exponent_perchannel = output_shift;
-  printf("opt int Conv9 \n");
   cpu_backend_gemm::Gemm(lhs_params, filter_data, rhs_params, gemm_input_data,
                          dst_params, output_data, gemm_params,
                          cpu_backend_context);
-  printf("opt int Conv10 \n");
 }
 
 }  // namespace optimized_integer_ops

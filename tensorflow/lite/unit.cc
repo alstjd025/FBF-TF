@@ -3,7 +3,7 @@
 #define OUT_SEQ 1
 //#define MULTITHREAD
 #define CPUONLY
-#define quantize
+//#define quantization
 //#define MONITORING
 #define mnist
 
@@ -99,7 +99,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }
             #endif
             #ifdef mnist
-                #ifdef quantize
+                #ifdef quantization
                 for (int i=0; i<Image_x; i++){
                     for (int j=0; j<Image_y; j++){
                         interpreterCPU->get()->typed_input_tensor<int8_t>(0)[i*28 + j] = 100;
@@ -108,8 +108,15 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 } 
                 #endif
                 
-                #ifndef quantize
-                
+                #ifndef quantization
+                for (int i=0; i<Image_x; i++){
+                    for (int j=0; j<Image_y; j++){
+                        std::cout << (float)input[k].at<uchar>(i, j)/255.0 <<" ";
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*28 + j] = \
+                                                    ((float)input[k].at<uchar>(i, j)/255.0);          
+                    }
+                    std::cout << "\n";
+                } 
                 #endif
             #endif
             // Run inference
@@ -131,6 +138,8 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             PrintInterpreterState(interpreterCPU->get());
             std::cout << "\n";
             #endif
+            if(!(*C_Counter % 100))
+                std::cout << "Progress " << int(*G_Counter/100) << "% \n";
         }
     }
     time = time / (SEQ * OUT_SEQ);

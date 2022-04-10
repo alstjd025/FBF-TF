@@ -86,37 +86,44 @@ struct GemmImplUsingGemmlowp<
                        QuantizationFlavor::kIntegerWithUniformMultiplier>&
           params,
       CpuBackendContext* context) {
+          std::cout << "RUN gemmlowp \n";
     gemmlowp::MatrixMap<const SrcScalar, gemmlowp::MapOrder::RowMajor>
         gemmlowp_lhs(lhs_data, lhs_params.rows, lhs_params.cols);
     gemmlowp::MatrixMap<const SrcScalar, gemmlowp::MapOrder::ColMajor>
         gemmlowp_rhs(rhs_data, rhs_params.rows, rhs_params.cols);
     gemmlowp::MatrixMap<DstScalar, gemmlowp::MapOrder::ColMajor> gemmlowp_dst(
         dst_data, dst_params.rows, dst_params.cols);
-
+    std::cout << "gemmlowp 1 \n";
     using ColVectorMap =
         gemmlowp::VectorMap<const int32, gemmlowp::VectorShape::Col>;
     gemmlowp::OutputStageScaleInt32ByFixedPointAndExponent scale_stage;
     scale_stage.result_offset_after_shift = dst_params.zero_point;
     scale_stage.result_fixedpoint_multiplier = params.multiplier_fixedpoint;
     scale_stage.result_exponent = params.multiplier_exponent;
+    std::cout << "gemmlowp 2 \n";
     using SaturatingCastStageType =
         typename GemmlowpSaturatingCastStage<DstScalar>::Type;
     gemmlowp::OutputStageClamp clamp_stage;
     clamp_stage.min = params.clamp_min;
     clamp_stage.max = params.clamp_max;
     SaturatingCastStageType saturating_cast_stage;
+    std::cout << "gemmlowp 3 \n";
     using BitDepthParams = typename GemmlowpBitDepthParams<SrcScalar>::Type;
+    std::cout << "gemmlowp 4 \n";
     if (params.bias) {
+    std::cout << "gemmlowp 5 \n";
       ColVectorMap bias_vector(params.bias, lhs_params.rows);
       gemmlowp::OutputStageBiasAddition<ColVectorMap> bias_addition_stage;
       bias_addition_stage.bias_vector = bias_vector;
       auto output_pipeline = std::make_tuple(
           bias_addition_stage, scale_stage, clamp_stage, saturating_cast_stage);
+    std::cout << "gemmlowp 5.5 \n";
       gemmlowp::GemmWithOutputPipeline<SrcScalar, DstScalar, BitDepthParams>(
           context->gemmlowp_context(), gemmlowp_lhs, gemmlowp_rhs,
           &gemmlowp_dst, -lhs_params.zero_point, -rhs_params.zero_point,
           output_pipeline);
     } else {
+    std::cout << "gemmlowp 6 \n";
       auto output_pipeline =
           std::make_tuple(scale_stage, clamp_stage, saturating_cast_stage);
       gemmlowp::GemmWithOutputPipeline<SrcScalar, DstScalar, BitDepthParams>(
@@ -145,40 +152,52 @@ struct GemmImplUsingGemmlowp<LhsScalar, RhsScalar, AccumScalar, DstScalar,
       CpuBackendContext* context) {
     // gemmlowp support for this per-channel path is limited to NEON.
     // We fall back to ruy outside of NEON.
+std::cout << "GEMM RUN wiernd\n";
 #ifdef GEMMLOWP_NEON
     gemmlowp::MatrixMap<const SrcScalar, gemmlowp::MapOrder::RowMajor>
         gemmlowp_lhs(lhs_data, lhs_params.rows, lhs_params.cols);
+std::cout << "GEMM RUN wiernd2\n";
     gemmlowp::MatrixMap<const SrcScalar, gemmlowp::MapOrder::ColMajor>
         gemmlowp_rhs(rhs_data, rhs_params.rows, rhs_params.cols);
+std::cout << "GEMM RUN wiernd3\n";
     gemmlowp::MatrixMap<DstScalar, gemmlowp::MapOrder::ColMajor> gemmlowp_dst(
         dst_data, dst_params.rows, dst_params.cols);
 
+std::cout << "GEMM RUN wiernd4\n";
     using ColVectorMap =
         gemmlowp::VectorMap<const int32, gemmlowp::VectorShape::Col>;
     ColVectorMap bias_vector(params.bias, lhs_params.rows);
     gemmlowp::OutputStageBiasAddition<ColVectorMap> bias_addition_stage;
     bias_addition_stage.bias_vector = bias_vector;
+std::cout << "GEMM RUN wiernd5\n";
     gemmlowp::OutputStageScaleInt32ByFixedPointAndExponentPC<
         gemmlowp::VectorShape::Col>
         scale_stage;
     scale_stage.result_offset_after_shift = dst_params.zero_point;
+std::cout << "GEMM RUN wiernd6\n";
     scale_stage.result_fixedpoint_multiplier =
         ColVectorMap(params.multiplier_fixedpoint_perchannel, dst_params.rows);
+std::cout << "GEMM RUN wiernd7\n";
     scale_stage.result_exponent =
         ColVectorMap(params.multiplier_exponent_perchannel, dst_params.rows);
+std::cout << "GEMM RUN wiernd8\n";
     using SaturatingCastStageType =
         typename GemmlowpSaturatingCastStage<DstScalar>::Type;
+std::cout << "GEMM RUN wiernd9\n";
     gemmlowp::OutputStageClamp clamp_stage;
     clamp_stage.min = params.clamp_min;
     clamp_stage.max = params.clamp_max;
     SaturatingCastStageType saturating_cast_stage;
+std::cout << "GEMM RUN wiernd10\n";
     auto output_pipeline = std::make_tuple(bias_addition_stage, scale_stage,
                                            clamp_stage, saturating_cast_stage);
     using BitDepthParams = typename GemmlowpBitDepthParams<SrcScalar>::Type;
+std::cout << "GEMM RUN wiernd11\n";
     gemmlowp::GemmWithOutputPipeline<SrcScalar, DstScalar, BitDepthParams>(
         context->gemmlowp_context(), gemmlowp_lhs, gemmlowp_rhs, &gemmlowp_dst,
         -lhs_params.zero_point, -rhs_params.zero_point, output_pipeline);
 #else
+std::cout << "GEMM RUN wiernd12\n";
     GemmImplUsingRuy<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                      QuantizationFlavor::kIntegerWithPerRowMultiplier>::
         Run(lhs_params, lhs_data, rhs_params, rhs_data, dst_params, dst_data,

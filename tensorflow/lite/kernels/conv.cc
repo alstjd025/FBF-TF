@@ -134,6 +134,7 @@ void* Init(TfLiteContext* context, const char* buffer, size_t length) {
   // to carry information from Prepare() to Eval().
   auto* data = new OpData;
 #if defined(TFLITE_WITH_MULTITHREADED_EIGEN)
+std::cout << "Use Eigen \n";
   eigen_support::IncrementUsageCounter(context);
 #endif
   return data;
@@ -222,6 +223,7 @@ static TfLiteStatus AllocateTemporaryTensorsIfRequired(TfLiteContext* context,
                                                        bool is_hybrid,
                                                        bool is_per_channel,
                                                        KernelType kernel_type) {
+  std::cout << "Allocate Temporary Tensors if Required \n";
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
 
@@ -246,8 +248,10 @@ static TfLiteStatus AllocateTemporaryTensorsIfRequired(TfLiteContext* context,
   // We don't always need to allocate im2col. It is only used in some versions
   // of the optimized Conv. This test just mimics something that happens inside
   // optimized_ops.h, in order to avoid a DCHECK(!im2col_data).
-  data->need_im2col =
-      IsIm2ColRequired(input, params, filter, data, is_hybrid, kernel_type);
+  
+  //data->need_im2col = true;
+      //minsung
+  IsIm2ColRequired(input, params, filter, data, is_hybrid, kernel_type);
 
   int temporaries_count = 0;
   if (data->need_im2col) {
@@ -614,6 +618,7 @@ void EvalQuantized(TfLiteContext* context, TfLiteNode* node,
                    const TfLiteTensor* input, const TfLiteTensor* filter,
                    const TfLiteTensor* bias, TfLiteTensor* im2col,
                    TfLiteTensor* output) {
+                     std::cout << "EVAL Quantized \n";
   auto input_offset = -input->params.zero_point;
   auto filter_offset = -filter->params.zero_point;
   auto output_offset = output->params.zero_point;
@@ -679,6 +684,7 @@ void EvalQuantizedPerChannel(TfLiteContext* context, TfLiteNode* node,
                              const TfLiteTensor* filter,
                              const TfLiteTensor* bias, TfLiteTensor* output,
                              TfLiteTensor* im2col) {
+                     std::cout << "EVAL Quantized per Channel \n";
   ConvParams op_params;
   op_params.input_offset = -input->params.zero_point;
   op_params.output_offset = output->params.zero_point;
@@ -693,6 +699,7 @@ void EvalQuantizedPerChannel(TfLiteContext* context, TfLiteNode* node,
 
   switch (kernel_type) {
     case kReference: {
+      std::cout << "kReference \n";
       reference_integer_ops::ConvPerChannel(
           op_params, data->per_channel_output_multiplier.data(),
           data->per_channel_output_shift.data(), GetTensorShape(input),
@@ -705,6 +712,7 @@ void EvalQuantizedPerChannel(TfLiteContext* context, TfLiteNode* node,
     case kGenericOptimized:
     case kMultithreadOptimized:
     case kCblasOptimized: {
+      std::cout << "kGenericOptimized \n";
       optimized_integer_ops::ConvPerChannel(
           op_params, data->per_channel_output_multiplier.data(),
           data->per_channel_output_shift.data(), GetTensorShape(input),
@@ -764,6 +772,7 @@ void EvalFloat(TfLiteContext* context, TfLiteNode* node,
 #ifdef DEBUG
   //SFLAG();
 #endif
+std::cout << "Eval Float \n";
   float output_activation_min, output_activation_max;
   CalculateActivationRange(params->activation, &output_activation_min,
                            &output_activation_max);
@@ -806,6 +815,7 @@ void EvalFloat(TfLiteContext* context, TfLiteNode* node,
     }
     case kMultithreadOptimized: {
 #if defined(TFLITE_WITH_MULTITHREADED_EIGEN)
+std::cout << "EVAL IF Eigen \n";
       const float* filter_data;
       if (data->need_hwcn_weights) {
         filter_data = GetTensorData<float>(hwcn_weights);
@@ -1001,6 +1011,7 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
 #ifdef DEBUG
   //SFLAG();
 #endif
+std::cout << "Eval IMPL \n";
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
 
@@ -1012,10 +1023,23 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 1, &filter));
   bool has_bias = node->inputs->size == 3;
   const TfLiteTensor* bias = has_bias ? GetInput(context, node, 2) : nullptr;
+
   TfLiteTensor* im2col =
       data->need_im2col
           ? &context->tensors[node->temporaries->data[data->im2col_index]]
           : nullptr;
+  /*
+  std::cout << "temporarie tensor : " << node->temporaries->data[data->im2col_index] << "\n";
+  std::cout << "need_im2col : " << data->need_im2col << "\n";
+  std::cout << "bytes : " << im2col->bytes << "\n";
+  std::cout << "im2col dims :";
+  for(int i=0; i<im2col->dims->size; i++){
+    std::cout << im2col->dims->data[i] << " ";
+  }
+  tflite::RuntimeShape temp = GetTensorShape(im2col);
+  std::cout << temp.Dims(3) << "\n";
+  std::cout << "\n";
+  */
   TfLiteTensor* hwcn_weights =
       data->need_hwcn_weights
           ? &context->tensors[node->temporaries->data[data->hwcn_weights_index]]
@@ -1029,6 +1053,7 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
   TFLITE_DCHECK_EQ(input_type, input->type);
   switch (input_type) {  // Already know in/outtypes are same.
     case kTfLiteFloat32:
+    std::cout << "GOTO Eval Default FLoat 32 \n";
       if (filter->type == kTfLiteUInt8 || filter->type == kTfLiteInt8) {
         if (data->is_hybrid_per_channel) {
           TF_LITE_ENSURE_OK(context, EvalHybridPerChannel<kernel_type>(
@@ -1050,18 +1075,22 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
       }
       break;
     case kTfLiteUInt8:
+      std::cout << "GOTO EvalQuantized Uint8 \n";
       EvalQuantized<kernel_type>(context, node, params, data, input, filter,
                                  bias, im2col, output);
       break;
     case kTfLiteInt8:
+      std::cout << "GOTO EvalQuantizedPerChannel Int8 \n";
       EvalQuantizedPerChannel<kernel_type>(context, node, params, data, input,
                                            filter, bias, output, im2col);
       break;
     case kTfLiteInt16:
+      std::cout << "GOTO EvalQuantizedPerChannel 16*8 int16 \n";
       EvalQuantizedPerChannel16x8<kernel_type>(
           context, node, params, data, input, filter, bias, output, im2col);
       break;
     default:
+      std::cout << "NOT SUPPORTED \n";
       TF_LITE_KERNEL_LOG(context, "Type %s currently not supported.",
                          TfLiteTypeGetName(input->type));
       return kTfLiteError;
@@ -1069,11 +1098,14 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
   return kTfLiteOk;
 }
 
+//Minsung
+//Main Eval Stats Here
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 #ifdef DEBUG
   //SFLAG();
 #endif
+std::cout << "EVAL context, node \n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));
 

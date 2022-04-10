@@ -192,6 +192,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
           const MatrixParams<int32_t>& dst_params, int32_t* dst_data,
           const GemmParams<int32_t, int32_t, quantization_flavor>& params,
           CpuBackendContext* context) {
+  std::cout << "GEMM 12313 \n";
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm");
   ValidateParams(lhs_params, rhs_params, dst_params, params);
 

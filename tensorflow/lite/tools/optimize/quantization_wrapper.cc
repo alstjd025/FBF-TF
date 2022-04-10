@@ -24,12 +24,16 @@ bool CreateModelForCalibration(const std::string& input_path,
                                const std::string& output_path) {
   ModelT model;
   if (LoadModel(input_path, &model) != kTfLiteOk) {
+    std::cout << "Loadmodel failed \n";
     return false;
   }
+  std::cout << "good1 \n";
   flatbuffers::FlatBufferBuilder builder;
   if (AddIntermediateTensorsToFusedOp(&builder, &model) != kTfLiteOk) {
+    std::cout << "AddIntermediateTensorsToFusedOp Failed \n";
     return false;
   }
+  std::cout << "good2 \n";
   return WriteFile(output_path, builder.GetBufferPointer(), builder.GetSize());
 }
 

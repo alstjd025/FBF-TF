@@ -225,10 +225,10 @@ class Subgraph {
                                int execution_plan_index);
   //Minsung
   //
-  TfLiteStatus QuantizeCurrentSubgraph();
+  TfLiteStatus QuantizeCurrentSubgraph(bool do_);
 
   //Minsung
-  TfLiteStatus QuantizeSelectedTensor(TfLiteTensor* tensor);
+  TfLiteStatus QuantizeSelectedTensor(TfLiteTensor* tensor, bool do_);
 
   TfLiteStatus DequantizeSelectedTensor(TfLiteTensor* tensor);
 

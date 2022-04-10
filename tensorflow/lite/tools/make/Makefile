@@ -58,6 +58,7 @@ INCLUDES := \
 -I/usr/include/opencv4\
 -I/home/odroid/tensorflow/tensorflow/lite\
 -I/home/odroid/tensorflow/tensorflow/lite/delegates/gpu\
+-I/home.odroid/tensorflow/tensorflow/lite/tools/optimize\
 -I$(OBJDIR)
 # This is at the end so any globally-installed frameworks like protobuf don't
 # override local versions in the source tree.
@@ -170,7 +171,8 @@ $(wildcard tensorflow/lite/core/*.cc) \
 $(wildcard tensorflow/lite/core/api/*.cc) \
 $(wildcard tensorflow/lite/experimental/resource/*.cc) \
 $(wildcard tensorflow/lite/schema/schema_utils.cc) \
-$(wildcard tensorflow/lite/tools/make/downloads/ruy/ruy/*.cc) 
+$(wildcard tensorflow/lite/tools/make/downloads/ruy/ruy/*.cc) \
+$(wildcard tensorflow/lite/tools/optimize/*.cc) 
 ifeq ($(TFLITE_HAVE_CPUINFO),true)
 CORE_CC_ALL_SRCS += \
 $(wildcard tensorflow/lite/tools/make/downloads/cpuinfo/src/*.c) \
