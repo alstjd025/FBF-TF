@@ -138,34 +138,29 @@ void SingleThreadGemm(SingleThreadGemmContext* context,
   std::cout << "SingleThreadGemm 11 " << "\n";
 
   for (int r = 0; r < rows; r += block_params.l2_rows) {
+    std::cout << "block_params.l2_rows : " << block_params.l1_rows << "\n";
+    std::cout << "rows : " << rows << "\n";
     int rs = std::min(block_params.l2_rows, rows - r);
-
-  std::cout << "SingleThreadGemm 12 " << "\n";
+    //Segfault here :(
+    std::cout << "rs : " << rs << "\n";
+    std::cout << "r : " << r << "\n";
+    std::cout << "depth : " << depth << "\n";
     PackLhs(&packed_lhs, lhs.block(r, 0, rs, depth));
-  std::cout << "SingleThreadGemm 13 " << "\n";
+
 
     for (int c = 0; c < cols; c += block_params.l2_cols) {
       int cs = std::min(block_params.l2_cols, cols - c);
-  std::cout << "SingleThreadGemm 14 " << "\n";
-
       if (!pack_rhs_once) {
         PackRhs(&packed_rhs, rhs.block(0, c, depth, cs));
       }
-  std::cout << "SingleThreadGemm 15 " << "\n";
-
       Compute(kernel, block_params, &packed_result, packed_lhs, packed_rhs,
               depth);
-
-  std::cout << "SingleThreadGemm 16 " << "\n";
       UnpackResult<KernelFormat>(
           result, MatrixBlockBounds(r, c, rs, cs), packed_result, depth,
           packed_lhs.sums_of_each_slice(), packed_rhs.sums_of_each_slice(),
           lhs_offset.block(r, rs), rhs_offset.block(c, cs), output_pipeline);
-  std::cout << "SingleThreadGemm 17 " << "\n";
     }
   }
-  std::cout << "SingleThreadGemm 18 " << "\n";
-
   allocator->Decommit();
 }
 
