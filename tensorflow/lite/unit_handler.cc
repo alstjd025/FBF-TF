@@ -3,7 +3,7 @@
 #include <typeinfo>
 //#define MULTITHREAD
 //#define quantization
-#define CPUONLY
+#define CPUONLY 
 
 extern std::mutex mtx_lock;
 
