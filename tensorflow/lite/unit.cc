@@ -9,6 +9,11 @@
 
 std::mutex mtx_lock;
 
+
+/*
+Author : Minsung Kim
+alstjd025@naver.com
+*/
 namespace tflite
 {
 
