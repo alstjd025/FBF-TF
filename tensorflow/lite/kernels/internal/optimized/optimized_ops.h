@@ -417,7 +417,6 @@ inline void FullyConnected(
     const uint8* filter_data, const RuntimeShape& bias_shape,
     const int32* bias_data, const RuntimeShape& output_shape,
     uint8* output_data, CpuBackendContext* cpu_backend_context) {
-  std::cout << "tensorflow/lite/kernels/internal/optimized/optimized_ops.h/FullyConnected(uint8)\n";
   ruy::profiler::ScopeLabel label("FullyConnected/8bit");
   const int32 input_offset = params.input_offset;
   const int32 filter_offset = params.weights_offset;
@@ -481,7 +480,6 @@ inline void FullyConnected(
     const uint8* filter_data, const RuntimeShape& bias_shape,
     const int32* bias_data_int32, const RuntimeShape& output_shape,
     int16* output_data, CpuBackendContext* cpu_backend_context) {
-  std::cout << "tensorflow/lite/kernels/internal/optimized/optimized_ops.h/FullyConnected(int16)\n";
   ruy::profiler::ScopeLabel label("FullyConnected/Uint8Int16");
   const int32 input_offset = params.input_offset;
   const int32 filter_offset = params.weights_offset;

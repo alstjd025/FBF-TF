@@ -67,7 +67,6 @@ struct MakeRuyMulParamsImpl final {
   static void Run(
       const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
       ruy::MulParams<AccumScalar, DstScalar>* ruy_mul_params) {
-        std::cout << "Run1 \n";
     static_assert(quantization_flavor == QuantizationFlavor::kFloatingPoint,
                   "");
     ruy_mul_params->set_bias(params.bias);
@@ -83,7 +82,6 @@ struct MakeRuyMulParamsImpl<std::int32_t, DstScalar, quantization_flavor>
   static void Run(
       const GemmParams<std::int32_t, DstScalar, quantization_flavor>& params,
       ruy::MulParams<std::int32_t, DstScalar>* ruy_mul_params) {
-        std::cout << "Run2 \n";
     static_assert(sizeof(DstScalar) < sizeof(std::int32_t), "");
     if (quantization_flavor ==
         QuantizationFlavor::kIntegerWithUniformMultiplier) {
@@ -110,7 +108,6 @@ struct MakeRuyMulParamsImpl<std::int32_t, std::int32_t, quantization_flavor>
   static void Run(
       const GemmParams<std::int32_t, std::int32_t, quantization_flavor>& params,
       ruy::MulParams<std::int32_t, std::int32_t>* ruy_mul_params) {
-        std::cout << "Run4 \n";
     ruy_mul_params->set_bias(params.bias);
   }
 };
@@ -120,7 +117,6 @@ template <typename AccumScalar, typename DstScalar,
 void MakeRuyMulParams(
     const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
     ruy::MulParams<AccumScalar, DstScalar>* ruy_mul_params) {
-      std::cout << "MakeRuyMulParams \n";
   MakeRuyMulParamsImpl<AccumScalar, DstScalar, quantization_flavor>::Run(
       params, ruy_mul_params);
 }
@@ -134,8 +130,6 @@ struct GemmImplUsingRuy {
       const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
       const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
       CpuBackendContext* context) {
-        std::cout << "Run5 \n";
-    std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_ruy.h/GemmImpIUsingRuy::Run()\n";
     ruy::Matrix<LhsScalar> ruy_lhs;
     ruy::Matrix<RhsScalar> ruy_rhs;
     ruy::Matrix<DstScalar> ruy_dst;

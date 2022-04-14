@@ -1026,8 +1026,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::mutex& mtx_lock_,
                             std::condition_variable& Ucontroller,
                             std::queue<SharedContext*>* qSharedData) {
-                    
-  std::cout << "0000 \n";                         
+                                       
   if(qSharedData == nullptr){
     ReportError("Got NULLPTR for qSharedData!");
     return kTfLiteError;
@@ -1060,7 +1059,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
-  std::cout << "1111 \n";
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     //if(eType == UnitType::GPU0)
@@ -1072,7 +1070,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
                                     execution_plan_index);
     }
-    std::cout << "2222 \n";
     int node_index = execution_plan_[execution_plan_index];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration =
@@ -1087,9 +1084,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     // need to be copied from Delegate buffer to raw memory, which is often not
     // needed. We may want to cache this in prepare to know if this needs to be
     // done for a node or not.
-    std::cout << "3333 \n";
     for (int i = 0; i < node.inputs->size; ++i) {
-      std::cout << "4444 \n";
       int tensor_index = node.inputs->data[i];
       if (tensor_index == kTfLiteOptionalTensor) {
         continue;
@@ -1113,7 +1108,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
         }
       }
     }
-    std::cout << "5555 \n";
     if (check_cancelled_func_ != nullptr &&
         check_cancelled_func_(cancellation_data_)) {
       ReportError("Client requested cancel during Invoke()");
@@ -1126,12 +1120,10 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
-    std::cout << "pre invoke \n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    std::cout << "After invoke \n";
     if(use_distribute_strategy){
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
@@ -1153,7 +1145,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           != kTfLiteOk) {return kTfLiteError;}
       }
     }
-    std::cout << "invoke \n";
     //if(eType == UnitType::CPU0)
       //PrintOutputTensor(node, eType);
     //if(eType == UnitType::GPU0)

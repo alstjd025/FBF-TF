@@ -131,7 +131,6 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
   //SFLAG();
   //std::cout << "tensorflow/lite/kernels/cpu_backend_gemm.h/Gemm()" << std::endl;
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm");
-  std::cout << "Gemm \n";
   ValidateParams(lhs_params, rhs_params, dst_params, params);
   // In some cases we want to unconditionally use ruy as the backend, overriding
   // the `tflite_with_ruy` setting and the platform default.
@@ -142,7 +141,6 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
     // the default.
     must_use_ruy = true;
   }
-  std::cout << "Gemm2 \n";
   if (lhs_params.order != Order::kRowMajor ||
       rhs_params.order != Order::kColMajor ||
       dst_params.order != Order::kColMajor) {
@@ -153,31 +151,26 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
     // prefer to force usage of ruy in these cases.
     must_use_ruy = true;
   }
-  std::cout << "Gemm3 \n";
   if (must_use_ruy) {
     detail::GemmImplUsingRuy<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                              quantization_flavor>::Run(lhs_params, lhs_data,
                                                        rhs_params, rhs_data,
                                                        dst_params, dst_data,
                                                        params, context);
-    std::cout << "Gemm4 \n";
     return;
   }
   // If we did not choose to force usage of ruy above, then we may now consider
   // using custom GEMV code for the matrix*vector cases.
   const bool try_custom_gemv = (dst_params.cols == 1);
-  std::cout << "Gemm5 \n";
   if (try_custom_gemv) { 
     // GEMV case: try a custom fast GEMV path. It will return true if it
     // actually handled it.
     if (detail::CustomGemv(lhs_params, lhs_data, rhs_params, rhs_data,
                            dst_params, dst_data, params, context)) {
-      std::cout << "Gemm 6\n";
       return;
     }
   }
   // Generic case: dispatch to any backend as a general GEMM.
-  std::cout << "Gemm7 \n";
   GemmImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
            quantization_flavor>::Run(lhs_params, lhs_data, rhs_params, rhs_data,
                                      dst_params, dst_data, params, context);
