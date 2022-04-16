@@ -2,7 +2,7 @@
 #define SEQ 1
 #define OUT_SEQ 1
 //#define MULTITHREAD
-#define GPUONLY
+#define CPUONLY
 //#define quantize
 //#define MONITORING
 #define mnist

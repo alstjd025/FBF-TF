@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define GPUONLY
+#define CPUONLY
 
 
 extern std::mutex mtx_lock;
@@ -10,17 +10,18 @@ extern std::mutex mtx_lock;
 namespace tflite
 {
 
-UnitHandler::UnitHandler() :  fileName(nullptr), builder_(nullptr) {}
+UnitHandler::UnitHandler() :  fileNameOriginal(nullptr), builder_(nullptr) {}
 
-UnitHandler::UnitHandler(const char* filename)
-                                        :fileName(filename)
+UnitHandler::UnitHandler(const char* OriginalModel)
+                                        :fileNameOriginal(OriginalModel)
 {
     std::cout << "You have " << std::thread::hardware_concurrency() <<
                  " Processors " << "\n";
     vUnitContainer.reserve(10);
+    bUseTwoModel = false;
     std::unique_ptr<tflite::FlatBufferModel>* model;
     model = new std::unique_ptr<tflite::FlatBufferModel>\
-    (tflite::FlatBufferModel::BuildFromFile(filename));
+    (tflite::FlatBufferModel::BuildFromFile(fileNameOriginal));
     TFLITE_MINIMAL_CHECK(model != nullptr);
     // Build the interpreter with the InterpreterBuilder.
     tflite::ops::builtin::BuiltinOpResolver* resolver;
@@ -33,15 +34,67 @@ UnitHandler::UnitHandler(const char* filename)
     qSharedData = new std::queue<SharedContext*>;
 }
 
+UnitHandler::UnitHandler(const char* OriginalModel, const char* QuanizedModel)
+                                        :fileNameOriginal(OriginalModel),\
+                                         fileNameQuantized(QuanizedModel)
+
+{
+    PrintMsg("Create Original, Quantized Model InterpreterBuilder");
+    std::cout << "You have " << std::thread::hardware_concurrency() <<
+                 " Processors " << "\n";
+    vUnitContainer.reserve(10);
+    bUseTwoModel = true;
+    std::unique_ptr<tflite::FlatBufferModel>* OriginalModelFlatBuffer;
+    std::unique_ptr<tflite::FlatBufferModel>* QuantizedModelFlatBuffer;
+    OriginalModelFlatBuffer = new std::unique_ptr<tflite::FlatBufferModel>\
+    (tflite::FlatBufferModel::BuildFromFile(fileNameOriginal));
+    QuantizedModelFlatBuffer = new std::unique_ptr<tflite::FlatBufferModel>\
+    (tflite::FlatBufferModel::BuildFromFile(fileNameQuantized));
+    TFLITE_MINIMAL_CHECK(OriginalModelFlatBuffer != nullptr);
+    TFLITE_MINIMAL_CHECK(QuantizedModelFlatBuffer != nullptr);
+    
+    // Build the interpreter with the InterpreterBuilder.
+    tflite::ops::builtin::BuiltinOpResolver* OriginalResolver;
+    OriginalResolver = new tflite::ops::builtin::BuiltinOpResolver;
+    GPUBuilder_ = new tflite::InterpreterBuilder(**OriginalModelFlatBuffer,\
+                                                             *OriginalResolver);
+
+                                      
+    tflite::ops::builtin::BuiltinOpResolver* QuantizedResolver;
+    QuantizedResolver = new tflite::ops::builtin::BuiltinOpResolver;
+    CPUBuilder_ = new tflite::InterpreterBuilder(**QuantizedModelFlatBuffer,\
+                                                             *QuantizedResolver);
+
+                                      
+    PrintMsg("Create InterpreterBuilder");
+    if(GPUBuilder_ == nullptr){
+        PrintMsg("GPU InterpreterBuilder nullptr ERROR");
+    }
+    if(CPUBuilder_ == nullptr){
+        PrintMsg("CPU InterpreterBuilder nullptr ERROR");
+    }
+    qSharedData = new std::queue<SharedContext*>;
+}
+
 TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
                                          std::vector<cv::Mat> input, int partitioning){
-    if(builder_ == nullptr){
-        PrintMsg("InterpreterBuilder nullptr ERROR");
-        return kTfLiteError;
-    }
     std::unique_ptr<tflite::Interpreter>* interpreter;
-    interpreter = new std::unique_ptr<tflite::Interpreter>;
-    (*builder_)(interpreter, 8);
+    if(bUseTwoModel){
+        if(CPUBuilder_ ==nullptr){
+            PrintMsg("CPU InterpreterBuilder nullptr ERROR");
+            return kTfLiteError;
+        }
+        interpreter = new std::unique_ptr<tflite::Interpreter>;
+        (*CPUBuilder_)(interpreter, 8);
+    }
+    else{
+        if(builder_ == nullptr){
+            PrintMsg("InterpreterBuilder nullptr ERROR");
+            return kTfLiteError;
+        }
+        interpreter = new std::unique_ptr<tflite::Interpreter>;
+        (*builder_)(interpreter, 8);
+    }
     #ifdef MULTITHREAD
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(2, eType) == kTfLiteOk);  
     #endif 
@@ -91,13 +144,23 @@ TfLiteStatus UnitHandler::CreateAndInvokeCPU(UnitType eType,
 
 TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
                                          std::vector<cv::Mat> input, int partitioning){
-    if(builder_ == nullptr){
-        PrintMsg("InterpreterBuilder nullptr ERROR");
-        return kTfLiteError;
-    }
     std::unique_ptr<tflite::Interpreter>* interpreter;
-    interpreter = new std::unique_ptr<tflite::Interpreter>;
-    (*builder_)(interpreter);
+    if(bUseTwoModel){
+        if(GPUBuilder_ ==nullptr){
+            PrintMsg("GPU InterpreterBuilder nullptr ERROR");
+            return kTfLiteError;
+        }
+        interpreter = new std::unique_ptr<tflite::Interpreter>;
+        (*GPUBuilder_)(interpreter);
+    }
+    else{
+        if(builder_ == nullptr){
+            PrintMsg("InterpreterBuilder nullptr ERROR");
+            return kTfLiteError;
+        }
+        interpreter = new std::unique_ptr<tflite::Interpreter>;
+        (*builder_)(interpreter);
+    }
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TfLiteDelegate *MyDelegate = NULL;
     const TfLiteGpuDelegateOptionsV2 options = {
@@ -114,6 +177,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(8, eType) == kTfLiteOk); 
     TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
+    tflite::PrintInterpreterState(interpreter->get());
     MyDelegate = TfLiteGpuDelegateV2Create(&options);
     if(interpreter->get()->ModifyGraphWithDelegate(MyDelegate) != kTfLiteOk) {
         PrintMsg("Unable to Use GPU Delegate");

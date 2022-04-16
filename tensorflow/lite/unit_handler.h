@@ -55,11 +55,18 @@ private:
     /// Pointer of InterpreterBuilder (Single Object)
     tflite::InterpreterBuilder* builder_;
 
+    /// Pointer for CPU InterpreterBuilder (Quantized Model)
+    tflite::InterpreterBuilder* CPUBuilder_;
     
+    /// Pointer for GPU InterpreterBuilder (Original Model)
+    tflite::InterpreterBuilder* GPUBuilder_;
+    
+    bool bUseTwoModel;
     int iUnitCount; 
     int numThreads;
     std::vector<cv::Mat> inputData;
-    const char* fileName;
+    const char* fileNameOriginal;
+    const char* fileNameQuantized;
     std::vector<std::function<void>*> workers;
     int C_Counter = 0;
     int G_Counter = 0;
@@ -68,6 +75,7 @@ private:
 public:
     UnitHandler();
     UnitHandler(const char* filename);
+    UnitHandler(const char* OriginalModel, const char* QuantizedModel);
 
     TfLiteStatus CreateUnitCPU(UnitType eType, std::vector<cv::Mat> input, int partitioning);
     TfLiteStatus CreateUnitGPU(UnitType eType, std::vector<cv::Mat> input, int partitioning);
