@@ -4,7 +4,7 @@
 //#define MULTITHREAD
 #define CPUONLY
 //#define quantize
-//#define MONITORING
+#define MONITORING
 #define mnist
 
 std::mutex mtx_lock;
@@ -213,7 +213,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }
             printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
-            for (int i =0; i<1; i++){
+            for (int i =0; i<10; i++){
                 printf("%0.5f", interpreterGPU->get()->typed_output_tensor<float>(0)[i] );
                 std:: cout << " ";
             }

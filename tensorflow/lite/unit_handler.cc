@@ -15,6 +15,7 @@ UnitHandler::UnitHandler() :  fileNameOriginal(nullptr), builder_(nullptr) {}
 UnitHandler::UnitHandler(const char* OriginalModel)
                                         :fileNameOriginal(OriginalModel)
 {
+    PrintMsg("Create InterpreterBuilder Using One Model");
     std::cout << "You have " << std::thread::hardware_concurrency() <<
                  " Processors " << "\n";
     vUnitContainer.reserve(10);
@@ -40,6 +41,8 @@ UnitHandler::UnitHandler(const char* OriginalModel, const char* QuanizedModel)
 
 {
     PrintMsg("Create Original, Quantized Model InterpreterBuilder");
+    PrintMsg(fileNameOriginal);
+    PrintMsg(fileNameQuantized);
     std::cout << "You have " << std::thread::hardware_concurrency() <<
                  " Processors " << "\n";
     vUnitContainer.reserve(10);
@@ -85,7 +88,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
             return kTfLiteError;
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
-        (*CPUBuilder_)(interpreter, 8);
+        (*CPUBuilder_)(interpreter, 4);
     }
     else{
         if(builder_ == nullptr){
@@ -93,10 +96,10 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
             return kTfLiteError;
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
-        (*builder_)(interpreter, 8);
+        (*builder_)(interpreter, 4);
     }
     #ifdef MULTITHREAD
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(2, eType) == kTfLiteOk);  
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk);  
     #endif 
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  
@@ -107,7 +110,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     iUnitCount++;    
     PrintMsg("Build CPU Interpreter");
     #ifdef MULTITHREAD
-    kmcontext.channelPartitioning("CONV_2D", 0.2);
+    kmcontext.channelPartitioning("CONV_2D", 0.5);
     #endif
     #ifdef QUANTIZE
     if(interpreter->get()->QuantizeSubgraph() != kTfLiteOk){
@@ -115,12 +118,11 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
         return kTfLiteError;  
     }
     #endif
+    std::cout << "[CPU INTERETER STATE] \n";
     tflite::PrintInterpreterState(interpreter->get());
     return kTfLiteOk;
 }
-/*
 
-*/
 
 TfLiteStatus UnitHandler::CreateAndInvokeCPU(UnitType eType,
                                              std::vector<cv::Mat> input){ 
@@ -174,10 +176,10 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     };
     #ifdef MULTITHREAD
     //Set Partitioning Value : GPU Side Filters
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(8, eType) == kTfLiteOk); 
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
     TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
-    tflite::PrintInterpreterState(interpreter->get());
+    //tflite::PrintInterpreterState(interpreter->get());
     MyDelegate = TfLiteGpuDelegateV2Create(&options);
     if(interpreter->get()->ModifyGraphWithDelegate(MyDelegate) != kTfLiteOk) {
         PrintMsg("Unable to Use GPU Delegate");

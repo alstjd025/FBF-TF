@@ -72,7 +72,7 @@ LIBS := \
 -lz \
 -ldl \
 -lopencv_gapi\
--lflatbuffers /lib/arm-linux-gnueabihf/libdl.so.2\
+-lflatbuffers /lib/aarch64-linux-gnu/libdl.so.2\
 -lopencv_stitching -lopencv_aruco -lopencv_bgsegm\
 -lopencv_bioinspired -lopencv_ccalib\
 -lopencv_dnn_objdetect\
@@ -87,10 +87,10 @@ LIBS := \
 -lopencv_objdetect -lopencv_calib3d -lopencv_imgcodecs -lopencv_features2d -lopencv_flann\
 -lopencv_xphoto -lopencv_photo -lopencv_imgproc\
 -lopencv_core\
-/home/odroid/tensorflow/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so\
-/usr/lib/arm-linux-gnueabihf/libGL.so\
-/usr/lib/arm-linux-gnueabihf/libEGL.so\
-/usr/lib/arm-linux-gnueabihf/libGLESv2.so
+/home/xavier/FBF-TF/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so\
+/usr/lib/aarch64-linux-gnu/libGL.so\
+/usr/lib/aarch64-linux-gnu/libEGL.so\
+/usr/lib/aarch64-linux-gnu/libGLESv2.so
 
 # There are no rules for compiling objects for the host system (since we don't
 # generate things like the protobuf compiler that require that), so all of
