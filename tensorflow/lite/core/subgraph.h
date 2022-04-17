@@ -44,6 +44,7 @@ limitations under the License.
 #include <limits>
 #include "tensorflow/lite/kernels/internal/cppmath.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+#include <time.h>
 
 
 //Minsung
@@ -189,6 +190,8 @@ class Subgraph {
   int GetOutputTensorIndex(TfLiteNode& node){
     return node.outputs->data[node.outputs->size-1];
   }
+  //Minsung
+  void PrepareDetailedLatencyMeasure(int num_part);
 
   //Minsung
   //Prints Information of given node
@@ -926,6 +929,8 @@ class Subgraph {
   //Minsung
   //True if Unithandler uses multiple Units
   bool use_distribute_strategy = false;
+  //True if Detailed Latency Measure On
+  bool use_detailed_latency_measure = false;
   //Initialized in 
   int partitioning_plan = 0;
   //

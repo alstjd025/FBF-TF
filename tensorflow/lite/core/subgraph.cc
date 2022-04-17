@@ -1114,16 +1114,32 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 	  return kTfLiteError;
     }
 
+    //Minsung
+    //Code for DetailedTimeMeasure
+    if(use_detailed_latency_measure && eType == UnitType::GPU0){
+      PrepareDetailedLatencyMeasure(3);
+    }else if(use_detailed_latency_measure && eType == UnitType::CPU0){
+      PrepareDetailedLatencyMeasure(3);
+    }
+
+
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
-    //=============== INVOKE =============== 
+    //=============== INVOKE ===============
+    if(use_detailed_latency_measure && eType == UnitType::GPU0){
+      clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[0]);
+    }
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+    if(use_detailed_latency_measure && eType == UnitType::GPU0){
+      clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[1]);
+    }
+    
     if(use_distribute_strategy){
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
@@ -1764,6 +1780,11 @@ TfLiteStatus Subgraph::SetCustomAllocationForTensor(
 
   return kTfLiteOk;
 }
+
+void Subgraph::PrepareDetailedLatencyMeasure(int num_part){
+  clock_measure_data = CreateClockMeasure(num_part);
+}
+
 
 void Subgraph::PrintNodeInfo(int node_index, TfLiteNode& node,
                      const TfLiteRegistration& registration){

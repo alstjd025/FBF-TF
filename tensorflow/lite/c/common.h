@@ -40,6 +40,8 @@ limitations under the License.
 #include <stddef.h>
 #include <stdint.h>
 
+#include <time.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif  // __cplusplus
@@ -1016,7 +1018,7 @@ std::cout << elepsed_time/CLOCKS_PER_SEC << "us" << "\n";
 */
 
 typedef struct ClockMeasure{
-  double* ary;
+  struct timespec* time_ary;
   int size;
 }ClockMeasure;
 
