@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define CPUONLY
+#define MULTITHREAD
 
 
 extern std::mutex mtx_lock;
@@ -99,7 +99,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
         (*builder_)(interpreter, 4);
     }
     #ifdef MULTITHREAD
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk);  
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(2, eType) == kTfLiteOk);  
     #endif 
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  
@@ -110,7 +110,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     iUnitCount++;    
     PrintMsg("Build CPU Interpreter");
     #ifdef MULTITHREAD
-    kmcontext.channelPartitioning("CONV_2D", 0.5);
+    kmcontext.channelPartitioning("CONV_2D", 0.2);
     #endif
     #ifdef QUANTIZE
     if(interpreter->get()->QuantizeSubgraph() != kTfLiteOk){
@@ -176,7 +176,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     };
     #ifdef MULTITHREAD
     //Set Partitioning Value : GPU Side Filters
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(8, eType) == kTfLiteOk); 
     TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
     //tflite::PrintInterpreterState(interpreter->get());

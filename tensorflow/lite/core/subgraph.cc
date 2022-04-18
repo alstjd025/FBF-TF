@@ -35,7 +35,6 @@ limitations under the License.
 #include "tensorflow/lite/kmdebug.h"
 #include "tensorflow/lite/kmcontext.h"
 
-#define MULTITHREAD
 
 
 
@@ -1031,7 +1030,15 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     ReportError("Got NULLPTR for qSharedData!");
     return kTfLiteError;
   }
+  //Minsung
+  //Code for DetailedTimeMeasure
 
+  use_detailed_latency_measure = true;
+  if(use_detailed_latency_measure && eType == UnitType::GPU0){
+    PrepareDetailedLatencyMeasure(4);
+  }else if(use_detailed_latency_measure && eType == UnitType::CPU0){
+    PrepareDetailedLatencyMeasure(4);
+  }
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
     return kTfLiteError;
@@ -1114,33 +1121,32 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 	  return kTfLiteError;
     }
 
-    //Minsung
-    //Code for DetailedTimeMeasure
-    if(use_detailed_latency_measure && eType == UnitType::GPU0){
-      PrepareDetailedLatencyMeasure(3);
-    }else if(use_detailed_latency_measure && eType == UnitType::CPU0){
-      PrepareDetailedLatencyMeasure(3);
-    }
-
-
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
     //=============== INVOKE ===============
-    if(use_detailed_latency_measure && eType == UnitType::GPU0){
-      clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[0]);
+    if(use_detailed_latency_measure){
+      clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[0]));
     }
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    if(use_detailed_latency_measure && eType == UnitType::GPU0){
-      clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[1]);
+    if(use_detailed_latency_measure){
+      clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[1]));
+      clock_measure_data->ary[0] += \
+        ((clock_measure_data->time_ary[1].tv_sec - clock_measure_data->time_ary[0].tv_sec) + \
+        ((clock_measure_data->time_ary[1].tv_nsec - clock_measure_data->time_ary[0].tv_nsec) / 1000000000.0));
     }
-    
+
     if(use_distribute_strategy){
+      
+      if(use_detailed_latency_measure){
+        clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[2]));
+      }
+      
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
       if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
@@ -1149,16 +1155,27 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       }
       
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0 &&
-                eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
+                eType == UnitType::CPU0){ //Call ContextHandler right after CONCATENATION
         if(CPUPopContextFromQueue(qSharedData, node_index, mtx_lock, mtx_lock_) != kTfLiteOk) 
-          return kTfLiteError;
+          {return kTfLiteError;}
       }
 
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0 && 
-                eType == UnitType::GPU0){ //Call ContextHandler right after Conv 2d
+                eType == UnitType::GPU0){ //Call ContextHandler right after CONCATENATION
       if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock,
                         mtx_lock_, Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
+      }
+
+      if(use_detailed_latency_measure){
+        clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[3]));
+        double temp;
+          temp = \
+        ((clock_measure_data->time_ary[3].tv_sec - clock_measure_data->time_ary[2].tv_sec) + \
+        ((clock_measure_data->time_ary[3].tv_nsec - clock_measure_data->time_ary[2].tv_nsec) / 1000000000.0));
+        clock_measure_data->ary[1] += temp;
+        if(eType == UnitType::CPU0)
+          printf("temp : %.6f \n", temp);
       }
     }
     //if(eType == UnitType::CPU0)
@@ -1192,7 +1209,15 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                                                   use_distribute_strategy){
       status = kTfLiteOk;
       number_of_conv_temp = number_of_conv;
+      printf("CPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
+      printf("CPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
       return status;
+    }
+  }
+  if(use_detailed_latency_measure){
+    if(eType == UnitType::GPU0){
+      printf("GPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
+      printf("GPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
     }
   }
   return status;
@@ -1783,6 +1808,10 @@ TfLiteStatus Subgraph::SetCustomAllocationForTensor(
 
 void Subgraph::PrepareDetailedLatencyMeasure(int num_part){
   clock_measure_data = CreateClockMeasure(num_part);
+  use_detailed_latency_measure = true;
+  for(int i=0; i<clock_measure_data->size; i++){
+    clock_measure_data->ary[i] = 0;
+  }
 }
 
 
@@ -1862,25 +1891,71 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
   std::cout << "\n";
   std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
-  auto data_st = (int8_t*)tensor.data.data;
-  for(int i=0; i<tensor_data_ch_size; i++){
-    std::cout << "CH [" << i << "] \n";
-    for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-      int data = *(data_st+(i+j*tensor_data_ch_size));
-      if (data == 0) {
-        printf("%d ", data);
+  if(tensor.type == TfLiteType::kTfLiteFloat32){
+    auto data_st = (float*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        float data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%d ", data);
+        }
+        else if (data != 0) {
+          if(eType == UnitType::CPU0)
+            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+          else if(eType == UnitType::GPU0)
+            printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
       }
-      else if (data != 0) {
-        if(eType == UnitType::CPU0)
-          printf("%s%d%s ", C_GREN, data, C_NRML);
-        else if(eType == UnitType::GPU0)
-          printf("%s%d%s ", C_YLLW, data, C_NRML);
-      }
-      if (j % tensor_axis == tensor_axis-1) {
-        printf("\n");
+      std::cout << "\n";
+    }
+  }
+  else if(tensor.type == TfLiteType::kTfLiteInt8){
+    auto data_st = (int8_t*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        int8_t data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%d ", data);
+        }
+        else if (data != 0) {
+          if(eType == UnitType::CPU0)
+            printf("%s%d%s ", C_GREN, data, C_NRML);
+          else if(eType == UnitType::GPU0)
+            printf("%s%d%s ", C_YLLW, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
       }
     }
     std::cout << "\n";
+  }
+  else if(tensor.type == TfLiteType::kTfLiteInt32){
+    auto data_st = (int*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        int data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%d ", data);
+        }
+        else if (data != 0) {
+          if(eType == UnitType::CPU0)
+            printf("%s%d%s ", C_GREN, data, C_NRML);
+          else if(eType == UnitType::GPU0)
+            printf("%s%d%s ", C_YLLW, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+      std::cout << "\n";
+    }
   }
 }
 
@@ -2005,11 +2080,12 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
 }
 
 TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
+  std::cout << "Dequnatize \n";
   TfLiteTensor* working_tensor = tensor;
-  if(working_tensor->allocation_type != kTfLiteDynamic || 
-    working_tensor->quantization.type != kTfLiteAffineQuantization){
-    return kTfLiteError;
-  }
+  //if(working_tensor->allocation_type != kTfLiteDynamic || 
+  //  working_tensor->quantization.type != kTfLiteAffineQuantization){
+  //  return kTfLiteError;
+  //}
   int tensor_data_dims_size = working_tensor->dims->size-1; 
   int tensor_data_ch_size = working_tensor->dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
@@ -2018,11 +2094,20 @@ TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
     tensor_data_size *= working_tensor->dims->data[i]; 
   }
   auto data_st_origin = (int8_t*)tensor->data.data;
-  auto dequantized_values = (float*)malloc(tensor_data_size);
+  auto dequantized_values = (float*)malloc(tensor_data_size * sizeof(float));
   float scaling_factor = 
         ((TfLiteQuantizationParams *)(working_tensor->quantization.params))->scale;
+  if(working_tensor->quantization.type == kTfLiteAffineQuantization){
+    std::cout <<  "Affine Quant \n";
+  }
+  printf("scaling factor : %0.12f \n", scaling_factor);
+  std::cout << "tensor data byte : " << working_tensor->bytes << "\n";
+  std::cout << "tensor data size : " << tensor_data_size << "\n";
   for(int i=0; i<tensor_data_size; ++i){
-    dequantized_values[i] = data_st_origin[i] * scaling_factor;
+    float temp = data_st_origin[i] * scaling_factor;
+    printf("tensor data idx %d \n", i);
+    //printf("tensor data : %d\n", data_st_origin[i]);
+    dequantized_values[i] = temp;
   }
   working_tensor->type = TfLiteType::kTfLiteFloat32;
   working_tensor->data.data = dequantized_values;
@@ -2031,6 +2116,7 @@ TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
   working_tensor->params.zero_point = NULL;
   working_tensor->quantization.params = NULL;
   working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteNoQuantization;
+  std::cout << "Dequnatize Done\n";
   return kTfLiteOk;
 }
 
@@ -2072,6 +2158,7 @@ TfLiteStatus Subgraph::ConcatContext(TfLiteTensor* rc_tensor,
   //st : start
   //cp : copy
   //ch : channel
+  std::cout << "ConcatContext \n";
   int concat_tensor_index = \
             nodes_and_registration_[execution_plan_index].first.inputs->data[1];
   int concat_tensor_filter = \
@@ -2105,6 +2192,7 @@ TfLiteStatus Subgraph::ConcatContext(TfLiteTensor* rc_tensor,
     qSharedData->push(newSharedContext);
   }
   Ucontroller.notify_one();
+  std::cout << "ConcatContext \n";
   return kTfLiteOk;
 } 
 
@@ -2129,6 +2217,10 @@ SharedContext* Subgraph::GPUPopContextFromQueue(std::queue<SharedContext*>* qSha
   SharedContext* temp;
   mtx_lock_.lock();
   std::unique_lock<std::mutex> lock(mtx_lock);
+  if(qSharedData->empty()){
+    std::cout << "QUEUE ERROR \n";
+    //exit(1);
+  }
   temp = qSharedData->front();
   qSharedData->pop();
   return temp;
@@ -2154,6 +2246,9 @@ TfLiteStatus Subgraph::CPUPopContextFromQueue(std::queue<SharedContext*>* qShare
 
 SharedContext* Subgraph::CreateSharedContext(UnitType eType,
                                          TfLiteTensor* tensor){
+  PrintTensor(*tensor, UnitType::CPU0);
+  DequantizeSelectedTensor(tensor);
+  PrintTensor(*tensor, UnitType::CPU0);
   return new SharedContext{eType, tensor};
 }
 

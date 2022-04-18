@@ -1019,6 +1019,7 @@ std::cout << elepsed_time/CLOCKS_PER_SEC << "us" << "\n";
 
 typedef struct ClockMeasure{
   struct timespec* time_ary;
+  double* ary;
   int size;
 }ClockMeasure;
 

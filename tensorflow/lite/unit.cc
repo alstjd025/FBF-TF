@@ -2,9 +2,9 @@
 #define SEQ 1
 #define OUT_SEQ 1
 //#define MULTITHREAD
-#define CPUONLY
+#define MULTITHREAD
 //#define quantize
-#define MONITORING
+//#define MONITORING
 #define mnist
 
 std::mutex mtx_lock;
@@ -121,16 +121,18 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             clock_gettime(CLOCK_MONOTONIC, &end);
             *C_Counter += 1;
             double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-            printf("time : %.6fs \n", temp_time);
+            //printf("time : %.6fs \n", temp_time);
             time += temp_time;
             #ifdef MONITORING
             for (int i =0; i<10; i++){
                 printf("%0.5f", interpreterCPU->get()->typed_output_tensor<float>(0)[i] );
                 std:: cout << " ";
             }
-            PrintInterpreterState(interpreterCPU->get());
+            //PrintInterpreterState(interpreterCPU->get());
             std::cout << "\n";
             #endif
+            if(!(*C_Counter % 1000))
+                std::cout << "Progress " << int(*C_Counter/1000) << "% \n";
         }
     }
     time = time / (SEQ * OUT_SEQ);
@@ -211,7 +213,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }else{
                 mtx_lock_timing.unlock();
             }
-            printf("time : %.6fs \n", temp_time);
+            //printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
             for (int i =0; i<10; i++){
                 printf("%0.5f", interpreterGPU->get()->typed_output_tensor<float>(0)[i] );
@@ -220,8 +222,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             std::cout << "\n";
             #endif
             //std::cout << *G_Counter << "\n";
-            if(!(*G_Counter % 100))
-                std::cout << "Progress " << int(*G_Counter/100) << "% \n";
+            if(!(*G_Counter % 1000))
+                std::cout << "Progress " << int(*G_Counter/1000) << "% \n";
         }
     }
     //std::cout << time << "\n";
@@ -280,7 +282,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             *G_Counter += 1;
             double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
             time += temp_time;
-            printf("time : %.6fs \n", temp_time);
+            //printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
             for (int i =0; i<1; i++){
                 printf("%0.5f", interpreterGPU->get()->typed_output_tensor<float>(0)[i] );
@@ -290,8 +292,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             std::cout << "\n";
             #endif
             //std::cout << *G_Counter << "\n";
-            if(!(*G_Counter % 100))
-                std::cout << "Progress " << int(*G_Counter/100) << "% \n";
+            if(!(*G_Counter % 1000))
+                std::cout << "Progress " << int(*G_Counter/1000) << "% \n";
         }
     }
     std::cout << time << "\n";
