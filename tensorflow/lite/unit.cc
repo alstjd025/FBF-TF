@@ -2,7 +2,7 @@
 #define SEQ 1
 #define OUT_SEQ 1
 //#define MULTITHREAD
-#define MULTITHREAD
+#define CPUONLY
 //#define quantize
 //#define MONITORING
 #define mnist
@@ -109,7 +109,12 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 #endif
                 
                 #ifndef quantize
-                
+                for (int i=0; i<Image_x; i++){
+                    for (int j=0; j<Image_y; j++){
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*28 + j] = \
+                        ((float)input[k].at<uchar>(i, j)/255.0);          
+                    }
+                } 
                 #endif
             #endif
             // Run inference

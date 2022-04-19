@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define MULTITHREAD
+#define CPUONLY
 
 
 extern std::mutex mtx_lock;

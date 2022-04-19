@@ -1134,6 +1134,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+    PrintOutputTensor(node, eType);
     if(use_detailed_latency_measure){
       clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[1]));
       clock_measure_data->ary[0] += \
@@ -1853,26 +1854,8 @@ void Subgraph::PrintOutputTensor(TfLiteNode& node, UnitType eType){
   std::cout << "[" << tensor_index << "] Nunber of Tensors : "\
                                            << tensor_data_size << "\n";
   std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
-  auto data_st = (float*)temp->data.data;
-  for(int i=0; i<tensor_data_ch_size; i++){
-    std::cout << "CH [" << i << "] \n";
-    for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-      float data = *(data_st+(i+j*tensor_data_ch_size));
-      if (data == 0) {
-        printf("%0.6f ", data);
-      }
-      else if (data != 0) {
-        if(eType == UnitType::CPU0)
-          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
-        else if(eType == UnitType::GPU0)
-          printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
-      }
-      if (j % tensor_axis == tensor_axis-1) {
-        printf("\n");
-      }
-    }
-    std::cout << "\n";
-  }
+
+  PrintTensor(*temp, eType);  
 }
 
 void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
@@ -1892,6 +1875,7 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
   std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
   if(tensor.type == TfLiteType::kTfLiteFloat32){
+    std::cout << "[FLOAT32 TENSOR]" << "\n";
     auto data_st = (float*)tensor.data.data;
     for(int i=0; i<tensor_data_ch_size; i++){
       std::cout << "CH [" << i << "] \n";
@@ -1914,6 +1898,7 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
     }
   }
   else if(tensor.type == TfLiteType::kTfLiteInt8){
+    std::cout << "[INT8 TENSOR]" << "\n";
     auto data_st = (int8_t*)tensor.data.data;
     for(int i=0; i<tensor_data_ch_size; i++){
       std::cout << "CH [" << i << "] \n";
@@ -1936,6 +1921,7 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
     std::cout << "\n";
   }
   else if(tensor.type == TfLiteType::kTfLiteInt32){
+    std::cout << "[INT32 TENSOR]" << "\n";
     auto data_st = (int*)tensor.data.data;
     for(int i=0; i<tensor_data_ch_size; i++){
       std::cout << "CH [" << i << "] \n";
@@ -2082,6 +2068,11 @@ TfLiteStatus Subgraph::QuantizeSelectedTensor(TfLiteTensor* tensor){
 TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
   std::cout << "Dequnatize \n";
   TfLiteTensor* working_tensor = tensor;
+  if(working_tensor->quantization.type != kTfLiteAffineQuantization &&\
+      working_tensor->type != kTfLiteInt8){
+    std::cout << "Dequantization Tensor Type Error \n";
+    return kTfLiteError;
+  }
   //if(working_tensor->allocation_type != kTfLiteDynamic || 
   //  working_tensor->quantization.type != kTfLiteAffineQuantization){
   //  return kTfLiteError;
@@ -2097,10 +2088,10 @@ TfLiteStatus Subgraph::DequantizeSelectedTensor(TfLiteTensor* tensor){
   auto dequantized_values = (float*)malloc(tensor_data_size * sizeof(float));
   float scaling_factor = 
         ((TfLiteQuantizationParams *)(working_tensor->quantization.params))->scale;
-  if(working_tensor->quantization.type == kTfLiteAffineQuantization){
-    std::cout <<  "Affine Quant \n";
-  }
-  printf("scaling factor : %0.12f \n", scaling_factor);
+  float zero_point = 
+        ((TfLiteQuantizationParams *)(working_tensor->quantization.params))->zero_point;
+  printf("scaling factor : %0.18f \n", scaling_factor);
+  printf("zero point : %0.18f \n", zero_point);
   std::cout << "tensor data byte : " << working_tensor->bytes << "\n";
   std::cout << "tensor data size : " << tensor_data_size << "\n";
   for(int i=0; i<tensor_data_size; ++i){
