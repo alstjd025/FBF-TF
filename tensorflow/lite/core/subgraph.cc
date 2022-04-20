@@ -1025,9 +1025,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock, 
                             std::mutex& mtx_lock_,
                             std::condition_variable& Ucontroller,
-                            std::queue<SharedContext*>* qSharedData) {
-  if(eType == UnitType::GPU0)
-    std::cout << "Invoke 1 \n";                   
+                            std::queue<SharedContext*>* qSharedData) {                   
   if(qSharedData == nullptr){
     ReportError("Got NULLPTR for qSharedData!");
     return kTfLiteError;
@@ -1125,21 +1123,31 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
-    //=============== INVOKE =============== 
-    //=============== INVOKE =============== 
-    //=============== INVOKE =============== 
-    //=============== INVOKE =============== 
+     
     if(use_detailed_latency_measure && eType == UnitType::GPU0){
       clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[0]);
     }
-    if(eType == UnitType::GPU0)
-      std::cout << "Invoke 2 \n";
+    //Code for Tempororary Latency Measure
+    struct timespec begin, end;
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+    //Code for Tempororary Latency Measure
+
+    //=============== INVOKE =============== 
+    //=============== INVOKE =============== 
+    //=============== INVOKE =============== 
+    //=============== INVOKE ===============
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    if(eType == UnitType::GPU0)
-      std::cout << "Invoke 3 \n";
+
+    //Code for Tempororary Latency Measure
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    printf("%s Invoke Latency : %.6fs \n",  GetOpName(registration), temp_time);
+    //Code for Tempororary Latency Measure
+
+
     if(use_detailed_latency_measure && eType == UnitType::GPU0){
       clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[1]);
       clock_measure_data->ary[0] += \
@@ -1215,8 +1223,8 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                                                   use_distribute_strategy){
       status = kTfLiteOk;
       number_of_conv_temp = number_of_conv;
-      printf("CPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
-      printf("CPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
+      //printf("CPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
+      //printf("CPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
       return status;
     }
   }

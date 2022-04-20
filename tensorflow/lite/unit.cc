@@ -1,6 +1,6 @@
 #include "unit.h"
 #define SEQ 1
-#define OUT_SEQ 10000
+#define OUT_SEQ 1
 //#define MULTITHREAD
 #define MULTITHREAD
 //#define quantize
@@ -225,7 +225,6 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }
             std::cout << "\n";
             #endif
-            std::cout << *G_Counter << "\n";
             if(!(*G_Counter % 100))
                 std::cout << "Progress " << int(*G_Counter/100) << "% \n";
         }

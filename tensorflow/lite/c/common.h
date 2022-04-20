@@ -843,6 +843,7 @@ typedef struct TfLiteContext {
   TfLiteEvalTensor* (*GetEvalTensor)(const struct TfLiteContext* context,
                                      int tensor_idx);
   bool use_distribute_strategy_context;
+  bool disable_concate_gpu;
 } TfLiteContext;
 
 //Minsung

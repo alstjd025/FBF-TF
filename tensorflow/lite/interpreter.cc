@@ -280,6 +280,13 @@ TfLiteStatus Interpreter::ReleaseNonPersistentMemory() {
 }
 
 //Minsung
+TfLiteStatus Interpreter::NoDelegateOnConcate(){
+  std::cout << "No GPU Delegate for Concate Layer \n";
+  context_->disable_concate_gpu = true;
+  return kTfLiteOk;
+}
+
+//Minsung
 //Sets partitioning ratios of subgraphs
 //TODO : Set Filter Tensor for partitioning  
 TfLiteStatus Interpreter::SetPartitioning(int partitioning, UnitType eType){
