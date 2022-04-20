@@ -363,6 +363,9 @@ class Interpreter {
   //Minsung
   //
   TfLiteStatus SetPartitioning(int partitioning, UnitType eType);
+
+  //Minsung
+  TfLiteStatus NoDelegateOnConcate();
   
   //Minsung
   TfLiteStatus QuantizeSubgraph();
