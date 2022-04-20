@@ -234,7 +234,7 @@ TfLiteDelegate TfLiteDelegateCreate() {
 //Minsung
 ClockMeasure* CreateClockMeasure(int n){
   ClockMeasure* temp = (ClockMeasure*)malloc(sizeof(ClockMeasure));
-  temp->size = n;
-  temp->ary = (double*)malloc(sizeof(double) * n);
+  temp->time_ary = (struct timespec*)malloc((sizeof(struct timespec))*n*2);
+  temp->size = n*2;
   return temp;
 }

@@ -1026,12 +1026,12 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::mutex& mtx_lock_,
                             std::condition_variable& Ucontroller,
                             std::queue<SharedContext*>* qSharedData) {
-                                       
+  if(eType == UnitType::GPU0)
+    std::cout << "Invoke 1 \n";                   
   if(qSharedData == nullptr){
     ReportError("Got NULLPTR for qSharedData!");
     return kTfLiteError;
   }
-
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
     return kTfLiteError;
@@ -1114,17 +1114,45 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 	  return kTfLiteError;
     }
 
+    //Minsung
+    //Code for DetailedTimeMeasure
+    use_detailed_latency_measure = false;
+    if(use_detailed_latency_measure && eType == UnitType::GPU0){
+      PrepareDetailedLatencyMeasure(4);
+    }else if(use_detailed_latency_measure && eType == UnitType::CPU0){
+      PrepareDetailedLatencyMeasure(4);
+    }
+
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
     //=============== INVOKE =============== 
+    if(use_detailed_latency_measure && eType == UnitType::GPU0){
+      clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[0]);
+    }
+    if(eType == UnitType::GPU0)
+      std::cout << "Invoke 2 \n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+    if(eType == UnitType::GPU0)
+      std::cout << "Invoke 3 \n";
+    if(use_detailed_latency_measure && eType == UnitType::GPU0){
+      clock_gettime(CLOCK_MONOTONIC, &clock_measure_data->time_ary[1]);
+      clock_measure_data->ary[0] += \
+        ((clock_measure_data->time_ary[1].tv_sec - clock_measure_data->time_ary[0].tv_sec) + \
+        ((clock_measure_data->time_ary[1].tv_nsec - clock_measure_data->time_ary[0].tv_nsec) / 1000000000.0));
+    }
+
     if(use_distribute_strategy){
+
+      if(use_detailed_latency_measure){
+        clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[2]));
+      }
+
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
       if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
@@ -1143,6 +1171,17 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock,
                         mtx_lock_, Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
+      }
+
+      if(use_detailed_latency_measure){
+        clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[3]));
+        double temp;
+          temp = \
+        ((clock_measure_data->time_ary[3].tv_sec - clock_measure_data->time_ary[2].tv_sec) + \
+        ((clock_measure_data->time_ary[3].tv_nsec - clock_measure_data->time_ary[2].tv_nsec) / 1000000000.0));
+        clock_measure_data->ary[1] += temp;
+        if(eType == UnitType::CPU0)
+          printf("temp : %.6f \n", temp);
       }
     }
     //if(eType == UnitType::CPU0)
@@ -1176,7 +1215,15 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                                                   use_distribute_strategy){
       status = kTfLiteOk;
       number_of_conv_temp = number_of_conv;
+      printf("CPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
+      printf("CPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
       return status;
+    }
+  }
+  if(use_detailed_latency_measure){
+    if(eType == UnitType::GPU0){
+      printf("GPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
+      printf("GPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
     }
   }
   return status;
@@ -1763,6 +1810,14 @@ TfLiteStatus Subgraph::SetCustomAllocationForTensor(
   tensor->data.data = allocation.data;
 
   return kTfLiteOk;
+}
+
+void Subgraph::PrepareDetailedLatencyMeasure(int num_part){
+  clock_measure_data = CreateClockMeasure(num_part);
+  //use_detailed_latency_measure = true;
+  for(int i=0; i<clock_measure_data->size; i++){
+    clock_measure_data->ary[i] = 0;
+  }
 }
 
 void Subgraph::PrintNodeInfo(int node_index, TfLiteNode& node,

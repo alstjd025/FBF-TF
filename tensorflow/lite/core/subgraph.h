@@ -35,6 +35,8 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/util.h"
 
+#include <time.h>
+
 //Minsung
 //For Quantization
 #include <algorithm>
@@ -189,7 +191,8 @@ class Subgraph {
   int GetOutputTensorIndex(TfLiteNode& node){
     return node.outputs->data[node.outputs->size-1];
   }
-
+  //Minsung
+  void PrepareDetailedLatencyMeasure(int num_part);
   //Minsung
   //Prints Information of given node
   void PrintNodeInfo(int node_index, TfLiteNode& node,
@@ -926,6 +929,8 @@ class Subgraph {
   //Minsung
   //True if Unithandler uses multiple Units
   bool use_distribute_strategy = false;
+  //True if Detailed Latency Measure On
+  bool use_detailed_latency_measure = false;
   //Initialized in 
   int partitioning_plan = 0;
   //

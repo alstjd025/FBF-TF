@@ -1,8 +1,8 @@
 #include "unit.h"
 #define SEQ 1
-#define OUT_SEQ 1
+#define OUT_SEQ 10000
 //#define MULTITHREAD
-#define CPUONLY
+#define MULTITHREAD
 //#define quantize
 //#define MONITORING
 #define mnist
@@ -83,7 +83,6 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     struct timespec begin, end;
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
-            std::cout << "CPU " << *C_Counter << "\n";
             #ifdef catdog
             for (int i=0; i < 300; ++i) {
                 for(int j=0; j< 300; j++){
@@ -109,7 +108,12 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 #endif
                 
                 #ifndef quantize
-                
+                for (int i=0; i<Image_x; i++){
+                    for (int j=0; j<Image_y; j++){
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*28 + j] = \
+                     ((float)input[k].at<uchar>(i, j)/255.0);          
+                    }
+                } 
                 #endif
             #endif
             // Run inference
@@ -131,6 +135,8 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             PrintInterpreterState(interpreterCPU->get());
             std::cout << "\n";
             #endif
+            if(!(*C_Counter % 100))
+                std::cout << "Progress " << int(*C_Counter/100) << "% \n";
         }
     }
     time = time / (SEQ * OUT_SEQ);
@@ -219,7 +225,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             }
             std::cout << "\n";
             #endif
-            //std::cout << *G_Counter << "\n";
+            std::cout << *G_Counter << "\n";
             if(!(*G_Counter % 100))
                 std::cout << "Progress " << int(*G_Counter/100) << "% \n";
         }

@@ -41,7 +41,6 @@ void GemmImplUsingEigen::Run(
     const MatrixParams<float>& rhs_params, const float* rhs_data,
     const MatrixParams<float>& dst_params, float* dst_data,
     const GemmParams<float, float>& params, CpuBackendContext* /* context */) {
-  std::cout << "Eigen RUn \n";
   // This code assumes specific storage orders, encoded in these Eigen types.
   // These assumptions have been checked by TF_LITE_ASSERT's in the public
   // Gemm entry point already, before the implementation gets to this point.
