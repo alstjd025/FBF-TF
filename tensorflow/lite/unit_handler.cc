@@ -2,8 +2,8 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define CPUONLY
-
+#define MULTITHREAD
+//#define QUANTIZE
 
 extern std::mutex mtx_lock;
 
@@ -99,7 +99,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
         (*builder_)(interpreter, 4);
     }
     #ifdef MULTITHREAD
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(2, eType) == kTfLiteOk);  
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(4, eType) == kTfLiteOk);  
     #endif 
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  
@@ -110,7 +110,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     iUnitCount++;    
     PrintMsg("Build CPU Interpreter");
     #ifdef MULTITHREAD
-    kmcontext.channelPartitioning("CONV_2D", 0.2);
+    kmcontext.channelPartitioning("CONV_2D", 0.4);
     #endif
     #ifdef QUANTIZE
     if(interpreter->get()->QuantizeSubgraph() != kTfLiteOk){
@@ -136,7 +136,7 @@ TfLiteStatus UnitHandler::CreateAndInvokeCPU(UnitType eType,
     for(iter = vUnitContainer.begin(); iter != vUnitContainer.end(); ++iter){
         if((*iter)->GetUnitType() == eType){
             if((*iter)->Invoke(eType, mtx_lock, mtx_lock_,
-                                    mtx_lock_timing, Ucontroller, Outcontroller,
+                                    mtx_lock_timing, mtx_lock_debug, Ucontroller, Outcontroller,
                                     qSharedData, &C_Counter, &G_Counter) != kTfLiteOk)
                 return kTfLiteError;
         }
@@ -176,7 +176,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     };
     #ifdef MULTITHREAD
     //Set Partitioning Value : GPU Side Filters
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(8, eType) == kTfLiteOk); 
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(6, eType) == kTfLiteOk); 
     TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
     //tflite::PrintInterpreterState(interpreter->get());
@@ -211,7 +211,7 @@ TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
     for(iter = vUnitContainer.begin(); iter != vUnitContainer.end(); ++iter){
         if((*iter)->GetUnitType() == eType){
            if((*iter)->Invoke(eType, mtx_lock, mtx_lock_
-                                ,mtx_lock_timing, Ucontroller, Outcontroller
+                                ,mtx_lock_timing, mtx_lock_debug, Ucontroller, Outcontroller
                                 ,qSharedData, &C_Counter, &G_Counter) != kTfLiteOk)
                return kTfLiteError;
         }

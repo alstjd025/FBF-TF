@@ -1023,6 +1023,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 
 TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock, 
                             std::mutex& mtx_lock_,
+                            std::mutex& mtx_lock_debug,
                             std::condition_variable& Ucontroller,
                             std::queue<SharedContext*>* qSharedData) {
                                        
@@ -1033,7 +1034,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   //Minsung
   //Code for DetailedTimeMeasure
 
-  use_detailed_latency_measure = true;
+  use_detailed_latency_measure = false;
   if(use_detailed_latency_measure && eType == UnitType::GPU0){
     PrepareDetailedLatencyMeasure(4);
   }else if(use_detailed_latency_measure && eType == UnitType::CPU0){
@@ -1134,7 +1135,13 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    PrintOutputTensor(node, eType);
+    if(eType == UnitType::CPU0){
+      std::unique_lock<std::mutex> lock(mtx_lock_debug);
+      PrintNodeInfo(node_index, node, registration);
+      PrintOutputTensor(node, eType);
+    }
+
+    
     if(use_detailed_latency_measure){
       clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[1]));
       clock_measure_data->ary[0] += \
@@ -1168,6 +1175,16 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           != kTfLiteOk) {return kTfLiteError;}
       }
 
+    //Print
+    
+    if(strcmp(GetOpName(registration), "CONCATENATION") == 0 && 
+                eType == UnitType::GPU0){
+      std::unique_lock<std::mutex> lock(mtx_lock_debug);
+      PrintNodeInfo(node_index, node, registration);
+      PrintOutputTensor(node, eType);
+    }
+    
+
       if(use_detailed_latency_measure){
         clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[3]));
         double temp;
@@ -1179,10 +1196,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           printf("temp : %.6f \n", temp);
       }
     }
-    //if(eType == UnitType::CPU0)
-      //PrintOutputTensor(node, eType);
-    //if(eType == UnitType::GPU0)
-    //   PrintOutputTensor(node, eType);
 	  // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1210,15 +1223,11 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                                                   use_distribute_strategy){
       status = kTfLiteOk;
       number_of_conv_temp = number_of_conv;
-      printf("CPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
-      printf("CPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
       return status;
     }
   }
   if(use_detailed_latency_measure){
     if(eType == UnitType::GPU0){
-      printf("GPU invoke latency : %.6fs \n", clock_measure_data->ary[0]);
-      printf("GPU context handle latency : %.6fs \n", clock_measure_data->ary[1]);
     }
   }
   return status;
@@ -1229,8 +1238,9 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 TfLiteStatus Subgraph::Invoke(UnitType eType){
   std::mutex mtx_lock;
   std::mutex mtx_lock_;
+  std::mutex mtx_lock_debug;
   std::condition_variable temp_cond;
-  Invoke(eType, mtx_lock, mtx_lock_, temp_cond, nullptr);
+  Invoke(eType, mtx_lock, mtx_lock_, mtx_lock_debug, temp_cond, nullptr);
 }
 
 TfLiteStatus Subgraph::ResizeTensor(TfLiteContext* context,
@@ -1882,7 +1892,7 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
       for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
         float data = *(data_st+(i+j*tensor_data_ch_size));
         if (data == 0) {
-          printf("%d ", data);
+          printf("%0.6f ", data);
         }
         else if (data != 0) {
           if(eType == UnitType::CPU0)
@@ -2237,9 +2247,9 @@ TfLiteStatus Subgraph::CPUPopContextFromQueue(std::queue<SharedContext*>* qShare
 
 SharedContext* Subgraph::CreateSharedContext(UnitType eType,
                                          TfLiteTensor* tensor){
-  PrintTensor(*tensor, UnitType::CPU0);
-  DequantizeSelectedTensor(tensor);
-  PrintTensor(*tensor, UnitType::CPU0);
+  //PrintTensor(*tensor, UnitType::CPU0);
+  //DequantizeSelectedTensor(tensor);
+  //PrintTensor(*tensor, UnitType::CPU0);
   return new SharedContext{eType, tensor};
 }
 

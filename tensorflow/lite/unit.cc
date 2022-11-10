@@ -1,8 +1,7 @@
 #include "unit.h"
 #define SEQ 1
 #define OUT_SEQ 1
-//#define MULTITHREAD
-#define CPUONLY
+#define MULTITHREAD
 //#define quantize
 //#define MONITORING
 #define mnist
@@ -22,6 +21,7 @@ UnitCPU::UnitCPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpre
 TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::mutex& mtx_lock_,
                             std::mutex& mtx_lock_timing,
+                            std::mutex& mtx_lock_debug,
                             std::condition_variable& Ucontroller,
                             std::condition_variable& Outcontroller,
                             std::queue<SharedContext*>* qSharedData,
@@ -53,7 +53,8 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             } 
             #endif 
             // Run inference
-            if(interpreterCPU->get()->Invoke(eType, mtx_lock, mtx_lock_, Ucontroller, qSharedData) 
+            if(interpreterCPU->get()->Invoke(eType, mtx_lock, mtx_lock_, mtx_lock_debug,
+                                                Ucontroller, qSharedData) 
                                             != kTfLiteOk){
                 return kTfLiteError;
             }
@@ -75,6 +76,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
 TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::mutex& mtx_lock_,
                             std::mutex& mtx_lock_timing,
+                            std::mutex& mtx_lock_debug,
                             std::condition_variable& Ucontroller,
                             std::condition_variable& Outcontroller,
                             std::queue<SharedContext*>* qSharedData,
@@ -119,7 +121,8 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             #endif
             // Run inference
             clock_gettime(CLOCK_MONOTONIC, &begin);
-            if(interpreterCPU->get()->Invoke(eType, mtx_lock, mtx_lock_, Ucontroller, qSharedData) 
+            if(interpreterCPU->get()->Invoke(eType, mtx_lock, mtx_lock_, mtx_lock_debug,
+                                                Ucontroller, qSharedData) 
                                             != kTfLiteOk){
                 return kTfLiteError;
             }
@@ -167,6 +170,7 @@ UnitGPU::UnitGPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpre
 TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock, 
                             std::mutex& mtx_lock_,
                             std::mutex& mtx_lock_timing,
+                            std::mutex& mtx_lock_debug,
                             std::condition_variable& Ucontroller,
                             std::condition_variable& Outcontroller,
                             std::queue<SharedContext*>* qSharedData,
@@ -203,7 +207,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             #endif
             // Run inference
             clock_gettime(CLOCK_MONOTONIC, &begin);
-            if(interpreterGPU->get()->Invoke(eType, mtx_lock, mtx_lock_, Ucontroller, qSharedData) 
+            if(interpreterGPU->get()->Invoke(eType, mtx_lock, mtx_lock_, mtx_lock_debug,
+                                                Ucontroller, qSharedData) 
                                             != kTfLiteOk){
                 return kTfLiteError;
             }
@@ -244,6 +249,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
 TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock, 
                             std::mutex& mtx_lock_,
                             std::mutex& mtx_lock_timing,
+                            std::mutex& mtx_lock_debug,
                             std::condition_variable& Ucontroller,
                             std::condition_variable& Outcontroller,
                             std::queue<SharedContext*>* qSharedData,
@@ -279,7 +285,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             #endif
             // Run inference
             clock_gettime(CLOCK_MONOTONIC, &begin);
-            if(interpreterGPU->get()->Invoke(eType, mtx_lock, mtx_lock_, Ucontroller, qSharedData) 
+            if(interpreterGPU->get()->Invoke(eType, mtx_lock, mtx_lock_, mtx_lock_debug,
+                                                Ucontroller, qSharedData) 
                                             != kTfLiteOk){
                 return kTfLiteError;
             }
@@ -289,7 +296,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             time += temp_time;
             //printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
-            for (int i =0; i<1; i++){
+            for (int i =0; i<10; i++){
                 printf("%0.5f", interpreterGPU->get()->typed_output_tensor<float>(0)[i] );
                 std:: cout << " ";
             }

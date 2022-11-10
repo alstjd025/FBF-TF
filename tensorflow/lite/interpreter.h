@@ -375,6 +375,7 @@ class Interpreter {
   /// Returns status of success or failure.
   TfLiteStatus Invoke(UnitType eType, std::mutex& mtx_lock, 
                      std::mutex& mtx_lock_,
+                     std::mutex& mtx_lock_debug,
                      std::condition_variable& Ucontroller,
                      std::queue<SharedContext*>* qSharedData);
 

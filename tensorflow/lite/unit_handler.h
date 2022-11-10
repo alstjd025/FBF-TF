@@ -40,6 +40,9 @@ private:
     /// Mutex Lock For GPU&CPU Timing Control
     std::mutex mtx_lock_timing;
 
+    /// Mutes Lock For Debugprint
+    std::mutex mtx_lock_debug;
+
     /// Condition Variable to control Units in Subgraph::Invoke
     std::condition_variable Ucontroller;
 
@@ -63,14 +66,13 @@ private:
     
     bool bUseTwoModel;
     int iUnitCount; 
-    int numThreads;
-    std::vector<cv::Mat> inputData;
+
     const char* fileNameOriginal;
     const char* fileNameQuantized;
-    std::vector<std::function<void>*> workers;
+    
     int C_Counter = 0;
     int G_Counter = 0;
-    UnitSettings setting;
+
 
 public:
     UnitHandler();
@@ -84,6 +86,7 @@ public:
     TfLiteStatus CreateAndInvokeCPU(UnitType eType, std::vector<cv::Mat> input);
     TfLiteStatus CreateAndInvokeGPU(UnitType eType, std::vector<cv::Mat> input);
 
+    /* Not Impl*/
     void DeleteSharedContext(SharedContext* dataTobeCleared);
 
     void PrintInterpreterStatus();

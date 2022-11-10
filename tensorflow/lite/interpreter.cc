@@ -320,13 +320,14 @@ TfLiteStatus Interpreter::QuantizeSubgraph(){
 
 TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                      std::mutex& mtx_lock_,
+                     std::mutex& mtx_lock_debug,
                      std::condition_variable& Ucontroller,
                      std::queue<SharedContext*>* qSharedData) {
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
   TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
       scoped_runtime_event, primary_subgraph().Invoke(eType, mtx_lock, mtx_lock_,
-                                                      Ucontroller, qSharedData));
+                                          mtx_lock_debug, Ucontroller, qSharedData));
 
   if (!allow_buffer_handle_output_) {
     for (int tensor_index : outputs()) {
