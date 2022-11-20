@@ -1,7 +1,7 @@
 #include "unit.h"
 #define SEQ 1
 #define OUT_SEQ 1
-#define MULTITHREAD
+#define GPUONLY
 //#define quantize
 //#define MONITORING
 #define mnist

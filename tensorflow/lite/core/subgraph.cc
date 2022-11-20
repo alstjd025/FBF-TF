@@ -35,6 +35,8 @@ limitations under the License.
 #include "tensorflow/lite/kmdebug.h"
 #include "tensorflow/lite/kmcontext.h"
 
+//#define debug
+
 
 
 
@@ -1135,12 +1137,14 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+
+    #ifdef debug
     if(eType == UnitType::CPU0){
       std::unique_lock<std::mutex> lock(mtx_lock_debug);
       PrintNodeInfo(node_index, node, registration);
       PrintOutputTensor(node, eType);
     }
-
+    #endif
     
     if(use_detailed_latency_measure){
       clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[1]));
@@ -1177,12 +1181,14 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
     //Print
     
+    #ifdef debug
     if(strcmp(GetOpName(registration), "CONCATENATION") == 0 && 
                 eType == UnitType::GPU0){
       std::unique_lock<std::mutex> lock(mtx_lock_debug);
       PrintNodeInfo(node_index, node, registration);
       PrintOutputTensor(node, eType);
     }
+    #endif
     
 
       if(use_detailed_latency_measure){
@@ -2159,7 +2165,6 @@ TfLiteStatus Subgraph::ConcatContext(TfLiteTensor* rc_tensor,
   //st : start
   //cp : copy
   //ch : channel
-  std::cout << "ConcatContext \n";
   int concat_tensor_index = \
             nodes_and_registration_[execution_plan_index].first.inputs->data[1];
   int concat_tensor_filter = \
@@ -2193,7 +2198,6 @@ TfLiteStatus Subgraph::ConcatContext(TfLiteTensor* rc_tensor,
     qSharedData->push(newSharedContext);
   }
   Ucontroller.notify_one();
-  std::cout << "ConcatContext \n";
   return kTfLiteOk;
 } 
 

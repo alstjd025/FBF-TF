@@ -360,12 +360,17 @@ class Interpreter {
   // success or failure.
   TfLiteStatus AllocateTensors();
 
-  //Minsung
-  //
+  // Minsung
   TfLiteStatus SetPartitioning(int partitioning, UnitType eType);
   
-  //Minsung
+  // Minsung
   TfLiteStatus QuantizeSubgraph();
+
+  // Minsung
+  TfLiteStatus SetMultipleSubgraphs(bool flag);
+
+  // Minsung
+  bool GetMultipleSubgraphFlag();
 
   /// Invoke the interpreter (run the whole graph in dependency order).
   ///
@@ -686,6 +691,12 @@ class Interpreter {
   // An empty one means there's no delegate to be applied by default or
   // delegates have been applied and doesn't need to be applied again.
   std::vector<TfLiteDelegatePtr> lazy_delegate_providers_;
+
+
+  // Minsung
+  // An experimental flag for deviding a model to multiple subgrpahs
+  // by conv2d layers
+  bool devide_by_conv = false;
 };
 
 }  // namespace tflite

@@ -318,6 +318,19 @@ TfLiteStatus Interpreter::QuantizeSubgraph(){
   return kTfLiteOk;
 }
 
+// Minsung
+// Set experimental flag for deviding a model to multiple subgraphs
+TfLiteStatus Interpreter::SetMultipleSubgraphs(bool flag){
+  devide_by_conv = flag;
+  return kTfLiteOk;
+}
+
+// Minsung
+// Returns experimental flag which have been set above
+bool Interpreter::GetMultipleSubgraphFlag(){
+  return devide_by_conv;
+}
+
 TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                      std::mutex& mtx_lock_,
                      std::mutex& mtx_lock_debug,

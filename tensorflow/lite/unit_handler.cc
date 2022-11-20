@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define MULTITHREAD
+#define GPUONLY
 //#define QUANTIZE
 
 extern std::mutex mtx_lock;
@@ -147,6 +147,10 @@ TfLiteStatus UnitHandler::CreateAndInvokeCPU(UnitType eType,
 TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
                                          std::vector<cv::Mat> input, int partitioning){
     std::unique_ptr<tflite::Interpreter>* interpreter;
+
+    // An experimental task to devide a model to multiple subgrpahs
+    //interpreter->get()->SetMultipleSubgraphs(true);
+
     if(bUseTwoModel){
         if(GPUBuilder_ ==nullptr){
             PrintMsg("GPU InterpreterBuilder nullptr ERROR");

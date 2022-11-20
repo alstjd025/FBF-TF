@@ -653,43 +653,65 @@ TfLiteStatus InterpreterBuilder::operator()(
   }
 
   (*interpreter)->SetProfiler(tflite::profiling::MaybeCreatePlatformProfiler());
-  for (int subgraph_index = 0; subgraph_index < subgraphs->size();
-       ++subgraph_index) {
-    const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
-    tflite::Subgraph* modified_subgraph =
-        (*interpreter)->subgraph(subgraph_index);
-    auto operators = subgraph->operators();
-    auto tensors = subgraph->tensors();
-    if (!operators || !tensors) {
-      TF_LITE_REPORT_ERROR(error_reporter_,
-                           "Did not get operators or tensors in subgraph %d.\n",
-                           subgraph_index);
-      return cleanup_and_error();
+  // Minsung
+  // Devide a model to multiple subgraphs (experimental task)
+  if((*interpreter)->GetMultipleSubgraphFlag()){
+    for (int subgraph_index = 0; subgraph_index < subgraphs->size();
+        ++subgraph_index) {
+      const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+      auto tensors = subgraph->tensors();
     }
-    if (modified_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
-      return cleanup_and_error();
-    }
-    // Set num threads
-    // Parse inputs/outputs
-    modified_subgraph->SetInputs(
-        FlatBufferIntArrayToVector(subgraph->inputs()));
-    modified_subgraph->SetOutputs(
-        FlatBufferIntArrayToVector(subgraph->outputs()));
-
-    // Finally setup nodes and tensors
-    if (ParseNodes(operators, modified_subgraph) != kTfLiteOk)
-      return cleanup_and_error();
-    if (ParseTensors(buffers, tensors, modified_subgraph) != kTfLiteOk)
-      return cleanup_and_error();
-
-    std::vector<int> variables;
-    for (int i = 0; i < modified_subgraph->tensors_size(); ++i) {
-      auto* tensor = modified_subgraph->tensor(i);
-      if (tensor->is_variable) {
-        variables.push_back(i);
+  }else{
+    for (int subgraph_index = 0; subgraph_index < subgraphs->size();
+        ++subgraph_index) {
+      const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+      tflite::Subgraph* modified_subgraph =
+          (*interpreter)->subgraph(subgraph_index);
+      auto operators = subgraph->operators();
+      auto tensors = subgraph->tensors();
+      if (!operators || !tensors) {
+        TF_LITE_REPORT_ERROR(error_reporter_,
+                            "Did not get operators or tensors in subgraph %d.\n",
+                            subgraph_index);
+        return cleanup_and_error();
       }
+      if (modified_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
+        return cleanup_and_error();
+      }
+      // Set num threads
+      // Parse inputs/outputs
+      modified_subgraph->SetInputs(
+          FlatBufferIntArrayToVector(subgraph->inputs()));
+      auto input_tensor_shape = FlatBufferIntArrayToVector(subgraph->inputs());
+      auto output_tensor_shape = FlatBufferIntArrayToVector(subgraph->outputs());
+      std::cout << " input tensors : ";
+      for(size_t i = 0; i < input_tensor_shape.size(); ++i){
+        std::cout << input_tensor_shape[i] << " ";
+      }
+      std::cout << "\n";
+      std::cout << " output tensors : ";
+      for(size_t i = 0; i < output_tensor_shape.size(); ++i){
+        std::cout << output_tensor_shape[i] << " ";
+      }
+      std::cout << "\n";
+      modified_subgraph->SetOutputs(
+          FlatBufferIntArrayToVector(subgraph->outputs()));
+
+      // Finally setup nodes and tensors
+      if (ParseNodes(operators, modified_subgraph) != kTfLiteOk)
+        return cleanup_and_error();
+      if (ParseTensors(buffers, tensors, modified_subgraph) != kTfLiteOk)
+        return cleanup_and_error();
+
+      std::vector<int> variables;
+      for (int i = 0; i < modified_subgraph->tensors_size(); ++i) {
+        auto* tensor = modified_subgraph->tensor(i);
+        if (tensor->is_variable) {
+          variables.push_back(i);
+        }
+      }
+      modified_subgraph->SetVariables(std::move(variables));
     }
-    modified_subgraph->SetVariables(std::move(variables));
   }
   if (num_fp32_tensors_ > 0) {
     (*interpreter)->lazy_delegate_providers_ =
