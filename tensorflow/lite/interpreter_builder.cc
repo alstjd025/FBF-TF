@@ -654,12 +654,56 @@ TfLiteStatus InterpreterBuilder::operator()(
 
   (*interpreter)->SetProfiler(tflite::profiling::MaybeCreatePlatformProfiler());
   // Minsung
-  // Devide a model to multiple subgraphs (experimental task)
-  if((*interpreter)->GetMultipleSubgraphFlag()){
+  // Devide a model to multiple subgraphs (experimental)
+  if(true){
+    int new_subgraph_index = 0;
+    int count_conv_layer = 0;
+    int count_tensor_per_subgraph_ = 0;
+    std::vector<int> vec_count_tensors_per_subgraph; // Contains counts of tensors per subgraph in search-order
+
+    std::vector<TfLiteIntArray*> inputs;
+    std::vector<TfLiteIntArray*> outputs;
     for (int subgraph_index = 0; subgraph_index < subgraphs->size();
         ++subgraph_index) {
+          // Note : Assume that we have only one subgraph before.
       const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+      auto operators = subgraph->operators();
       auto tensors = subgraph->tensors();
+      // Look for Conv2d OPs and save tensor index
+      std::vector<int> conv_idx;
+      for(int i=0; i < operators->size(); ++i) {
+        const auto* op = operators->Get(i);
+        int op_index = op->opcode_index();
+        if (op_index < 0 || op_index >= flatbuffer_op_index_to_registration_.size()) {
+         error_reporter_->Report("[Subgraph Modifying Error] Missing registration for opcode_index %d\n",
+                              op_index);
+          continue;
+        }
+        const TfLiteRegistration* registration = 
+          flatbuffer_op_index_to_registration_[op_index];
+        if(registration == nullptr){
+         error_reporter_->Report("\
+                  [Subgraph Modifying Error] Missing registration in flatbuffer registration index %d\n",
+                              op_index);
+          continue;          
+        }
+        count_tensor_per_subgraph_++;
+        if(registration->builtin_code == 3){ // Conv2d
+          // Note :If we found a Conv2d layer from origin subgraph,
+          //       devide it into multiple subgraphs with the same number of conv2d layers.
+          (*interpreter)->AddSubgraphs(1);
+          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(count_conv_layer);
+          count_conv_layer++;
+          vec_count_tensors_per_subgraph.push_back(count_tensor_per_subgraph_);
+          if (sliced_subgraph->AddTensors(count_tensor_per_subgraph_) != kTfLiteOk) {
+            return cleanup_and_error();
+          }
+          count_tensor_per_subgraph_ = 0;
+          TfLiteIntArray* input_ = new TfLiteIntArray;
+          TfLiteIntArray* output_ = new TfLiteIntArray;
+          
+        }
+      }
     }
   }else{
     for (int subgraph_index = 0; subgraph_index < subgraphs->size();
@@ -682,21 +726,8 @@ TfLiteStatus InterpreterBuilder::operator()(
       // Parse inputs/outputs
       modified_subgraph->SetInputs(
           FlatBufferIntArrayToVector(subgraph->inputs()));
-      auto input_tensor_shape = FlatBufferIntArrayToVector(subgraph->inputs());
-      auto output_tensor_shape = FlatBufferIntArrayToVector(subgraph->outputs());
-      std::cout << " input tensors : ";
-      for(size_t i = 0; i < input_tensor_shape.size(); ++i){
-        std::cout << input_tensor_shape[i] << " ";
-      }
-      std::cout << "\n";
-      std::cout << " output tensors : ";
-      for(size_t i = 0; i < output_tensor_shape.size(); ++i){
-        std::cout << output_tensor_shape[i] << " ";
-      }
-      std::cout << "\n";
       modified_subgraph->SetOutputs(
           FlatBufferIntArrayToVector(subgraph->outputs()));
-
       // Finally setup nodes and tensors
       if (ParseNodes(operators, modified_subgraph) != kTfLiteOk)
         return cleanup_and_error();

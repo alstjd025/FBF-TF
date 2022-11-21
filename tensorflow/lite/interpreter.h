@@ -367,7 +367,7 @@ class Interpreter {
   TfLiteStatus QuantizeSubgraph();
 
   // Minsung
-  TfLiteStatus SetMultipleSubgraphs(bool flag);
+  void SetMultipleSubgraphs(bool flag);
 
   // Minsung
   bool GetMultipleSubgraphFlag();

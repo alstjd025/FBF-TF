@@ -147,16 +147,14 @@ TfLiteStatus UnitHandler::CreateAndInvokeCPU(UnitType eType,
 TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
                                          std::vector<cv::Mat> input, int partitioning){
     std::unique_ptr<tflite::Interpreter>* interpreter;
-
-    // An experimental task to devide a model to multiple subgrpahs
-    //interpreter->get()->SetMultipleSubgraphs(true);
-
     if(bUseTwoModel){
         if(GPUBuilder_ ==nullptr){
             PrintMsg("GPU InterpreterBuilder nullptr ERROR");
             return kTfLiteError;
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
+        // An experimental task to devide a model to multiple subgrpahs
+        //interpreter->get()->SetMultipleSubgraphs(true);
         (*GPUBuilder_)(interpreter);
     }
     else{
@@ -165,6 +163,8 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
             return kTfLiteError;
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
+        // An experimental task to devide a model to multiple subgrpahs
+        //interpreter->get()->SetMultipleSubgraphs(true);
         (*builder_)(interpreter);
     }
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
