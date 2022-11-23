@@ -71,10 +71,25 @@ class InterpreterBuilder {
   TfLiteStatus ParseNodes(
       const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
       Subgraph* subgraph);
+  
+  // Minsung
+  // ParseNodes with specific index of operators
+  TfLiteStatus ParseNodes(
+    const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
+    Subgraph* subgraph, int op_st, int op_end);
+
   TfLiteStatus ParseTensors(
       const flatbuffers::Vector<flatbuffers::Offset<Buffer>>* buffers,
       const flatbuffers::Vector<flatbuffers::Offset<Tensor>>* tensors,
       Subgraph* subgraph);
+
+  // Minsung
+  // ParseTensors with specific index of operators
+  TfLiteStatus ParseTensors(
+      const flatbuffers::Vector<flatbuffers::Offset<Buffer>>* buffers,
+      const flatbuffers::Vector<flatbuffers::Offset<Tensor>>* tensors,
+      Subgraph* subgraph, std::vector<int> tensor_idx);
+  
   TfLiteStatus ApplyDelegates(Interpreter* interpreter, int num_threads);
   TfLiteStatus ParseQuantization(const QuantizationParameters* src_quantization,
                                  TfLiteQuantization* quantization,

@@ -329,6 +329,79 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
   return status;
 }
 
+// Minsung
+// ParseNodes with specific index of operators
+TfLiteStatus InterpreterBuilder::ParseNodes(
+    const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
+    Subgraph* subgraph, int op_st, int op_end) {
+
+  TfLiteStatus status = kTfLiteOk;
+
+  // Reduce the number of redundant allocations
+  subgraph->ReserveNodes(op_end - op_st);
+  std::cout << "qqqqqq" << "\n";
+  std::cout << "op_st : " << op_st << "\n";
+  std::cout << "op_end: " << op_end << "\n";
+  for (int i = op_st; i < op_end; ++i) {
+    const auto* op = operators->Get(i);
+    int index = op->opcode_index();
+    if (index < 0 || index >= flatbuffer_op_index_to_registration_.size()) {
+      error_reporter_->Report("Missing registration for opcode_index %d\n",
+                              index);
+      status = kTfLiteError;
+      continue;
+    }
+    std::cout << "wwww" << "\n";
+    const TfLiteRegistration* registration =
+        flatbuffer_op_index_to_registration_[index];
+    if (registration == nullptr) {
+      error_reporter_->Report("Skipping op for opcode_index %d\n", index);
+      status = kTfLiteError;
+      continue;
+    }
+
+    BuiltinOperator op_type =
+        static_cast<BuiltinOperator>(registration->builtin_code);
+    std::cout << "eeee" << "\n";
+    if (op_type != BuiltinOperator_CUSTOM && op->custom_options()) {
+      error_reporter_->Report(
+          "Found builtin operator %s with custom options.\n",
+          EnumNameBuiltinOperator(op_type));
+    }
+
+    if (op_type == BuiltinOperator_CUSTOM) {
+      if (op->custom_options()) {
+        subgraph->AddNodeWithParameters(
+            FlatBufferIntArrayToVector(op->inputs()),
+            FlatBufferIntArrayToVector(op->outputs()),
+            FlatBufferIntArrayToVector(op->intermediates()),
+            reinterpret_cast<const char*>(op->custom_options()->data()),
+            op->custom_options()->size(), nullptr, registration);
+      } else {
+        subgraph->AddNodeWithParameters(
+            FlatBufferIntArrayToVector(op->inputs()),
+            FlatBufferIntArrayToVector(op->outputs()),
+            FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
+            nullptr, registration);
+      }
+    } else {
+      void* builtin_data = nullptr;
+      MallocDataAllocator malloc_allocator;
+      TF_LITE_ENSURE_STATUS(ParseOpData(op, op_type, error_reporter_,
+                                        &malloc_allocator, &builtin_data));
+      std::cout << "rrrr" << "\n";
+      subgraph->AddNodeWithParameters(
+          FlatBufferIntArrayToVector(op->inputs()),
+          FlatBufferIntArrayToVector(op->outputs()),
+          FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
+          builtin_data, registration);
+    }
+    std::cout << "tttt" << "\n";
+  }
+  return status;
+}
+
+
 TfLiteStatus InterpreterBuilder::ParseQuantization(
     const QuantizationParameters* src_quantization,
     TfLiteQuantization* quantization, const std::vector<int>& dims) {
@@ -481,7 +554,10 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
   for (int i = 0; i < tensors->size(); ++i) {
     const auto* tensor = tensors->Get(i);
     std::vector<int> dims = FlatBufferIntArrayToVector(tensor->shape());
-
+    for(int j=0; j< dims.size(); ++j){
+      std::cout << dims[j] << " ";
+    }
+    std::cout << "\n";
     TfLiteType type;
     if (ConvertTensorType(tensor->type(), &type, error_reporter_) !=
         kTfLiteOk) {
@@ -573,6 +649,121 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
   return status;
 }
 
+// Minsung
+// ParseTensors with specific index of operators
+TfLiteStatus InterpreterBuilder::ParseTensors(
+    const flatbuffers::Vector<flatbuffers::Offset<Buffer>>* buffers,
+    const flatbuffers::Vector<flatbuffers::Offset<Tensor>>* tensors,
+    Subgraph* subgraph, std::vector<int> tensor_idx) {
+  TfLiteStatus status = kTfLiteOk;
+  std::cout << "ParseTensors" << "\n";
+  // A little helper to get the names of inputs and outputs. Note that they
+  // must outlive the subgraph.
+  auto get_name = [](const tflite::Tensor* t) -> const char* {
+    auto name = t->name();
+    if (name) return name->c_str();
+    return kEmptyTensorName;
+  };
+  std::cout << "aaaa" << "\n";
+  num_fp32_tensors_ = 0;
+  for (int i = 0; i < tensor_idx.size(); ++i) {
+    const auto* tensor = tensors->Get(tensor_idx[i]);
+    std::vector<int> dims = FlatBufferIntArrayToVector(tensor->shape());
+    for(int j=0; j< dims.size(); ++j){
+      std::cout << dims[j] << " ";
+    }
+    std::cout << "\n";
+    TfLiteType type;
+    if (ConvertTensorType(tensor->type(), &type, error_reporter_) !=
+        kTfLiteOk) {
+      status = kTfLiteError;
+      continue;
+    }
+    if (type == kTfLiteFloat32) {
+      ++num_fp32_tensors_;
+    }
+    auto get_readonly_data = [&](const char** buffer_data,
+                                 size_t* buffer_size) {
+      // TODO(aselle): Check what happens if we have an unspecified size
+      // constant.
+      *buffer_data = nullptr;
+      if (tensor->buffer() == 0) return kTfLiteOk;
+      if (tensor->buffer() >= buffers->size()) {
+        error_reporter_->Report(
+            "Tensor %d specifies out of range buffer %d (only %d buffers).\n",
+            tensor_idx[i], tensor->buffer(), buffers->size());
+        return kTfLiteError;
+      }
+      if (auto* buffer = (*buffers)[tensor->buffer()]) {
+        if (auto* array = buffer->data()) {
+          if (size_t size = array->size()) {
+            *buffer_size = size;
+            *buffer_data = reinterpret_cast<const char*>(array->data());
+            return kTfLiteOk;
+          }
+        }
+      }
+      return kTfLiteOk;
+    };
+    size_t buffer_size = 0;
+    const char* buffer_ptr;
+    TF_LITE_ENSURE_STATUS(get_readonly_data(&buffer_ptr, &buffer_size));
+
+    const auto* src_quantization = tensor->quantization();
+    TfLiteQuantization quantization;
+    if (ParseQuantization(src_quantization, &quantization, dims) != kTfLiteOk) {
+      error_reporter_->Report("Tensor %d has invalid quantization parameters.",
+                              tensor_idx[i]);
+      status = kTfLiteError;
+    }
+    std::cout << "bbbb" << "\n";
+    size_t dims_signature_rank = 0;
+    const int* dims_signature_data = nullptr;
+    if (tensor->shape_signature()) {
+      dims_signature_rank = tensor->shape_signature()->size();
+      dims_signature_data = tensor->shape_signature()->data();
+    }
+
+    bool is_variable = tensor->is_variable();
+    if (buffer_ptr) {
+      if (is_variable) {
+        error_reporter_->Report(
+            "Tensor %d is a variable tensor with buffer. "
+            "It's not supported now.\n",
+            i);
+        status = kTfLiteError;
+      }
+
+      // TODO(b/144999664): Only constant sparse tensor is supported now.
+      const auto* src_sparsity = tensor->sparsity();
+      TfLiteSparsity* sparsity = nullptr;
+      if (ParseSparsity(src_sparsity, &sparsity) != kTfLiteOk) {
+        error_reporter_->Report("Tensor %d has invalid sparsity parameters.",
+                                tensor_idx[i]);
+        status = kTfLiteError;
+      }
+      std::cout << "ccc" << "\n";
+      if (subgraph->SetTensorParametersReadOnly(
+              i, type, get_name(tensor), dims, quantization, buffer_ptr,
+              buffer_size, allocation_, sparsity) != kTfLiteOk) {
+        error_reporter_->Report("Tensor %d is invalidly specified in schema.\n",
+                                tensor_idx[i]);
+        status = kTfLiteError;
+      }
+    } else {
+      if (subgraph->SetTensorParametersReadWrite(
+              i, type, get_name(tensor), dims, quantization, is_variable,
+              dims_signature_rank, dims_signature_data) != kTfLiteOk) {
+        error_reporter_->Report("Tensor %d is invalidly specified in schema.\n",
+                                tensor_idx[i]);
+        status = kTfLiteError;
+      }
+    }
+  }
+
+  return status;
+}
+
 TfLiteStatus InterpreterBuilder::ApplyDelegates(Interpreter* interpreter,
                                                 int num_threads) {
   // Apply Flex delegate if applicable.
@@ -654,13 +845,13 @@ TfLiteStatus InterpreterBuilder::operator()(
 
   (*interpreter)->SetProfiler(tflite::profiling::MaybeCreatePlatformProfiler());
   // Minsung
-  // Devide a model to multiple subgraphs (experimental)
+  // Divide a model to multiple subgraphs (experimental)
   if(true){
     int new_subgraph_index = 0;
-    int count_conv_layer = 0;
-    int count_tensor_per_subgraph_ = 0;
-    std::vector<int> vec_count_tensors_per_subgraph; // Contains counts of tensors per subgraph in search-order
-
+    int count_node_per_subgraph = 0;
+    int total_count_node_per_subgraph = 0; 
+    int count_tensor_per_subgraph = 0;
+    int total_count_tensor_per_subgraph = 0;
     std::vector<TfLiteIntArray*> inputs;
     std::vector<TfLiteIntArray*> outputs;
     for (int subgraph_index = 0; subgraph_index < subgraphs->size();
@@ -671,37 +862,152 @@ TfLiteStatus InterpreterBuilder::operator()(
       auto tensors = subgraph->tensors();
       // Look for Conv2d OPs and save tensor index
       std::vector<int> conv_idx;
-      for(int i=0; i < operators->size(); ++i) {
+      int i = 0;
+      bool set_input = true;
+      while(i < operators->size()) {
         const auto* op = operators->Get(i);
         int op_index = op->opcode_index();
+        std::vector<int> input_tensor;
+        std::vector<int> output_tensor;
+        std::vector<int> tensors_;
+        
+        count_tensor_per_subgraph = 0;
+        count_tensor_per_subgraph += FlatBufferIntArrayToVector(op->inputs()).size();
+        count_tensor_per_subgraph += FlatBufferIntArrayToVector(op->outputs()).size();
+        total_count_tensor_per_subgraph += count_tensor_per_subgraph;
+        // std::cout << "inputs : ";
+        // for(int j=0; j < FlatBufferIntArrayToVector(op->inputs()).size(); ++j){
+        //   std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
+        // }
+        // std::cout << "\n outputs : ";
+        // for(int j=0; j < FlatBufferIntArrayToVector(op->outputs()).size(); ++j){
+        //   std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
+        // }
+        // std::cout << "\n";
+        if(set_input)
+          input_tensor.push_back(FlatBufferIntArrayToVector(op->inputs())[0]);
         if (op_index < 0 || op_index >= flatbuffer_op_index_to_registration_.size()) {
          error_reporter_->Report("[Subgraph Modifying Error] Missing registration for opcode_index %d\n",
                               op_index);
+          i++;
           continue;
+        }
+        // Parse tensors in subgraph
+        for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j)
+          tensors_.push_back(FlatBufferIntArrayToVector(op->inputs())[j]);
+        for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j)
+          tensors_.push_back(FlatBufferIntArrayToVector(op->outputs())[j]);
+        std::cout << "Cur Subgraph tensors : ";
+        for(int j=0; j<tensors_.size(); ++j){
+          std::cout << tensors_[j] << " ";
+        }
+        std::cout << "\n";
+        if(set_input){
+          std::cout << "Cur Subgraph input tensor : ";
+          for(int j=0; j<input_tensor.size(); ++j){
+            std::cout << input_tensor[j] << " ";
+          }        
+          std::cout << "\n";
         }
         const TfLiteRegistration* registration = 
           flatbuffer_op_index_to_registration_[op_index];
+        const TfLiteRegistration* next_registration;
+        if(i < operators->size()-1){
+          const auto* op = operators->Get(i+1);
+          int op_index = op->opcode_index();
+          next_registration = 
+            flatbuffer_op_index_to_registration_[op_index];
+        }
         if(registration == nullptr){
          error_reporter_->Report("\
                   [Subgraph Modifying Error] Missing registration in flatbuffer registration index %d\n",
                               op_index);
+          i++;
           continue;          
         }
-        count_tensor_per_subgraph_++;
-        if(registration->builtin_code == 3){ // Conv2d
+        count_node_per_subgraph++;
+        if(registration->builtin_code == 3){ // Conv2d 
+          std::cout << " Conv modifying" << "\n";
           // Note :If we found a Conv2d layer from origin subgraph,
-          //       devide it into multiple subgraphs with the same number of conv2d layers.
+          //       divide it into multiple subgraphs with the same number of conv2d layers.
           (*interpreter)->AddSubgraphs(1);
-          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(count_conv_layer);
-          count_conv_layer++;
-          vec_count_tensors_per_subgraph.push_back(count_tensor_per_subgraph_);
-          if (sliced_subgraph->AddTensors(count_tensor_per_subgraph_) != kTfLiteOk) {
+          output_tensor.push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
+          std::cout << "Cur Subgraph output tensor : ";
+          for(int j=0; j<output_tensor.size(); ++j){
+            std::cout << output_tensor[j] << " ";
+          }
+          std::cout << "\n";              
+          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(new_subgraph_index);
+          new_subgraph_index++;
+          total_count_node_per_subgraph += count_node_per_subgraph;
+          if (sliced_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
             return cleanup_and_error();
           }
-          count_tensor_per_subgraph_ = 0;
-          TfLiteIntArray* input_ = new TfLiteIntArray;
-          TfLiteIntArray* output_ = new TfLiteIntArray;
-          
+          sliced_subgraph->SetInputs(input_tensor);
+          sliced_subgraph->SetOutputs(output_tensor);
+          if (ParseNodes(operators, sliced_subgraph, i, i+count_node_per_subgraph) != kTfLiteOk)
+            return cleanup_and_error();
+          if (ParseTensors(buffers, tensors, sliced_subgraph, tensors_) != kTfLiteOk)
+            return cleanup_and_error();
+          count_node_per_subgraph = 0;
+          i++;
+          set_input = true;
+          std::cout << " Conv modifying done" << "\n";
+        }else if(i == operators->size()-1){ // Last layer
+          std::cout << " Last layer modifying" << "\n";
+          //Note : This case, we don't have to add new subgraph.
+          //       Because the interpreter already have one at the first time.
+          (*interpreter)->AddSubgraphs(1);
+          output_tensor.push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
+          std::cout << "Cur Subgraph output tensor : ";
+          for(int j=0; j<output_tensor.size(); ++j){
+            std::cout << output_tensor[j] << " ";
+          }        
+          std::cout << "\n";
+          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(new_subgraph_index);
+          if (sliced_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
+            return cleanup_and_error();
+          }
+          sliced_subgraph->SetInputs(input_tensor);
+          sliced_subgraph->SetOutputs(output_tensor);
+          std::cout << "asdfsdf" << "\n";
+          if (ParseNodes(operators, sliced_subgraph, i, i+count_node_per_subgraph) != kTfLiteOk)
+            return cleanup_and_error();
+          std::cout << "asdfsdaaf" << "\n";
+          if (ParseTensors(buffers, tensors, sliced_subgraph, tensors_) != kTfLiteOk)
+            return cleanup_and_error();
+          std::cout << " Last layer modifying Done" << "\n";
+        }else if(next_registration->builtin_code == 3){ 
+          std::cout << " Non-Conv modifying" << "\n";
+          // Note :If next layer is conv2d & current layer is not.
+          (*interpreter)->AddSubgraphs(1);
+          output_tensor.push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
+          std::cout << "Cur Subgraph output tensor : ";
+          for(int j=0; j<output_tensor.size(); ++j){
+            std::cout << output_tensor[j] << " ";
+          }        
+          std::cout << "\n";
+          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(new_subgraph_index);
+          new_subgraph_index++;
+          total_count_node_per_subgraph += count_node_per_subgraph;
+          if (sliced_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
+            return cleanup_and_error();
+          }
+          sliced_subgraph->SetInputs(input_tensor);
+          sliced_subgraph->SetOutputs(output_tensor);
+          if (ParseNodes(operators, sliced_subgraph, i, i+count_node_per_subgraph) != kTfLiteOk)
+            return cleanup_and_error();
+          if (ParseTensors(buffers, tensors, sliced_subgraph, tensors_) != kTfLiteOk)
+            return cleanup_and_error();
+          count_node_per_subgraph = 0;
+          i++;
+          set_input = true;
+          std::cout << " Non-Conv modifying done" << "\n";
+        }else{
+            // Note :If next layer & current layer are not conv2d.
+          std::cout << " Non-Conv pass" << "\n";
+          set_input = false;
+          i++;
         }
       }
     }
