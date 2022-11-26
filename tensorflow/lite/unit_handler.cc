@@ -193,6 +193,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);
     std::cout << "addsfsfsdfsfsdsf" << "\n";
     UnitGPU* temp;
+    tflite::PrintInterpreterState(interpreter->get());
     temp = new UnitGPU(eType, std::move(interpreter));
     temp->SetInput(input);
     //Set ContextHandler Pointer

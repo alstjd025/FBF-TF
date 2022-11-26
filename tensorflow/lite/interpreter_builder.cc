@@ -757,7 +757,7 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
         status = kTfLiteError;
       }
       if (subgraph->SetTensorParametersReadOnly(
-              i, type, get_name(tensor), dims, quantization, buffer_ptr,
+              tensor_idx[i], type, get_name(tensor), dims, quantization, buffer_ptr,
               buffer_size, allocation_, sparsity) != kTfLiteOk) {
         error_reporter_->Report("Tensor %d is invalidly specified in schema.\n",
                                 tensor_idx[i]);
@@ -766,7 +766,7 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
     } else {
       std::cout << "else" << "\n";
       if (subgraph->SetTensorParametersReadWrite(
-              i, type, get_name(tensor), dims, quantization, is_variable,
+              tensor_idx[i], type, get_name(tensor), dims, quantization, is_variable,
               dims_signature_rank, dims_signature_data) != kTfLiteOk) {
         error_reporter_->Report("Tensor %d is invalidly specified in schema.\n",
                                 tensor_idx[i]);

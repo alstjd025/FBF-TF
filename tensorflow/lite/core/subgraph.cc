@@ -829,7 +829,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   #ifdef DEBUG
   //std::cout << "addnode : " << node.outputs->data[0] << std::endl;
   #endif
-  PrintNodeInfo(new_node_index, node, *registration);
+  //PrintNodeInfo(new_node_index, node, *registration);
   return kTfLiteOk;
 }
 
@@ -924,6 +924,10 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
   }
   if(strcmp(GetOpName(op_reg), "CONV_2D") == 0) {
     std::cout << "it's conv" << "\n";
+    std::cout << node->outputs->data[0] << " \n";
+    TfLiteTensor* tensor_ = GetOutputTensor(*node);
+    std::cout << "output tensor : ";
+    std::cout << tensor_->dims->data[0] << "\n";
   }else {
     std::cout << "not conv " << GetOpName(op_reg) << "\n";
   }
