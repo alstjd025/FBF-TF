@@ -183,13 +183,15 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(6, eType) == kTfLiteOk); 
     TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
-    //tflite::PrintInterpreterState(interpreter->get());
+    std::cout << "adsf" << "\n";
     MyDelegate = TfLiteGpuDelegateV2Create(&options);
     if(interpreter->get()->ModifyGraphWithDelegate(MyDelegate) != kTfLiteOk) {
         PrintMsg("Unable to Use GPU Delegate");
         return kTfLiteError;
     }
+    std::cout << "adseeeef" << "\n";
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);
+    std::cout << "addsfsfsdfsfsdsf" << "\n";
     UnitGPU* temp;
     temp = new UnitGPU(eType, std::move(interpreter));
     temp->SetInput(input);

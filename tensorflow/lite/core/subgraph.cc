@@ -746,22 +746,21 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
     SFLAG();
   #endif
   
-  #ifdef DEBUG
-  std::cout << "in: ";
-  for(int i = 0; i < inputs.size(); ++i) {
-  	std::cout << inputs[i] << " ";
-  }std::cout << std::endl;
+  // std::cout << "in: ";
+  // for(int i = 0; i < inputs.size(); ++i) {
+  // 	std::cout << inputs[i] << " ";
+  // }std::cout << std::endl;
 
-  std::cout << "out: ";
-  for(int i = 0; i < outputs.size(); ++i) {
-	std::cout << outputs[i] << " ";
-  } std::cout << std::endl;
+  // std::cout << "out: ";
+  // for(int i = 0; i < outputs.size(); ++i) {
+	// std::cout << outputs[i] << " ";
+  // } std::cout << std::endl;
 
-    std::cout << "intermediates: ";
-  for(int i = 0; i < intermediates.size(); ++i) {
-	std::cout << intermediates[i] << " ";
-  } std::cout << std::endl;
-  #endif
+  //   std::cout << "intermediates: ";
+  // for(int i = 0; i < intermediates.size(); ++i) {
+	// std::cout << intermediates[i] << " ";
+  // } std::cout << std::endl;
+
   std::unique_ptr<void, decltype(free)*> builtin_data_deleter(builtin_data,
                                                               free);
   if (state_ == kStateInvokableAndImmutable) {
@@ -830,6 +829,7 @@ TfLiteStatus Subgraph::AddNodeWithParameters(
   #ifdef DEBUG
   //std::cout << "addnode : " << node.outputs->data[0] << std::endl;
   #endif
+  PrintNodeInfo(new_node_index, node, *registration);
   return kTfLiteOk;
 }
 
@@ -921,6 +921,11 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
     }
     // Resolved ops can have a null Prepare function.
     return kTfLiteOk;
+  }
+  if(strcmp(GetOpName(op_reg), "CONV_2D") == 0) {
+    std::cout << "it's conv" << "\n";
+  }else {
+    std::cout << "not conv " << GetOpName(op_reg) << "\n";
   }
   return op_reg.prepare(&context_, node);
 }
@@ -1685,7 +1690,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
 	  return kTfLiteApplicationError;
   }
-
+  std::cout << "ModifyGraphWithDelegate " << "\n";
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
     // Runtime Filter Modification for CPU&GPU Multithreading
@@ -1738,6 +1743,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     }
     state_ = kStateInvokable;
 
+    std::cout << "prepare_1" << "\n";
     TF_LITE_ENSURE_OK(
         &context_, PrepareOpsStartingAt(0, execution_plan_,
                                         &last_execution_plan_index_prepared));
@@ -1772,6 +1778,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     } 
     return kTfLiteOk;
   };
+  std::cout << "prepare_2" << "\n";
   TfLiteStatus status = delegate->Prepare(&context_, delegate);
   // Remove additional context info.
   SwitchToKernelContext();
@@ -2259,6 +2266,7 @@ SharedContext* Subgraph::CreateSharedContext(UnitType eType,
 
 //Check number of Conv2d Layer & Node index
 TfLiteStatus Subgraph::CheckConv2dNodes(){
+  std::cout << "nodes size : " << nodes_and_registration_.size() << "\n";
   for (int node_index = 0;
     node_index < nodes_and_registration_.size(); node_index++) {
     const TfLiteRegistration& registration =

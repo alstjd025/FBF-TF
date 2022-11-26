@@ -321,7 +321,7 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
   printf("Prepare\n");
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
-
+  printf("Prepare_\n");
   bool has_bias = node->inputs->size == 3;
   // Check number of inputs/outputs
   TF_LITE_ENSURE(context, has_bias || node->inputs->size == 2);
@@ -332,9 +332,20 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));
   const TfLiteTensor* filter;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 1, &filter));
-
+  printf("Prepare__\n");
+  if(filter->dims == nullptr)
+    std::cout << "it's null" << "\n";
+  std::cout << input->dims->size << "\n";
+  for(int i=0; i<input->dims->size; ++i){
+    std::cout << input->dims->data[i] << " ";
+  }
+  std::cout << "\n";
+  std::cout << output->dims->size << "\n";
+  std::cout << " filter: "<< filter->dims->size << "\n";
   // Check dimensionality of input, filter
+  std::cout << input->dims->size << "\n";
   TF_LITE_ENSURE_EQ(context, input->dims->size, 4);
+  std::cout << filter->dims->size << "\n";
   TF_LITE_ENSURE_EQ(context, filter->dims->size, 4);
   // Check input channels matching filter
   
@@ -343,11 +354,12 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
 
   // Check types. (We assume that UINT8 refers to quantized tensors)
   TfLiteType input_type = input->type;
+  printf("Prepare___\n");
   TF_LITE_ENSURE(context,
                  input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
                      input_type == kTfLiteInt8 || input_type == kTfLiteInt16);
   TF_LITE_ENSURE_TYPES_EQ(context, output->type, input_type);
-
+  printf("Prepare____\n");
   const TfLiteTensor* bias = nullptr;
 
   // TODO(ahentz): At this point the optimized versions require 'bias'. We can
