@@ -1142,13 +1142,23 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     if(use_detailed_latency_measure){
       clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[0]));
     }
+
+    std::cout << "==================================" << "\n";
+    PrintNodeInfo(node_index, node, registration);
+
+    std::cout << "==================================" << "\n";
+    PrintInputTensor(node, eType);
+
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    PrintNodeInfo(node_index, node, registration);
-    PrintInputTensor(node, eType);
+
+
+    std::cout << "==================================" << "\n";
     PrintOutputTensor(node, eType);
+
+    std::cout << "==================================" << "\n";
 
     #ifdef debug
     if(eType == UnitType::CPU0){
@@ -1880,14 +1890,18 @@ void Subgraph::PrintNodeInfo(int node_index, TfLiteNode& node,
 
 void Subgraph::PrintInputTensor(TfLiteNode& node, UnitType eType){
   std::cout << "[Print Input Tensor] \n";
-  TfLiteTensor* temp = GetInputTensor(node);
-  int tensor_index = GetInputTensorIndex(node);
+  //TfLiteTensor* temp = GetInputTensor(node);
+  int tensor_index;
+  if(node.inputs->size == 3)
+    tensor_index = node.inputs->data[0];
+  else
+    tensor_index = node.inputs->data[1];
+  TfLiteTensor* temp =  tensor(tensor_index);
   std::cout << "Possible Input Tensors : ";
-  for(int i=0; i<node.inputs->size-1; ++i){
+  for(int i=0; i<node.inputs->size; ++i){
     std::cout << node.inputs->data[i] << " "; 
   }
   std::cout << "\n";
-  tensor_index = node.inputs->data[1];
   int tensor_data_dims_size = temp->dims->size-1;
   int tensor_data_ch_size = temp->dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
@@ -2065,8 +2079,12 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
   //       (This way should be more effective than writing data back from GPU)   
 }
 
+// Minsung
+int Subgraph::GetInputsInMulti(){
+  return inputs()[inputs().size()-1];
+}
 
-//Minsung
+// Minsung
 // Quantize Selected Tensor of called Interpreter
 // This is an initial process
 // FLoat32 -> Int8

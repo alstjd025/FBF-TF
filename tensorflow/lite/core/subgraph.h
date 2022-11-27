@@ -188,7 +188,10 @@ class Subgraph {
   TfLiteTensor* GetInputTensor(TfLiteNode& node){
    if(node.inputs->size <= 0)
       return nullptr;
-    return tensor(node.inputs->data[0]);
+    else if(node.inputs->size == 3)
+      return tensor(node.inputs->data[0]);
+    else
+      return tensor(node.inputs->data[1]);
   } 
   
 
@@ -198,8 +201,14 @@ class Subgraph {
     return node.outputs->data[node.outputs->size-1];
   }
 
+  // Subject to change
   int GetInputTensorIndex(TfLiteNode& node){
-    return node.inputs->data[node.inputs->data[1]];
+   if(node.inputs->size <= 0)
+      return 0;
+    else if(node.inputs->size == 3)
+      return 0;
+    else
+      return 1;
   }
 
   //Minsung
@@ -284,6 +293,7 @@ class Subgraph {
                               std::queue<SharedContext*>* qSharedData,
                               SharedContext* SlaveData);
 
+
   //Minsung
   //Context Sharing API
   TfLiteStatus PushContextToQueue(SharedContext* context, std::mutex& mtx_lock, 
@@ -334,13 +344,17 @@ class Subgraph {
     return &context_.tensors[tensor_index];
   }
 
-  // Read only access to list of inputs.
+  // Access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }
+
+  /// Minsung
+  // Acess to an input tensor (for multiple subgraphs and GPUdelegate)
+  int GetInputsInMulti();
 
   // Read only access to list of inputs.
   const std::vector<int>& inputs() const { return inputs_; }
 
-  // Read only access to list of outputs.
+  // Access to list of outputs.
   std::vector<int>& outputs() { return outputs_; }
 
   // Read only access to list of outputs.

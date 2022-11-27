@@ -342,8 +342,40 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
   //                                        mtx_lock_debug, Ucontroller, qSharedData));
   int subgraph_size = subgraphs_size();
   std::cout << "Invoke subgrph size : " << subgraph_size << "\n";
+  auto connect = [&](int source_subgraph, int  dest_subgraph){
+    if(source_subgraph < subgraphs_size() && dest_subgraph <= subgraphs_size()){
+      Subgraph* source_graph = subgraph(source_subgraph);
+      Subgraph* dest_graph = subgraph(dest_subgraph);
+      int source_tensor_idx = source_graph->outputs()[0];
+      int dest_tensor_idx = dest_graph->GetInputsInMulti();
+      TfLiteTensor* source_tensor = source_graph->tensor(source_tensor_idx);
+      TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
+      size_t source_size = source_tensor->bytes;
+      size_t dest_size = dest_tensor->bytes;
+      if(source_size != dest_size){
+        std::cout << "Source tensor[" << source_tensor_idx << "] size "
+                  << static_cast<int>(source_size)
+                  << " and Dest tensor["<< dest_tensor_idx <<"] size " 
+                  << static_cast<int>(dest_size) << " missmatch!" << "\n";
+        return kTfLiteError;
+      }
+      std::cout << "Source tensor[" << source_tensor_idx << "] size "
+          << static_cast<int>(source_size)
+          << " and Dest tensor["<< dest_tensor_idx <<"] size " 
+          << static_cast<int>(dest_size) << "\n";
+      auto data_source = (float*)source_tensor->data.data;
+      auto data_dest = (float*)dest_tensor->data.data;
+      memcpy(data_dest, data_source, source_size);
+    }
+  };
   for(int i=0; i<subgraph_size; i++){
     std::cout << "Invoke Subgraph idx : " << i << "\n";
+    if(i > 0){
+      if(connect(i-1, i) == kTfLiteError){
+        std::cout << "TENSOR CONNECTION FAILED" << "\n";
+        return kTfLiteError;
+      }
+    }
     if(subgraph(i)->Invoke(eType, mtx_lock, mtx_lock_,
                           mtx_lock_debug, Ucontroller, qSharedData) != kTfLiteOk)
       return kTfLiteError;
