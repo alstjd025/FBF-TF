@@ -337,10 +337,17 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                      std::queue<SharedContext*>* qSharedData) {
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
-  TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
-      scoped_runtime_event, primary_subgraph().Invoke(eType, mtx_lock, mtx_lock_,
-                                          mtx_lock_debug, Ucontroller, qSharedData));
-
+  //TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
+  //    scoped_runtime_event, primary_subgraph().Invoke(eType, mtx_lock, mtx_lock_,
+  //                                        mtx_lock_debug, Ucontroller, qSharedData));
+  int subgraph_size = subgraphs_size();
+  std::cout << "Invoke subgrph size : " << subgraph_size << "\n";
+  for(int i=0; i<subgraph_size; i++){
+    std::cout << "Invoke Subgraph idx : " << i << "\n";
+    if(subgraph(i)->Invoke(eType, mtx_lock, mtx_lock_,
+                          mtx_lock_debug, Ucontroller, qSharedData) != kTfLiteOk)
+      return kTfLiteError;
+  }
   if (!allow_buffer_handle_output_) {
     for (int tensor_index : outputs()) {
       TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(

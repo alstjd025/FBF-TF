@@ -198,6 +198,11 @@ class Interpreter {
   /// Read only access to list of inputs.
   const std::vector<int>& inputs() const { return primary_subgraph().inputs(); }
 
+  /// Minsung
+  /// Acess to list of inputs in subgraph
+  const std::vector<int>& inputs(int subgraph_idx) { return subgraph(subgraph_idx)->inputs(); }
+
+
   /// Return the name of a given input. The given index must be between 0 and
   /// inputs().size().
   const char* GetInputName(int index) const {
@@ -208,6 +213,13 @@ class Interpreter {
   const std::vector<int>& outputs() const {
     return primary_subgraph().outputs();
   }
+
+  /// Minsung
+  /// Access to list of outputs.
+  const std::vector<int>& outputs(int subgraph_idx) {
+    return subgraph(subgraph_idx)->outputs();
+  }
+
 
   /// Read only access to list of variable tensors.
   const std::vector<int>& variables() const {
@@ -225,6 +237,10 @@ class Interpreter {
 
   /// Return the number of ops in the model.
   size_t nodes_size() const { return primary_subgraph().nodes_size(); }
+
+  /// Minsung
+  /// Return the number of ops in a subgraph
+  int nodes_size(int subgraph_idx) {return subgraph(subgraph_idx)->nodes_size();}
 
   /// WARNING: Experimental interface, subject to change
   const std::vector<int>& execution_plan() const {
@@ -244,6 +260,12 @@ class Interpreter {
     return primary_subgraph().tensor(tensor_index);
   }
 
+  /// Minsung
+  // Get a mutable tensor data structure from a subgraph
+  TfLiteTensor* tensor(int subgraph_index, int tensor_index) {
+    return subgraph(subgraph_index)->tensor(tensor_index);
+  }
+
   /// Get an immutable tensor data structure.
   const TfLiteTensor* tensor(int tensor_index) const {
     return primary_subgraph().tensor(tensor_index);
@@ -254,6 +276,14 @@ class Interpreter {
   const std::pair<TfLiteNode, TfLiteRegistration>* node_and_registration(
       int node_index) const {
     return primary_subgraph().node_and_registration(node_index);
+  }
+
+  /// Minsung
+  /// Get a pointer to an operation and registration data structure if in
+  /// bounds from a subgraph.
+  const std::pair<TfLiteNode, TfLiteRegistration>* node_and_registration(
+      int node_index, int subgraph_index) {
+    return subgraph(subgraph_index)->node_and_registration(node_index);
   }
 
   /// Perform a checked cast to the appropriate tensor type (mutable pointer

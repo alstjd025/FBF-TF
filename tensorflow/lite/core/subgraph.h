@@ -185,11 +185,23 @@ class Subgraph {
     return tensor(node.outputs->data[node.outputs->size-1]);
   }
 
+  TfLiteTensor* GetInputTensor(TfLiteNode& node){
+   if(node.inputs->size <= 0)
+      return nullptr;
+    return tensor(node.inputs->data[0]);
+  } 
+  
+
   //Minsung 
   //Returns Output Tensor index of given node
   int GetOutputTensorIndex(TfLiteNode& node){
     return node.outputs->data[node.outputs->size-1];
   }
+
+  int GetInputTensorIndex(TfLiteNode& node){
+    return node.inputs->data[node.inputs->data[1]];
+  }
+
   //Minsung
   void PrepareDetailedLatencyMeasure(int num_part);
 
@@ -201,6 +213,7 @@ class Subgraph {
   //Prints Output tensor's data of given node
   //Use after invoke
   void PrintOutputTensor(TfLiteNode& node, UnitType eType);
+  void PrintInputTensor(TfLiteNode& node, UnitType eType);
 
 
   //Minsung

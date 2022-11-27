@@ -135,4 +135,61 @@ void PrintInterpreterState(Interpreter* interpreter) {
   }
 }
 
+// Minsung
+// Prints a dump of what tensors and what nodes are in the interpreter.
+void PrintInterpreterStateV2(Interpreter* interpreter) {
+  int subgraph_size = interpreter->subgraphs_size();
+  printf("Interpreter has %d subgraphs\n", subgraph_size);
+  for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
+    int tensor_size = interpreter->tensors_size();
+    int node_size = interpreter->nodes_size(subgraph_index);
+    printf("Subgraph %d has %d tensors and %d nodes\n", subgraph_index,
+        tensor_size, node_size);
+    printf("Inputs:");
+    PrintIntVector(interpreter->inputs(subgraph_index));
+    printf("Outputs:");
+    PrintIntVector(interpreter->outputs(subgraph_index));
+    printf("\n");
+    for (size_t tensor_index = 0; tensor_index < tensor_size-1;
+       tensor_index++) {
+      TfLiteTensor* tensor = interpreter->tensor(subgraph_index, static_cast<int>(tensor_index));
+      printf("Tensor %3zu %-20s %10s %15s %10zu bytes (%4.1f MB) ", tensor_index,
+           tensor->name, TensorTypeName(tensor->type),
+           AllocTypeName(tensor->allocation_type), tensor->bytes,
+           (static_cast<float>(tensor->bytes) / (1 << 20)));
+      PrintTfLiteIntVector(tensor->dims);
+    }
+    printf("\n");
+    printf("Node Info \n");
+    for (size_t node_index = 0; node_index < node_size;
+        node_index++) {
+      const std::pair<TfLiteNode, TfLiteRegistration>* node_and_reg =
+          interpreter->node_and_registration(static_cast<int>(node_index), subgraph_index);
+      const TfLiteNode& node = node_and_reg->first;
+      const TfLiteRegistration& reg = node_and_reg->second;
+      if (reg.custom_name != nullptr) {
+        printf("Node %3zu Operator Custom Name %s\n", node_index,
+              reg.custom_name);
+      } else {
+        printf("Node %3zu Operator Builtin Code %3d %s\n", node_index,
+              reg.builtin_code, EnumNamesBuiltinOperator()[reg.builtin_code]);
+      }
+      printf("  Inputs:");
+      PrintTfLiteIntVector(node.inputs);
+      printf("  Outputs:");
+      PrintTfLiteIntVector(node.outputs);
+      if (node.intermediates && node.intermediates->size) {
+        printf("  Intermediates:");
+        PrintTfLiteIntVector(node.intermediates);
+      }
+      if (node.temporaries && node.temporaries->size) {
+        printf("  Temporaries:");
+        PrintTfLiteIntVector(node.temporaries);
+      }
+    }
+  }
+ 
+
+}
+
 }  // namespace tflite

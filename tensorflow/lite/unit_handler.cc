@@ -193,7 +193,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);
     std::cout << "addsfsfsdfsfsdsf" << "\n";
     UnitGPU* temp;
-    tflite::PrintInterpreterState(interpreter->get());
+    tflite::PrintInterpreterStateV2(interpreter->get());
     temp = new UnitGPU(eType, std::move(interpreter));
     temp->SetInput(input);
     //Set ContextHandler Pointer
@@ -201,7 +201,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     iUnitCount++;
     PrintMsg("Build GPU Interpreter");
     PrintMsg("GPU Interpreter Pre Invoke State");
-    tflite::PrintInterpreterState(interpreter->get());
+    tflite::PrintInterpreterStateV2(interpreter->get());
     return kTfLiteOk;
 }
 
@@ -220,6 +220,7 @@ TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
            if((*iter)->Invoke(eType, mtx_lock, mtx_lock_
                                 ,mtx_lock_timing, mtx_lock_debug, Ucontroller, Outcontroller
                                 ,qSharedData, &C_Counter, &G_Counter) != kTfLiteOk)
+                std::cout << "GPU Invoke returned Error" << "\n";
                return kTfLiteError;
         }
     }

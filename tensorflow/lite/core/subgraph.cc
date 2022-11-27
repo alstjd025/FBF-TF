@@ -1083,7 +1083,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     //if(eType == UnitType::GPU0)
       //std::cout << "\n" << "Execution_Plan LOOP : " << execution_plan_index << "\n";
     //std::cout << "Number of Tensors in current Context : " << context_.tensors_size << "\n";
-
+    
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
       TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
@@ -1146,6 +1146,9 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+    PrintNodeInfo(node_index, node, registration);
+    PrintInputTensor(node, eType);
+    PrintOutputTensor(node, eType);
 
     #ifdef debug
     if(eType == UnitType::CPU0){
@@ -1748,6 +1751,8 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     state_ = kStateInvokable;
 
     std::cout << "prepare_1" << "\n";
+    std::cout << "Execution Plan Size : " << execution_plan_.size() << "\n";
+    
     TF_LITE_ENSURE_OK(
         &context_, PrepareOpsStartingAt(0, execution_plan_,
                                         &last_execution_plan_index_prepared));
@@ -1849,6 +1854,16 @@ void Subgraph::PrintNodeInfo(int node_index, TfLiteNode& node,
   std::cout << "OP Name : " << GetTFLiteOpName(registration) << "\n";
   std::cout << "Node Index : " << node_index << "\n";
   std::cout << "Tensor Data type : " << tensor(node.outputs->data[0])->type << "\n";
+  std::cout << "Input Tensors : ";
+  for(int i=0; i<node.inputs->size; ++i){
+    std::cout << node.inputs->data[i] << " "; 
+  }
+  std::cout << "\n";
+  std::cout << "OutputTensors : ";
+  for(int i=0; i<node.outputs->size; ++i){
+    std::cout << node.outputs->data[i] << " ";
+  }
+  std::cout << "\n";
   int tensor_index = node.outputs->data[node.outputs->size-1]; //output tensor index
   std::cout << "[" << tensor_index 
             << "] Tensor Size : " << tensor(tensor_index)->bytes << "\n";
@@ -1862,6 +1877,39 @@ void Subgraph::PrintNodeInfo(int node_index, TfLiteNode& node,
   }
   std::cout << "\n";
 }
+
+void Subgraph::PrintInputTensor(TfLiteNode& node, UnitType eType){
+  std::cout << "[Print Input Tensor] \n";
+  TfLiteTensor* temp = GetInputTensor(node);
+  int tensor_index = GetInputTensorIndex(node);
+  std::cout << "Possible Input Tensors : ";
+  for(int i=0; i<node.inputs->size-1; ++i){
+    std::cout << node.inputs->data[i] << " "; 
+  }
+  std::cout << "\n";
+  tensor_index = node.inputs->data[1];
+  int tensor_data_dims_size = temp->dims->size-1;
+  int tensor_data_ch_size = temp->dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< temp->dims->size; i++){
+    if(i == 1){
+      tensor_axis = temp->dims->data[i];
+    }
+    tensor_data_size *= temp->dims->data[i]; 
+  }
+  std::cout << "[" << tensor_index << "] Nunber of Tensors : "\
+                                           << tensor_data_size << "\n";
+  std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
+  std::cout << "[" << tensor_index << "] Tensor Dimension" << " ";
+  for(int i=0; i< tensor(tensor_index)->dims->size; i++){
+    std::cout << tensor(tensor_index)->dims->data[i] << " ";  //print dimension info
+    tensor_data_size *= tensor(tensor_index)->dims->data[i]; 
+  }
+  std::cout << "\n";
+  PrintTensor(*temp, eType);  
+}
+
 
 void Subgraph::PrintOutputTensor(TfLiteNode& node, UnitType eType){
   std::cout << "[Print OutPut Tensor] \n";
@@ -1898,8 +1946,7 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
     }
     tensor_data_size *= tensor.dims->data[i]; 
   }
-  std::cout << "\n";
-  std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
+  std::cout << " Nunber of data : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
   if(tensor.type == TfLiteType::kTfLiteFloat32){
     std::cout << "[FLOAT32 TENSOR]" << "\n";

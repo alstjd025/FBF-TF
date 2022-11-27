@@ -3,7 +3,7 @@
 #define OUT_SEQ 1
 #define GPUONLY
 //#define quantize
-//#define MONITORING
+#define MONITORING
 #define mnist
 
 std::mutex mtx_lock;
