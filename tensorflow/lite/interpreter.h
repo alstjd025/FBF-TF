@@ -220,6 +220,10 @@ class Interpreter {
     return subgraph(subgraph_idx)->outputs();
   }
 
+  /// Minsung
+  const std::vector<int>& final_output(){
+    return subgraph(subgraphs_size()-1)->outputs();
+  }
 
   /// Read only access to list of variable tensors.
   const std::vector<int>& variables() const {

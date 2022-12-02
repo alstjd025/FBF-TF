@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define GPUONLY
+#define CPUONLY
 //#define QUANTIZE
 
 extern std::mutex mtx_lock;
@@ -99,7 +99,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
         (*builder_)(interpreter, 4);
     }
     #ifdef MULTITHREAD
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(4, eType) == kTfLiteOk);  
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk);  
     #endif 
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  
@@ -110,7 +110,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     iUnitCount++;    
     PrintMsg("Build CPU Interpreter");
     #ifdef MULTITHREAD
-    kmcontext.channelPartitioning("CONV_2D", 0.4);
+    kmcontext.channelPartitioning("CONV_2D", 0.5);
     #endif
     #ifdef QUANTIZE
     if(interpreter->get()->QuantizeSubgraph() != kTfLiteOk){
@@ -180,7 +180,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     };
     #ifdef MULTITHREAD
     //Set Partitioning Value : GPU Side Filters
-    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(6, eType) == kTfLiteOk); 
+    TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
     TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
     std::cout << "adsf" << "\n";
@@ -193,7 +193,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);
     std::cout << "addsfsfsdfsfsdsf" << "\n";
     UnitGPU* temp;
-    tflite::PrintInterpreterStateV2(interpreter->get());
+    //tflite::PrintInterpreterStateV2(interpreter->get());
     temp = new UnitGPU(eType, std::move(interpreter));
     temp->SetInput(input);
     //Set ContextHandler Pointer

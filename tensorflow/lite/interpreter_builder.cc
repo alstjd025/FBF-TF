@@ -796,7 +796,12 @@ TfLiteStatus InterpreterBuilder::operator()(
 }
 
 TfLiteStatus InterpreterBuilder::operator()(
-    std::unique_ptr<Interpreter>* interpreter, int num_threads) {
+    std::unique_ptr<Interpreter>* interpreter, UnitType eType) {
+  return operator()(interpreter, /*num_threads=*/-1, eType);
+}
+
+TfLiteStatus InterpreterBuilder::operator()(
+    std::unique_ptr<Interpreter>* interpreter, int num_threads, UnitType eType) {
   if (!interpreter) {
     error_reporter_->Report(
         "Null output pointer passed to InterpreterBuilder.");
@@ -860,7 +865,8 @@ TfLiteStatus InterpreterBuilder::operator()(
   (*interpreter)->SetProfiler(tflite::profiling::MaybeCreatePlatformProfiler());
   // Minsung
   // Divide a model to multiple subgraphs (experimental)
-  if(true){
+  // Todo : Do if GPU 
+  if(eType == UnitType::GPU0){
     int new_subgraph_index = 0;
     int count_node_per_subgraph = 0;
     int total_count_node_per_subgraph = 0; 
@@ -1104,6 +1110,80 @@ TfLiteStatus InterpreterBuilder::operator()(
       modified_subgraph->SetVariables(std::move(variables));
     }
   }
+  if (num_fp32_tensors_ > 0) {
+    (*interpreter)->lazy_delegate_providers_ =
+        op_resolver_.GetDelegates(num_threads);
+  }
+
+  if (ApplyDelegates(interpreter->get(), num_threads) != kTfLiteOk)
+    return cleanup_and_error();
+  return kTfLiteOk;
+}
+
+TfLiteStatus InterpreterBuilder::operator()(
+    std::unique_ptr<Interpreter>* interpreter, int num_threads) {
+  if (!interpreter) {
+    error_reporter_->Report(
+        "Null output pointer passed to InterpreterBuilder.");
+    return kTfLiteError;
+  }
+
+  if (num_threads < -1) {
+    error_reporter_->Report(
+        "num_threads should be >=0 or just -1 to let TFLite runtime set the "
+        "value.");
+    return kTfLiteError;
+  }
+
+  // Safe exit by deleting partially created interpreter, to reduce verbosity
+  // on error conditions. Use by return cleanup_on_error();
+  auto cleanup_and_error = [&interpreter]() {
+    interpreter->reset();
+    return kTfLiteError;
+  };
+  
+  if (!model_) {
+    error_reporter_->Report("Null pointer passed in as model.");
+    
+    return cleanup_and_error();
+  }
+  
+  if (model_->version() != TFLITE_SCHEMA_VERSION) {
+    error_reporter_->Report(
+        "Model provided is schema version %d not equal "
+        "to supported version %d.\n",
+        model_->version(), TFLITE_SCHEMA_VERSION);
+    return cleanup_and_error();
+  }
+  if (BuildLocalIndexToRegistrationMapping() != kTfLiteOk) {
+    error_reporter_->Report("Registration failed.\n");
+    return cleanup_and_error();
+  }
+
+  // Flatbuffer model schemas define a list of opcodes independent of the graph.
+  // We first map those to registrations. This reduces string lookups for custom
+  // ops since we only do it once per custom op rather than once per custom op
+  // invocation in the model graph.
+  // Construct interpreter with correct number of tensors and operators.
+  auto* subgraphs = model_->subgraphs();
+  auto* buffers = model_->buffers();
+  if (subgraphs->size() == 0) {
+    TF_LITE_REPORT_ERROR(error_reporter_, "No subgraph in the model.\n");
+    return cleanup_and_error();
+  }
+
+  if (!buffers) {
+    TF_LITE_REPORT_ERROR(error_reporter_, "No buffers in the model.\n");
+    return cleanup_and_error();
+  }
+  interpreter->reset(new Interpreter(error_reporter_));
+  (*interpreter)->SetNumThreads(num_threads);
+  if (subgraphs->size() > 1) {
+    (*interpreter)->AddSubgraphs(subgraphs->size() - 1);
+  }
+
+  (*interpreter)->SetProfiler(tflite::profiling::MaybeCreatePlatformProfiler());
+  
   if (num_fp32_tensors_ > 0) {
     (*interpreter)->lazy_delegate_providers_ =
         op_resolver_.GetDelegates(num_threads);

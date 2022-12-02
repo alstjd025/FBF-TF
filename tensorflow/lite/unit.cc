@@ -1,7 +1,7 @@
 #include "unit.h"
 #define SEQ 1
 #define OUT_SEQ 1
-#define GPUONLY
+#define CPUONLY
 //#define quantize
 #define MONITORING
 #define mnist
@@ -291,6 +291,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 return kTfLiteError;
             }
             clock_gettime(CLOCK_MONOTONIC, &end);
+            printf("Begin Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
             *G_Counter += 1;
             double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
             time += temp_time;

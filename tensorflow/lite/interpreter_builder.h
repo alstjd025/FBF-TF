@@ -63,8 +63,16 @@ class InterpreterBuilder {
   InterpreterBuilder(const InterpreterBuilder&) = delete;
   InterpreterBuilder& operator=(const InterpreterBuilder&) = delete;
   TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter);
+
+  // Minsung
+  TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter, UnitType eType);
   TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter,
                           int num_threads);
+  
+  // Minsung
+  TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter,
+                          int num_threads, UnitType eType);
+
 
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();

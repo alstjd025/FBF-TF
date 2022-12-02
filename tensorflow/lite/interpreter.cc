@@ -294,10 +294,10 @@ TfLiteStatus Interpreter::SetPartitioning(int partitioning, UnitType eType){
     subgraph(i)->partitioning_plan = partitioning;
     subgraph(i)->use_distribute_strategy = true;
     subgraph(i)->clock_measure_data = CreateClockMeasure(4);
-    if(subgraph(i)->CheckConv2dNodes() != kTfLiteOk){
-      std::cout << "Error in number of Conv2d" << "\n";
-      return kTfLiteError;
-    }
+    // if(subgraph(i)->CheckConv2dNodes() != kTfLiteOk){
+    //   std::cout << "Error in number of Conv2d" << "\n";
+    //   return kTfLiteError;
+    // }
     context_->use_distribute_strategy_context = true;
   }
   return kTfLiteOk;
@@ -337,54 +337,65 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                      std::queue<SharedContext*>* qSharedData) {
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
-  //TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
-  //    scoped_runtime_event, primary_subgraph().Invoke(eType, mtx_lock, mtx_lock_,
-  //                                        mtx_lock_debug, Ucontroller, qSharedData));
-  int subgraph_size = subgraphs_size();
-  std::cout << "Invoke subgrph size : " << subgraph_size << "\n";
-  auto connect = [&](int source_subgraph, int  dest_subgraph){
-    if(source_subgraph < subgraphs_size() && dest_subgraph <= subgraphs_size()){
-      Subgraph* source_graph = subgraph(source_subgraph);
-      Subgraph* dest_graph = subgraph(dest_subgraph);
-      int source_tensor_idx = source_graph->outputs()[0];
-      int dest_tensor_idx = dest_graph->GetInputsInMulti();
-      TfLiteTensor* source_tensor = source_graph->tensor(source_tensor_idx);
-      TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
-      size_t source_size = source_tensor->bytes;
-      size_t dest_size = dest_tensor->bytes;
-      if(source_size != dest_size){
-        std::cout << "Source tensor[" << source_tensor_idx << "] size "
-                  << static_cast<int>(source_size)
-                  << " and Dest tensor["<< dest_tensor_idx <<"] size " 
-                  << static_cast<int>(dest_size) << " missmatch!" << "\n";
-        return kTfLiteError;
+  if(eType == UnitType::CPU0){
+  TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
+     scoped_runtime_event, primary_subgraph().Invoke(eType, mtx_lock, mtx_lock_,
+                                         mtx_lock_debug, Ucontroller, qSharedData));
+  }else if(eType == UnitType::GPU0){
+    int subgraph_size = subgraphs_size();
+    //std::cout << "Invoke subgrph size : " << subgraph_size << "\n";
+    auto connect = [&](int source_subgraph, int  dest_subgraph){
+      if(source_subgraph < subgraphs_size() && dest_subgraph <= subgraphs_size()){
+        Subgraph* source_graph = subgraph(source_subgraph);
+        Subgraph* dest_graph = subgraph(dest_subgraph);
+        int source_tensor_idx = source_graph->outputs()[0];
+        int dest_tensor_idx = dest_graph->GetInputsInMulti();
+        TfLiteTensor* source_tensor = source_graph->tensor(source_tensor_idx);
+        TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
+        size_t source_size = source_tensor->bytes;
+        size_t dest_size = dest_tensor->bytes;
+        if(source_size != dest_size){
+          std::cout << "Source tensor[" << source_tensor_idx << "] size "
+                    << static_cast<int>(source_size)
+                    << " and Dest tensor["<< dest_tensor_idx <<"] size " 
+                    << static_cast<int>(dest_size) << " missmatch!" << "\n";
+          return kTfLiteError;
+        }
+        auto data_source = (float*)source_tensor->data.data;
+        auto data_dest = (float*)dest_tensor->data.data;
+        memcpy(data_dest, data_source, source_size);
       }
-      std::cout << "Source tensor[" << source_tensor_idx << "] size "
-          << static_cast<int>(source_size)
-          << " and Dest tensor["<< dest_tensor_idx <<"] size " 
-          << static_cast<int>(dest_size) << "\n";
-      auto data_source = (float*)source_tensor->data.data;
-      auto data_dest = (float*)dest_tensor->data.data;
-      memcpy(data_dest, data_source, source_size);
-    }
-  };
-  for(int i=0; i<subgraph_size; i++){
-    std::cout << "Invoke Subgraph idx : " << i << "\n";
-    if(i > 0){
-      if(connect(i-1, i) == kTfLiteError){
-        std::cout << "TENSOR CONNECTION FAILED" << "\n";
-        return kTfLiteError;
+    };
+    struct timespec begin, end;
+    for(int i=0; i<subgraph_size; i++){
+      //std::cout << "Invoke Subgraph idx : " << i << "\n";
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+      if(i > 0){
+        if(connect(i-1, i) == kTfLiteError){
+          std::cout << "TENSOR CONNECTION FAILED" << "\n";
+          return kTfLiteError;
+        }
       }
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      double latency = (end.tv_sec - begin.tv_sec) + \
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      //printf("Data transfer latency : %.6fs \n", latency);
+      //printf("Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+      if(subgraph(i)->Invoke(eType, mtx_lock, mtx_lock_,
+                            mtx_lock_debug, Ucontroller, qSharedData) != kTfLiteOk)
+        return kTfLiteError;
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      latency = (end.tv_sec - begin.tv_sec) + \
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("Invoke latency : %.6fs \n", latency);
     }
-    if(subgraph(i)->Invoke(eType, mtx_lock, mtx_lock_,
-                          mtx_lock_debug, Ucontroller, qSharedData) != kTfLiteOk)
-      return kTfLiteError;
-  }
-  if (!allow_buffer_handle_output_) {
-    for (int tensor_index : outputs()) {
-      TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
-          scoped_runtime_event,
-          primary_subgraph().EnsureTensorDataIsReadable(tensor_index));
+    if (!allow_buffer_handle_output_) {
+      for (int tensor_index : outputs()) {
+        TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
+            scoped_runtime_event,
+            primary_subgraph().EnsureTensorDataIsReadable(tensor_index));
+      }
     }
   }
   return kTfLiteOk;

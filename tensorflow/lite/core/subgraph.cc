@@ -1143,11 +1143,11 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[0]));
     }
 
-    std::cout << "==================================" << "\n";
-    PrintNodeInfo(node_index, node, registration);
+    //std::cout << "==================================" << "\n";
+    //PrintNodeInfo(node_index, node, registration);
 
-    std::cout << "==================================" << "\n";
-    PrintInputTensor(node, eType);
+    //std::cout << "==================================" << "\n";
+    //PrintInputTensor(node, eType);
 
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
@@ -1158,7 +1158,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     std::cout << "==================================" << "\n";
     PrintOutputTensor(node, eType);
 
-    std::cout << "==================================" << "\n";
+    //std::cout << "==================================" << "\n";
 
     #ifdef debug
     if(eType == UnitType::CPU0){
@@ -1181,9 +1181,10 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
         clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[2]));
       }
       
+      /*
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
-      if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
+        if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
                         Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
       }
@@ -1196,7 +1197,27 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0 && 
                 eType == UnitType::GPU0){ //Call ContextHandler right after CONCATENATION
-      if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock,
+        if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock,
+                        mtx_lock_, Ucontroller, node_index)
+          != kTfLiteOk) {return kTfLiteError;}
+      }
+      */
+      if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
+                eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
+        if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
+                        Ucontroller, node_index)
+          != kTfLiteOk) {return kTfLiteError;}
+      }
+      
+      if(strcmp(GetOpName(registration), "CONV_2D") == 0 &&
+                eType == UnitType::CPU0){ //Call ContextHandler right after CONCATENATION
+        if(CPUPopContextFromQueue(qSharedData, node_index, mtx_lock, mtx_lock_) != kTfLiteOk) 
+          {return kTfLiteError;}
+      }
+
+      if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
+                eType == UnitType::GPU0){ //Call ContextHandler right after CONCATENATION
+        if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock,
                         mtx_lock_, Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
       }
