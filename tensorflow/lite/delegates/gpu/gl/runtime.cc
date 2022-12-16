@@ -588,7 +588,8 @@ absl::Status Runtime::AssignInternalObjects(
 }
 
 absl::Status Runtime::Execute() {
-  std::cout<<"runtime.cc :: Execute() \n";
+  //Minsung_ Debug_cout
+  //std::cout<<"runtime.cc :: Execute() \n";
   for (const auto& descriptor : programs_) {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());

@@ -164,8 +164,9 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
         // An experimental task to devide a model to multiple subgrpahs
-        //interpreter->get()->SetMultipleSubgraphs(true);
         //(*builder_)(interpreter, eType);
+
+        // No multiple subgraph
         (*builder_)(interpreter);
     }
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
@@ -173,6 +174,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     const TfLiteGpuDelegateOptionsV2 options = {
         .is_precision_loss_allowed = 1, 
         .inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
+        //.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED,
         .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,

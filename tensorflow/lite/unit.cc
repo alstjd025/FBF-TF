@@ -4,7 +4,9 @@
 #define GPUONLY
 //#define quantize
 #define MONITORING
-#define mnist
+//#define mnist
+//#define catdog
+#define imagenet
 
 std::mutex mtx_lock;
 
@@ -86,6 +88,22 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             std::cout << "CPU " << *C_Counter << "\n";
+            #ifdef imagenet
+            auto *input_pointer = interpreterCPU->get()->typed_input_tensor<float>(0);
+            memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+            // for (int i=0; i < 224; ++i) {
+            //     for(int j=0; j < 224; j++){
+            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3] = \
+            //          ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
+
+            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3 + 1] = \
+            //          ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+
+            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3 + 2] = \
+            //          ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+            //     }
+            // }
+            #endif
             #ifdef catdog
             for (int i=0; i < 300; ++i) {
                 for(int j=0; j< 300; j++){
@@ -132,9 +150,10 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //printf("time : %.6fs \n", temp_time);
             time += temp_time;
             #ifdef MONITORING
-            for (int i =0; i<10; i++){
-                printf("%0.5f", interpreterCPU->get()->typed_output_tensor<float>(0)[i] );
-                std:: cout << " ";
+            for (int i =0; i<1000; i++){
+                float value = interpreterCPU->get()->typed_output_tensor<float>(0)[i];
+                if(value > 0.5)
+                    printf("label : %d, pre : %0.5f \n", i, value);
             }
             //PrintInterpreterState(interpreterCPU->get());
             std::cout << "\n";
@@ -260,6 +279,11 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             //std::cout << "GPU " << *G_Counter << "\n";
+            #ifdef imagenet
+            auto *input_pointer = interpreterGPU->get()->typed_input_tensor<float>(0);
+            memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+            #endif
+
             #ifdef catdog
             for (int i=0; i < 300; ++i) {
                 for(int j=0; j < 300; j++){
@@ -297,9 +321,10 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             time += temp_time;
             //printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
-            for (int i =0; i<10; i++){
-                printf("%0.5f", interpreterGPU->get()->typed_output_tensor<float>(0)[i] );
-                std:: cout << " ";
+            for (int i =0; i<1000; i++){
+                float value = interpreterGPU->get()->typed_output_tensor<float>(0)[i];
+                if(value > 0.5)
+                    printf("label : %d, pre : %0.5f \n", i, value);
             }
             //PrintInterpreterState(interpreterGPU->get());
             std::cout << "\n";
