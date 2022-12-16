@@ -50,7 +50,7 @@ absl::Status GlShader::CompileShader(GLenum shader_type,
   #ifdef DEBUG
   SFLAG();
   #endif
-  //std::cout << "tensorflow/lite/delegates/gpu/gl/gl_shader.cc/GlShader::CompileShader()\n";
+  std::cout << "tensorflow/lite/delegates/gpu/gl/gl_shader.cc/GlShader::CompileShader()\n";
   // NOTE: code compilation can fail due to gl errors happened before
   GLuint shader_id;
   RETURN_IF_ERROR(TFLITE_GPU_CALL_GL(glCreateShader, &shader_id, shader_type));

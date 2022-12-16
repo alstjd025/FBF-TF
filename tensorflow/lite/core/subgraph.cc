@@ -1155,8 +1155,8 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     }
 
 
-    std::cout << "==================================" << "\n";
-    PrintOutputTensor(node, eType);
+    //std::cout << "==================================" << "\n";
+    //PrintOutputTensor(node, eType);
 
     //std::cout << "==================================" << "\n";
 

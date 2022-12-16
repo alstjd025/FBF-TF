@@ -135,7 +135,8 @@ class Delegate {
     // into GraphFloat32.
     GraphFloat32 graph;
     RETURN_IF_ERROR(BuildModel(context, delegate_params, &graph));
-
+    // Minsung
+    std::cout << "GL Prepare " << "\n";
     // Apply general transformations on the graph.
     NullTransformationReporter reporter;
     ModelTransformer transformer(&graph, &reporter);
@@ -266,6 +267,8 @@ class Delegate {
     auto workgroups_calculator =
         BestEffortWorkgroupsCalculator(options_.metadata, gpu_info);
     std::unique_ptr<CompiledModel> compiled_model;
+    // Minsung
+    std::cout << "GPU Complile" << "\n";
     RETURN_IF_ERROR(Compile(compile_options, graph, tflite_graph_io, *shaders,
                             *workgroups_calculator, &compiled_model));
 
@@ -305,6 +308,8 @@ class Delegate {
     }
 
     // Run inference.
+    // Minsung
+    std::cout  << "GPU Run Inference" << "\n";
     RETURN_IF_ERROR(inference_context_->Reset());
     RETURN_IF_ERROR(inference_context_->Execute());
 

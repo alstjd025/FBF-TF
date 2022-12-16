@@ -123,7 +123,7 @@ class DelegateKernel {
   absl::Status Prepare(TfLiteContext* context,
                        const TfLiteDelegateParams* delegate_params) {
     thread_id_prepare_ = std::this_thread::get_id();
-
+    std::cout << "DelegateKernel Prepare" << "\n";
     // Extract TFLite delegate execution plan from the context and convert it
     // into GraphFloat32.
     GraphFloat32 graph;
@@ -204,7 +204,7 @@ class DelegateKernel {
   }
 
   absl::Status Invoke(TfLiteContext* context) {
-    //std::cout << "Delegate.cc absl:: Invoke() \n";
+    std::cout << "Delegate.cc absl:: Invoke() \n";
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");

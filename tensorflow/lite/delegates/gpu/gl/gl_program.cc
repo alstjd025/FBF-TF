@@ -25,6 +25,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 
 #include "tensorflow/lite/kmdebug.h"
+#include "time.h"
+
 
 namespace tflite {
 namespace gpu {
@@ -32,6 +34,8 @@ namespace gl {
 namespace {
 
 absl::Status CreateNewProgramId(GLuint* program_id) {
+  //Minsung
+  std::cout << "Gl Create Program" << "\n";
   RETURN_IF_ERROR(TFLITE_GPU_CALL_GL(glCreateProgram, program_id));
   if (!*program_id) {
     return absl::UnknownError("Can't create opengl program: 0 program_id");
@@ -125,6 +129,7 @@ struct ParameterSetter {
 
 absl::Status GlProgram::CreateWithShader(const GlShader& shader,
                                          GlProgram* gl_program) {
+  std::cout << "GlProgram::Create With Shader(Program)" << "\n";
   GLuint program_id;
   RETURN_IF_ERROR(CreateNewProgramId(&program_id));
 
@@ -211,7 +216,7 @@ absl::Status GlProgram::SetParameter(const Variable& param) {
 }
 
 absl::Status GlProgram::Dispatch(const uint3& workgroups) const {
-  //std::cout << "GLProgram::Dispatch \n";
+  std::cout << "GLProgram::Dispatch \n";
   #ifdef DEBUG
   SFLAG();
   #endif
