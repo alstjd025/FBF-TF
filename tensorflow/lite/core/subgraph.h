@@ -329,6 +329,10 @@ class Subgraph {
   //Thread Control Notify(wake)
   void Notify(std::mutex& mtx_lock, std::condition_variable& Ucontroller);
 
+  // Minsung
+  // Get first op name of subgraph
+  const char* GetFirstOpName();
+
   //Km
   //Get OP Name by registration
   const char* GetOpName(const TfLiteRegistration& op_reg){

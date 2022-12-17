@@ -1103,6 +1103,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     // need to be copied from Delegate buffer to raw memory, which is often not
     // needed. We may want to cache this in prepare to know if this needs to be
     // done for a node or not.
+    PrintNodeInfo(node_index, node, registration);
     for (int i = 0; i < node.inputs->size; ++i) {
       int tensor_index = node.inputs->data[i];
       if (tensor_index == kTfLiteOptionalTensor) {
@@ -1123,7 +1124,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           // In all other cases, we need to return an error as otherwise we will
           // trigger a null pointer dereference (likely).
           ReportError("Input tensor %d lacks data", tensor_index);
-		  return kTfLiteError;
+    		  return kTfLiteError;
         }
       }
     }
@@ -1144,7 +1145,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     }
 
     //std::cout << "==================================" << "\n";
-    //PrintNodeInfo(node_index, node, registration);
 
     //std::cout << "==================================" << "\n";
     //PrintInputTensor(node, eType);
@@ -2373,4 +2373,14 @@ TfLiteStatus Subgraph::CheckConv2dNodes(){
   else  
     return kTfLiteError;
 }
+
+const char* Subgraph::GetFirstOpName(){
+  if(nodes_and_registration_.size() < 1){
+    return "NO_OP";
+  }
+  const TfLiteRegistration& registration = 
+      nodes_and_registration_[0].second;
+  return GetOpName(registration);         
+}
+
 }  // namespace tflite

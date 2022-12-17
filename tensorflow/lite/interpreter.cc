@@ -344,7 +344,7 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
   }else if(eType == UnitType::GPU0){
     int subgraph_size = subgraphs_size();
     //std::cout << "Invoke subgrph size : " << subgraph_size << "\n";
-    auto connect = [&](int source_subgraph, int  dest_subgraph){
+    auto connect = [&](int source_subgraph, int dest_subgraph){
       if(source_subgraph < subgraphs_size() && dest_subgraph <= subgraphs_size()){
         Subgraph* source_graph = subgraph(source_subgraph);
         Subgraph* dest_graph = subgraph(dest_subgraph);
@@ -364,13 +364,22 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         auto data_source = (float*)source_tensor->data.data;
         auto data_dest = (float*)dest_tensor->data.data;
         memcpy(data_dest, data_source, source_size);
+        if(dest_tensor->data.raw == nullptr){
+          std::cout << "dest data nullptr!" << "\n";
+        }
       }
+    };
+    auto connectAdd = [&](int dest_subgraph){
+      
     };
     struct timespec begin, end;
     for(int i=0; i<subgraph_size; i++){
       //std::cout << "Invoke Subgraph idx : " << i << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(i > 0){
+        if(strcmp(subgraph(i)->GetFirstOpName(), "ADD") == 0){
+          
+        }
         if(connect(i-1, i) == kTfLiteError){
           std::cout << "TENSOR CONNECTION FAILED" << "\n";
           return kTfLiteError;

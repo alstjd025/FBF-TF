@@ -1027,6 +1027,14 @@ typedef struct ClockMeasure{
 //Use this Func
 ClockMeasure* CreateClockMeasure(int n);
 
+// Minsung
+// An experimental struct for connecting complicated 
+// tensor flow (Add, Sub,,.)
+typedef struct TensorAndIndex{
+  TfLiteTensor* tensor;
+  int idx;
+}TensorAndIndex;
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

@@ -731,6 +731,12 @@ class Interpreter {
   // An experimental flag for deviding a model to multiple subgrpahs
   // by conv2d layers
   bool devide_by_conv = false;
+
+  // Minsung 
+  // An experimental vector container which contains output tensor of all 
+  // invoked nodes.
+  // (for complicated tensor flows) 
+  std::vector<TensorAndIndex*> used_tensor_and_index;
 };
 
 }  // namespace tflite
