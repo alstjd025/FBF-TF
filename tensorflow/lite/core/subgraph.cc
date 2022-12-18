@@ -1146,7 +1146,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     //std::cout << "==================================" << "\n";
 
     //std::cout << "==================================" << "\n";
-    PrintNodeInfo(node_index, node, registration);
+    //PrintNodeInfo(node_index, node, registration);
     //PrintInputTensor(node, eType);
 
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
@@ -1156,7 +1156,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
 
     //std::cout << "==================================" << "\n";
-    PrintOutputTensor(node, eType);
+    //PrintOutputTensor(node, eType);
 
     //std::cout << "==================================" << "\n";
 

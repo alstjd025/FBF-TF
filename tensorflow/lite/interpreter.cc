@@ -435,8 +435,9 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
       clock_gettime(CLOCK_MONOTONIC, &end);
       double latency = (end.tv_sec - begin.tv_sec) + \
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      //printf("Data transfer latency : %.6fs \n", latency);
-      //printf("Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
+      printf("Data transfer latency : %.6fs \n", latency);
+      printf("Transfer start Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
+      printf("Transfer end Timestamp %.6f \n", (end.tv_sec + (end.tv_nsec) / 1000000000.0));
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph(i)->Invoke(eType, mtx_lock, mtx_lock_,
                             mtx_lock_debug, Ucontroller, qSharedData) != kTfLiteOk)
@@ -444,7 +445,9 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
       clock_gettime(CLOCK_MONOTONIC, &end);
       latency = (end.tv_sec - begin.tv_sec) + \
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      printf("Invoke latency : %.6fs \n", latency);
+      printf("Invoke latency : %.6fs, Invoke start timestamp : %.6fs, end timestamp : %.6fs \n",
+                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
     }
     if (!allow_buffer_handle_output_) {
       for (int tensor_index : outputs()) {
