@@ -349,28 +349,70 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         Subgraph* source_graph = subgraph(source_subgraph);
         Subgraph* dest_graph = subgraph(dest_subgraph);
         int source_tensor_idx = source_graph->outputs()[0];
-        int dest_tensor_idx = dest_graph->GetInputsInMulti();
+        int dest_tensor_idx = dest_graph->GetInputsInMultipleSubgraphs();
         TfLiteTensor* source_tensor = source_graph->tensor(source_tensor_idx);
         TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
-        size_t source_size = source_tensor->bytes;
-        size_t dest_size = dest_tensor->bytes;
-        if(source_size != dest_size){
+        size_t source_byte_size = source_tensor->bytes;
+        size_t dest_byte_size = dest_tensor->bytes;
+        if(source_byte_size != dest_byte_size){
           std::cout << "Source tensor[" << source_tensor_idx << "] size "
-                    << static_cast<int>(source_size)
+                    << static_cast<int>(source_byte_size)
                     << " and Dest tensor["<< dest_tensor_idx <<"] size " 
-                    << static_cast<int>(dest_size) << " missmatch!" << "\n";
+                    << static_cast<int>(dest_byte_size) << " missmatch!" << "\n";
           return kTfLiteError;
         }
         auto data_source = (float*)source_tensor->data.data;
         auto data_dest = (float*)dest_tensor->data.data;
-        memcpy(data_dest, data_source, source_size);
+        memcpy(data_dest, data_source, source_byte_size);
         if(dest_tensor->data.raw == nullptr){
           std::cout << "dest data nullptr!" << "\n";
         }
+        // Save used(filled) output tensor for 
+        TensorAndIndex* used_output = new TensorAndIndex;
+        used_output->idx = source_tensor_idx;
+        used_output->tensor = source_tensor;
+        used_tensor_and_index.push_back(used_output);
+        return kTfLiteOk;
       }
     };
     auto connectAdd = [&](int dest_subgraph){
-      
+      Subgraph* dest_graph = subgraph(dest_subgraph);
+      std::vector<int> inputs = dest_graph->GetMultipleInputTensorIdx();
+      TfLiteTensor* source_tensor = nullptr;
+      TfLiteTensor* dest_tensor = nullptr;
+      // This work needs at least two tensors in both inptus and used_tensors.
+      if(inputs.size() < 2 || used_tensor_and_index.size() < 2){
+        std::cout << "ADD node input connection failed(size)" << 
+                " input size : "<< inputs.size() << " stored tensor size : " << 
+                  used_tensor_and_index.size() << "\n";
+        return kTfLiteError;
+      }
+      for(size_t i=0; i<inputs.size(); ++i){
+        for(size_t j=0; j<used_tensor_and_index.size(); ++j){
+          if(used_tensor_and_index[j]->idx == inputs[i]){
+            source_tensor = used_tensor_and_index[j]->tensor;
+            dest_graph->SwitchTensor(*source_tensor, used_tensor_and_index[j]->idx);
+            dest_tensor = dest_graph->tensor(inputs[i]);
+            if(source_tensor == nullptr){
+              std::cout << "Add node input connection failed(nullptr)" << "\n";
+              return kTfLiteError;
+            }
+            size_t source_byte_size = source_tensor->bytes;
+            size_t dest_byte_size = dest_tensor->bytes;
+            if(source_byte_size != dest_byte_size){
+              std::cout << "Source tensor[" << used_tensor_and_index[j]->idx << "] size "
+                        << static_cast<int>(source_byte_size)
+                        << " and Dest tensor["<< inputs[i] <<"] size " 
+                        << static_cast<int>(dest_byte_size) << " missmatch!" << "\n";
+              return kTfLiteError;
+            }
+            auto data_source = (float*)source_tensor->data.data;
+            auto data_dest = (float*)dest_tensor->data.data;
+            memcpy(data_dest, data_source, source_byte_size);
+          }
+        }
+      }
+      return kTfLiteOk;
     };
     struct timespec begin, end;
     for(int i=0; i<subgraph_size; i++){
@@ -378,11 +420,16 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(i > 0){
         if(strcmp(subgraph(i)->GetFirstOpName(), "ADD") == 0){
-          
+          if(connectAdd(i) == kTfLiteError){
+            std::cout << "TENSOR CONNECTION FAILED" << "\n";
+            return kTfLiteError;
+          }
         }
-        if(connect(i-1, i) == kTfLiteError){
-          std::cout << "TENSOR CONNECTION FAILED" << "\n";
-          return kTfLiteError;
+        else{
+          if(connect(i-1, i) == kTfLiteError){
+            std::cout << "TENSOR CONNECTION FAILED" << "\n";
+            return kTfLiteError;
+          }
         }
       }
       clock_gettime(CLOCK_MONOTONIC, &end);

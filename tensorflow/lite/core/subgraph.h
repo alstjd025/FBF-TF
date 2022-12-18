@@ -175,10 +175,14 @@ class Subgraph {
     return &context_.tensors[tensor_index];
   }
 
-  //Minsung
-  //Returns the output tensor of given node
-  //Return tensor is the last tensor of given node's tensor index.
-  //The node must have only one output tensor
+  // Minsung
+  // Switch given tensor with context's tensor
+  TfLiteStatus SwitchTensor(TfLiteTensor& tensor, int idx);
+
+  // Minsung
+  // Returns the output tensor of given node
+  // Return tensor is the last tensor of given node's tensor index.
+  // The node must have only one output tensor
   TfLiteTensor* GetOutputTensor(TfLiteNode& node){
     if(node.outputs->size <= 0)
       return nullptr;
@@ -351,9 +355,13 @@ class Subgraph {
   // Access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }
 
-  /// Minsung
-  // Acess to an input tensor (for multiple subgraphs and GPUdelegate)
-  int GetInputsInMulti();
+  // Minsung
+  // Access to an input tensor (for multiple subgraphs and GPUdelegate)
+  int GetInputsInMultipleSubgraphs();
+
+  // Minsung
+  // Access to an array of input tensors (for Add Op)
+  std::vector<int>& GetMultipleInputTensorIdx();
 
   // Read only access to list of inputs.
   const std::vector<int>& inputs() const { return inputs_; }

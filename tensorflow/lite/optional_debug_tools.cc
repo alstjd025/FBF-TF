@@ -141,6 +141,7 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
   int subgraph_size = interpreter->subgraphs_size();
   printf("Interpreter has %d subgraphs\n", subgraph_size);
   for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
+    std::cout << "======================================" << "\n";
     int tensor_size = interpreter->tensors_size();
     int node_size = interpreter->nodes_size(subgraph_index);
     printf("Subgraph %d has %d tensors and %d nodes\n", subgraph_index,

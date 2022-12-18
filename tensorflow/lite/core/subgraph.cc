@@ -1103,7 +1103,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     // need to be copied from Delegate buffer to raw memory, which is often not
     // needed. We may want to cache this in prepare to know if this needs to be
     // done for a node or not.
-    PrintNodeInfo(node_index, node, registration);
     for (int i = 0; i < node.inputs->size; ++i) {
       int tensor_index = node.inputs->data[i];
       if (tensor_index == kTfLiteOptionalTensor) {
@@ -1147,6 +1146,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     //std::cout << "==================================" << "\n";
 
     //std::cout << "==================================" << "\n";
+    PrintNodeInfo(node_index, node, registration);
     //PrintInputTensor(node, eType);
 
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
@@ -1156,7 +1156,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
 
     //std::cout << "==================================" << "\n";
-    //PrintOutputTensor(node, eType);
+    PrintOutputTensor(node, eType);
 
     //std::cout << "==================================" << "\n";
 
@@ -2101,8 +2101,22 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
 }
 
 // Minsung
-int Subgraph::GetInputsInMulti(){
+int Subgraph::GetInputsInMultipleSubgraphs(){
   return inputs()[inputs().size()-1];
+}
+
+// Minsung
+// Returns vector of all input tensor's idxs of current subgraph
+// RETURNS ONLY FIRST EXCUTION PLAN's INPUT
+std::vector<int>& Subgraph::GetMultipleInputTensorIdx(){
+  std::vector<int>* input = new std::vector<int>;
+  int node_index = execution_plan_[0];
+  TfLiteNode& node = nodes_and_registration_[node_index].first;
+  for(int i=0; i<node.inputs->size; ++i){
+    input->push_back(node.inputs->data[i]);
+  }
+  return *input;
+  // Needs Impl..
 }
 
 // Minsung
@@ -2381,6 +2395,10 @@ const char* Subgraph::GetFirstOpName(){
   const TfLiteRegistration& registration = 
       nodes_and_registration_[0].second;
   return GetOpName(registration);         
+}
+
+TfLiteStatus Subgraph::SwitchTensor(TfLiteTensor& tensor, int idx){
+  context_.tensors[idx] = tensor;
 }
 
 }  // namespace tflite
