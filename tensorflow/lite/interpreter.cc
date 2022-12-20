@@ -354,6 +354,10 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
         size_t source_byte_size = source_tensor->bytes;
         size_t dest_byte_size = dest_tensor->bytes;
+        std::cout << "Source tensor[" << source_tensor_idx << "] size "
+                  << static_cast<int>(source_byte_size)
+                  << " and Dest tensor["<< dest_tensor_idx <<"] size " 
+                  << static_cast<int>(dest_byte_size) << " missmatch!" << "\n";
         if(source_byte_size != dest_byte_size){
           std::cout << "Source tensor[" << source_tensor_idx << "] size "
                     << static_cast<int>(source_byte_size)
@@ -372,6 +376,7 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         used_output->idx = source_tensor_idx;
         used_output->tensor = source_tensor;
         used_tensor_and_index.push_back(used_output);
+        std::cout << "Tensor connection done" << "\n";
         return kTfLiteOk;
       }
     };

@@ -1147,14 +1147,14 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
     //std::cout << "==================================" << "\n";
     //PrintNodeInfo(node_index, node, registration);
-    //PrintInputTensor(node, eType);
-
+    PrintInputTensor(node, eType);
+    std::cout << "asdfa" << "\n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
 
-
+    std::cout << "Adsfasdf" << "\n";
     //std::cout << "==================================" << "\n";
     //PrintOutputTensor(node, eType);
 

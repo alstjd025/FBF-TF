@@ -205,7 +205,7 @@ class DelegateKernel {
 
   absl::Status Invoke(TfLiteContext* context) {
     //Minsung_ Debug_cout
-    //std::cout << "Delegate.cc absl:: Invoke() \n";
+    std::cout << "Delegate.cc absl:: Invoke() \n";
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");

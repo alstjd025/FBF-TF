@@ -1021,14 +1021,13 @@ TfLiteStatus InterpreterBuilder::operator()(
           i++;
           tensors_ = new std::vector<int>;
           output_tensor = new std::vector<int>;
-        }else if(next_registration->builtin_code == 3){ 
+        }else if(next_registration->builtin_code == 3){ // Note : If next layer is conv2d & current layer is not.
           std::cout << " Non-Conv modifying" << "\n";
           std::cout << "Cur Subgraph tensors : ";
           for(int j=0; j<tensors_->size(); ++j){
             std::cout << tensors_->at(j) << " ";
           }
           std::cout << "\n";
-          // Note :If next layer is conv2d & current layer is not.
           (*interpreter)->AddSubgraphs(1);
           output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
           std::cout << "Cur Subgraph output tensor : ";
@@ -1064,7 +1063,7 @@ TfLiteStatus InterpreterBuilder::operator()(
           tensors_ = new std::vector<int>;
           output_tensor = new std::vector<int>;
         }else{
-            // Note :If next layer & current layer are not conv2d.
+            // Note : If next layer & current layer are both not conv2d.
           std::cout << "Non-Conv pass" << "\n";
           set_input = false;
           i++;

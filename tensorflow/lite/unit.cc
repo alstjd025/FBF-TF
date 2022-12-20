@@ -326,6 +326,10 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 if(value > 0.5)
                     printf("label : %d, pre : %0.5f \n", i, value);
             }
+            for (int i =0; i<10; i++){
+                float value = interpreterGPU->get()->typed_output_tensor<float>(0)[i];
+                printf("label : %d, pre : %0.5f \n", i, value);
+            }
             //PrintInterpreterState(interpreterGPU->get());
             std::cout << "\n";
             #endif

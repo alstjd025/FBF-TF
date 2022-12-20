@@ -184,7 +184,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     #ifdef MULTITHREAD
     //Set Partitioning Value : GPU Side Filters
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
-    TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
+    //TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
     std::cout << "adsf" << "\n";
     MyDelegate = TfLiteGpuDelegateV2Create(&options);
