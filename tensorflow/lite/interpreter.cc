@@ -456,6 +456,7 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                         latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
                                   (end.tv_sec + (end.tv_nsec) / 1000000000.0));
     }
+    printf("final data ? %f \n", *(final_subgraph().tensor(163)->data.f + 954));
     if (!allow_buffer_handle_output_) {
       for (int tensor_index : outputs()) {
         TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(

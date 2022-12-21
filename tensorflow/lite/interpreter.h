@@ -215,18 +215,20 @@ class Interpreter {
   }
 
   /// Minsung
-  /// Access to list of outputs.
+  /// Access to list of outputs of a specific subgraph.
   const std::vector<int>& outputs(int subgraph_idx) {
     return subgraph(subgraph_idx)->outputs();
   }
 
   /// Minsung
+  /// Access to list of outputs of final subgraph of whole interpreter.ß
+  /// NEEDS REFACTOR! (segfault issue)
   const std::vector<int>& final_output(){
     return final_subgraph().outputs();
   }
 
   /// Read only access to list of variable tensors.
-  const std::vector<int>& variables() const {
+  const std::vector<int>& varisables() const {
     return primary_subgraph().variables();
   }
 
