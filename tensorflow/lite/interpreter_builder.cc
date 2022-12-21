@@ -892,6 +892,71 @@ TfLiteStatus InterpreterBuilder::operator()(
       std::vector<int>* input_tensor = new std::vector<int>;
       std::vector<int>* output_tensor = new std::vector<int>;
       std::vector<int>* tensors_ = new std::vector<int>;
+      /////////////////////////////////////////////
+      /// Refactored code for dividing subgraph ///
+      /////////////////////////////////////////////
+      std::vector<SubgraphPartitioningPlan*> master_partitioning_plan = 
+                        (*interpreter)->subgraph_partitioning_plan;
+      for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
+                                      ++partition_itr){
+        (*interpreter)->AddSubgraphs(1);
+        const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
+        const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
+        for(int j=0; j < num_nodes_in_partition; ++j){
+          int working_op = nodes_in_partition[j];
+          const auto* op = operators->Get(working_op);
+          int op_index = op->opcode_index();
+          /// get every tensor indices of all nodes
+          for(int k=0; k<FlatBufferIntArrayToVector(op->inputs()).size(); ++k)
+            tensors_->push_back(FlatBufferIntArrayToVector(op->inputs())[k]);
+          for(int k=0; k<FlatBufferIntArrayToVector(op->outputs()).size(); ++k)
+            tensors_->push_back(FlatBufferIntArrayToVector(op->outputs())[k]);          
+          
+          /// input tensor should be first node's input tensor in partitioning plan
+          if(j == 0){
+            input_tensor = new std::vector<int>;
+            input_tensor->push_back(FlatBufferIntArrayToVector(op->inputs())[0]);
+          }  /// output tensor should be last node's output tensor in partitioning plan
+          else if(j == num_nodes_in_partition - 1){
+            output_tensor = new std::vector<int>;
+            output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
+            /// Make a new subgraph here
+            tflite::Subgraph* new_subgraph = (*interpreter)->subgraph(partition_itr);
+            if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
+              return cleanup_and_error();
+            }
+            new_subgraph->SetInputs(*input_tensor);
+            new_subgraph->SetOutputs(*output_tensor);
+            if (ParseNodes(operators, new_subgraph,\
+                            nodes_in_partition[0], nodes_in_partition[j]) != kTfLiteOk)
+              return cleanup_and_error();
+            if (ParseTensors(buffers, tensors, new_subgraph, *tensors_) != kTfLiteOk)
+              return cleanup_and_error();
+            std::vector<int> variables;
+            for (int l = 0; l < new_subgraph->tensors_size(); ++l) {
+              auto* tensor = new_subgraph->tensor(l);
+              if (tensor->is_variable) {
+                variables.push_back(i);
+              }
+            }
+            new_subgraph->SetVariables(std::move(variables));
+          }
+        }
+        input_tensor->clear();
+        delete input_tensor;
+        tensors_->clear();
+        delete tensors_;
+        output_tensor->clear();
+        delete output_tensor;
+        tensors_ = new std::vector<int>;
+        output_tensor = new std::vector<int>;
+      } /// Refactored
+
+
+      /////////////////////////////////////////
+      /// Legacy code for dividing subgraph ///
+      /////////////////////////////////////////
+      /*
       while(i < operators->size()) {
         const auto* op = operators->Get(i);
         int op_index = op->opcode_index();
@@ -1073,7 +1138,8 @@ TfLiteStatus InterpreterBuilder::operator()(
           set_input = false;
           i++;
         }
-      }
+      }/// Legacy
+      */
     }
   }else{
     for (int subgraph_index = 0; subgraph_index < subgraphs->size();
