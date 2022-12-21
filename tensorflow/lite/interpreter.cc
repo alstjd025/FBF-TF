@@ -354,6 +354,7 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
         size_t source_byte_size = source_tensor->bytes;
         size_t dest_byte_size = dest_tensor->bytes;
+        //source_graph->PrintTensor(*source_tensor, UnitType::GPU0);
         std::cout << "Source tensor[" << source_tensor_idx << "] size "
                   << static_cast<int>(source_byte_size)
                   << " and Dest tensor["<< dest_tensor_idx <<"] size " 
@@ -368,6 +369,7 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         auto data_source = (float*)source_tensor->data.data;
         auto data_dest = (float*)dest_tensor->data.data;
         memcpy(data_dest, data_source, source_byte_size);
+        //dest_graph->PrintTensor(*dest_tensor, UnitType::GPU0);
         if(dest_tensor->data.raw == nullptr){
           std::cout << "dest data nullptr!" << "\n";
         }
@@ -461,6 +463,19 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
             primary_subgraph().EnsureTensorDataIsReadable(tensor_index));
       }
     }
+    // Minsung : This job may solve the output tensor problem..?
+    // if (!allow_buffer_handle_output_) {
+    //   std::cout << "Allow buffer?" << "\n";
+    //   for (int tensor_index : final_output()) {
+    //     TfLiteBufferHandle tflite_buffer_handle = kTfLiteNullBufferHandle;
+    //     SetBufferHandle(tensor_index, ++tflite_buffer_handle, 
+    //                           final_subgraph().delegates_applied_[0]);
+    //     std::cout << "Tensor Index : " << tensor_index << "\n";
+    //     TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(
+    //         scoped_runtime_event,
+    //         final_subgraph().EnsureTensorDataIsReadable(tensor_index));
+    //   }
+    // }
   }
   return kTfLiteOk;
 }
@@ -615,7 +630,8 @@ TfLiteStatus Interpreter::SetBufferHandle(int tensor_index,
                                           TfLiteBufferHandle buffer_handle,
                                           TfLiteDelegate* delegate) {
   TF_LITE_ENSURE(context_, tensor_index < tensors_size());
-  std::vector<TfLiteTensor>& tensors = primary_subgraph().tensors();
+  // Minsung : maybe needs change
+  std::vector<TfLiteTensor>& tensors = final_subgraph().tensors();
   TfLiteTensor* tensor = &tensors[tensor_index];
 
   TF_LITE_ENSURE(context_,

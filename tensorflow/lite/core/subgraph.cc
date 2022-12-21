@@ -1072,7 +1072,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     applied_nnapi_delegate_ = true;
   }
   
-  //TfLiteIntArrayFree(temp);
 
   // Invocations are always done in node order.
   // Note that calling Invoke repeatedly will cause the original memory plan to
@@ -1147,7 +1146,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
     //std::cout << "==================================" << "\n";
     //PrintNodeInfo(node_index, node, registration);
-    PrintInputTensor(node, eType);
+    //PrintInputTensor(node, eType);
     std::cout << "asdfa" << "\n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
@@ -1155,10 +1154,10 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     }
 
     std::cout << "Adsfasdf" << "\n";
-    //std::cout << "==================================" << "\n";
-    //PrintOutputTensor(node, eType);
+    std::cout << "==================================" << "\n";
+    PrintOutputTensor(node, eType);
 
-    //std::cout << "==================================" << "\n";
+    std::cout << "==================================" << "\n";
 
     #ifdef debug
     if(eType == UnitType::CPU0){
@@ -1262,6 +1261,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           TF_LITE_ENSURE_STATUS(memory_planner_->ResetAllocationsAfter(
               next_execution_plan_index_to_plan_allocation_ - 1));
         }
+        std::cout << "ResetAllocationsAfter" << "\n";
       }
     }
     if(number_of_conv_temp <= 0 && eType == UnitType::GPU0 && 

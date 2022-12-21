@@ -222,7 +222,7 @@ class Interpreter {
 
   /// Minsung
   const std::vector<int>& final_output(){
-    return subgraph(subgraphs_size()-1)->outputs();
+    return final_subgraph().outputs();
   }
 
   /// Read only access to list of variable tensors.
@@ -353,6 +353,13 @@ class Interpreter {
   template <class T>
   T* typed_output_tensor(int index) {
     return typed_tensor<T>(outputs()[index]);
+  }
+
+  /// Minsung
+  /// Returns a final output tensor of final subgraph which invoked last.
+  template <class T>
+  T* typed_output_tensor_final(int index){
+    return typed_tensor<T>(final_output()[index]);
   }
 
   /// Return an immutable pointer into the data of a given output tensor. The
@@ -637,6 +644,11 @@ class Interpreter {
         static_cast<size_t>(subgraph_index) >= subgraphs_size())
       return nullptr;
     return &*subgraphs_[subgraph_index];
+  }
+
+  /// MINSUNG 
+  Subgraph& final_subgraph(){
+    return *subgraphs_.back();
   }
 
   /// WARNING: Experimental interface, subject to change

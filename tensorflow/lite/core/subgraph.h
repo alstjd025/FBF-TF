@@ -494,7 +494,9 @@ class Subgraph {
   TfLiteStatus EnsureTensorDataIsReadable(int tensor_index) {
     TfLiteTensor* t = &tensors_[tensor_index];
     TF_LITE_ENSURE(&context_, t != nullptr);
-    if (t->data_is_stale) {
+    //MINSUNG!!
+    if (t->data_is_stale) { 
+      std::cout << "EnsureTensorDataIsReadable" << "\n";
       TF_LITE_ENSURE(&context_, t->delegate != nullptr);
       TF_LITE_ENSURE(&context_, t->buffer_handle != kTfLiteNullBufferHandle);
       TF_LITE_ENSURE(&context_, t->delegate->CopyFromBufferHandle != nullptr);
