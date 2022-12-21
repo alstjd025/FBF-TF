@@ -751,6 +751,11 @@ class Interpreter {
   // invoked nodes.
   // (for complicated tensor flows) 
   std::vector<TensorAndIndex*> used_tensor_and_index;
+
+
+  // Misnung
+  // An interface for dynamic subgraph partitioning (for multiple delegates)
+  std::vector<SubgraphPartitioningPlan*> subgraph_partitioning_plan;
 };
 
 }  // namespace tflite

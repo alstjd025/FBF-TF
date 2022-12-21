@@ -58,13 +58,24 @@ typedef enum UnitType{
   GPU3
 } UnitType;
 
-//Minsung
-//DistributeOptions For Distribute Strategy(Units)
+// Minsung
+// Distribute Options For Distribute Strategy(Units)
+// 22.12.21 no more use
 typedef struct{
   int small_unit;
   int big_unit;
   int small_unit_ratio;
 } DistributeOptions;
+
+// Minsung
+// Structure for dynamic subgraph partitioning
+typedef struct{
+  // An array which contains node numbers in a single plan 
+  // (node numbers from original subgraph)
+  int* nodes;
+  // Number of nodes in a single plan
+  int size; 
+} SubgraphPartitioningPlan;
 
 typedef enum TfLiteStatus {
   kTfLiteOk = 0,

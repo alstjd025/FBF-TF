@@ -878,6 +878,11 @@ TfLiteStatus InterpreterBuilder::operator()(
         ++subgraph_index) {
           // Note : Assume that we have only one subgraph before.
       const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+      if(ReadyforSubgraphPartitioning(*subgraph, flatbuffer_op_index_to_registration_,
+                  (*interpreter)->subgraph_partitioning_plan, 2) != kTfLiteOk){
+        std::cout << "Preparing subgraph partitioning ERROR" << "\n";
+        return kTfLiteError;
+      }
       auto operators = subgraph->operators();
       auto tensors = subgraph->tensors();
       // Look for Conv2d OPs and save tensor index
@@ -1228,6 +1233,63 @@ TfLiteStatus InterpreterBuilder::operator()(
   if (ApplyDelegates(interpreter->get(), num_threads) != kTfLiteOk)
     return cleanup_and_error();
   return kTfLiteOk;
+}
+
+TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
+                                const tflite::SubGraph& origin_subgraph,
+                  std::vector<const TfLiteRegistration*>& flatbuffer_ops,
+                  std::vector<SubgraphPartitioningPlan*>& partitioning_plan,
+                  int max_partitioning){
+
+  if(max_partitioning < 2)
+    max_partitioning = 2; // We use at least two partition.
+  auto operators = origin_subgraph.operators();
+  int partitioning_jobs = 0;
+  bool divide_mark = false;
+  std::vector<int> temporal_partitioning_plan;
+  // Assume that operators always sorted in origin node order from model.
+  for(size_t i=0; i<operators->size(); ++i){
+    if(partitioning_jobs == max_partitioning)
+      continue;
+    const auto* op = operators->Get(i);
+    int op_index = op->opcode_index();
+    const TfLiteRegistration* registration = 
+                          flatbuffer_ops[op_index];
+    if(registration == nullptr){
+      std::cout << "SubgraphPartition planning Error (registration nullptr)" << "\n";
+      return kTfLiteError;
+    }
+    /// DOWN BELOW IS A HARDCODED TEMPORAL JOB (for latency measure & debugging)
+    /// Should make an algorithm for ideal partitoning plan
+    temporal_partitioning_plan.push_back(i);
+    if(i == 0)
+      divide_mark = true;
+    
+    if(divide_mark){ /// Make a partition
+      SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+      new_partitoning_plan_->size = temporal_partitioning_plan.size();
+      new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+      for(size_t j; j<temporal_partitioning_plan.size(); ++j){
+        new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+      }
+      temporal_partitioning_plan.clear();
+      partitioning_plan.push_back(new_partitoning_plan_);
+      divide_mark = false;
+      partitioning_jobs++;
+    }
+    if(i == operators->size()-1){
+      SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+      new_partitoning_plan_->size = temporal_partitioning_plan.size();
+      new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+      for(size_t j; j<temporal_partitioning_plan.size(); ++j){
+        new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+      }
+      temporal_partitioning_plan.clear();
+      partitioning_plan.push_back(new_partitoning_plan_);
+      partitioning_jobs++;
+    }
+    return kTfLiteOk;
+  }
 }
 
 }  // namespace tflite

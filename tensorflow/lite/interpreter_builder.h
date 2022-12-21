@@ -105,6 +105,14 @@ class InterpreterBuilder {
   TfLiteStatus ParseSparsity(const SparsityParameters* src_sparsity,
                              TfLiteSparsity** sparsity);
 
+  // Minsung
+  // Ready a dynamic subgraph partitioning plan
+  // EXPERIMENTAL
+  TfLiteStatus ReadyforSubgraphPartitioning(const tflite::SubGraph& origin_subgraph,
+                                std::vector<const TfLiteRegistration*>& flatbuffer_ops,
+                                std::vector<SubgraphPartitioningPlan*>& partitioning_plan,
+                                int max_partitioning);
+
   const ::tflite::Model* model_;
   const OpResolver& op_resolver_;
   ErrorReporter* error_reporter_;
