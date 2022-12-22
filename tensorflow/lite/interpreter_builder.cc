@@ -899,10 +899,12 @@ TfLiteStatus InterpreterBuilder::operator()(
                         (*interpreter)->subgraph_partitioning_plan;
       for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
                                       ++partition_itr){
-        (*interpreter)->AddSubgraphs(1);
+        if(partition_itr > 0)
+          (*interpreter)->AddSubgraphs(1);
         const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
         const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
         for(int j=0; j < num_nodes_in_partition; ++j){
+          std::cout << "j and node " << j << " " << num_nodes_in_partition << "\n";
           int working_op = nodes_in_partition[j];
           const auto* op = operators->Get(working_op);
           int op_index = op->opcode_index();
@@ -916,8 +918,13 @@ TfLiteStatus InterpreterBuilder::operator()(
           if(j == 0){
             input_tensor = new std::vector<int>;
             input_tensor->push_back(FlatBufferIntArrayToVector(op->inputs())[0]);
+            std::cout << "Cur Subgraph input tensor : ";
+            for(int j=0; j<input_tensor->size(); ++j){
+              std::cout << input_tensor->at(j) << " ";
+            }     
+            std::cout << "\n";
           }  /// output tensor should be last node's output tensor in partitioning plan
-          else if(j == num_nodes_in_partition - 1){
+          if(j == num_nodes_in_partition - 1){
             output_tensor = new std::vector<int>;
             output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
             /// Make a new subgraph here
@@ -925,6 +932,11 @@ TfLiteStatus InterpreterBuilder::operator()(
             if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
               return cleanup_and_error();
             }
+            std::cout << "Cur Subgraph tensors : ";
+            for(int m=0; m<tensors_->size(); ++m){
+              std::cout << tensors_->at(m) << " ";
+            }
+            std::cout << "\n";
             new_subgraph->SetInputs(*input_tensor);
             new_subgraph->SetOutputs(*output_tensor);
             if (ParseNodes(operators, new_subgraph,\
@@ -1310,6 +1322,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   if(max_partitioning < 2)
     max_partitioning = 2; // We use at least two partition.
   auto operators = origin_subgraph.operators();
+  std::cout << "origin size : " << operators->size() << "\n";
   int partitioning_jobs = 0;
   bool divide_mark = false;
   std::vector<int> temporal_partitioning_plan;
@@ -1327,35 +1340,45 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
     }
     /// DOWN BELOW IS A HARDCODED TEMPORAL JOB (for latency measure & debugging)
     /// Should make an algorithm for ideal partitoning plan
+    std::cout << "push i " << i << "\n";
     temporal_partitioning_plan.push_back(i);
     if(i == 0)
       divide_mark = true;
     
     if(divide_mark){ /// Make a partition
+      std::cout << "SUBPLAN divide on subgraph " << i << "\n";
       SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
       new_partitoning_plan_->size = temporal_partitioning_plan.size();
       new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-      for(size_t j; j<temporal_partitioning_plan.size(); ++j){
+      std::cout << "Make partition with " << temporal_partitioning_plan.size() << " ";
+      for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
         new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+        std::cout << temporal_partitioning_plan[j] << " ";
       }
+      std::cout << "\n";
       temporal_partitioning_plan.clear();
       partitioning_plan.push_back(new_partitoning_plan_);
       divide_mark = false;
       partitioning_jobs++;
     }
     if(i == operators->size()-1){
+      std::cout << "SUBPLAN divide on subgraph_ " << i << "\n";
       SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
       new_partitoning_plan_->size = temporal_partitioning_plan.size();
       new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-      for(size_t j; j<temporal_partitioning_plan.size(); ++j){
+      std::cout << "Make partition with " << temporal_partitioning_plan.size() << " ";
+      for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
         new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+        std::cout << temporal_partitioning_plan[j] << " ";
       }
+      std::cout << "\n";
       temporal_partitioning_plan.clear();
       partitioning_plan.push_back(new_partitoning_plan_);
       partitioning_jobs++;
     }
-    return kTfLiteOk;
   }
+  std::cout << "Total partitioning plan : " << partitioning_plan.size() << "\n";
+  return kTfLiteOk;
 }
 
 }  // namespace tflite
