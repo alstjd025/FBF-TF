@@ -338,6 +338,8 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
 
   // Reduce the number of redundant allocations
   subgraph->ReserveNodes(op_end);
+  //if(op_st == op_end) // If a Layer has single node
+  op_end++;
   for (int i = op_st; i < op_end; ++i) {
     std::cout << "Parse Node op idx : " << i << " \n";
     const auto* op = operators->Get(i);
@@ -927,6 +929,11 @@ TfLiteStatus InterpreterBuilder::operator()(
           if(j == num_nodes_in_partition - 1){
             output_tensor = new std::vector<int>;
             output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
+            std::cout << "Cur Subgraph output tensor : ";
+            for(int j=0; j<output_tensor->size(); ++j){
+              std::cout << output_tensor->at(j) << " ";
+            }
+            std::cout << "\n";
             /// Make a new subgraph here
             tflite::Subgraph* new_subgraph = (*interpreter)->subgraph(partition_itr);
             if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
@@ -1350,7 +1357,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
       SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
       new_partitoning_plan_->size = temporal_partitioning_plan.size();
       new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-      std::cout << "Make partition with " << temporal_partitioning_plan.size() << " ";
+      std::cout << "Make partition with " << temporal_partitioning_plan.size() << " " << "\n";
       for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
         new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
         std::cout << temporal_partitioning_plan[j] << " ";
@@ -1366,7 +1373,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
       SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
       new_partitoning_plan_->size = temporal_partitioning_plan.size();
       new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-      std::cout << "Make partition with " << temporal_partitioning_plan.size() << " ";
+      std::cout << "Make partition with " << temporal_partitioning_plan.size() << " " << "\n";
       for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
         new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
         std::cout << temporal_partitioning_plan[j] << " ";

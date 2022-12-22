@@ -6,7 +6,8 @@
 #define MONITORING
 //#define mnist
 //#define catdog
-#define mnist
+#define imagenet
+//#define mnist
 
 std::mutex mtx_lock;
 
