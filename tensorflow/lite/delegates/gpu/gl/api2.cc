@@ -39,6 +39,7 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/workgroups/default_calculator.h"
 
 #include "tensorflow/lite/kmdebug.h"
+#include "time.h"
 
 namespace tflite {
 namespace gpu {
@@ -118,6 +119,7 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status CopyToExternalObject() final {
+    std::cout << "New::CopyToExternalObject" << "\n";
     if (!converter_to_) {
       return absl::OkStatus();
     }
@@ -125,6 +127,7 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status CopyFromExternalObject() final {
+    std::cout << "New::CopyFromExternalObject" << "\n";
 	#ifdef DEBUG
     SFLAG();
   #endif
@@ -138,6 +141,8 @@ class DefaultTensorTie : public TensorTie {
   #ifdef DEBUG
     SFLAG();
   #endif
+  // Minsung_Debug
+  std::cout << "SetExternalObject final" << "\n";
 	if (!def().external_def.object_def.user_provided) {
 	  return absl::InvalidArgumentError("External object is read-only");
     }
@@ -166,6 +171,8 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status Init(TensorObjectConverterBuilder* converter_builder) {
+    //Minsung_Debug
+    std::cout << "DefaultTensorTie::Init" << "\n";
     // First check is an object is user provided.
     const auto& external_def = def().external_def.object_def;
 
@@ -282,12 +289,16 @@ class TwoStepTensorTie : public TensorTie {
     return absl::OkStatus();
   }
 
+
+//Minsung_Debug_cout
   absl::Status CopyToExternalObject() final {
+      std::cout << "CopyToExternalObject" << "\n"; 
     RETURN_IF_ERROR(inner_tie_->CopyToExternalObject());
     return outer_tie_->CopyToExternalObject();
   }
 
   absl::Status CopyFromExternalObject() final {
+    std::cout << "CopyFromExternalObject" << "\n";
   #ifdef DEBUG
     SFLAG();
   #endif
@@ -296,6 +307,7 @@ class TwoStepTensorTie : public TensorTie {
   }
 
   absl::Status SetExternalObject(TensorObject obj) final {
+    std::cout << "SetExternalObject" << "\n";
   #ifdef DEBUG
     SFLAG();
   #endif
@@ -303,6 +315,7 @@ class TwoStepTensorTie : public TensorTie {
   }
 
   TensorObject GetExternalObject() final {
+  std::cout << "GetExternalObject" << "\n";
     return outer_tie_->GetExternalObject();
   }
 
@@ -336,10 +349,11 @@ class TwoStepTensorTie : public TensorTie {
 
   absl::Status Init(TensorObjectConverterBuilder* converter_builder,
                     ObjectManager* objects) {
+  //Minsung_Debug
+  std::cout << "TwostepTensorTie::Init" << "\n";
 	#ifdef DEBUG
   SFLAG();
   #endif
-	//std::cout << "tensorflow/lite/delegates/gpu/gl/api2.cc/TwoStepTensorTie::Init()\n";
     auto defs = MakeOuterInnerDefs(def());
     RETURN_IF_ERROR(DefaultTensorTie::New(defs.second, converter_builder,
                                           objects, &inner_tie_));
@@ -439,17 +453,47 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
+    std::cout << "absl::status Run in gpu::gl" << "\n";
+    struct timespec begin, end;
+    clock_gettime(CLOCK_MONOTONIC, &begin); 
     for (auto& obj : inputs_) {
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
     }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double latency = (end.tv_sec - begin.tv_sec) + \
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    printf("CopyFromExternalObject latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
     RETURN_IF_ERROR(runtime_->Execute());
+    clock_gettime(CLOCK_MONOTONIC, &begin); 
     for (auto& obj : outputs_) {
       RETURN_IF_ERROR(obj->CopyToExternalObject());
     }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    latency = (end.tv_sec - begin.tv_sec) + \
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    printf("CopyToExternalObject latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    clock_gettime(CLOCK_MONOTONIC, &begin); 
     RETURN_IF_ERROR(runtime_->command_queue()->Flush());
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    latency = (end.tv_sec - begin.tv_sec) + \
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    printf("Flush latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    clock_gettime(CLOCK_MONOTONIC, &begin);
     if (output_to_cpu_) {
       RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());
     }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    latency = (end.tv_sec - begin.tv_sec) + \
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    printf("WaitForCompletion latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
     return absl::OkStatus();
   }
 
@@ -706,6 +750,8 @@ absl::Status NewInferenceEnvironment(
     const InferenceEnvironmentOptions& options,
     std::unique_ptr<InferenceEnvironment>* environment,
     InferenceEnvironmentProperties* properties) {
+  //Minsung_Debug
+  std::cout << "api2::NewInferenceEnvironment" << "\n";
   auto env_impl = absl::make_unique<InferenceEnvironmentImpl>(options);
   absl::Status status = env_impl->Init();
   if (properties) {

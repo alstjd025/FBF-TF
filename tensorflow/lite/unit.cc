@@ -6,8 +6,8 @@
 #define MONITORING
 //#define mnist
 //#define catdog
-#define imagenet
-//#define mnist
+//#define imagenet
+#define mnist
 
 std::mutex mtx_lock;
 
@@ -322,12 +322,22 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             time += temp_time;
             //printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
-            for (int i =0; i<1000; i++){
-                float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
-                printf("label : %d, pre : %0.5f \n", i, value);
-                if(value > 0.5)
+            #ifdef imagenet
+                for (int i =0; i<1000; i++){
+                    float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
                     printf("label : %d, pre : %0.5f \n", i, value);
-            }
+                    if(value > 0.5)
+                        printf("label : %d, pre : %0.5f \n", i, value);
+                }
+            #endif
+            #ifdef mnist
+                // for (int i =0; i<10; i++){
+                //     float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
+                //     printf("label : %d, pre : %0.5f \n", i, value);
+                //     if(value > 0.5)
+                //         printf("label : %d, pre : %0.5f \n", i, value);
+                // }
+            #endif
             // for (int i =0; i<10; i++){
             //     float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
             //     printf("label : %d, pre : %0.5f \n", i, value);

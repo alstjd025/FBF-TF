@@ -38,6 +38,7 @@ limitations under the License.
 #include "tensorflow/lite/minimal_logging.h"
 
 #include "tensorflow/lite/kmdebug.h"
+#include "time.h"
 
 #ifndef CL_DELEGATE_NO_GL
 #include "tensorflow/lite/delegates/gpu/gl/api2.h"
@@ -232,7 +233,9 @@ class DelegateKernel {
 
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
-    //std::cout << "input_indices_.size() : " << output_indices_[0] << std::endl;
+    //Minsung_Debug_out
+    struct timespec begin, end;
+    clock_gettime(CLOCK_MONOTONIC, &begin);    
     for (int i = 0; i < input_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetInputObject(
           i, GetTensorObject(input_indices_[i], context)));
@@ -244,6 +247,12 @@ class DelegateKernel {
           i, GetTensorObject(output_indices_[i], context)));
             //std::cout << "delegate invoke : " << output_indices_[i] << std::endl;
     }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double latency = (end.tv_sec - begin.tv_sec) + \
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    printf("SetInputsAndOutputs latency : %.6fs, start timestamp : %.6fs, end timestamp : %.6fs \n",
+                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
     return absl::OkStatus();
   }
 
@@ -328,9 +337,12 @@ class DelegateKernel {
 
   absl::Status InitializeOpenGlApi(GraphFloat32* graph,
                                    std::unique_ptr<InferenceBuilder>* builder) {
+        
 #ifndef CL_DELEGATE_NO_GL
     gl::InferenceEnvironmentOptions env_options;
     gl::InferenceEnvironmentProperties properties;
+    //Minsung_Debug
+    std::cout << "InitializeOpenGlApi" << "\n";
     RETURN_IF_ERROR(
         NewInferenceEnvironment(env_options, &gl_environment_, &properties));
     auto delegate_options = delegate_->options();

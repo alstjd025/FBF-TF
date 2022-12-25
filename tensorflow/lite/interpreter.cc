@@ -355,10 +355,6 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         size_t source_byte_size = source_tensor->bytes;
         size_t dest_byte_size = dest_tensor->bytes;
         //source_graph->PrintTensor(*source_tensor, UnitType::GPU0);
-        std::cout << "Source tensor[" << source_tensor_idx << "] size "
-                  << static_cast<int>(source_byte_size)
-                  << " and Dest tensor["<< dest_tensor_idx <<"] size " 
-                  << static_cast<int>(dest_byte_size) << " missmatch!" << "\n";
         if(source_byte_size != dest_byte_size){
           std::cout << "Source tensor[" << source_tensor_idx << "] size "
                     << static_cast<int>(source_byte_size)
@@ -456,7 +452,7 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                         latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
                                   (end.tv_sec + (end.tv_nsec) / 1000000000.0));
     }
-    printf("final data ? %f \n", *(final_subgraph().tensor(163)->data.f + 954));
+    //printf("final data ? %f \n", *(final_subgraph().tensor(163)->data.f + 954));
     if (!allow_buffer_handle_output_) {
       for (int tensor_index : outputs()) {
         TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(

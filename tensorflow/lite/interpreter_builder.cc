@@ -970,195 +970,6 @@ TfLiteStatus InterpreterBuilder::operator()(
         tensors_ = new std::vector<int>;
         output_tensor = new std::vector<int>;
       } /// Refactored
-
-
-      /////////////////////////////////////////
-      /// Legacy code for dividing subgraph ///
-      /////////////////////////////////////////
-      /*
-      while(i < operators->size()) {
-        const auto* op = operators->Get(i);
-        int op_index = op->opcode_index();
-        
-        count_tensor_per_subgraph = 0;
-        count_tensor_per_subgraph += FlatBufferIntArrayToVector(op->inputs()).size();
-        count_tensor_per_subgraph += FlatBufferIntArrayToVector(op->outputs()).size();
-        total_count_tensor_per_subgraph += count_tensor_per_subgraph;
-        if(set_input){
-          input_tensor = new std::vector<int>;
-          input_tensor->push_back(FlatBufferIntArrayToVector(op->inputs())[0]);
-        }
-        if (op_index < 0 || op_index >= flatbuffer_op_index_to_registration_.size()) {
-         error_reporter_->Report("[Subgraph Modifying Error] Missing registration for opcode_index %d\n",
-                              op_index);
-          i++;
-          continue;
-        }
-        // Parse tensors in subgraph
-        for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j)
-          tensors_->push_back(FlatBufferIntArrayToVector(op->inputs())[j]);
-        for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j)
-          tensors_->push_back(FlatBufferIntArrayToVector(op->outputs())[j]);
-        std::cout << "\n";
-        if(set_input){
-          std::cout << "Cur Subgraph input tensor : ";
-          for(int j=0; j<input_tensor->size(); ++j){
-            std::cout << input_tensor->at(j) << " ";
-          }        
-          std::cout << "\n";
-        }
-        const TfLiteRegistration* registration = 
-          flatbuffer_op_index_to_registration_[op_index];
-        const TfLiteRegistration* next_registration;
-        if(i < operators->size()-1){
-          const auto* op = operators->Get(i+1);
-          int op_index = op->opcode_index();
-          next_registration = 
-            flatbuffer_op_index_to_registration_[op_index];
-        }
-        if(registration == nullptr){
-         error_reporter_->Report("\
-                  [Subgraph Modifying Error] Missing registration in flatbuffer registration index %d\n",
-                              op_index);
-          i++;
-          continue;          
-        }
-        count_node_per_subgraph++;
-        std::cout << "[count_node_per_subgraph] : " << count_node_per_subgraph << "\n";
-        if(registration->builtin_code == 3){ // Conv2d 
-          std::cout << "Conv modifying" << "\n";
-          std::cout << "Cur Subgraph tensors : ";
-          for(int j=0; j<tensors_->size(); ++j){
-            std::cout << tensors_->at(j) << " ";
-          }
-          std::cout << "\n";
-          // Note :If we found a Conv2d layer from origin subgraph,
-          //       divide it into multiple subgraphs with the same number of conv2d layers.
-          (*interpreter)->AddSubgraphs(1);
-          output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
-          std::cout << "Cur Subgraph output tensor : ";
-          for(int j=0; j<output_tensor->size(); ++j){
-            std::cout << output_tensor->at(j) << " ";
-          }
-          std::cout << "\n";              
-          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(new_subgraph_index);
-          total_count_node_per_subgraph += count_node_per_subgraph;
-          // std::cout << "total_count_node_per_subgraph : " << total_count_node_per_subgraph << "\n";
-          // std::cout << "count_node_per_subgraph : " << count_node_per_subgraph << "\n";
-          if (sliced_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
-            return cleanup_and_error();
-          }
-          sliced_subgraph->SetInputs(*input_tensor);
-          sliced_subgraph->SetOutputs(*output_tensor);
-          if (ParseNodes(operators, sliced_subgraph,\
-              total_count_node_per_subgraph-count_node_per_subgraph, total_count_node_per_subgraph) != kTfLiteOk)
-            return cleanup_and_error();
-          if (ParseTensors(buffers, tensors, sliced_subgraph, *tensors_) != kTfLiteOk)
-            return cleanup_and_error();
-          count_node_per_subgraph = 0;
-          std::vector<int> variables;
-          for (int i = 0; i < sliced_subgraph->tensors_size(); ++i) {
-            auto* tensor = sliced_subgraph->tensor(i);
-            if (tensor->is_variable) {
-              variables.push_back(i);
-            }
-          }
-          sliced_subgraph->SetVariables(std::move(variables));
-          std::cout << " Conv modifying done on subgraph : "<< new_subgraph_index << "\n";
-          i++;
-          set_input = true;
-          new_subgraph_index++;
-          tensors_ = new std::vector<int>;
-          output_tensor = new std::vector<int>;
-        }else if(i == operators->size()-1){ // Last layer
-          std::cout << "Last layer modifying" << "\n";
-          std::cout << "Cur Subgraph tensors : ";
-          for(int j=0; j<tensors_->size(); ++j){
-            std::cout << tensors_->at(j) << " ";
-          }
-          std::cout << "\n";
-          //Note : This case, we don't have to add new subgraph.
-          //       Because the interpreter already have one at the first time.
-          //(*interpreter)->AddSubgraphs(1);
-          output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
-          std::cout << "Cur Subgraph output tensor : ";
-          for(int j=0; j<output_tensor->size(); ++j){
-            std::cout << output_tensor->at(j) << " ";
-          }        
-          std::cout << "\n";
-          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(new_subgraph_index);
-          total_count_node_per_subgraph += count_node_per_subgraph;
-          if (sliced_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
-            return cleanup_and_error();
-          }
-          sliced_subgraph->SetInputs(*input_tensor);
-          sliced_subgraph->SetOutputs(*output_tensor);
-          if (ParseNodes(operators, sliced_subgraph,\
-              total_count_node_per_subgraph-count_node_per_subgraph, total_count_node_per_subgraph) != kTfLiteOk)
-            return cleanup_and_error();
-          if (ParseTensors(buffers, tensors, sliced_subgraph, *tensors_) != kTfLiteOk)
-            return cleanup_and_error();
-          std::vector<int> variables;
-          for (int i = 0; i < sliced_subgraph->tensors_size(); ++i) {
-            auto* tensor = sliced_subgraph->tensor(i);
-            if (tensor->is_variable) {
-              variables.push_back(i);
-            }
-          }    
-          sliced_subgraph->SetVariables(std::move(variables));      
-          std::cout << "Last layer modifying Done on subgraph " << new_subgraph_index << "\n";
-          i++;
-          tensors_ = new std::vector<int>;
-          output_tensor = new std::vector<int>;
-        }else if(next_registration->builtin_code == 3){ // Note : If next layer is conv2d & current layer is not.
-          std::cout << " Non-Conv modifying" << "\n";
-          std::cout << "Cur Subgraph tensors : ";
-          for(int j=0; j<tensors_->size(); ++j){
-            std::cout << tensors_->at(j) << " ";
-          }
-          std::cout << "\n";
-          (*interpreter)->AddSubgraphs(1);
-          output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
-          std::cout << "Cur Subgraph output tensor : ";
-          for(int j=0; j<output_tensor->size(); ++j){
-            std::cout << output_tensor->at(j) << " ";
-          }        
-          std::cout << "\n";
-          tflite::Subgraph* sliced_subgraph = (*interpreter)->subgraph(new_subgraph_index);
-          total_count_node_per_subgraph += count_node_per_subgraph;
-          if (sliced_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
-            return cleanup_and_error();
-          }
-          sliced_subgraph->SetInputs(*input_tensor);
-          sliced_subgraph->SetOutputs(*output_tensor);
-          if (ParseNodes(operators, sliced_subgraph,\
-              total_count_node_per_subgraph-count_node_per_subgraph, total_count_node_per_subgraph) != kTfLiteOk)
-            return cleanup_and_error();
-          if (ParseTensors(buffers, tensors, sliced_subgraph, *tensors_) != kTfLiteOk)
-            return cleanup_and_error();
-          count_node_per_subgraph = 0;
-          std::vector<int> variables;
-          for (int i = 0; i < sliced_subgraph->tensors_size(); ++i) {
-            auto* tensor = sliced_subgraph->tensor(i);
-            if (tensor->is_variable) {
-              variables.push_back(i);
-            }
-          }
-          sliced_subgraph->SetVariables(std::move(variables));
-          std::cout << " Non-Conv modifying done on Subgraph "<< new_subgraph_index << "\n";
-          i++;
-          set_input = true;
-          new_subgraph_index++;
-          tensors_ = new std::vector<int>;
-          output_tensor = new std::vector<int>;
-        }else{
-            // Note : If next layer & current layer are both not conv2d.
-          std::cout << "Non-Conv pass" << "\n";
-          set_input = false;
-          i++;
-        }
-      }/// Legacy
-      */
     }
   }else{
     for (int subgraph_index = 0; subgraph_index < subgraphs->size();
@@ -1334,6 +1145,42 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   bool divide_mark = false;
   std::vector<int> temporal_partitioning_plan;
   // Assume that operators always sorted in origin node order from model.
+  temporal_partitioning_plan.push_back(0);
+  SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+    new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  }
+  partitioning_plan.push_back(new_partitoning_plan_);
+  temporal_partitioning_plan.clear();
+
+  temporal_partitioning_plan.push_back(1);
+  temporal_partitioning_plan.push_back(2);
+  temporal_partitioning_plan.push_back(3);
+  temporal_partitioning_plan.push_back(4);
+  temporal_partitioning_plan.push_back(5);
+  temporal_partitioning_plan.push_back(6);
+  temporal_partitioning_plan.push_back(7);
+  new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+    new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  }
+  partitioning_plan.push_back(new_partitoning_plan_);
+  temporal_partitioning_plan.clear();
+
+
+
+
+
+
+
+
+
+
+  if(false){ // No use now (for latency measure?)
   for(size_t i=0; i<operators->size(); ++i){
     if(partitioning_jobs == max_partitioning)
       continue;
@@ -1345,8 +1192,10 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
       std::cout << "SubgraphPartition planning Error (registration nullptr)" << "\n";
       return kTfLiteError;
     }
+    /// Minsung : 
     /// DOWN BELOW IS A HARDCODED TEMPORAL JOB (for latency measure & debugging)
     /// Should make an algorithm for ideal partitoning plan
+
     std::cout << "push i " << i << "\n";
     temporal_partitioning_plan.push_back(i);
     if(i == 0)
@@ -1384,6 +1233,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
       partitioning_jobs++;
     }
   }
+  } // False
   std::cout << "Total partitioning plan : " << partitioning_plan.size() << "\n";
   return kTfLiteOk;
 }
