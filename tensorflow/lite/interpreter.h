@@ -427,13 +427,17 @@ class Interpreter {
                      std::condition_variable& Ucontroller,
                      std::queue<SharedContext*>* qSharedData);
 
-  //Minsung 
-  //Overloaded Invoke for other invoke calling parts
+  // Minsung 
+  // Overloaded Invoke for other invoke calling parts
   TfLiteStatus Invoke();
 
-  //Minsung
-  //Prepares Tensor Sharing between
+  // Minsung
+  // Prepares Tensor Sharing between
   TfLiteStatus PrepareTensorsSharing(UnitType eType);
+  
+  // Minsung
+  // PrintOutputTensor
+  void PrintOutputTensor(UnitType eType);
 
 
   /// Enable or disable NNAPI (true to enable). Disabled by default.

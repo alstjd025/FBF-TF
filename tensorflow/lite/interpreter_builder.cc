@@ -1145,31 +1145,42 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   bool divide_mark = false;
   std::vector<int> temporal_partitioning_plan;
   // Assume that operators always sorted in origin node order from model.
-  temporal_partitioning_plan.push_back(0);
-  SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
-  new_partitoning_plan_->size = temporal_partitioning_plan.size();
-  new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-  for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
-    new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
-  }
-  partitioning_plan.push_back(new_partitoning_plan_);
-  temporal_partitioning_plan.clear();
 
-  temporal_partitioning_plan.push_back(1);
-  temporal_partitioning_plan.push_back(2);
-  temporal_partitioning_plan.push_back(3);
-  temporal_partitioning_plan.push_back(4);
-  temporal_partitioning_plan.push_back(5);
-  temporal_partitioning_plan.push_back(6);
-  temporal_partitioning_plan.push_back(7);
-  new_partitoning_plan_ = new SubgraphPartitioningPlan;
-  new_partitoning_plan_->size = temporal_partitioning_plan.size();
-  new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-  for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
-    new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+
+
+  // for(int l=0; l<10; ++l){
+  //   temporal_partitioning_plan.push_back(l);
+  // }
+  // SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+  int dev = 3;
+  int total = 62;
+  int inner = 0;
+  int outer = total / dev;
+  for(int u=0; u<dev; ++u){
+    if(u == dev - 1)
+      inner = 62;
+    else
+      inner = (u+1) * outer;
+    for(int l=outer * u; l<inner; ++l){
+      temporal_partitioning_plan.push_back(l);
+    }
+    SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+    new_partitoning_plan_->size = temporal_partitioning_plan.size();
+    new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+    for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+      new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+    }
+    partitioning_plan.push_back(new_partitoning_plan_);
+    temporal_partitioning_plan.clear();
   }
-  partitioning_plan.push_back(new_partitoning_plan_);
-  temporal_partitioning_plan.clear();
 
 
 

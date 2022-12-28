@@ -1152,7 +1152,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                            "failed to invoke");
     }
 
-    //PrintOutputTensor(node, eType);
+    PrintOutputTensor(node, eType);
 
     #ifdef debug
     if(eType == UnitType::CPU0){
@@ -2049,6 +2049,11 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
   }
 }
 
+void Subgraph::PrintOutputTensorOfSubgraph(UnitType eType){
+  int node_index = execution_plan_[execution_plan_.size()-1];
+  TfLiteNode& node = nodes_and_registration_[node_index].first;
+  PrintOutputTensor(node, eType);
+}
 
 TfLiteStatus Subgraph::PrepareTensorsSharing(UnitType eType){
   if(eType == UnitType::CPU0){ 

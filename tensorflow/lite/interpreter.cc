@@ -688,4 +688,11 @@ TfLiteStatus Interpreter::PrepareTensorsSharing(UnitType eType){
     return kTfLiteOk;
   return kTfLiteError;
 }
+
+void Interpreter::PrintOutputTensor(UnitType eType){
+  std::cout << "Interpreter has " << subgraphs_size() << " subgraphs \n";
+  final_subgraph().PrintOutputTensorOfSubgraph(eType);
+}
+
+
 }  // namespace tflite

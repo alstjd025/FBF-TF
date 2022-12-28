@@ -227,7 +227,7 @@ class Subgraph {
   //Use after invoke
   void PrintOutputTensor(TfLiteNode& node, UnitType eType);
   void PrintInputTensor(TfLiteNode& node, UnitType eType);
-
+  void PrintOutputTensorOfSubgraph(UnitType eType);
 
   //Minsung
   //Prints given Tensor 
