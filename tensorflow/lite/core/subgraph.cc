@@ -1151,7 +1151,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-
+    
     PrintOutputTensor(node, eType);
 
     #ifdef debug
@@ -1407,6 +1407,7 @@ TfLiteStatus Subgraph::SetTensorParametersReadOnly(
   // TODO(b/145615516): Extend BytesRequired to check sparse tensors.
   if (type != kTfLiteString && sparsity == nullptr) {
     size_t required_bytes;
+    std::cout << "SetTensorParametersReadOnly::BytesRequired" << "\n";
     TF_LITE_ENSURE_OK(&context_,
                       BytesRequired(type, dims, rank, &required_bytes));
     TF_LITE_ENSURE_EQ(&context_, required_bytes, bytes);
@@ -1512,6 +1513,7 @@ TfLiteStatus Subgraph::ResizeTensorImpl(TfLiteTensor* tensor,
         TfLiteIntArrayEqual(tensor->dims, new_size) == 0;
     if (tensor->type != kTfLiteString) {
       size_t bytesRequired;
+      std::cout << "BytesRequired" << "\n";
       TfLiteStatus status = BytesRequired(tensor->type, new_size->data,
                                           new_size->size, &bytesRequired);
       if (status != kTfLiteOk) {

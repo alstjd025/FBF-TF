@@ -2854,7 +2854,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
         IsSupported(context, node, registration, allow_quant_ops);
 	printf("CHECKING LAYER %d \n", registration->builtin_code);
   if(context->use_distribute_strategy_context){
-    if(registration->builtin_code == 2){ //check if concat layer
+    if(registration->builtin_code == 0){ //check if concat layer
         printf("FOUND A CONCAT LAYER... MAKE GPU DEL NODE \n");
         return false;
     }

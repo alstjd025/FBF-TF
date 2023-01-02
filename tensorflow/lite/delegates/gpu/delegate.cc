@@ -39,6 +39,7 @@ limitations under the License.
 
 #include "tensorflow/lite/kmdebug.h"
 #include "time.h"
+#include "tensorflow/lite/util.h"
 
 #ifndef CL_DELEGATE_NO_GL
 #include "tensorflow/lite/delegates/gpu/gl/api2.h"
@@ -447,15 +448,60 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   };
 
   auto* gpu_delegate = GetDelegate(delegate);
-  TfLiteIntArray* ops_to_replace =
-      GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
-                      gpu_delegate->MaxDelegatedPartitions());
-  const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
-      context, kRegistration, ops_to_replace, delegate);
+  
+  ////////////////////////////////////////////////////////////////////
+  // Legacy Code //
+  // TfLiteIntArray* ops_to_replace =
+  //     GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
+  //                     gpu_delegate->MaxDelegatedPartitions());
+  // const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
+  //     context, kRegistration, ops_to_replace, delegate);
+  // TfLiteIntArrayFree(ops_to_replace);
+  ////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////
+  //Minsung Modifyed Code starts //
+  ////////////////////////////////////////////////////////////////////
+
+
+  ///////////////////////////////////
+  // MobilenetV3 size 124
+  // EfficientNet size 62
+  // (dev 4 AP drop in EfficientNet --;)
+  // MnistModel size 9
+  ///////////////////////////////////
+
+  std::vector<int> temporal_partitioning_plan;
+  int dev = 58;
+  int total = 62; // Total node number (if node num 0~9 -> 10)
+  int inner = 0;
+  int outer = total / dev;
+  for(int u=0; u<dev; ++u){
+    if(u == dev - 1)
+      inner = 62; // Total node number  (if node num 0~9 -> 10)
+    else
+      inner = (u+1) * outer;
+    for(int l=outer * u; l<inner; ++l){
+      temporal_partitioning_plan.push_back(l);
+    }
+    TfLiteIntArray* ops_to_replace = \
+              ConvertVectorToTfLiteIntArray(temporal_partitioning_plan);
+    const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
+              context, kRegistration, ops_to_replace, delegate);
+    if(status != kTfLiteOk)
+      return kTfLiteError;
+    temporal_partitioning_plan.clear();
+    TfLiteIntArrayFree(ops_to_replace);
+  }
+
+  ////////////////////////////////////////////////////////////////////s
+  // Minsung Modifyed Code ends //
+  ////////////////////////////////////////////////////////////////////
+
   TFLITE_LOG_PROD(TFLITE_LOG_INFO, "Created %d GPU delegate kernels.",
                   gpu_delegate->num_delegate_kernels());
-  TfLiteIntArrayFree(ops_to_replace);
-  return status;
+  // return status; // legacy
+  return kTfLiteOk;
 }
 
 }  // namespace

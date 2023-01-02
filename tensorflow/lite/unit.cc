@@ -5,7 +5,7 @@
 //#define quantize
 #define MONITORING
 //#define mnist
-//#define catdog
+// #define catdog
 #define imagenet
 //#define mnist
 
@@ -150,12 +150,15 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
             //printf("time : %.6fs \n", temp_time);
             time += temp_time;
+            #ifdef imagenet
+                interpreterCPU->get()->PrintOutputTensor(eType);
+            #endif
             #ifdef MONITORING
-            for (int i =0; i<1000; i++){
-                float value = interpreterCPU->get()->typed_output_tensor<float>(0)[i];
-                if(value > 0.5)
-                    printf("label : %d, pre : %0.5f \n", i, value);
-            }
+            // for (int i =0; i<1001; i++){
+            //     float value = interpreterCPU->get()->typed_output_tensor<float>(1)[i];
+            //     if(value > 0.5)
+            //         printf("label : %d, pre : %0.5f \n", i, value);
+            // }
             //PrintInterpreterState(interpreterCPU->get());
             std::cout << "\n";
             #endif
@@ -324,11 +327,12 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             #ifdef MONITORING
             #ifdef imagenet
                 for (int i =0; i<1000; i++){
-                    float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
-                    //printf("label : %d, pre : %0.5f \n", i, value);
-                    if(value > 0.5)
-                        printf("label : %d, pre : %0.5f \n", i, value);
+                    float value = interpreterGPU->get()->typed_output_tensor<float>(0)[i];
+                    printf("label : %d, pre : %0.5f \n", i, value);
+                    //if(value > 0.5)
+                    //    printf("label : %d, pre : %0.5f \n", i, value);
                 }
+                //interpreterGPU->get()->PrintOutputTensor(eType);
             #endif
             #ifdef mnist
                 // for (int i =0; i<10; i++){
@@ -337,6 +341,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 //     if(value > 0.5)
                 //         printf("label : %d, pre : %0.5f \n", i, value);
                 // }
+                interpreterGPU->get()->PrintOutputTensor(eType);
             #endif
             // for (int i =0; i<10; i++){
             //     float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];

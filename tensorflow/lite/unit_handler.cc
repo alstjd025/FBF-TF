@@ -166,10 +166,10 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         //////////////////////////////////////////////////////////////////
         // An experimental task to devide a model to multiple subgrpahs //
         //////////////////////////////////////////////////////////////////
-        (*builder_)(interpreter, eType);
+        // (*builder_)(interpreter, eType);
 
         // No multiple subgraph modifying
-        //(*builder_)(interpreter);
+        (*builder_)(interpreter);
     }
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TfLiteDelegate *MyDelegate = NULL;
