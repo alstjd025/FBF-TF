@@ -472,18 +472,23 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   ///////////////////////////////////
 
   std::vector<int> temporal_partitioning_plan;
-  int dev = 58;
-  int total = 62; // Total node number (if node num 0~9 -> 10)
+  int dev = 124;
+  // checked 56, 41, 40, 35, 34 33 32, 2, 3good
+  //  30  31 5 4 bad more than
+  int total = 124; // Total node number (if node num 0~9 -> 10)
   int inner = 0;
   int outer = total / dev;
   for(int u=0; u<dev; ++u){
     if(u == dev - 1)
-      inner = 62; // Total node number  (if node num 0~9 -> 10)
+      inner = 124; // Total node number  (if node num 0~9 -> 10)
     else
       inner = (u+1) * outer;
+    std::cout << "=================== partitioning =============" << "\n";
     for(int l=outer * u; l<inner; ++l){
       temporal_partitioning_plan.push_back(l);
+      std::cout << l << " ";
     }
+    std::cout << "\n";
     TfLiteIntArray* ops_to_replace = \
               ConvertVectorToTfLiteIntArray(temporal_partitioning_plan);
     const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(

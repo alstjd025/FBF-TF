@@ -1152,7 +1152,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                            "failed to invoke");
     }
     
-    PrintOutputTensor(node, eType);
+    //PrintOutputTensor(node, eType);
 
     #ifdef debug
     if(eType == UnitType::CPU0){
