@@ -1144,7 +1144,10 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     //Code for Tempororary Latency Measure
     clock_gettime(CLOCK_MONOTONIC, &end);
     double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("%s Invoke Latency : %.6fs \n",  GetOpName(registration), temp_time);
+    if(eType == UnitType::GPU0 && use_detailed_latency_measure)
+      printf("GPU %s Invoke Latency : %.6fs \n",  GetOpName(registration), temp_time);
+    if(eType == UnitType::CPU0 && use_detailed_latency_measure)
+      printf("CPU %s Invoke Latency : %.6fs \n",  GetOpName(registration), temp_time);
     //Code for Tempororary Latency Measure
 
 
@@ -1162,20 +1165,20 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       }
 
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
-                eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
+                eType == UnitType::CPU0){ //Call ContextHandler after Conv 2d
       if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
                         Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
       }
       
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0 &&
-                eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
+                eType == UnitType::CPU0){ //Call ContextHandler after Conv 2d
         if(CPUPopContextFromQueue(qSharedData, node_index, mtx_lock, mtx_lock_) != kTfLiteOk) 
           return kTfLiteError;
       }
 
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0 && 
-                eType == UnitType::GPU0){ //Call ContextHandler right after Conv 2d
+                eType == UnitType::GPU0){ //Call ContextHandler after Conv 2d
       if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock,
                         mtx_lock_, Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
@@ -1192,10 +1195,10 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           printf("temp : %.6f \n", temp);
       }
     }
-    //if(eType == UnitType::CPU0)
-      //PrintOutputTensor(node, eType);
-    //if(eType == UnitType::GPU0)
-    //   PrintOutputTensor(node, eType);
+    if(eType == UnitType::CPU0)
+      PrintOutputTensor(node, eType);
+    if(eType == UnitType::GPU0)
+      PrintOutputTensor(node, eType);
 	  // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1904,19 +1907,19 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
   std::cout << "\n";
   std::cout << " Nunber of Tensors : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
-  auto data_st = (int8_t*)tensor.data.data;
+  auto data_st = (float*)tensor.data.data;
   for(int i=0; i<tensor_data_ch_size; i++){
     std::cout << "CH [" << i << "] \n";
     for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-      int data = *(data_st+(i+j*tensor_data_ch_size));
+      float data = *(data_st+(i+j*tensor_data_ch_size));
       if (data == 0) {
-        printf("%d ", data);
+        printf("%0.6f ", data);
       }
       else if (data != 0) {
         if(eType == UnitType::CPU0)
-          printf("%s%d%s ", C_GREN, data, C_NRML);
+          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
         else if(eType == UnitType::GPU0)
-          printf("%s%d%s ", C_YLLW, data, C_NRML);
+          printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
       }
       if (j % tensor_axis == tensor_axis-1) {
         printf("\n");
@@ -1979,9 +1982,9 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
 // FLoat32 -> Int8
 //  <How-It-Works>
 // Get Tensor.
-// Allocate New int8 data array which has same dim with Original one. 
-// Quantize Values from Original Tensor and allocate to New one.
-// Swap Tensor data pointer to quantized one.
+// Allocate New int8 data array which has same dim with original one. 
+// Quantize values from original tensor and allocate to new one.
+// Swap tensor data pointer to quantized one.
 void Subgraph::QuantizeSymFloats(const float* values, const int size,
                                      int8_t* quantized_values, float* min_value,
                                      float* max_value, float* scaling_factor){
