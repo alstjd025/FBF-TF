@@ -374,6 +374,7 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
   #ifdef DEBUG
   	SFLAG();
   #endif
+  std::cout << "ReplaceNodeSubsetsWithDelegateKernels" << "\n";
   // Ignore empty node replacement sets.
   if (!nodes_to_replace->size) {
 	return kTfLiteOk;

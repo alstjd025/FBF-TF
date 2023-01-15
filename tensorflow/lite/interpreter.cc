@@ -181,7 +181,21 @@ TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
   return primary_subgraph().SetVariables(std::move(variables));
 }
 
+
+
+// Minsung: This function is a
+TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphs(){
+  for(int i=0; i<subgraphs_size(); ++i){
+    std::cout << "AllocateTensorsofAllSubgraphs [" << i << "]\n";
+    if(subgraph(i)->AllocateTensors() != kTfLiteOk)
+      return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+// Minsung MUST_CHECK
 TfLiteStatus Interpreter::AllocateTensors() {
+  std::cout << "AllocateTensors" << "\n";
   // Apply the default delegate that TFLite will enable at this point to allow
   // other user-level delegates to be applied first.
 
@@ -601,6 +615,7 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
       std::cout <<"sungraph " << i << " no conv2d" << "\n";
   }
   for (auto& subgraph : subgraphs_) {
+    std::cout << "Modify Subgraph with GPU delegate \n";
     status = subgraph->ModifyGraphWithDelegate(delegate);
     if (status != kTfLiteOk) {
       break;

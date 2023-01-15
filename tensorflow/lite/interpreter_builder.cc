@@ -1151,71 +1151,61 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
 
 
 
-  // temporal_partitioning_plan.push_back(0);
-  // SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
-  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
-  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
-  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
-  // }
-  // partitioning_plan.push_back(new_partitoning_plan_);
-  // temporal_partitioning_plan.clear();
+  for(int i=0; i<10; ++i){
+    temporal_partitioning_plan.push_back(i);
+  }
+  SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+    new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  }
+  partitioning_plan.push_back(new_partitoning_plan_);
+  temporal_partitioning_plan.clear();
 
 
-
-  // temporal_partitioning_plan.push_back(1);
-  // temporal_partitioning_plan.push_back(2);
-  // temporal_partitioning_plan.push_back(3);
-  // temporal_partitioning_plan.push_back(4);
-  // temporal_partitioning_plan.push_back(5);
-  // temporal_partitioning_plan.push_back(6);
-  // temporal_partitioning_plan.push_back(7);
-  // temporal_partitioning_plan.push_back(8);
-  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
-  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
-  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
-  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
-  // }
-  // partitioning_plan.push_back(new_partitoning_plan_);
-  // temporal_partitioning_plan.clear();
+  for(int i=10; i<124; ++i){
+    temporal_partitioning_plan.push_back(i);
+  }
+  new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+    new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  }
+  partitioning_plan.push_back(new_partitoning_plan_);
+  temporal_partitioning_plan.clear();
 
 ///////////////////////////////////
 // MobilenetV3 size 124
 // EfficientNet size 62
 // MnistModel size 9
+// YoloV4 size 693
 ///////////////////////////////////
 
 // Important Code
-  int dev = 2;
-  int total = 124; // Total node number (if node num 0~9 -> 10)
-  int inner = 0;
-  int outer = total / dev;
-  for(int u=0; u<dev; ++u){
-    if(u == dev - 1)
-      inner = 124; // Total node number  (if node num 0~9 -> 10)
-    else
-      inner = (u+1) * outer;
-    for(int l=outer * u; l<inner; ++l){
-      temporal_partitioning_plan.push_back(l);
-    }
-    SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
-    new_partitoning_plan_->size = temporal_partitioning_plan.size();
-    new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
-    for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
-      new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
-    }
-    partitioning_plan.push_back(new_partitoning_plan_);
-    temporal_partitioning_plan.clear();
-  }
-
-
-
-
-
-
-
-
+// // Code for regular partitioning
+//   int dev = 2;
+//   int total = 124; // Total node number (if node num 0~9 -> 10)
+//   int inner = 0;
+//   int outer = total / dev;
+//   for(int u=0; u<dev; ++u){
+//     if(u == dev - 1)
+//       inner = 124; // Total node number  (if node num 0~9 -> 10)
+//     else
+//       inner = (u+1) * outer;
+//     for(int l=outer * u; l<inner; ++l){
+//       temporal_partitioning_plan.push_back(l);
+//     }
+//     SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+//     new_partitoning_plan_->size = temporal_partitioning_plan.size();
+//     new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+//     for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+//       new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+//     }
+//     partitioning_plan.push_back(new_partitoning_plan_);
+//     temporal_partitioning_plan.clear();
+//   }
 
 
   if(false){ // No use now (for latency measure?)

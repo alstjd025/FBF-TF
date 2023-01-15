@@ -451,12 +451,12 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   
   ////////////////////////////////////////////////////////////////////
   // Legacy Code //
-  // TfLiteIntArray* ops_to_replace =
-  //     GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
-  //                     gpu_delegate->MaxDelegatedPartitions());
-  // const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
-  //     context, kRegistration, ops_to_replace, delegate);
-  // TfLiteIntArrayFree(ops_to_replace);
+  TfLiteIntArray* ops_to_replace =
+      GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
+                      gpu_delegate->MaxDelegatedPartitions());
+  const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
+      context, kRegistration, ops_to_replace, delegate);
+  TfLiteIntArrayFree(ops_to_replace);
   ////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////
@@ -467,37 +467,38 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   ///////////////////////////////////
   // MobilenetV3 size 124
   // EfficientNet size 62
+  // Yolov4 size 693
   // (dev 4 AP drop in EfficientNet --;)
   // MnistModel size 9
   ///////////////////////////////////
 
-  std::vector<int> temporal_partitioning_plan;
-  int dev = 124;
-  // checked 56, 41, 40, 35, 34 33 32, 2, 3good
-  //  30  31 5 4 bad more than
-  int total = 124; // Total node number (if node num 0~9 -> 10)
-  int inner = 0;
-  int outer = total / dev;
-  for(int u=0; u<dev; ++u){
-    if(u == dev - 1)
-      inner = 124; // Total node number  (if node num 0~9 -> 10)
-    else
-      inner = (u+1) * outer;
-    std::cout << "=================== partitioning =============" << "\n";
-    for(int l=outer * u; l<inner; ++l){
-      temporal_partitioning_plan.push_back(l);
-      std::cout << l << " ";
-    }
-    std::cout << "\n";
-    TfLiteIntArray* ops_to_replace = \
-              ConvertVectorToTfLiteIntArray(temporal_partitioning_plan);
-    const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
-              context, kRegistration, ops_to_replace, delegate);
-    if(status != kTfLiteOk)
-      return kTfLiteError;
-    temporal_partitioning_plan.clear();
-    TfLiteIntArrayFree(ops_to_replace);
-  }
+  // std::vector<int> temporal_partitioning_plan;
+  // int dev = 1;
+  // // checked 56, 41, 40, 35, 34 33 32, 2, 3good
+  // //  30  31 5 4 bad more than
+  // int total = 693; // Total node number (if node num 0~9 -> 10)
+  // int inner = 0;
+  // int outer = total / dev;
+  // for(int u=0; u<dev; ++u){
+  //   if(u == dev - 1)
+  //     inner = 693; // Total node number  (if node num 0~9 -> 10)
+  //   else
+  //     inner = (u+1) * outer;
+  //   std::cout << "=================== partitioning =============" << "\n";
+  //   for(int l=outer * u; l<inner; ++l){
+  //     temporal_partitioning_plan.push_back(l);
+  //     std::cout << l << " ";
+  //   }
+  //   std::cout << "\n";
+  //   TfLiteIntArray* ops_to_replace = \
+  //             ConvertVectorToTfLiteIntArray(temporal_partitioning_plan);
+  //   const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
+  //             context, kRegistration, ops_to_replace, delegate);
+  //   if(status != kTfLiteOk)
+  //     return kTfLiteError;
+  //   temporal_partitioning_plan.clear();
+  //   TfLiteIntArrayFree(ops_to_replace);
+  // }
 
   ////////////////////////////////////////////////////////////////////s
   // Minsung Modifyed Code ends //
@@ -505,8 +506,8 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
 
   TFLITE_LOG_PROD(TFLITE_LOG_INFO, "Created %d GPU delegate kernels.",
                   gpu_delegate->num_delegate_kernels());
-  // return status; // legacy
-  return kTfLiteOk;
+  return status; // legacy
+  //return kTfLiteOk;
 }
 
 }  // namespace

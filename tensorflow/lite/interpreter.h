@@ -403,6 +403,9 @@ class Interpreter {
   // success or failure.
   TfLiteStatus AllocateTensors();
 
+  // Minsung Allocate all tensors in subgraphs of an interpreter.
+  TfLiteStatus AllocateTensorsofAllSubgraphs();
+
   // Minsung
   TfLiteStatus SetPartitioning(int partitioning, UnitType eType);
   

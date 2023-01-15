@@ -166,11 +166,14 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         //////////////////////////////////////////////////////////////////
         // An experimental task to devide a model to multiple subgrpahs //
         //////////////////////////////////////////////////////////////////
-        // (*builder_)(interpreter, eType);
+        (*builder_)(interpreter, eType);
 
         // No multiple subgraph modifying
-        (*builder_)(interpreter);
+        //(*builder_)(interpreter);
     }
+    std::cout << "#####################################" << "\n";
+    std::cout << "# Base interpreter has been created #" << "\n";
+    std::cout << "#####################################" << "\n";
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TfLiteDelegate *MyDelegate = NULL;
     const TfLiteGpuDelegateOptionsV2 options = {
@@ -182,9 +185,11 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .experimental_flags = 1,
-        .max_delegated_partitions = 100,
+        .max_delegated_partitions = 1000,
     };
+    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphs() == kTfLiteOk)
     #ifdef MULTITHREAD
+    
     //Set Partitioning Value : GPU Side Filters
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
     //TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
@@ -196,7 +201,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         return kTfLiteError;
     }
     std::cout << "adseeeef" << "\n";
-    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);
+    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphs() == kTfLiteOk);
     std::cout << "addsfsfsdfsfsdsf" << "\n";
     UnitGPU* temp;
     //tflite::PrintInterpreterStateV2(interpreter->get());
