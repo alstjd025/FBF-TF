@@ -183,10 +183,20 @@ TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
 
 
 
-// Minsung: This function is a
+/// Minsung 
+// This function is a modified version of below one.
+// Allocate all tensors in every subgraphs.
+// TODO : Maybe need to equalize primary subgraph's output tensor shape to
+//        secondary subgraph's input tensor and same as behind subgraphs too.
 TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphs(){
   for(int i=0; i<subgraphs_size(); ++i){
     std::cout << "AllocateTensorsofAllSubgraphs [" << i << "]\n";
+    if(i > 0){
+      std::vector<int> output_dims = subgraph(i - 1)->GetOutputShape();
+      int output_tensor_idx = subgraph(i -1)->GetOutputTensorIndex();
+      // Maybe use ResizeInputTensorStrict?
+      subgraph(i)->ResizeInputTensor(output_tensor_idx, output_dims);
+    }
     if(subgraph(i)->AllocateTensors() != kTfLiteOk)
       return kTfLiteError;
   }

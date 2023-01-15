@@ -221,7 +221,7 @@ class Interpreter {
   }
 
   /// Minsung
-  /// Access to list of outputs of final subgraph of whole interpreter.ß
+  /// Access to list of outputs of final subgraph of whole interpreter.
   /// NEEDS REFACTOR! (segfault issue)
   const std::vector<int>& final_output(){
     return final_subgraph().outputs();
@@ -267,7 +267,7 @@ class Interpreter {
   }
 
   /// Minsung
-  // Get a mutable tensor data structure from a subgraph
+  // Get a mutable tensor data structure from a given subgraph.
   TfLiteTensor* tensor(int subgraph_index, int tensor_index) {
     return subgraph(subgraph_index)->tensor(tensor_index);
   }

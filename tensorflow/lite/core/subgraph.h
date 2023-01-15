@@ -343,6 +343,14 @@ class Subgraph {
     return tflite::EnumNamesBuiltinOperator()[op_reg.builtin_code];
   }
 
+  // Minsung
+  // Return output shape of current subgraph
+  std::vector<int> GetOutputShape();
+
+  // Minsung
+  // Return output tensor index of current subgraph;
+  int GetOutputTensorIndex();
+
   // Get an immutable tensor data structure.
   const TfLiteTensor* tensor(int tensor_index) const {
     if (tensor_index < 0 ||

@@ -2404,4 +2404,22 @@ TfLiteStatus Subgraph::SwitchTensor(TfLiteTensor& tensor, int idx){
   context_.tensors[idx] = tensor;
 }
 
+std::vector<int> Subgraph::GetOutputShape(){
+  int final_node = execution_plan_.size() - 1;
+  TfLiteNode& node = nodes_and_registration_[final_node].first;
+  int output_tensor = node.outputs->data[0];
+  TfLiteTensor* tensor = &tensors_[output_tensor];
+  std::vector<int> output_dims;
+  for(int i=0; i<tensor->dims->size; ++i){
+    output_dims.push_back(tensor->dims->data[i]);
+  }
+  return output_dims;
+}
+
+int Subgraph::GetOutputTensorIndex(){
+  int final_node = execution_plan_.size() - 1;
+  TfLiteNode& node = nodes_and_registration_[final_node].first;
+  return node.outputs->data[0];
+}
+
 }  // namespace tflite
