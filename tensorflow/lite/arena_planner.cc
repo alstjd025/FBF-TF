@@ -196,7 +196,7 @@ TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
   #ifdef DEBUG
   SFLAG();
   #endif
-  //std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::ExecuteAllocations()\n";
+  std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::ExecuteAllocations()\n";
   // Grow the size of `allocs_` if necessary. This allows allocating temporary
   // tensors in op's `prepare` function.
   TF_LITE_ENSURE(context_, graph_info_->num_tensors() >= allocs_.size());

@@ -404,7 +404,13 @@ class Interpreter {
   TfLiteStatus AllocateTensors();
 
   // Minsung Allocate all tensors in subgraphs of an interpreter.
+  // Call after ProfileAllSubgraphs()
   TfLiteStatus AllocateTensorsofAllSubgraphs();
+
+  // Minsung check the all dependent tensors in subgraphs
+  // Must call before AllocateTensorsofAllSubgrapghs()
+  // Must call after the interpreter has been built completely.
+  TfLiteStatus ProfileAllSubgraphs();  
 
   // Minsung
   TfLiteStatus SetPartitioning(int partitioning, UnitType eType);
