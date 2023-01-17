@@ -1046,11 +1046,6 @@ typedef struct TensorAndIndex{
   int idx;
 }TensorAndIndex;
 
-/// Minsung
-// 
-typedef struct SubgraphProfile{
-  int* subgraph_idx;
-}SubgraphProfile;
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -273,6 +273,7 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
 
   for (int i = 0; i < operators->size(); ++i) {
     const auto* op = operators->Get(i);
+    std::cout << "Parse Node op idx : " << i << " \n";
     int index = op->opcode_index();
     if (index < 0 || index >= flatbuffer_op_index_to_registration_.size()) {
       error_reporter_->Report("Missing registration for opcode_index %d\n",
@@ -324,6 +325,20 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
           FlatBufferIntArrayToVector(op->outputs()),
           FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
           builtin_data, registration);
+      std::cout << "Nodes Modifying" << "\n inputs: ";
+      for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j){
+        std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
+      }
+      std::cout << "\n outputs: ";
+      for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j){
+        std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
+      }
+      std::cout << "\n Intermediates: ";
+      for(int j=0; j<FlatBufferIntArrayToVector(op->intermediates()).size(); ++j){
+        std::cout << FlatBufferIntArrayToVector(op->intermediates())[j] << " ";
+      }
+      std::cout << "\n";
+      std::cout << "Nodes Modifyed" << "\n";
     }
   }
   return status;
@@ -391,15 +406,15 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
           FlatBufferIntArrayToVector(op->outputs()),
           FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
           builtin_data, registration);
-      std::cout << "Nodes Modifying" << "\n";
+      std::cout << "Nodes Modifying" << "\n inputs: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j){
         std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
       }
-      std::cout << "\n";
+      std::cout << "\n outputs: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j){
         std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
       }
-      std::cout << "\n";
+      std::cout << "\n Intermediates: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->intermediates()).size(); ++j){
         std::cout << FlatBufferIntArrayToVector(op->intermediates())[j] << " ";
       }
@@ -868,8 +883,8 @@ TfLiteStatus InterpreterBuilder::operator()(
 
   (*interpreter)->SetProfiler(tflite::profiling::MaybeCreatePlatformProfiler());
   // Minsung
-  // Divide a model to multiple subgraphs (experimental)
-  // Todo : Do if GPU 
+  // Divide a model into multiple subgraphs (experimental)
+  // Then, gets a whole profile of all shared tensors in each subgraph 
   if(eType == UnitType::GPU0){
     int new_subgraph_index = 0;
     int count_node_per_subgraph = 0;
@@ -883,7 +898,7 @@ TfLiteStatus InterpreterBuilder::operator()(
           // Note : Assume that we have only one subgraph before.
       const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
       if(ReadyforSubgraphPartitioning(*subgraph, flatbuffer_op_index_to_registration_,
-                  (*interpreter)->subgraph_partitioning_plan, 2) != kTfLiteOk){
+                  (*interpreter)->subgraph_partitioning_plan, -1) != kTfLiteOk){
         std::cout << "Preparing subgraph partitioning ERROR" << "\n";
         return kTfLiteError;
       }
@@ -896,11 +911,20 @@ TfLiteStatus InterpreterBuilder::operator()(
       std::vector<int>* input_tensor = new std::vector<int>;
       std::vector<int>* output_tensor = new std::vector<int>;
       std::vector<int>* tensors_ = new std::vector<int>;
+
       /////////////////////////////////////////////
       /// Refactored code for dividing subgraph ///
       /////////////////////////////////////////////
       std::vector<SubgraphPartitioningPlan*> master_partitioning_plan = 
                         (*interpreter)->subgraph_partitioning_plan;
+      //For profiling
+      std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
+      std::vector<std::pair<int, std::vector<int>>> shared_info;
+      int shared_tensor_bucket[tensors->size()][master_partitioning_plan.size()];
+      for(int i=0; i<tensors->size(); ++i)
+        for(int j=0; j<master_partitioning_plan.size(); ++j)
+        shared_tensor_bucket[i][j] = 0;
+
       for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
                                       ++partition_itr){
         if(partition_itr > 0)
@@ -941,6 +965,8 @@ TfLiteStatus InterpreterBuilder::operator()(
             if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
               return cleanup_and_error();
             }
+            std::pair<int, std::vector<int>> graph_and_tensors(partition_itr, *tensors_);
+            subgraph_and_tensors.push_back(graph_and_tensors);
             std::cout << "Cur Subgraph tensors : ";
             for(int m=0; m<tensors_->size(); ++m){
               std::cout << tensors_->at(m) << " ";
@@ -971,9 +997,38 @@ TfLiteStatus InterpreterBuilder::operator()(
         delete output_tensor;
         tensors_ = new std::vector<int>;
         output_tensor = new std::vector<int>;
-      } /// Refactored
+      } 
+      // Check for shared tensors
+      for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
+        std::cout << "subgraph [" << graph_idx << "] tensors" << "\n";
+        for(size_t j=0; j<subgraph_and_tensors[graph_idx].second.size(); ++j){
+          int tensor = subgraph_and_tensors[graph_idx].second[j];
+          if(shared_tensor_bucket[tensor][graph_idx] != 1)
+            shared_tensor_bucket[tensor][graph_idx] = 1; // Tensor shared flag
+          std::cout << tensor << " ";
+        }
+        std::cout << "\n";
+      }
+      // Save info to interpreter's graph_and_shared_tensor.
+      // Will used when AllocateTensorsofAllSubgraphs called.
+      for(size_t t=0; t<tensors->size(); ++t){
+        std::pair<int, std::vector<int>> pair_tensor_graph;
+        std::vector<int> sharing_subgraph_indicies;
+        for(size_t g=0; g<subgraph_and_tensors.size(); ++g){
+          if(shared_tensor_bucket[t][g]){
+            sharing_subgraph_indicies.push_back(g);
+          }
+        }
+        if(sharing_subgraph_indicies.size() > 1){
+          pair_tensor_graph.first = t;        // tensor index
+          pair_tensor_graph.second = sharing_subgraph_indicies; // subgraph indicies
+          shared_info.push_back(pair_tensor_graph);
+        }
+        sharing_subgraph_indicies.clear();
+      }
+      (*interpreter)->shared_tensor_and_graph = shared_info;
     }
-  }else{
+  }else{ // If it's not a GPU interpreter, there's no need to divide subgraph currently.
     for (int subgraph_index = 0; subgraph_index < subgraphs->size();
         ++subgraph_index) {
       const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
@@ -1141,6 +1196,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
 
   if(max_partitioning < 2)
     max_partitioning = 2; // We use at least two partition.
+                          // max partitioning == -1 means no limit.
   auto operators = origin_subgraph.operators();
   std::cout << "origin size : " << operators->size() << "\n";
   int partitioning_jobs = 0;
@@ -1151,7 +1207,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
 
 
 
-  for(int i=0; i<17; ++i){
+  for(int i=0; i<5; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
@@ -1164,7 +1220,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   temporal_partitioning_plan.clear();
 
 
-  for(int i=17; i<124; ++i){
+  for(int i=5; i<124; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   new_partitoning_plan_ = new SubgraphPartitioningPlan;

@@ -765,6 +765,8 @@ class Interpreter {
   // (for complicated tensor flows) 
   std::vector<TensorAndIndex*> used_tensor_and_index;
 
+  // Minsung
+  std::vector<std::pair<int, std::vector<int>>> shared_tensor_and_graph;
 
   // Misnung
   // An interface for dynamic subgraph partitioning (for multiple delegates)

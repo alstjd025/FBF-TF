@@ -189,9 +189,6 @@ TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
 //  This is an expensive task because it iterates with the whole subgraph
 //  and every tensors in them.
 TfLiteStatus Interpreter::ProfileAllSubgraphs(){
-  for(int i=0; i<subgraphs_size(); ++i){
-    
-  }
   return kTfLiteOk;
 }
 
@@ -202,6 +199,12 @@ TfLiteStatus Interpreter::ProfileAllSubgraphs(){
 // Allocate all tensors in every subgraphs.
 // TODO : Need to equalize tensor shapes which shared by more then one subgraph.
 TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphs(){
+  for(int i=0; i<shared_tensor_and_graph.size(); ++i){
+    std::cout << "shared tensor [" << shared_tensor_and_graph[i].first << "] \n";
+    for(int j=0; j<shared_tensor_and_graph[i].second.size(); ++j)
+      std::cout << shared_tensor_and_graph[i].second[j] << " ";
+    std::cout << "\n";
+  }
   for(int i=0; i<subgraphs_size(); ++i){
     std::cout << "AllocateTensorsofAllSubgraphs [" << i << "]\n";
     if(i > 0){
