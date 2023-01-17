@@ -403,8 +403,12 @@ class Interpreter {
   // success or failure.
   TfLiteStatus AllocateTensors();
 
+  // Minsung Allocate all tensors in subgraphs of an interpreter and fixes tensor shapes.
+  TfLiteStatus AllocateTensorsofAllSubgraphsAndFixShape();
+
+  
   // Minsung Allocate all tensors in subgraphs of an interpreter.
-  // Call after ProfileAllSubgraphs()
+  // Must Call after Delegation
   TfLiteStatus AllocateTensorsofAllSubgraphs();
 
   // Minsung check the all dependent tensors in subgraphs

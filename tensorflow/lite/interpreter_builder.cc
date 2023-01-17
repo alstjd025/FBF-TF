@@ -1207,7 +1207,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
 
 
 
-  for(int i=0; i<5; ++i){
+  for(int i=0; i<16; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
@@ -1220,7 +1220,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   temporal_partitioning_plan.clear();
 
 
-  for(int i=5; i<124; ++i){
+  for(int i=16; i<124; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   new_partitoning_plan_ = new SubgraphPartitioningPlan;

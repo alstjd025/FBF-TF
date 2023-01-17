@@ -348,6 +348,10 @@ class Subgraph {
   std::vector<int> GetOutputShape();
 
   // Minsung
+  // Return a given tensor's shape
+  std::vector<int> GetTensorShape(int tensor_index);
+
+  // Minsung
   // Return output tensor index of current subgraph;
   int GetOutputTensorIndex();
 

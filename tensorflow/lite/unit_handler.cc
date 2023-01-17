@@ -187,22 +187,19 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .experimental_flags = 1,
         .max_delegated_partitions = 1000,
     };
-    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphs() == kTfLiteOk)
+    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
     #ifdef MULTITHREAD
     
     //Set Partitioning Value : GPU Side Filters
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
     //TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
-    std::cout << "adsf" << "\n";
     MyDelegate = TfLiteGpuDelegateV2Create(&options);
     if(interpreter->get()->ModifyGraphWithDelegate(MyDelegate) != kTfLiteOk) {
         PrintMsg("Unable to Use GPU Delegate");
         return kTfLiteError;
     }
-    std::cout << "adseeeef" << "\n";
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphs() == kTfLiteOk);
-    std::cout << "addsfsfsdfsfsdsf" << "\n";
     UnitGPU* temp;
     //tflite::PrintInterpreterStateV2(interpreter->get());
     temp = new UnitGPU(eType, std::move(interpreter));

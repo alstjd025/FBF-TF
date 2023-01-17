@@ -2416,6 +2416,15 @@ std::vector<int> Subgraph::GetOutputShape(){
   return output_dims;
 }
 
+std::vector<int> Subgraph::GetTensorShape(int tensor_index){
+  TfLiteTensor* tensor = &tensors_[tensor_index];
+  std::vector<int> dims;
+  for(int i=0; i<tensor->dims->size; ++i){
+    dims.push_back(tensor->dims->data[i]);
+  }
+  return dims;  
+}
+
 int Subgraph::GetOutputTensorIndex(){
   int final_node = execution_plan_.size() - 1;
   TfLiteNode& node = nodes_and_registration_[final_node].first;

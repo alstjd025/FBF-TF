@@ -198,26 +198,42 @@ TfLiteStatus Interpreter::ProfileAllSubgraphs(){
 // This function is a modified version of below one.
 // Allocate all tensors in every subgraphs.
 // TODO : Need to equalize tensor shapes which shared by more then one subgraph.
-TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphs(){
+TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphsAndFixShape(){
+  if(subgraph(0)->AllocateTensors() != kTfLiteOk)
+    return kTfLiteError;
+  // First fix every shared tensor's size with base tensors in primary subgraph.
   for(int i=0; i<shared_tensor_and_graph.size(); ++i){
     std::cout << "shared tensor [" << shared_tensor_and_graph[i].first << "] \n";
-    for(int j=0; j<shared_tensor_and_graph[i].second.size(); ++j)
+    int base_tensor = shared_tensor_and_graph[i].first;
+    TfLiteTensor* working_tensor;
+    std::vector<int> match_dims;
+    for(int j=0; j<shared_tensor_and_graph[i].second.size(); ++j){
       std::cout << shared_tensor_and_graph[i].second[j] << " ";
+      int working_subgraph = shared_tensor_and_graph[i].second[j];
+      if(j == 0){
+        working_tensor = subgraph(working_subgraph)->tensor(base_tensor);
+        match_dims = subgraph(working_subgraph)->GetTensorShape(base_tensor);
+      }
+      else
+        subgraph(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
+    }
+    working_tensor = nullptr;
+    match_dims.clear();
     std::cout << "\n";
   }
-  for(int i=0; i<subgraphs_size(); ++i){
-    std::cout << "AllocateTensorsofAllSubgraphs [" << i << "]\n";
-    if(i > 0){
-      std::vector<int> output_dims = subgraph(i - 1)->GetOutputShape();
-      int output_tensor_idx = subgraph(i -1)->GetOutputTensorIndex();
-      std::cout << "Equalizing output & input tensor " << output_tensor_idx << "\n"; 
-      // Maybe use ResizeInputTensorStrict?
-      subgraph(i)->ResizeInputTensor(output_tensor_idx, output_dims);
-    }
+  // Then allocate every tensors
+  for(int i=1; i<subgraphs_size(); ++i){
     if(subgraph(i)->AllocateTensors() != kTfLiteOk)
       return kTfLiteError;
   }
   return kTfLiteOk;
+}
+
+TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphs(){
+  for(int i=0; i < subgraphs_size(); ++i){
+    if(subgraph(i)->AllocateTensors() != kTfLiteOk)
+      return kTfLiteError;
+  }
 }
 
 // Minsung MUST_CHECK
