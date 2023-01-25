@@ -318,10 +318,10 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
 #ifdef DEBUG
   //SFLAG();
 #endif
-  printf("Prepare\n");
+  //printf("Prepare\n");
   auto* params = reinterpret_cast<TfLiteConvParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);
-  printf("Prepare_\n");
+  //printf("Prepare_\n");
   bool has_bias = node->inputs->size == 3;
   // Check number of inputs/outputs
   TF_LITE_ENSURE(context, has_bias || node->inputs->size == 2);
@@ -332,20 +332,20 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));
   const TfLiteTensor* filter;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 1, &filter));
-  printf("Prepare__\n");
-  if(filter->dims == nullptr)
-    std::cout << "it's null" << "\n";
-  std::cout << input->dims->size << "\n";
-  for(int i=0; i<input->dims->size; ++i){
-    std::cout << input->dims->data[i] << " ";
-  }
-  std::cout << "\n";
-  std::cout << output->dims->size << "\n";
-  std::cout << " filter: "<< filter->dims->size << "\n";
+  // printf("Prepare__\n");
+  // if(filter->dims == nullptr)
+  //   std::cout << "it's null" << "\n";
+  // std::cout << input->dims->size << "\n";
+  // for(int i=0; i<input->dims->size; ++i){
+  //   std::cout << input->dims->data[i] << " ";
+  // }
+  // std::cout << "\n";
+  // std::cout << output->dims->size << "\n";
+  // std::cout << " filter: "<< filter->dims->size << "\n";
   // Check dimensionality of input, filter
-  std::cout << input->dims->size << "\n";
+  //std::cout << input->dims->size << "\n";
   TF_LITE_ENSURE_EQ(context, input->dims->size, 4);
-  std::cout << filter->dims->size << "\n";
+  //std::cout << filter->dims->size << "\n";
   TF_LITE_ENSURE_EQ(context, filter->dims->size, 4);
   // Check input channels matching filter
   
@@ -354,18 +354,15 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
 
   // Check types. (We assume that UINT8 refers to quantized tensors)
   TfLiteType input_type = input->type;
-  printf("Prepare___\n");
   TF_LITE_ENSURE(context,
                  input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
                      input_type == kTfLiteInt8 || input_type == kTfLiteInt16);
   TF_LITE_ENSURE_TYPES_EQ(context, output->type, input_type);
-  printf("Prepare____\n");
   const TfLiteTensor* bias = nullptr;
 
   // TODO(ahentz): At this point the optimized versions require 'bias'. We can
   // either change that or document that convolution requires it.
   TF_LITE_ENSURE(context, has_bias);
-  printf("Prepare2\n");
   if (has_bias) {
     TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 2, &bias));
     if (input_type == kTfLiteUInt8 || input_type == kTfLiteInt8) {
@@ -381,7 +378,6 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
     }
     TF_LITE_ENSURE_EQ(context, NumElements(bias), SizeOfDimension(filter, 0));
   }
-  printf("Prepare3\n");
   const bool is_hybrid =
       (input->type == kTfLiteFloat32 &&
        (filter->type == kTfLiteUInt8 || filter->type == kTfLiteInt8));
@@ -404,7 +400,6 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
       }
     }
   }
-  printf("Prepare4\n");
   // The multi-threaded kernel supports neither dilation nor hybrid kernels, and
   // is incompatible with mutable input filters that might change between evals.
   data->supports_multithreaded_kernel =
@@ -414,10 +409,8 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
       (params->dilation_height_factor == 1) &&
       (filter->allocation_type != kTfLiteArenaRw) &&
       !IsDynamicTensor(filter);
-  printf("Prepare5\n");
   TF_LITE_ENSURE_STATUS(AllocateTemporaryTensorsIfRequired(
       context, node, is_hybrid, data->is_hybrid_per_channel, kernel_type));
-  printf("Prepare6\n");
   int channels_in = filter->dims->data[3];
   int channels_out = filter->dims->data[0];
   int width = input->dims->data[2];
@@ -435,7 +428,6 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
       width, filter_height, filter_width, padding, &out_height, &out_width);
 
   TF_LITE_ENSURE(context, has_bias);
-  printf("Prepare7\n");
   // Note that full fixed-point inference requires that all tensors have their
   // parameters set. This is usually done during quantized training or
   // calibration.
@@ -459,7 +451,6 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
         data->per_channel_output_multiplier.data(),
         data->per_channel_output_shift.data(), channels_out));
   }
-  printf("Prepare8\n");
   TfLiteIntArray* output_size = TfLiteIntArrayCreate(4);
   output_size->data[0] = batches;
   output_size->data[1] = out_height;
@@ -468,7 +459,6 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
   auto output_status = context->ResizeTensor(context, output, output_size);
 
   if (output_status != kTfLiteOk) return output_status;
-  printf("Prepare9\n");
   if (data->need_im2col) {
     node->temporaries->data[data->im2col_index] = data->im2col_id;
 
@@ -490,7 +480,6 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
     auto im2col_status = context->ResizeTensor(context, im2col, im2col_size);
     if (im2col_status != kTfLiteOk) return im2col_status;
   }
-  printf("Prepare10\n");
   if (data->need_hwcn_weights) {
     node->temporaries->data[data->hwcn_weights_index] = data->hwcn_weights_id;
     TfLiteIntArray* hwcn_weights_size = TfLiteIntArrayCreate(2);
@@ -516,9 +505,7 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
     // changed, this will do extra redundant work.
     data->have_weights_been_transposed = false;
   }
-  printf("Prepare11\n");
   if (is_hybrid) {
-    printf("Prepare hybrid\n");
     node->temporaries->data[data->input_quantized_index] =
         data->input_quantized_id;
     TfLiteTensor* input_quantized;
@@ -552,7 +539,6 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
       TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, scaling_factors,
                                                        scaling_factors_size));
     }
-    printf("Prepare hybrid 2\n");
     node->temporaries->data[data->accum_scratch_index] = data->accum_scratch_id;
     TfLiteTensor* accum_scratch;
     TF_LITE_ENSURE_OK(context,

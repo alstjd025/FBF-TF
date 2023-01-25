@@ -941,7 +941,7 @@ TfLiteStatus InterpreterBuilder::operator()(
             tensors_->push_back(FlatBufferIntArrayToVector(op->inputs())[k]);
           for(int k=0; k<FlatBufferIntArrayToVector(op->outputs()).size(); ++k)
             tensors_->push_back(FlatBufferIntArrayToVector(op->outputs())[k]);          
-          
+
           /// input tensor should be first node's input tensor in partitioning plan
           if(j == 0){
             input_tensor = new std::vector<int>;
@@ -1009,7 +1009,7 @@ TfLiteStatus InterpreterBuilder::operator()(
         }
         std::cout << "\n";
       }
-      // Save info to interpreter's graph_and_shared_tensor.
+      // Save shared tensor info to interpreter's graph_and_shared_tensor.
       // Will used when AllocateTensorsofAllSubgraphs called.
       for(size_t t=0; t<tensors->size(); ++t){
         std::pair<int, std::vector<int>> pair_tensor_graph;
@@ -1204,10 +1204,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   std::vector<int> temporal_partitioning_plan;
   // Assume that operators always sorted in origin node order from model.
 
-
-
-
-  for(int i=0; i<16; ++i){
+  for(int i=0; i<110; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
@@ -1220,7 +1217,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   temporal_partitioning_plan.clear();
 
 
-  for(int i=16; i<124; ++i){
+  for(int i=110; i<124; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   new_partitoning_plan_ = new SubgraphPartitioningPlan;

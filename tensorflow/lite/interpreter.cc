@@ -181,23 +181,9 @@ TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
   return primary_subgraph().SetVariables(std::move(variables));
 }
 
-
-/// Minsung
-//  Get a profile of all subgraphs in current interpreter.
-//  (Checks every tensor to get a complete view of dependencies of
-//  each subgraphs.)
-//  This is an expensive task because it iterates with the whole subgraph
-//  and every tensors in them.
-TfLiteStatus Interpreter::ProfileAllSubgraphs(){
-  return kTfLiteOk;
-}
-
-
-
 /// Minsung 
 // This function is a modified version of below one.
 // Allocate all tensors in every subgraphs.
-// TODO : Need to equalize tensor shapes which shared by more then one subgraph.
 TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphsAndFixShape(){
   if(subgraph(0)->AllocateTensors() != kTfLiteOk)
     return kTfLiteError;

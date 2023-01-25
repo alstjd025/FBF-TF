@@ -974,6 +974,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
   SFLAG();
 #endif
   if (!memory_planner_) {
+    std::cout << "Reset Memory Planner" << "\n";
     memory_planner_.reset(new ArenaPlanner(
         &context_, std::unique_ptr<GraphInfo>(new InterpreterInfo(this)),
         /*preserve_inputs=*/true, /*preserve_intermediates*/ false,
@@ -1010,6 +1011,10 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
                            execution_plan_, &last_exec_plan_index_prepared));
   next_execution_plan_index_to_prepare_ = last_exec_plan_index_prepared + 1;
 
+  std::cout << "next_execution_plan_index_to_plan_allocation_ : "\
+                << next_execution_plan_index_to_plan_allocation_ << "\n";
+  std::cout << "last_exec_plan_index_prepared : " \
+                << last_exec_plan_index_prepared << "\n";
   // Execute arena allocations.
   TF_LITE_ENSURE_STATUS(memory_planner_->ExecuteAllocations(
       next_execution_plan_index_to_plan_allocation_,
@@ -1153,7 +1158,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                            "failed to invoke");
     }
     
-    //PrintOutputTensor(node, eType);
+    PrintOutputTensor(node, eType);
 
     #ifdef debug
     if(eType == UnitType::CPU0){
