@@ -756,6 +756,11 @@ class Subgraph {
   static TfLiteStatus GetExecutionPlan(struct TfLiteContext* context,
                                        TfLiteIntArray** execution_plan);
 
+  /// Minsung
+  // Above functions have bug.
+  // So better use this one.
+  void GetExecutionPlanSafe(TfLiteIntArray** execution_plan);
+
   // WARNING: This is an experimental interface that is subject to change.
   // Provides a preview of post-delegation partitioning. Each
   // TfLiteDelegateParams in the referenced array corresponds to one instance of

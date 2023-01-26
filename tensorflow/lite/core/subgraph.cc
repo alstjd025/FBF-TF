@@ -492,6 +492,14 @@ TfLiteStatus Subgraph::GetExecutionPlan(struct TfLiteContext* context,
       ->GetExecutionPlan(execution_plan);
 }
 
+/// Minsung
+void Subgraph::GetExecutionPlanSafe(TfLiteIntArray** execution_plan){
+  (*execution_plan) = TfLiteIntArrayCreate(execution_plan_.size());
+  for(int i = 0; i<execution_plan_.size(); ++i){
+    (*execution_plan)->data[i] = execution_plan_[i];
+  }
+}
+
 void Subgraph::FreeDelegatePartitioningData() {
   for (auto& params : partitioning_preview_cache_) {
     TfLiteIntArrayFree(params.nodes_to_replace);
@@ -1158,7 +1166,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                            "failed to invoke");
     }
     
-    PrintOutputTensor(node, eType);
+    //PrintOutputTensor(node, eType);
 
     #ifdef debug
     if(eType == UnitType::CPU0){

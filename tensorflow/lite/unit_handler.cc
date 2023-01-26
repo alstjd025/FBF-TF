@@ -188,8 +188,8 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .max_delegated_partitions = 1000,
     };
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
+    tflite::PrintInterpreterStateV2(interpreter->get());
     #ifdef MULTITHREAD
-    
     //Set Partitioning Value : GPU Side Filters
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
     //TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
@@ -209,7 +209,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     iUnitCount++;
     PrintMsg("Build GPU Interpreter");
     PrintMsg("GPU Interpreter Pre Invoke State");
-    tflite::PrintInterpreterStateV2(interpreter->get());
+    //tflite::PrintInterpreterStateV2(interpreter->get());
     return kTfLiteOk;
 }
 

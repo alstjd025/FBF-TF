@@ -204,6 +204,7 @@ TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
   dealloc_node_.resize(graph_info_->num_tensors(), kNodeNotAssigned);
   allocs_.resize(graph_info_->num_tensors());
   // Set allocation and deallocation for temporary tensors.
+  std::cout << "Alloc node size : " << alloc_node_.size() << "\n";
   for (size_t i = first_node; i <= static_cast<size_t>(last_node) &&
                               i < graph_info_->num_execution_nodes();
        ++i) {
@@ -296,7 +297,7 @@ std::vector<int32_t> ArenaPlanner::CreateTensorAllocationVector(int first_node,
     // Tensors with equal size are sorted in order of their allocation time.
     return this->alloc_node_[idx1] < this->alloc_node_[idx2];
   };
-
+  std::cout << "Graph tensors : " << static_cast<int>(graph_info_->num_tensors()) << "\n";
   std::vector<int32_t> tensor_order;
   for (int i = 0; i < static_cast<int>(graph_info_->num_tensors()); ++i) {
     if (alloc_node_[i] >= first_node && alloc_node_[i] <= last_node) {
@@ -310,10 +311,6 @@ std::vector<int32_t> ArenaPlanner::CreateTensorAllocationVector(int first_node,
 }
 
 TfLiteStatus ArenaPlanner::CalculateAllocations(int first_node, int last_node) {
-  #ifdef DEBUG
-  SFLAG();
-  #endif
-  //std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::CalculateAllocations()\n";
   // Indices of tensors in order their allocation offsets will be calculated.
   const std::vector<int32_t> tensor_order =
       CreateTensorAllocationVector(first_node, last_node);
@@ -329,6 +326,7 @@ TfLiteStatus ArenaPlanner::CalculateAllocations(int first_node, int last_node) {
 
   // Vector of ids of already allocated tensors, ordered by offset.
   for (const auto& tensor_index : tensor_order) {
+      std::cout << "temp tensor idx : " << tensor_index << "\n";
     TfLiteTensor& tensor = *graph_info_->tensor(tensor_index);
     if (tensor.allocation_type == kTfLiteArenaRw) {
       std::cout << "Allocates tensor " << tensor_index << "\n";

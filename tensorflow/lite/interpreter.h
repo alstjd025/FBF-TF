@@ -406,6 +406,10 @@ class Interpreter {
   // Minsung Allocate all tensors in subgraphs of an interpreter and fixes tensor shapes.
   TfLiteStatus AllocateTensorsofAllSubgraphsAndFixShape();
 
+  // Minsung
+  // Get intermediate tensor range (begin, end)
+  // 
+  TfLiteStatus GetIntermediateTensorRange(int* begin, int* end);
   
   // Minsung Allocate all tensors in subgraphs of an interpreter.
   // Must Call after Delegation

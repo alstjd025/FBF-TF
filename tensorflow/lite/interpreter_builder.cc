@@ -972,8 +972,10 @@ TfLiteStatus InterpreterBuilder::operator()(
               std::cout << tensors_->at(m) << " ";
             }
             std::cout << "\n";
-            new_subgraph->SetInputs(*input_tensor);
-            new_subgraph->SetOutputs(*output_tensor);
+            new_subgraph->SetInputs(
+                        std::vector<int>(input_tensor->begin(), input_tensor->end()));
+            new_subgraph->SetOutputs(
+                        std::vector<int>(output_tensor->begin(), output_tensor->end()));
             if (ParseNodes(operators, new_subgraph,\
                             nodes_in_partition[0], nodes_in_partition[j]) != kTfLiteOk)
               return cleanup_and_error();
@@ -1202,9 +1204,13 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   int partitioning_jobs = 0;
   bool divide_mark = false;
   std::vector<int> temporal_partitioning_plan;
-  // Assume that operators always sorted in origin node order from model.
 
-  for(int i=0; i<110; ++i){
+
+  // Assume that operators always sorted in origin node order from model.
+  
+
+
+  for(int i=0; i<10; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
@@ -1217,7 +1223,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   temporal_partitioning_plan.clear();
 
 
-  for(int i=110; i<124; ++i){
+  for(int i=10; i<62; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   new_partitoning_plan_ = new SubgraphPartitioningPlan;
@@ -1228,6 +1234,100 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   }
   partitioning_plan.push_back(new_partitoning_plan_);
   temporal_partitioning_plan.clear();
+
+
+
+  // FOR MobileNetV3!
+  // for(int i=0; i<7; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=7; i<14; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=14; i<31; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=31; i<63; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=63; i<84; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=84; i<105; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=105; i<124; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+  // FOR MobileNetV3!
 
 ///////////////////////////////////
 // MobilenetV3 size 124

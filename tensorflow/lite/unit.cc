@@ -326,13 +326,13 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
             #ifdef imagenet
-                for (int i =0; i<1000; i++){
-                    float value = interpreterGPU->get()->typed_output_tensor<float>(0)[i];
-                    printf("label : %d, pre : %0.5f \n", i, value);
-                    //if(value > 0.5)
-                    //    printf("label : %d, pre : %0.5f \n", i, value);
-                }
-                //interpreterGPU->get()->PrintOutputTensor(eType);
+                // for (int i =0; i<1000; i++){
+                //     float value = interpreterGPU->get()->typed_output_tensor<float>(0)[i];
+                //     printf("label : %d, pre : %0.5f \n", i, value);
+                //     //if(value > 0.5)
+                //     //    printf("label : %d, pre : %0.5f \n", i, value);
+                // }
+                interpreterGPU->get()->PrintOutputTensor(eType);
             #endif
             #ifdef mnist
                 // for (int i =0; i<10; i++){

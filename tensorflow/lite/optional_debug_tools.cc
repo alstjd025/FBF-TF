@@ -142,26 +142,11 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
   printf("Interpreter has %d subgraphs\n", subgraph_size);
   for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
     std::cout << "======================================" << "\n";
-    int tensor_size = interpreter->tensors_size();
+    int tensor_size = interpreter->subgraph(subgraph_index)->tensors_size();
     int node_size = interpreter->nodes_size(subgraph_index);
     printf("Subgraph %d has %d tensors and %d nodes\n", subgraph_index,
         tensor_size, node_size);
-    printf("Inputs:");
-    PrintIntVector(interpreter->inputs(subgraph_index));
-    printf("Outputs:");
-    PrintIntVector(interpreter->outputs(subgraph_index));
-    printf("\n");
-    for (size_t tensor_index = 0; tensor_index < tensor_size-1;
-       tensor_index++) {
-      TfLiteTensor* tensor = interpreter->tensor(subgraph_index, static_cast<int>(tensor_index));
-      printf("Tensor %3zu %-20s %10s %15s %10zu bytes (%4.1f MB) ", tensor_index,
-           tensor->name, TensorTypeName(tensor->type),
-           AllocTypeName(tensor->allocation_type), tensor->bytes,
-           (static_cast<float>(tensor->bytes) / (1 << 20)));
-      PrintTfLiteIntVector(tensor->dims);
-    }
-    printf("\n");
-    printf("Node Info \n");
+    
     for (size_t node_index = 0; node_index < node_size;
         node_index++) {
       const std::pair<TfLiteNode, TfLiteRegistration>* node_and_reg =
@@ -188,6 +173,23 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
         PrintTfLiteIntVector(node.temporaries);
       }
     }
+    std::cout << "======================================" << "\n";
+    printf("Inputs:");
+    PrintIntVector(interpreter->inputs(subgraph_index));
+    printf("Outputs:");
+    PrintIntVector(interpreter->outputs(subgraph_index));
+    printf("\n");
+    for (size_t tensor_index = 0; tensor_index < tensor_size-1;
+       tensor_index++) {
+      TfLiteTensor* tensor = interpreter->tensor(subgraph_index, static_cast<int>(tensor_index));
+      printf("Tensor %3zu %-20s %10s %15s %10zu bytes (%4.1f MB) ", tensor_index,
+           tensor->name, TensorTypeName(tensor->type),
+           AllocTypeName(tensor->allocation_type), tensor->bytes,
+           (static_cast<float>(tensor->bytes) / (1 << 20)));
+      PrintTfLiteIntVector(tensor->dims);
+    }
+    printf("\n");
+    printf("Node Info \n");
   }
  
 
