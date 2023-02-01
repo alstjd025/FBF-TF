@@ -1207,10 +1207,8 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
 
 
   // Assume that operators always sorted in origin node order from model.
-  
 
-
-  for(int i=0; i<10; ++i){
+  for(int i=0; i<31; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
@@ -1223,7 +1221,7 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   temporal_partitioning_plan.clear();
 
 
-  for(int i=10; i<62; ++i){
+  for(int i=31; i<693; ++i){
     temporal_partitioning_plan.push_back(i);
   }
   new_partitoning_plan_ = new SubgraphPartitioningPlan;
@@ -1236,6 +1234,72 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   temporal_partitioning_plan.clear();
 
 
+
+
+  // For Yolov4
+  // for(int i=0; i<516; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // SubgraphPartitioningPlan* new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=516; i<517; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=517; i<580; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+  // for(int i=580; i<581; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+
+
+  // for(int i=581; i<693; ++i){
+  //   temporal_partitioning_plan.push_back(i);
+  // }
+  // new_partitoning_plan_ = new SubgraphPartitioningPlan;
+  // new_partitoning_plan_->size = temporal_partitioning_plan.size();
+  // new_partitoning_plan_->nodes = new int[temporal_partitioning_plan.size()];
+  // for(size_t j=0; j<temporal_partitioning_plan.size(); ++j){
+  //   new_partitoning_plan_->nodes[j] = temporal_partitioning_plan[j];
+  // }
+  // partitioning_plan.push_back(new_partitoning_plan_);
+  // temporal_partitioning_plan.clear();
+  // For Yolov4
 
   // FOR MobileNetV3!
   // for(int i=0; i<7; ++i){
@@ -1330,10 +1394,10 @@ TfLiteStatus InterpreterBuilder::ReadyforSubgraphPartitioning(
   // FOR MobileNetV3!
 
 ///////////////////////////////////
-// MobilenetV3 size 124
+// MobilenetV3 size 124   [789 790]
 // EfficientNet size 62
 // MnistModel size 9
-// YoloV4 size 693
+// YoloV4 size 693 -> 644, 580, 516 SPLIt_V
 ///////////////////////////////////
 
 // Important Code

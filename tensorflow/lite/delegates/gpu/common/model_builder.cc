@@ -2867,6 +2867,25 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
       }
     }
   }
+  /// Minsung
+  // SPLIT_V operation is not supported for GPU currently
+  // in yolov_4
+  if(registration->builtin_code == 102){
+    printf("Found a SPLIT_V layer.");
+    return false;
+  }
+  /// delete this later
+  if(registration->builtin_code == 18){
+    printf("Found a NUL layer.");
+    return false;
+  }
+  if(registration->builtin_code == 0){
+    printf("Found a ADD layer.");
+    return false;
+  }
+  ///del
+
+  
   if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
       !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) {
     if (unsupported_details) {

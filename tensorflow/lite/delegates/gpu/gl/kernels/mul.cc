@@ -79,8 +79,13 @@ absl::Status GenerateApplyMaskCode(const NodeShader::GenerationContext& ctx,
   return absl::OkStatus();
 }
 
+/// Minsung
+// yolov4 problem here on node 530  MUL
 absl::Status GenerateMultiplyScalarCode(
     const NodeShader::GenerationContext& ctx, GeneratedCode* generated_code) {
+  
+  /// Minsung
+  // Problem occurs right here
   const auto& attr = absl::any_cast<const ElementwiseAttributes&>(ctx.op_attr);
 
   if (absl::holds_alternative<float>(attr.param)) {
@@ -150,9 +155,13 @@ class Multiply : public NodeShader {
  public:
   absl::Status GenerateCode(const GenerationContext& ctx,
                             GeneratedCode* generated_code) const final {
+    //Minsung
+    std::cout << "Mul Gencode 1" << "\n";
     if (IsApplyMaskSupported(ctx)) {
+      std::cout << "Mul Gencode 2" << "\n";
       return GenerateApplyMaskCode(ctx, generated_code);
     } else {
+      std::cout << "Mul Gencode 3" << "\n";
       return GenerateMultiplyScalarCode(ctx, generated_code);
     }
   }

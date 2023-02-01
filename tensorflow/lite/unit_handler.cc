@@ -166,10 +166,10 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         //////////////////////////////////////////////////////////////////
         // An experimental task to devide a model to multiple subgrpahs //
         //////////////////////////////////////////////////////////////////
-        (*builder_)(interpreter, eType);
+        //(*builder_)(interpreter, eType);
 
         // No multiple subgraph modifying
-        //(*builder_)(interpreter);
+        (*builder_)(interpreter);
     }
     std::cout << "#####################################" << "\n";
     std::cout << "# Base interpreter has been created #" << "\n";
@@ -187,8 +187,8 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .experimental_flags = 1,
         .max_delegated_partitions = 1000,
     };
-    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
-    tflite::PrintInterpreterStateV2(interpreter->get());
+    //TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
+    //tflite::PrintInterpreterStateV2(interpreter->get());
     #ifdef MULTITHREAD
     //Set Partitioning Value : GPU Side Filters
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
@@ -201,7 +201,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     }
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphs() == kTfLiteOk);
     UnitGPU* temp;
-    //tflite::PrintInterpreterStateV2(interpreter->get());
+    tflite::PrintInterpreterStateV2(interpreter->get());
     temp = new UnitGPU(eType, std::move(interpreter));
     temp->SetInput(input);
     //Set ContextHandler Pointer

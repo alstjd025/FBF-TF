@@ -1849,6 +1849,8 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         reset_delegation_if_not_ok(EnsureMemoryAllocations()));
   }
   delegates_applied_.push_back(delegate);
+  std::cout << "ModifyGraphWithDelegate for plan " << execution_plan_.size()\
+            << " done \n"; 
   return status;
 }
 

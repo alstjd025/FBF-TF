@@ -1,13 +1,13 @@
 #include "unit.h"
-#define SEQ 1
+#define SEQ 60000
 #define OUT_SEQ 1
 #define GPUONLY
 //#define quantize
 #define MONITORING
 //#define mnist
 // #define catdog
-#define imagenet
-//#define mnist
+//#define imagenet
+#define mnist
 
 std::mutex mtx_lock;
 

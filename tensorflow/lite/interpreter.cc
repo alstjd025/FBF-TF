@@ -222,6 +222,9 @@ TfLiteStatus Interpreter::AllocateTensorsofAllSubgraphsAndFixShape(){
   //   if(subgraph(i)->AllocateTensors() != kTfLiteOk)
   //     return kTfLiteError;
   // }
+  std::cout << "##################################" << "\n";
+  std::cout << "# Tensor allocation looking good #" << "\n";
+  std::cout << "##################################" << "\n";
   return kTfLiteOk;
 }
 

@@ -127,21 +127,30 @@ class CompilerImpl : public Compiler {
 
     // Generate a shader for a node and all input/output objects.
     for (auto node : compiled_graph_.nodes()) {
+      std::cout << "generate shader of node : " << node->id << "\n";
       CompiledNodeAttributes attr;
       attr.node_indices.push_back(node->id);
       NodeShader::GenerationContext ctx = {&gpu_info_, options_,
                                            node->operation.type,
                                            node->operation.attributes};
+      std::cout << "node has val : " << node->operation.attributes.has_value() << "\n";
+      std::cout <<  "node->op type :" << node->operation.type << "\n";
+      std::cout <<  "node->op attr :" << node->operation.attributes.type().name() << "\n";
       for (const auto& tensor : graph.FindInputs(node->id)) {
         const auto& shape = tensor->tensor.shape;
         ctx.input_shapes.push_back({shape.b, shape.h, shape.w, shape.c});
       }
+      std::cout << "generate shader 1 " << "\n";
       for (const auto& tensor : graph.FindOutputs(node->id)) {
         const auto& shape = tensor->tensor.shape;
         ctx.output_shapes.push_back({shape.b, shape.h, shape.w, shape.c});
       }
+      std::cout << "generate shader 2 " << "\n";
+      std::cout << "op_arrt :" << ctx.op_attr.type().name() << "\n";
+      std::cout << "op_arrt has value:" << ctx.op_attr.has_value() << "\n";
       RETURN_IF_ERROR(node_shader_.GenerateCode(ctx, &attr.code));
       node->operation.attributes = std::move(attr);
+      std::cout << "generate shader 3 " << "\n";
     }
 
     ModelTransformer transformer(&compiled_graph_, nullptr);
@@ -186,6 +195,7 @@ class CompilerImpl : public Compiler {
 
     // Prepare readonly objects and check whether object types are supported.
     for (auto node : compiled_graph_.nodes()) {
+      std::cout << "check readonly of node : " << node->id << "\n";
       auto& attr =
           absl::any_cast<CompiledNodeAttributes&>(node->operation.attributes);
 
@@ -236,11 +246,13 @@ class CompilerImpl : public Compiler {
       for (auto ref : compiled_graph_.FindOutputs(node->id)) {
         set_object_type(&objects[ref->id]);
       }
+      std::cout << "check readonly done" << "\n";
     }
 
     // Generate shaders from the transformed graph.
     ShaderCodegen codegen(options_, gpu_info_);
     for (auto node : compiled_graph_.nodes()) {
+      std::cout << "generate shader code of node : " << node->id << "\n";
       auto& attr =
           absl::any_cast<CompiledNodeAttributes&>(node->operation.attributes);
       if (attr.code.source_code.empty()) {
@@ -292,6 +304,7 @@ class CompilerImpl : public Compiler {
       RETURN_IF_ERROR(codegen.Build(std::move(attr), &shader_code));
       RETURN_IF_ERROR(callback(std::move(shader_code)));
     }
+    std::cout << "gl::compiler::Done" << "\n";
     return absl::OkStatus();
   }
 
