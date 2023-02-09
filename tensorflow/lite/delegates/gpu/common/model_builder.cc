@@ -2866,23 +2866,38 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
         return false;  
       }
     }
+  }else{
+    // Comment out below 6 lines for custom delegate test 
+    if (!status.ok()) {
+      if (unsupported_details) {
+        *unsupported_details = std::string(status.message());
+      }
+      return false;  
+    }
   }
   /// Minsung
   // SPLIT_V operation is not supported for GPU currently
   // in yolov_4
-  if(registration->builtin_code == 102){
-    printf("Found a SPLIT_V layer.");
-    return false;
-  }
-  /// delete this later
-  if(registration->builtin_code == 18){
-    printf("Found a NUL layer.");
-    return false;
-  }
-  if(registration->builtin_code == 0){
-    printf("Found a ADD layer.");
-    return false;
-  }
+  // if(registration->builtin_code == 102){
+  //   printf("Found a SPLIT_V layer.");
+  //   return false;
+  // }
+  // in yolov_4_tiny
+  //if(registration->builtin_code == 49){
+  //  printf("Found a SPLIT layer.");
+  //  return false;
+  //}
+
+  //yolov4 and yolov4 tiny?
+  // if(registration->builtin_code == 18){
+  //   printf("Found a MUL layer.");
+  //   return false;
+  // }
+    //yolov4 and yolov4 tiny?
+  // if(registration->builtin_code == 0){
+  //   printf("Found a ADD layer.");
+  //   return false;
+  // }
   ///del
 
   
@@ -2895,7 +2910,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
       return false;
     }
     return true;
-  };
+  }; //end lambda
 
   delegates::FP16GraphPartitionHelper partition_helper(context,
                                                        node_supported_fn);

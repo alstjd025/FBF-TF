@@ -96,7 +96,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
             return kTfLiteError;
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
-        (*builder_)(interpreter, 4);
+        (*builder_)(interpreter, 6);
     }
     #ifdef MULTITHREAD
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk);  

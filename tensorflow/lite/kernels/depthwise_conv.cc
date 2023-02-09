@@ -572,7 +572,8 @@ TfLiteStatus EvalImpl(TfLiteContext* context, TfLiteNode* node) {
 
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
-  std::cout << "tensorflow/lite/kernels/depthwise_conv.cc/Eval()\n";
+  //Minsung_debug
+  //std::cout << "tensorflow/lite/kernels/depthwise_conv.cc/Eval()\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));
 

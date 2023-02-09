@@ -124,7 +124,8 @@ std::function<bool(T, T)> GetComparefunction(bool is_arg_max) {
 }
 
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node, bool is_arg_max) {
-  std::cout << "tensorflow/lite/kernels/arg_min_max.cc\n";
+  //Minsung_debug
+  //td::cout << "tensorflow/lite/kernels/arg_min_max.cc\n";
   const TfLiteTensor* input;
   TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, kInputTensor, &input));
   const TfLiteTensor* axis;

@@ -474,7 +474,9 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
         used_output->idx = source_tensor_idx;
         used_output->tensor = source_tensor;
         used_tensor_and_index.push_back(used_output);
-        std::cout << "Tensor connection done" << "\n";
+        #ifdef latency_debug
+          std::cout << "Tensor connection done" << "\n";
+        #endif
         return kTfLiteOk;
       }
     };
@@ -519,8 +521,10 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
     };
     struct timespec begin, end;
     for(int i=0; i<subgraph_size; i++){
-      //std::cout << "Invoke Subgraph idx : " << i << "\n";
-      clock_gettime(CLOCK_MONOTONIC, &begin);
+      #ifdef latency_debug
+        std::cout << "Invoke Subgraph idx : " << i << "\n";
+        clock_gettime(CLOCK_MONOTONIC, &begin);
+      #endif
       if(i > 0){
         if(strcmp(subgraph(i)->GetFirstOpName(), "ADD") == 0){
           if(connectAdd(i) == kTfLiteError){
@@ -535,22 +539,26 @@ TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
           }
         }
       }
-      clock_gettime(CLOCK_MONOTONIC, &end);
-      double latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      printf("Data transfer latency : %.6fs \n", latency);
-      printf("Transfer start Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
-      printf("Transfer end Timestamp %.6f \n", (end.tv_sec + (end.tv_nsec) / 1000000000.0));
-      clock_gettime(CLOCK_MONOTONIC, &begin);
+      #ifdef latency_debug
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        printf("Data transfer latency : %.6fs \n", latency);
+        printf("Transfer start Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
+        printf("Transfer end Timestamp %.6f \n", (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+        clock_gettime(CLOCK_MONOTONIC, &begin);
+      #endif
       if(subgraph(i)->Invoke(eType, mtx_lock, mtx_lock_,
                             mtx_lock_debug, Ucontroller, qSharedData) != kTfLiteOk)
         return kTfLiteError;
-      clock_gettime(CLOCK_MONOTONIC, &end);
-      latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      printf("Invoke latency : %.6fs, Invoke start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+      #ifdef latency_debug
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        printf("Invoke latency : %.6fs, Invoke start timestamp : %.6fs, end timestamp : %.6fs \n",
+                          latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                    (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+      #endif
     }
     //printf("final data ? %f \n", *(final_subgraph().tensor(163)->data.f + 954));
     if (!allow_buffer_handle_output_) {

@@ -33,7 +33,9 @@ class DefaultCommandQueue : public CommandQueue {
   absl::Status Dispatch(const GlProgram& program,
                         const uint3& workgroups) override {
     //Misnung_Debug
-    std::cout << "glMemoryBarrier dispatch" << "\n";
+    #ifdef latency_debug
+      std::cout << "glMemoryBarrier dispatch" << "\n";
+    #endif
     RETURN_IF_ERROR(program.Dispatch(workgroups));
     return TFLITE_GPU_CALL_GL(glMemoryBarrier, GL_ALL_BARRIER_BITS);
   }

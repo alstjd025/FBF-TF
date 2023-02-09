@@ -119,7 +119,9 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status CopyToExternalObject() final {
-    std::cout << "New::CopyToExternalObject" << "\n";
+    #ifdef latency_debug
+      std::cout << "New::CopyToExternalObject" << "\n";
+    #endif
     if (!converter_to_) {
       return absl::OkStatus();
     }
@@ -127,7 +129,9 @@ class DefaultTensorTie : public TensorTie {
   }
 
   absl::Status CopyFromExternalObject() final {
-    std::cout << "New::CopyFromExternalObject" << "\n";
+    #ifdef latency_debug
+      std::cout << "New::CopyFromExternalObject" << "\n";
+    #endif
 	#ifdef DEBUG
     SFLAG();
   #endif
@@ -142,8 +146,10 @@ class DefaultTensorTie : public TensorTie {
     SFLAG();
   #endif
   // Minsung_Debug
-  std::cout << "SetExternalObject final" << "\n";
-	if (!def().external_def.object_def.user_provided) {
+  #ifdef latency_debug
+    std::cout << "SetExternalObject final" << "\n";
+	#endif
+  if (!def().external_def.object_def.user_provided) {
 	  return absl::InvalidArgumentError("External object is read-only");
     }
     if (!IsValid(def().external_def, obj)) {
@@ -172,7 +178,9 @@ class DefaultTensorTie : public TensorTie {
 
   absl::Status Init(TensorObjectConverterBuilder* converter_builder) {
     //Minsung_Debug
-    std::cout << "DefaultTensorTie::Init" << "\n";
+    #ifdef latency_debug
+      std::cout << "DefaultTensorTie::Init" << "\n";
+    #endif
     // First check is an object is user provided.
     const auto& external_def = def().external_def.object_def;
 
@@ -292,13 +300,17 @@ class TwoStepTensorTie : public TensorTie {
 
 //Minsung_Debug_cout
   absl::Status CopyToExternalObject() final {
+    #ifdef latency_debug
       std::cout << "CopyToExternalObject" << "\n"; 
+    #endif
     RETURN_IF_ERROR(inner_tie_->CopyToExternalObject());
     return outer_tie_->CopyToExternalObject();
   }
 
   absl::Status CopyFromExternalObject() final {
-    std::cout << "CopyFromExternalObject" << "\n";
+    #ifdef latency_debug
+      std::cout << "CopyFromExternalObject" << "\n";
+    #endif
   #ifdef DEBUG
     SFLAG();
   #endif
@@ -307,7 +319,9 @@ class TwoStepTensorTie : public TensorTie {
   }
 
   absl::Status SetExternalObject(TensorObject obj) final {
-    std::cout << "SetExternalObject" << "\n";
+    #ifdef latency_debug
+      std::cout << "SetExternalObject" << "\n";
+    #endif
   #ifdef DEBUG
     SFLAG();
   #endif
@@ -315,7 +329,9 @@ class TwoStepTensorTie : public TensorTie {
   }
 
   TensorObject GetExternalObject() final {
-  std::cout << "GetExternalObject" << "\n";
+    #ifdef latency_debug
+      std::cout << "GetExternalObject" << "\n";
+    #endif
     return outer_tie_->GetExternalObject();
   }
 
@@ -350,7 +366,9 @@ class TwoStepTensorTie : public TensorTie {
   absl::Status Init(TensorObjectConverterBuilder* converter_builder,
                     ObjectManager* objects) {
   //Minsung_Debug
-  std::cout << "TwostepTensorTie::Init" << "\n";
+  #ifdef latency_debug
+    std::cout << "TwostepTensorTie::Init" << "\n";
+  #endif
 	#ifdef DEBUG
   SFLAG();
   #endif
@@ -453,47 +471,69 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
-    std::cout << "absl::status Run in gpu::gl" << "\n";
-    struct timespec begin, end;
-    clock_gettime(CLOCK_MONOTONIC, &begin); 
+    #ifdef latency_debug
+      std::cout << "absl::status Run in gpu::gl" << "\n";
+      struct timespec begin, end;
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif 
+    
     for (auto& obj : inputs_) {
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
     }
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    double latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("CopyFromExternalObject latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    
+    #ifdef latency_debug
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      double latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("CopyFromExternalObject latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                                    (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+                          latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+    #endif
+    
     RETURN_IF_ERROR(runtime_->Execute());
-    clock_gettime(CLOCK_MONOTONIC, &begin); 
+    
+    #ifdef latency_debug
+      clock_gettime(CLOCK_MONOTONIC, &begin); 
+    #endif
     for (auto& obj : outputs_) {
       RETURN_IF_ERROR(obj->CopyToExternalObject());
     }
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("CopyToExternalObject latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
-    clock_gettime(CLOCK_MONOTONIC, &begin); 
+
+    #ifdef latency_debug
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("CopyToExternalObject latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                          latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                    (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif 
+
     RETURN_IF_ERROR(runtime_->command_queue()->Flush());
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("Flush latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
-    clock_gettime(CLOCK_MONOTONIC, &begin);
+    
+    #ifdef latency_debug
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("Flush latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                          latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                    (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif
+
     if (output_to_cpu_) {
       RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());
     }
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("WaitForCompletion latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+
+    #ifdef latency_debug
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("WaitForCompletion latency : %.6fs,  start timestamp : %.6fs, end timestamp : %.6fs \n",
+                          latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                    (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    #endif
+  
     return absl::OkStatus();
   }
 
@@ -751,7 +791,9 @@ absl::Status NewInferenceEnvironment(
     std::unique_ptr<InferenceEnvironment>* environment,
     InferenceEnvironmentProperties* properties) {
   //Minsung_Debug
-  std::cout << "api2::NewInferenceEnvironment" << "\n";
+  #ifdef latency_debug
+    std::cout << "api2::NewInferenceEnvironment" << "\n";
+  #endif
   auto env_impl = absl::make_unique<InferenceEnvironmentImpl>(options);
   absl::Status status = env_impl->Init();
   if (properties) {

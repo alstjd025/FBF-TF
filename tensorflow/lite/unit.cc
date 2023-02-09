@@ -1,13 +1,13 @@
 #include "unit.h"
-#define SEQ 60000
+#define SEQ 1000
 #define OUT_SEQ 1
 #define GPUONLY
 //#define quantize
 #define MONITORING
 //#define mnist
 // #define catdog
-//#define imagenet
-#define mnist
+#define imagenet
+//#define mnist
 
 std::mutex mtx_lock;
 
@@ -151,7 +151,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //printf("time : %.6fs \n", temp_time);
             time += temp_time;
             #ifdef imagenet
-                interpreterCPU->get()->PrintOutputTensor(eType);
+                //interpreterCPU->get()->PrintOutputTensor(eType);
             #endif
             #ifdef MONITORING
             // for (int i =0; i<1001; i++){
@@ -332,7 +332,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 //     //if(value > 0.5)
                 //     //    printf("label : %d, pre : %0.5f \n", i, value);
                 // }
-                interpreterGPU->get()->PrintOutputTensor(eType);
+                //interpreterGPU->get()->PrintOutputTensor(eType);
             #endif
             #ifdef mnist
                 // for (int i =0; i<10; i++){

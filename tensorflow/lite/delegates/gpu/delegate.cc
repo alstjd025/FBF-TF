@@ -207,7 +207,9 @@ class DelegateKernel {
 
   absl::Status Invoke(TfLiteContext* context) {
     //Minsung_ Debug_cout
-    //std::cout << "Delegate.cc absl:: Invoke() \n";
+    #ifdef latency_debug
+      std::cout << "Delegate.cc absl:: Invoke() \n";
+    #endif
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
@@ -235,25 +237,26 @@ class DelegateKernel {
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
     //Minsung_Debug_out
-    struct timespec begin, end;
-    clock_gettime(CLOCK_MONOTONIC, &begin);    
+    #ifdef latency_debug
+      struct timespec begin, end;
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif    
     for (int i = 0; i < input_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetInputObject(
           i, GetTensorObject(input_indices_[i], context)));
-
-  //std::cout << "delegate invoke : " << input_indices_[i] << std::endl;
     }
     for (int i = 0; i < output_indices_.size(); ++i) {
       RETURN_IF_ERROR(runner_->SetOutputObject(
           i, GetTensorObject(output_indices_[i], context)));
-            //std::cout << "delegate invoke : " << output_indices_[i] << std::endl;
     }
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    double latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("SetInputsAndOutputs latency : %.6fs, start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    #ifdef latency_debug
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      double latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("SetInputsAndOutputs latency : %.6fs, start timestamp : %.6fs, end timestamp : %.6fs \n",
+                          latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                    (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    #endif
     return absl::OkStatus();
   }
 
@@ -343,7 +346,9 @@ class DelegateKernel {
     gl::InferenceEnvironmentOptions env_options;
     gl::InferenceEnvironmentProperties properties;
     //Minsung_Debug
-    std::cout << "InitializeOpenGlApi" << "\n";
+    #ifdef latency_debug
+      std::cout << "InitializeOpenGlApi" << "\n";
+    #endif
     RETURN_IF_ERROR(
         NewInferenceEnvironment(env_options, &gl_environment_, &properties));
     auto delegate_options = delegate_->options();

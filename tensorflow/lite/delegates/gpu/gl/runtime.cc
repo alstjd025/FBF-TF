@@ -590,22 +590,29 @@ absl::Status Runtime::AssignInternalObjects(
 
 absl::Status Runtime::Execute() {
   //Minsung_ Debug_cout
-  std::cout<<"runtime.cc :: Execute() \n";
-  struct timespec begin, end;
+  #ifdef latency_debug
+    std::cout<<"runtime.cc :: Execute() \n";
+    std::cout << "test_debug" << "\n";
+    struct timespec begin, end;
+  #endif
   for (const auto& descriptor : programs_) {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());
     }
     //std::cout << "Execute:: Program Queue loop \n";
-    clock_gettime(CLOCK_MONOTONIC, &begin);    
+    #ifdef latency_debug
+      clock_gettime(CLOCK_MONOTONIC, &begin);    
+    #endif
     RETURN_IF_ERROR(command_queue_->Dispatch(descriptor.program,
                                              descriptor.num_workgroups));
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    double latency = (end.tv_sec - begin.tv_sec) + \
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("Dispatch latency : %.6fs, Dispatch start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    #ifdef lantecy_debug
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      double latency = (end.tv_sec - begin.tv_sec) + \
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("Dispatch latency : %.6fs, Dispatch start timestamp : %.6fs, end timestamp : %.6fs \n",
+                          latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+                                    (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    #endif
   }
   return absl::OkStatus();
 }
