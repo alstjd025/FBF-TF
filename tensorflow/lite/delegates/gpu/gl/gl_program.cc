@@ -217,7 +217,7 @@ absl::Status GlProgram::SetParameter(const Variable& param) {
 
 absl::Status GlProgram::Dispatch(const uint3& workgroups) const {
   //Minsung_ Debug_cout
-  std::cout << "GLProgram::Dispatch \n";
+  //std::cout << "GLProgram::Dispatch \n";
   #ifdef DEBUG
   SFLAG();
   #endif

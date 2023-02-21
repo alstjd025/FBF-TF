@@ -1122,7 +1122,7 @@ TfLiteStatus InterpreterBuilder::operator()(
   // ops since we only do it once per custom op rather than once per custom op
   // invocation in the model graph.
   // Construct interpreter with correct number of tensors and operators.
-  auto* subgraphs = model_->subgraphs();
+  auto* subgraphs = model_->subgraphs(); //HOON : subgraph generated in schema_generated.h 
   auto* buffers = model_->buffers();
   if (subgraphs->size() == 0) {
     TF_LITE_REPORT_ERROR(error_reporter_, "No subgraph in the model.\n");

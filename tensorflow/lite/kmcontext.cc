@@ -61,14 +61,14 @@ void KmContext::channelPartitioning(std::vector<int>& partitioning_plan, std::ve
 		}
 
 		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
-			for (int n = 1; n < node.inputs->size; ++n) { //change weight tensor 
+			for (int n = 1; n < node.inputs->size; ++n) { 
 				int tensor_index = node.inputs->data[n];
 				TfLiteTensor& tensor = context_->tensors[tensor_index];
 				void** data = &tensor.data.data;
 				size_t bytes = tensor.bytes;
 				int* dims = (int*)tensor.dims;
 				
-				if (n == 1) {
+				if (n == 1) { //change weight tensor 
 					int o = *(dims + 1);
 					int w = *(dims + 2);
 					int h = *(dims + 3);
@@ -237,8 +237,11 @@ void KmContext::setContext(TfLiteContext* context, std::vector<int>* execution_p
     execution_plan_ = execution_plan;
     nodes_and_registration_ = nodes_and_registration;
 }
-
-
+// HOON
+// interpreter->subgraph-> main structure : context_, tensors_, execution_plan_, nodes_and_registrations_
+// should be.. ?? 
+// by this case, user should use "tflite::context_, tensors_,.... " by pointer. 
+// may be.. shoud use main struct out of main code !!
  const char* GetOpName(const TfLiteRegistration& op_reg) {
     return tflite::EnumNamesBuiltinOperator()[op_reg.builtin_code];
   }

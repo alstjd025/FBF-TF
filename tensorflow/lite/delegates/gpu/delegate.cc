@@ -125,7 +125,7 @@ class DelegateKernel {
   absl::Status Prepare(TfLiteContext* context,
                        const TfLiteDelegateParams* delegate_params) {
     thread_id_prepare_ = std::this_thread::get_id();
-    std::cout << "DelegateKernel Prepare" << "\n";
+    //std::cout << "DelegateKernel Prepare" << "\n";
     // Extract TFLite delegate execution plan from the context and convert it
     // into GraphFloat32.
     GraphFloat32 graph;
@@ -207,7 +207,7 @@ class DelegateKernel {
 
   absl::Status Invoke(TfLiteContext* context) {
     //Minsung_ Debug_cout
-    std::cout << "Delegate.cc absl:: Invoke() \n";
+    //std::cout << "Delegate.cc absl:: Invoke() \n";
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
@@ -251,9 +251,9 @@ class DelegateKernel {
     clock_gettime(CLOCK_MONOTONIC, &end);
     double latency = (end.tv_sec - begin.tv_sec) + \
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-    printf("SetInputsAndOutputs latency : %.6fs, start timestamp : %.6fs, end timestamp : %.6fs \n",
-                        latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
-                                  (end.tv_sec + (end.tv_nsec) / 1000000000.0));
+    //printf("SetInputsAndOutputs latency : %.6fs, start timestamp : %.6fs, end timestamp : %.6fs \n",
+      //                  latency, (begin.tv_sec + (begin.tv_nsec) / 1000000000.0),
+        //                          (end.tv_sec + (end.tv_nsec) / 1000000000.0));
     return absl::OkStatus();
   }
 
@@ -343,7 +343,7 @@ class DelegateKernel {
     gl::InferenceEnvironmentOptions env_options;
     gl::InferenceEnvironmentProperties properties;
     //Minsung_Debug
-    std::cout << "InitializeOpenGlApi" << "\n";
+    //std::cout << "InitializeOpenGlApi" << "\n";
     RETURN_IF_ERROR(
         NewInferenceEnvironment(env_options, &gl_environment_, &properties));
     auto delegate_options = delegate_->options();
@@ -386,8 +386,13 @@ inline Delegate* GetDelegate(TfLiteDelegate* delegate) {
   return reinterpret_cast<Delegate*>(delegate->data_);
 }
 
+
+
+
+// TODO 230221 => delegateprepare in terms of legacy code
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
 
+  // HOON : registration for kernel. kregistration
   const TfLiteRegistration kRegistration = {
       // .init
       [](TfLiteContext* context, const char* buffer, size_t) -> void* {
@@ -454,6 +459,23 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   TfLiteIntArray* ops_to_replace =
       GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
                       gpu_delegate->MaxDelegatedPartitions());
+  // HOON
+  // delegate flow
+  // 1. create delegate unit (delegate.cc). make prepare logic (just making prepare func)
+  //    + just mapping makde func to delegate unit's func pointer
+  // 2. modofydelegategrpah 
+  //   2-1) runtime filter modification
+  //   2-2) switchtodelegatecontext (mapping tflitecontext's func pointer for DELEGATE)
+  //   2-3) delegate->prepare (run right logic) [for kernel(GL)]
+  //      2-3-1) GetOpsToReplace
+  //      2-3-2) ReplaceNodeSubsetWithDelegateKernels
+  //   2-4) switchtoKernelContext 
+  // 2-3) is most important code and below legacy lines are main***
+  // TODO -> legacy code flow & switchtokernelcontext 
+  //  : swtichto(delegate, kernel) context is same flow; just context_for_A to context_for_B
+  //        just matching func pointer change 
+  //        logical code flow. just make "single" context and just run it differently simpliy change func pointer
+
   const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
       context, kRegistration, ops_to_replace, delegate);
   TfLiteIntArrayFree(ops_to_replace);

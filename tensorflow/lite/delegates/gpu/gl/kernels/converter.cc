@@ -69,10 +69,10 @@ class OpenGlConverterImpl : public TensorObjectConverter {
     uint3 num_workgroups = DivideRoundUp(workload, workgroup_size_);
     if (command_queue_) {
       //Minsung__Debug
-      std::cout << "Converter Command_queue Dispatch" << "\n";
+      //std::cout << "Converter Command_queue Dispatch" << "\n";
       return command_queue_->Dispatch(program_, num_workgroups);
     }
-    std::cout << "Converter Program Dispatch" << "\n";
+    //std::cout << "Converter Program Dispatch" << "\n";
     return program_.Dispatch(num_workgroups);
   }
 
@@ -113,7 +113,7 @@ class FromTensorConverter : public OpenGlConverterImpl {
     shape_ = BHWC(output_def.dimensions.b, output_def.dimensions.h,
                   output_def.dimensions.w, output_def.dimensions.c);
     //Minsung_Debug
-    std::cout << "FromTensorConverter shader init" << "\n";
+    //std::cout << "FromTensorConverter shader init" << "\n";
     if (shape_.b != 1) {
       return absl::UnimplementedError(
           "FromTensorConverter: Batch size != 1 is not supported.");
@@ -145,7 +145,7 @@ class FromTensorConverter : public OpenGlConverterImpl {
   absl::Status Convert(const TensorObject& input_obj,
                        const TensorObject& output_obj) override {
     //Minsung_Debug
-    std::cout << "FromTensorConverter::Convert" << "\n";
+    //std::cout << "FromTensorConverter::Convert" << "\n";
 	#ifdef DEBUG
   SFLAG();
   #endif
@@ -209,7 +209,7 @@ class ToTensorConverter : public OpenGlConverterImpl {
     shape_ = BHWC(output_def.dimensions.b, output_def.dimensions.h,
                   output_def.dimensions.w, output_def.dimensions.c);
     //Minsung_Debug
-    std::cout << "ToTensorConverter shader init" << "\n";
+    //std::cout << "ToTensorConverter shader init" << "\n";
     if (shape_.b != 1) {
       return absl::UnimplementedError(
           "FromTensorConverter: Batch size != 1 is not supported.");
@@ -248,7 +248,7 @@ class ToTensorConverter : public OpenGlConverterImpl {
   absl::Status Convert(const TensorObject& input_obj,
                        const TensorObject& output_obj) override {
     //Minsung_Debug
-    std::cout << "ToTensorConverter::Convert" << "\n";
+    //std::cout << "ToTensorConverter::Convert" << "\n";
     auto output = absl::get_if<OpenGlBuffer>(&output_obj);
     if (!output || !output->id) {
       return absl::InvalidArgumentError("Missing output in converter");

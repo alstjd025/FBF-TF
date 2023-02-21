@@ -1,8 +1,8 @@
 #include "unit_handler.h"
 #include "kmcontext.h"
 #include <typeinfo>
-//#define MULTITHREAD
-#define GPUONLY
+#define MULTITHREAD
+//#define GPUONLY
 //#define QUANTIZE
 
 extern std::mutex mtx_lock;
@@ -99,10 +99,11 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
         (*builder_)(interpreter, 4);
     }
     #ifdef MULTITHREAD
+    // Below code targetting to "subgraph partitioning"
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk);  
     #endif 
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
-    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  
+    TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  // memory allocation
     UnitCPU* temp;
     temp = new UnitCPU(eType, std::move(interpreter));
     temp->SetInput(input);
@@ -110,7 +111,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     iUnitCount++;    
     PrintMsg("Build CPU Interpreter");
     #ifdef MULTITHREAD
-    kmcontext.channelPartitioning("CONV_2D", 0.5);
+    kmcontext.channelPartitioning("CONV_2D", 0.5); // MAIN : CPU channel-wise partitioning
     #endif
     #ifdef QUANTIZE
     if(interpreter->get()->QuantizeSubgraph() != kTfLiteOk){
@@ -166,10 +167,10 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         //////////////////////////////////////////////////////////////////
         // An experimental task to devide a model to multiple subgrpahs //
         //////////////////////////////////////////////////////////////////
-        (*builder_)(interpreter, eType);
+        //(*builder_)(interpreter, eType);  //HOON : later
 
         // No multiple subgraph modifying
-        //(*builder_)(interpreter);
+        (*builder_)(interpreter);
     }
     std::cout << "#####################################" << "\n";
     std::cout << "# Base interpreter has been created #" << "\n";
@@ -185,16 +186,18 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .experimental_flags = 1,
-        .max_delegated_partitions = 1000,
+        .max_delegated_partitions = 3,
     };
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
     #ifdef MULTITHREAD
     
     //Set Partitioning Value : GPU Side Filters
+    // HOON : in GPU, setpartitioning code is on both partitioning tool
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk); 
     //TFLITE_MINIMAL_CHECK(interpreter->get()->PrepareTensorsSharing(eType) == kTfLiteOk); 
     #endif
-    MyDelegate = TfLiteGpuDelegateV2Create(&options);
+    // HOON ==> real tflitedelegate create. with delegate options  in this code, N's gpu delegate created
+    MyDelegate = TfLiteGpuDelegateV2Create(&options); 
     if(interpreter->get()->ModifyGraphWithDelegate(MyDelegate) != kTfLiteOk) {
         PrintMsg("Unable to Use GPU Delegate");
         return kTfLiteError;

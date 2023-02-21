@@ -1,13 +1,14 @@
 #include "unit.h"
-#define SEQ 1
+#define SEQ 60000
 #define OUT_SEQ 1
-#define GPUONLY
+//#define GPUONLY
+#define MULTITHREAD
 //#define quantize
-#define MONITORING
+//#define MONITORING
 //#define mnist
 // #define catdog
-#define imagenet
-//#define mnist
+//#define imagenet
+#define mnist
 
 std::mutex mtx_lock;
 
@@ -307,7 +308,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             for (int i=0; i<Image_x; i++){
                 for (int j=0; j<Image_y; j++){
                     interpreterGPU->get()->typed_input_tensor<float>(0)[i*28 + j] = \
-                     ((float)input[k].at<uchar>(i, j)/255.0);          
+                     ((float)input[k].at<uchar>(i, j)/255.0);          // HOON input[0]
                 }
             } 
             #endif
@@ -319,7 +320,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 return kTfLiteError;
             }
             clock_gettime(CLOCK_MONOTONIC, &end);
-            printf("Begin Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
+            //printf("Begin Timestamp %.6f \n", (begin.tv_sec + (begin.tv_nsec) / 1000000000.0));
             *G_Counter += 1;
             double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
             time += temp_time;
@@ -343,14 +344,14 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 // }
                 interpreterGPU->get()->PrintOutputTensor(eType);
             #endif
-            // for (int i =0; i<10; i++){
-            //     float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
-            //     printf("label : %d, pre : %0.5f \n", i, value);
-            // }
             //PrintInterpreterState(interpreterGPU->get());
             std::cout << "\n";
             #endif
             //std::cout << *G_Counter << "\n";
+            for (int i =0; i<10; i++){
+                float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
+                //printf("label : %d, pre : %0.5f \n", i, value);  ///HOON
+            }
             if(!(*G_Counter % 1000))
                 std::cout << "Progress " << int(*G_Counter/1000) << "% \n";
         }

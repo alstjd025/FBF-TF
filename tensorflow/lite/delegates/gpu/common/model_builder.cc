@@ -2846,6 +2846,7 @@ bool IsAllAllowedTensors(TfLiteContext* context,
 // TODO(impjdi): Check ops' parameters.
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
+
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
@@ -2853,7 +2854,8 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
 	printf("CHECKING LAYER %d \n", registration->builtin_code);
-  if(context->use_distribute_strategy_context){
+  if(context->use_distribute_strategy_context)
+  {
     if(registration->builtin_code == 0){ //check if concat layer
         printf("FOUND A CONCAT LAYER... MAKE GPU DEL NODE \n");
         return false;
@@ -2868,7 +2870,8 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     }
   }
   if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
-      !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) {
+      !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) 
+      {
     if (unsupported_details) {
       *unsupported_details =
           "OP is supported, but tensor type isn't matched!";
@@ -2877,11 +2880,14 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     }
     return true;
   };
+  // HOON : check each node, if that node is unsupported on DELEGATE
+  //        IsAllAllowdTensor & concat layer
+
 
   delegates::FP16GraphPartitionHelper partition_helper(context,
                                                        node_supported_fn);
   std::set<std::string> unsupported_nodes_info;
-  if (partition_helper.Partition(&unsupported_nodes_info) != kTfLiteOk) {
+  if (partition_helper.Partition(&unsupported_nodes_info) != kTfLiteOk) { //HOON
     return TfLiteIntArrayCreate(0);
   }
 
@@ -2889,7 +2895,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   // is set to 1 by default.
   std::vector<int> ops_to_replace =
       partition_helper.GetNodesOfFirstNLargestPartitions(
-          max_delegated_partitions);
+          max_delegated_partitions); //make ops_to_replace (Tfliteintarray*)
 
   if (!unsupported_nodes_info.empty()) {
     std::string unsupported = absl::StrJoin(unsupported_nodes_info, "\n");
@@ -2909,8 +2915,18 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     absl::StrAppend(&error_message, " operations will run on the CPU.");
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
-  return ConvertVectorToTfLiteIntArray(ops_to_replace);
+
+
+  return ConvertVectorToTfLiteIntArray(ops_to_replace); // return tfliteintarray*
 }
+
+
+
+
+
+
+
+
 
 // Creates inputs and outputs passed by io_tensors parameters in the resulting
 // graph. We force it to make sure that delegated subgraph has same order of

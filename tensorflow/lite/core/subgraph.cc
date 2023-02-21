@@ -712,7 +712,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors(); 
-  KMCONTEXT();
+  KMCONTEXT(); // to use tflite->interpreter->subgraph  main structure ..
   return kTfLiteOk;
 }
 
@@ -1038,16 +1038,17 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
   return kTfLiteOk;
 }
 
+//HOON : TODO 
 TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock, 
                             std::mutex& mtx_lock_,
                             std::mutex& mtx_lock_debug,
                             std::condition_variable& Ucontroller,
                             std::queue<SharedContext*>* qSharedData) {
                                        
-  if(qSharedData == nullptr){
-    ReportError("Got NULLPTR for qSharedData!");
-    return kTfLiteError;
-  }
+  //if(qSharedData == nullptr){
+  //  ReportError("Got NULLPTR for qSharedData!");
+  //  return kTfLiteError;
+  //}
   //Minsung
   //Code for DetailedTimeMeasure
 
@@ -1113,7 +1114,11 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       if (tensor_index == kTfLiteOptionalTensor) {
         continue;
       }
-      TfLiteTensor* tensor = &tensors_[tensor_index];
+      //TfLiteTensor* tensor = &context_.tensors[tensor_index]; //HOON  : same tool . indirect
+      TfLiteTensor* tensor = &tensors_[tensor_index]; //HOON : same tool. direct. (not via tfitecontext)
+      // *tensor.delegate == tensor->delegate
+      // in CPU tensor->delegate == nullptr
+      // in GPU.. tensor->delegate != nullptr
       if (tensor->delegate && tensor->delegate != node.delegate &&
           tensor->data_is_stale) {
         TF_LITE_ENSURE_STATUS(EnsureTensorDataIsReadable(tensor_index));
@@ -1158,7 +1163,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                            "failed to invoke");
     }
     
-    PrintOutputTensor(node, eType);
+    //PrintOutputTensor(node, eType); //hoon
 
     #ifdef debug
     if(eType == UnitType::CPU0){
@@ -1180,8 +1185,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       if(use_detailed_latency_measure){
         clock_gettime(CLOCK_MONOTONIC, &(clock_measure_data->time_ary[2]));
       }
-      
-      /*
+    
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
         if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
@@ -1201,7 +1205,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                         mtx_lock_, Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
       }
-      */
+      /*
       if(strcmp(GetOpName(registration), "CONV_2D") == 0 && 
                 eType == UnitType::CPU0){ //Call ContextHandler right after Conv 2d
         if(ContextHandler(eType, GetOutputTensor(node), qSharedData, mtx_lock, mtx_lock_,
@@ -1221,7 +1225,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                         mtx_lock_, Ucontroller, node_index)
           != kTfLiteOk) {return kTfLiteError;}
       }
-
+      */
     //Print
     
     #ifdef debug
@@ -1810,7 +1814,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   }
   // TODO(aselle): Consider if it is worth storing pointers to delegates.
   // Setup additional context interface.
-  SwitchToDelegateContext();
+  SwitchToDelegateContext();   // HOON : main code flow // just mapping func pointer for DELEGATE
   auto reset_delegation_if_not_ok = [this](TfLiteStatus status) {
     if (status != kTfLiteOk) {
       TF_LITE_ENSURE_STATUS(RemoveAllDelegates());
@@ -1822,7 +1826,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     return kTfLiteOk;
   };
   std::cout << "prepare_2" << "\n";
-  TfLiteStatus status = delegate->Prepare(&context_, delegate);
+  TfLiteStatus status = delegate->Prepare(&context_, delegate); // HOON  : DELEGATE prepare logic !! 
   // Remove additional context info.
   SwitchToKernelContext();
   TF_LITE_ENSURE_STATUS(reset_delegation_if_not_ok(status));
@@ -2083,6 +2087,9 @@ TfLiteStatus Subgraph::ContextHandler(UnitType eType, TfLiteTensor* tensor,
                                     int execution_plan_index){
   if(eType == UnitType::CPU0){
     //std::cout << "Slave ContextHandler Called" << "\n";
+    // HOON : typedef struct sharedcontext {typedef struct tflitetensor* tensor, Unittype etype}
+    // HOON : slaveData->tensor refers to "CPU interpreter"'s CONV output tensor 
+    // HOON : then push it to qsharedData
     SharedContext* slaveData = CreateSharedContext(eType, tensor);
     if(PushContextToQueue(slaveData, mtx_lock, mtx_lock_,
                            qSharedData, Ucontroller) != kTfLiteOk){
@@ -2316,7 +2323,7 @@ TfLiteStatus Subgraph::ConcatContext(TfLiteTensor* rc_tensor,
     std::unique_lock<std::mutex> lock(mtx_lock);
     qSharedData->push(newSharedContext);
   }
-  Ucontroller.notify_one();
+  Ucontroller.notify_one(); //HOON --> wake up algo solved by lock::condition_variable
   return kTfLiteOk;
 } 
 
@@ -2361,6 +2368,8 @@ TfLiteStatus Subgraph::CPUPopContextFromQueue(std::queue<SharedContext*>* qShare
     std::cout << "Oh Yeah!! Welcome to error world!! lollo!!!!" << "\n";
     return kTfLiteError;
   }
+  // HOON : shared tensor is first forked by "CPU CONV's output tensor"
+  // HOON : so just update original tensor data 
   context_.tensors[output_tensor_index].data.data = \
                                     qSharedData->front()->tensor->data.data;
   qSharedData->pop();
