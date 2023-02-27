@@ -2656,6 +2656,178 @@ class UnsupportedOperationParser : public TFLiteOperationParser {
   }
 };
 
+std::string GetNodeName_ByBuiltin(const TfLiteRegistration* registration)
+  {
+  const auto builtin_code = registration->builtin_code;
+  std::string NodeName;
+  switch (builtin_code) {
+    case kTfLiteBuiltinAbs:
+      NodeName = "kTfLiteBuiltinAbs";
+      return NodeName;
+    case kTfLiteBuiltinAdd:
+      NodeName = "kTfLiteBuiltinAdd";
+      return NodeName;
+    case kTfLiteBuiltinAveragePool2d:
+      NodeName = "kTfLiteBuiltinAveragePool2d";
+      return NodeName;
+    case kTfLiteBuiltinBatchMatmul:
+      NodeName = "kTfLiteBuiltinBatchMatmul";
+      return NodeName;
+    case kTfLiteBuiltinConcatenation:
+     NodeName = "kTfLiteBuiltinConcatenation";
+      return NodeName;
+    case kTfLiteBuiltinConv2d:
+      NodeName = "kTfLiteBuiltinConv2d";
+      return NodeName;
+    case kTfLiteBuiltinCos:
+      NodeName = "kTfLiteBuiltinCos";
+      return NodeName;
+    case kTfLiteBuiltinDepthwiseConv2d:
+     NodeName = "kTfLiteBuiltinDepthwiseConv2d";
+      return NodeName;
+    case kTfLiteBuiltinDequantize:
+      NodeName = "kTfLiteBuiltinDequantize";
+      return NodeName;
+    case kTfLiteBuiltinDiv:
+      NodeName = "kTfLiteBuiltinDiv";
+      return NodeName;
+    case kTfLiteBuiltinElu:
+      NodeName = "kTfLiteBuiltinElu";
+      return NodeName;
+    case kTfLiteBuiltinExp:
+      NodeName = "kTfLiteBuiltinExp";
+      return NodeName;
+    case kTfLiteBuiltinFullyConnected:
+      NodeName = "kTfLiteBuiltinFullyConnected";
+      return NodeName;
+    case kTfLiteBuiltinHardSwish:
+      NodeName = "kTfLiteBuiltinHardSwish";
+      return NodeName;
+    case kTfLiteBuiltinLogistic:
+      NodeName = "kTfLiteBuiltinLogistic";
+      return NodeName;
+    case kTfLiteBuiltinLog:
+     NodeName = "kTfLiteBuiltinLog";
+      return NodeName;
+    case kTfLiteBuiltinLstm:
+     NodeName = "kTfLiteBuiltinLstm";
+      return NodeName;
+    case kTfLiteBuiltinMaximum:
+     NodeName = "kTfLiteBuiltinMaximum";
+      return NodeName;
+    case kTfLiteBuiltinMaxPool2d:
+     NodeName = "kTfLiteBuiltinMaxPool2d";
+      return NodeName;
+    case kTfLiteBuiltinMean:
+      NodeName = "kTfLiteBuiltinMean";
+      return NodeName;
+    case kTfLiteBuiltinMinimum:
+     NodeName = "kTfLiteBuiltinMinimum";
+      return NodeName;
+    case kTfLiteBuiltinMirrorPad:
+      NodeName = "kTfLiteBuiltinAdd";
+      return NodeName;
+    case kTfLiteBuiltinMul:
+      NodeName = "kTfLiteBuiltinMul";
+      return NodeName;
+    case kTfLiteBuiltinNeg:
+      NodeName = "kTfLiteBuiltinNeg";
+      return NodeName;
+    case kTfLiteBuiltinPack:
+      NodeName = "kTfLiteBuiltinPack";
+      return NodeName;
+    case kTfLiteBuiltinPad:
+      NodeName = "kTfLiteBuiltinPad";
+      return NodeName;
+    case kTfLiteBuiltinPow:
+     NodeName = "kTfLiteBuiltinPow";
+      return NodeName;
+    case kTfLiteBuiltinReduceMax:
+     NodeName = "kTfLiteBuiltinReduceMax";
+      return NodeName;
+    case kTfLiteBuiltinReduceMin:
+     NodeName = "kTfLiteBuiltinReduceMin";
+      return NodeName;
+    case kTfLiteBuiltinReduceProd:
+    NodeName = "kTfLiteBuiltinReduceProd";
+      return NodeName;
+    case kTfLiteBuiltinQuantize:
+     NodeName = "kTfLiteBuiltinQuantize";
+      return NodeName;
+    case kTfLiteBuiltinRelu:
+     NodeName = "kTfLiteBuiltinRelu";
+      return NodeName;
+    case kTfLiteBuiltinRelu6:
+     NodeName = "kTfLiteBuiltinRelu6";
+      return NodeName;
+    case kTfLiteBuiltinLeakyRelu:
+     NodeName = "kTfLiteBuiltinLeakyRelu";
+      return NodeName;
+    case kTfLiteBuiltinPrelu:
+     NodeName = "kTfLiteBuiltinPrelu";
+      return NodeName;
+    case kTfLiteBuiltinReshape:
+     NodeName = "kTfLiteBuiltinReshape";
+      return NodeName;
+    case kTfLiteBuiltinResizeBilinear:
+     NodeName = "kTfLiteBuiltinResizeBilinear";
+      return NodeName;
+    case kTfLiteBuiltinResizeNearestNeighbor:
+      NodeName = "kTfLiteBuiltinResizeNearestNeighbor";
+      return NodeName;
+    case kTfLiteBuiltinRsqrt:
+    NodeName = "kTfLiteBuiltinRsqrt";
+      return NodeName;
+    case kTfLiteBuiltinSin:
+      NodeName = "kTfLiteBuiltinSin";
+      return NodeName;
+    case kTfLiteBuiltinSlice:
+     NodeName = "kTfLiteBuiltinSlice";
+      return NodeName;
+    case kTfLiteBuiltinSoftmax:
+    NodeName = "kTfLiteBuiltinSoftmax";
+      return NodeName;
+    case kTfLiteBuiltinSpaceToDepth:
+     NodeName = "kTfLiteBuiltinSpaceToDepth";
+      return NodeName;
+    case kTfLiteBuiltinSqrt:
+     NodeName = "kTfLiteBuiltinSqrt";
+      return NodeName;
+    case kTfLiteBuiltinSquare:
+     NodeName = "kTfLiteBuiltinSquare";
+      return NodeName;
+    case kTfLiteBuiltinSquaredDifference:
+     NodeName = "kTfLiteBuiltinSquaredDifference";
+      return NodeName;
+    case kTfLiteBuiltinStridedSlice:
+    NodeName = "kTfLiteBuiltinStridedSlice";
+      return NodeName;
+    case kTfLiteBuiltinSub:
+     NodeName = "kTfLiteBuiltinSub";
+      return NodeName;
+    case kTfLiteBuiltinSum:
+     NodeName = "kTfLiteBuiltinSum";
+      return NodeName;
+    case kTfLiteBuiltinTanh:
+     NodeName = "kTfLiteBuiltinTanh";
+      return NodeName;
+    case kTfLiteBuiltinTranspose:
+     NodeName = "kTfLiteBuiltinTranspose";
+      return NodeName;
+    case kTfLiteBuiltinTransposeConv:
+      NodeName = "kTfLiteBuiltinTransposeConv";
+      return NodeName;
+    case kTfLiteBuiltinCustom:
+      NodeName = "kTfLiteBuiltinCustom";
+      return NodeName;
+    break;
+  }
+  NodeName = "NONE";
+  return NodeName;
+}
+ // DEBUGGING TOOL
+
+
 std::unique_ptr<TFLiteOperationParser> NewOperationParser(
     const TfLiteRegistration* registration, bool allow_quant_ops = false) {
   const auto builtin_code = registration->builtin_code;
@@ -2847,16 +3019,16 @@ bool IsAllAllowedTensors(TfLiteContext* context,
 // HOON : Test GetOpsToReplace  ~ TODO
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
-  printf("Stat GetOpsToReplace logic\n");
+  printf("(1) : Start GetOpsToReplace logic\n");
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-  // get op_name with builtin_ops.h
-  // TfLiteBuiltinOperator op_name(registration->builtin_code); TODO
-	// printf("CHECKING LAYER %s \n", op_name); // TODO https://forward-movement.tistory.com/239
+  // get op_name by registration->buitin_code
+  printf("CHECKING LAYER %s \n", GetNodeName_ByBuiltin(registration).c_str()); 
+	//printf("CHECKING LAYER %s \n", op_name_finder(registration->builtin_code));
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning !!
   {
     if(registration->builtin_code == 0){ //check if concat layer
@@ -2922,17 +3094,9 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
 
-
+  printf("(1) : End GetOpsToReplace logic\n");
   return ConvertVectorToTfLiteIntArray(ops_to_replace); // return tfliteintarray*
 }
-
-
-
-
-
-
-
-
 
 // Creates inputs and outputs passed by io_tensors parameters in the resulting
 // graph. We force it to make sure that delegated subgraph has same order of
@@ -3062,6 +3226,7 @@ absl::Status BuildModel(TfLiteContext* context,
   }
   return absl::OkStatus();
 }
+
 
 absl::Status BuildFinalModel(
     TfLiteContext* context, const TfLiteDelegateParams* delegate_params,

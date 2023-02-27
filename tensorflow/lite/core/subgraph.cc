@@ -374,7 +374,7 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
   #ifdef DEBUG
   	SFLAG();
   #endif
-  std::cout << "ReplaceNodeSubsetsWithDelegateKernels logic start" << "\n";
+  std::cout << "(2) : Start ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
   // Ignore empty node replacement sets.
   if (!nodes_to_replace->size) {
 	return kTfLiteOk;
@@ -438,9 +438,11 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
       } break;
       case NodeSubset::kTfUnexplored: ;
 		return kTfLiteError;
+    std::cout << "(2) : End ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
         break;
     }
   }
+  std::cout << "(2) : End ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
   return kTfLiteOk;
 }
 
@@ -1828,10 +1830,10 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   };
   // std::cout << "prepare_2" << "\n";
   printf("HOON : delegate prepare start\n");
-  printf("------------------------------------------------------------------------------------\n");
+  printf("<<------------------------------------------------------------------------------------>>\n");
   TfLiteStatus status = delegate->Prepare(&context_, delegate); // HOON  : DELEGATE prepare logic !! 
   // Remove additional context info.
-  printf("------------------------------------------------------------------------------------\n");
+  printf("<<------------------------------------------------------------------------------------>>\n");
   printf("HOON : delegate prepare end \n");
   printf("HOON : Start to switch to kernel context\n");
   SwitchToKernelContext();
