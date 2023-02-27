@@ -374,7 +374,7 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
   #ifdef DEBUG
   	SFLAG();
   #endif
-  std::cout << "ReplaceNodeSubsetsWithDelegateKernels" << "\n";
+  std::cout << "ReplaceNodeSubsetsWithDelegateKernels logic start" << "\n";
   // Ignore empty node replacement sets.
   if (!nodes_to_replace->size) {
 	return kTfLiteOk;
@@ -924,13 +924,13 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
     return kTfLiteOk;
   }
   if(strcmp(GetOpName(op_reg), "CONV_2D") == 0) {
-    std::cout << "it's conv" << "\n";
-    std::cout << node->outputs->data[0] << " \n";
-    TfLiteTensor* tensor_ = GetOutputTensor(*node);
-    std::cout << "output tensor : ";
-    std::cout << tensor_->dims->data[0] << "\n";
+    // std::cout << "it's conv" << "\n";
+    // std::cout << node->outputs->data[0] << " \n";
+    // TfLiteTensor* tensor_ = GetOutputTensor(*node);
+    // std::cout << "output tensor : ";
+    // std::cout << tensor_->dims->data[0] << "\n";
   }else {
-    std::cout << "not conv " << GetOpName(op_reg) << "\n";
+    // std::cout << "not conv " << GetOpName(op_reg) << "\n";
   }
   return op_reg.prepare(&context_, node);
 }
@@ -974,7 +974,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
   SFLAG();
 #endif
   if (!memory_planner_) {
-    std::cout << "Reset Memory Planner" << "\n";
+    // std::cout << "Reset Memory Planner" << "\n";
     memory_planner_.reset(new ArenaPlanner(
         &context_, std::unique_ptr<GraphInfo>(new InterpreterInfo(this)),
         /*preserve_inputs=*/true, /*preserve_intermediates*/ false,
@@ -1011,9 +1011,9 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
                            execution_plan_, &last_exec_plan_index_prepared));
   next_execution_plan_index_to_prepare_ = last_exec_plan_index_prepared + 1;
 
-  std::cout << "next_execution_plan_index_to_plan_allocation_ : "\
+  // std::cout << "next_execution_plan_index_to_plan_allocation_ : "\
                 << next_execution_plan_index_to_plan_allocation_ << "\n";
-  std::cout << "last_exec_plan_index_prepared : " \
+  // std::cout << "last_exec_plan_index_prepared : " \
                 << last_exec_plan_index_prepared << "\n";
   // Execute arena allocations.
   TF_LITE_ENSURE_STATUS(memory_planner_->ExecuteAllocations(
@@ -1089,7 +1089,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     //if(eType == UnitType::GPU0)
       //std::cout << "\n" << "Execution_Plan LOOP : " << execution_plan_index << "\n";
     //std::cout << "Number of Tensors in current Context : " << context_.tensors_size << "\n";
-    
+
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
       TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
@@ -1245,8 +1245,8 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
         ((clock_measure_data->time_ary[3].tv_sec - clock_measure_data->time_ary[2].tv_sec) + \
         ((clock_measure_data->time_ary[3].tv_nsec - clock_measure_data->time_ary[2].tv_nsec) / 1000000000.0));
         clock_measure_data->ary[1] += temp;
-        if(eType == UnitType::CPU0)
-          printf("temp : %.6f \n", temp);
+        // if(eType == UnitType::CPU0)
+          // printf("temp : %.6f \n", temp);
       }
     }
 	  // Force execution prep for downstream ops if the latest op triggered the
@@ -1266,7 +1266,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
           TF_LITE_ENSURE_STATUS(memory_planner_->ResetAllocationsAfter(
               next_execution_plan_index_to_plan_allocation_ - 1));
         }
-        std::cout << "ResetAllocationsAfter" << "\n";
+        // std::cout << "ResetAllocationsAfter" << "\n";
       }
     }
     if(number_of_conv_temp <= 0 && eType == UnitType::GPU0 && 
@@ -1417,7 +1417,7 @@ TfLiteStatus Subgraph::SetTensorParametersReadOnly(
   // TODO(b/145615516): Extend BytesRequired to check sparse tensors.
   if (type != kTfLiteString && sparsity == nullptr) {
     size_t required_bytes;
-    std::cout << "SetTensorParametersReadOnly::BytesRequired" << "\n";
+    // std::cout << "SetTensorParametersReadOnly::BytesRequired" << "\n";
     TF_LITE_ENSURE_OK(&context_,
                       BytesRequired(type, dims, rank, &required_bytes));
     TF_LITE_ENSURE_EQ(&context_, required_bytes, bytes);
@@ -1523,7 +1523,7 @@ TfLiteStatus Subgraph::ResizeTensorImpl(TfLiteTensor* tensor,
         TfLiteIntArrayEqual(tensor->dims, new_size) == 0;
     if (tensor->type != kTfLiteString) {
       size_t bytesRequired;
-      std::cout << "BytesRequired" << "\n";
+      // std::cout << "BytesRequired" << "\n";
       TfLiteStatus status = BytesRequired(tensor->type, new_size->data,
                                           new_size->size, &bytesRequired);
       if (status != kTfLiteOk) {
@@ -1735,7 +1735,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
 	  return kTfLiteApplicationError;
   }
-  std::cout << "ModifyGraphWithDelegate " << "\n";
+  std::cout << "ModifyGraphWithDelegate logic (func) start " << "\n";
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
     // Runtime Filter Modification for CPU&GPU Multithreading
@@ -1788,7 +1788,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     }
     state_ = kStateInvokable;
 
-    std::cout << "prepare_1" << "\n";
+    // std::cout << "prepare_1" << "\n";
     std::cout << "Execution Plan Size : " << execution_plan_.size() << "\n";
     
     TF_LITE_ENSURE_OK(
@@ -1814,6 +1814,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   }
   // TODO(aselle): Consider if it is worth storing pointers to delegates.
   // Setup additional context interface.
+  printf("HOON : Start to switch to delegate context\n");
   SwitchToDelegateContext();   // HOON : main code flow // just mapping func pointer for DELEGATE
   auto reset_delegation_if_not_ok = [this](TfLiteStatus status) {
     if (status != kTfLiteOk) {
@@ -1825,9 +1826,14 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     } 
     return kTfLiteOk;
   };
-  std::cout << "prepare_2" << "\n";
+  // std::cout << "prepare_2" << "\n";
+  printf("HOON : delegate prepare start\n");
+  printf("------------------------------------------------------------------------------------\n");
   TfLiteStatus status = delegate->Prepare(&context_, delegate); // HOON  : DELEGATE prepare logic !! 
   // Remove additional context info.
+  printf("------------------------------------------------------------------------------------\n");
+  printf("HOON : delegate prepare end \n");
+  printf("HOON : Start to switch to kernel context\n");
   SwitchToKernelContext();
   TF_LITE_ENSURE_STATUS(reset_delegation_if_not_ok(status));
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {

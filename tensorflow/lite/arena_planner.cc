@@ -196,7 +196,7 @@ TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
   #ifdef DEBUG
   SFLAG();
   #endif
-  std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::ExecuteAllocations()\n";
+  // std::cout << "tensorflow/lite/arena_planner.cc/ArenaPlanner::ExecuteAllocations()\n";
   // Grow the size of `allocs_` if necessary. This allows allocating temporary
   // tensors in op's `prepare` function.
   TF_LITE_ENSURE(context_, graph_info_->num_tensors() >= allocs_.size());
@@ -208,12 +208,12 @@ TfLiteStatus ArenaPlanner::ExecuteAllocations(int first_node, int last_node) {
                               i < graph_info_->num_execution_nodes();
        ++i) {
     const TfLiteNode& node = graph_info_->node(i);
-    std::cout << "node i : " << i << " ";
-    std::cout << node.inputs->data[0] << "\n";
+    // std::cout << "node i : " << i << " ";
+    // std::cout << node.inputs->data[0] << "\n";
     TfLiteIntArray* node_temporaries = node.temporaries;
     for (int j = 0; j < node_temporaries->size; ++j) {
       int tensor_index = node_temporaries->data[j];
-      std::cout << "temporal tensor:" << tensor_index << "\n";
+      // std::cout << "temporal tensor:" << tensor_index << "\n";
       alloc_node_[tensor_index] = i;
       dealloc_node_[tensor_index] = i;
     }
@@ -331,7 +331,7 @@ TfLiteStatus ArenaPlanner::CalculateAllocations(int first_node, int last_node) {
   for (const auto& tensor_index : tensor_order) {
     TfLiteTensor& tensor = *graph_info_->tensor(tensor_index);
     if (tensor.allocation_type == kTfLiteArenaRw) {
-      std::cout << "Allocates tensor " << tensor_index << "\n";
+      // std::cout << "All/ocates tensor " << tensor_index << "\n";
       TF_LITE_ENSURE_STATUS(
           arena_.Allocate(context_, tensor_alignment_, tensor.bytes,
                           tensor_index, alloc_node_[tensor_index],

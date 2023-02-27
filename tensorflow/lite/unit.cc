@@ -1,8 +1,8 @@
 #include "unit.h"
 #define SEQ 60000
 #define OUT_SEQ 1
-//#define GPUONLY
-#define MULTITHREAD
+#define GPUONLY
+//#define MULTITHREAD
 //#define quantize
 //#define MONITORING
 //#define mnist

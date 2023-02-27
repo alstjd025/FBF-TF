@@ -459,6 +459,7 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   TfLiteIntArray* ops_to_replace =
       GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
                       gpu_delegate->MaxDelegatedPartitions());
+  // std::cout << (auto *)ops_to_replace << std::endl; // HOON : check ops_to_replace TODO
   // HOON
   // delegate flow
   // 1. create delegate unit (delegate.cc). make prepare logic (just making prepare func)
@@ -482,6 +483,8 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   ////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////
+  // @@@@@@@ HOON : gpu delegation node partitioning in single subgraph [1] @@@@@@@
+  //                not only by "cocatenation layer"
   //Minsung Modifyed Code starts //
   ////////////////////////////////////////////////////////////////////
 

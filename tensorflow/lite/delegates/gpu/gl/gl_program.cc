@@ -129,7 +129,7 @@ struct ParameterSetter {
 
 absl::Status GlProgram::CreateWithShader(const GlShader& shader,
                                          GlProgram* gl_program) {
-  std::cout << "GlProgram::Create With Shader(Program)" << "\n";
+  // std::cout << "GlProgram::Create With Shader(Program)" << "\n";
   GLuint program_id;
   RETURN_IF_ERROR(CreateNewProgramId(&program_id));
 

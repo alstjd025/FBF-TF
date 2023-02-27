@@ -2844,19 +2844,23 @@ bool IsAllAllowedTensors(TfLiteContext* context,
 
 // TODO(impjdi): Check number of input/output tensors and their dimensions.
 // TODO(impjdi): Check ops' parameters.
+// HOON : Test GetOpsToReplace  ~ TODO
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
-
+  printf("Stat GetOpsToReplace logic\n");
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-	printf("CHECKING LAYER %d \n", registration->builtin_code);
-  if(context->use_distribute_strategy_context)
+  // get op_name with builtin_ops.h
+  // TfLiteBuiltinOperator op_name(registration->builtin_code); TODO
+	// printf("CHECKING LAYER %s \n", op_name); // TODO https://forward-movement.tistory.com/239
+  if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning !!
   {
     if(registration->builtin_code == 0){ //check if concat layer
+    // builtin_ops.h  . 2 or 0 
         printf("FOUND A CONCAT LAYER... MAKE GPU DEL NODE \n");
         return false;
     }
@@ -2881,7 +2885,8 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     return true;
   };
   // HOON : check each node, if that node is unsupported on DELEGATE
-  //        IsAllAllowdTensor & concat layer
+  //        IsAllAllowdTensor & concat layer 
+  // NOTE : GetOpsToReplace is just func pointer which is used making partition_helper
 
 
   delegates::FP16GraphPartitionHelper partition_helper(context,
@@ -2896,6 +2901,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   std::vector<int> ops_to_replace =
       partition_helper.GetNodesOfFirstNLargestPartitions(
           max_delegated_partitions); //make ops_to_replace (Tfliteintarray*)
+          // N  == AND. maybe ..... TEST
 
   if (!unsupported_nodes_info.empty()) {
     std::string unsupported = absl::StrJoin(unsupported_nodes_info, "\n");

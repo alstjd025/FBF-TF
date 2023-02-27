@@ -273,7 +273,7 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
 
   for (int i = 0; i < operators->size(); ++i) {
     const auto* op = operators->Get(i);
-    std::cout << "Parse Node op idx : " << i << " \n";
+    // std::cout << "Parse Node op idx : " << i << " \n";
     int index = op->opcode_index();
     if (index < 0 || index >= flatbuffer_op_index_to_registration_.size()) {
       error_reporter_->Report("Missing registration for opcode_index %d\n",
@@ -325,20 +325,20 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
           FlatBufferIntArrayToVector(op->outputs()),
           FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
           builtin_data, registration);
-      std::cout << "Nodes Modifying" << "\n inputs: ";
+      // std::cout << "Nodes Modifying" << "\n inputs: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j){
         std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
       }
-      std::cout << "\n outputs: ";
+      // std::cout << "\n outputs: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j){
         std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
       }
-      std::cout << "\n Intermediates: ";
+      // std::cout << "\n Intermediates: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->intermediates()).size(); ++j){
         std::cout << FlatBufferIntArrayToVector(op->intermediates())[j] << " ";
       }
-      std::cout << "\n";
-      std::cout << "Nodes Modifyed" << "\n";
+      // std::cout << "\n";
+      // std::cout << "Nodes Modifyed" << "\n";
     }
   }
   return status;
@@ -356,7 +356,7 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
   //if(op_st == op_end) // If a Layer has single node
   op_end++;
   for (int i = op_st; i < op_end; ++i) {
-    std::cout << "Parse Node op idx : " << i << " \n";
+    // std::cout << "Parse Node op idx : " << i << " \n";
     const auto* op = operators->Get(i);
     int index = op->opcode_index();
     if (index < 0 || index >= flatbuffer_op_index_to_registration_.size()) {
@@ -406,20 +406,20 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
           FlatBufferIntArrayToVector(op->outputs()),
           FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
           builtin_data, registration);
-      std::cout << "Nodes Modifying" << "\n inputs: ";
+      // std::cout << "Nodes Modifying" << "\n inputs: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j){
-        std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
+        // std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
       }
-      std::cout << "\n outputs: ";
+      // std::cout << "\n outputs: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j){
-        std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
+        // std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
       }
-      std::cout << "\n Intermediates: ";
+      // std::cout << "\n Intermediates: ";
       for(int j=0; j<FlatBufferIntArrayToVector(op->intermediates()).size(); ++j){
-        std::cout << FlatBufferIntArrayToVector(op->intermediates())[j] << " ";
+        // std::cout << FlatBufferIntArrayToVector(op->intermediates())[j] << " ";
       }
-      std::cout << "\n";
-      std::cout << "Nodes Modifyed" << "\n";
+      // std::cout << "\n";
+      // std::cout << "Nodes Modifyed" << "\n";
     }
   }
   return status;
@@ -579,9 +579,9 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
     const auto* tensor = tensors->Get(i);
     std::vector<int> dims = FlatBufferIntArrayToVector(tensor->shape());
     for(int j=0; j< dims.size(); ++j){
-      std::cout << dims[j] << " ";
+      // std::cout << dims[j] << " ";
     }
-    std::cout << "\n";
+    // std::cout << "\n";
     TfLiteType type;
     if (ConvertTensorType(tensor->type(), &type, error_reporter_) !=
         kTfLiteOk) {
@@ -591,12 +591,12 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
     if (type == kTfLiteFloat32) {
       ++num_fp32_tensors_;
     }    
-    std::cout << "Parse tensor : " << i << "\n"; 
-    std::cout << "shape : " ;
+    // std::cout << "Parse tensor : " << i << "\n"; 
+    // std::cout << "shape : " ;
     for(int j=0; j<tensor->shape()->size(); ++j){
-      std::cout << tensor->shape()->Get(j) << " ";
+      // std::cout << tensor->shape()->Get(j) << " ";
     }
-    std::cout << "\n";
+    // std::cout << "\n";
     auto get_readonly_data = [&](const char** buffer_data,
                                  size_t* buffer_size) {
       // TODO(aselle): Check what happens if we have an unspecified size
@@ -641,7 +641,7 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
 
     bool is_variable = tensor->is_variable();
     if (buffer_ptr) {
-      std::cout << "buffer_ptr" << "\n";
+      // std::cout << "buffer_ptr" << "\n";
       if (is_variable) {
         error_reporter_->Report(
             "Tensor %d is a variable tensor with buffer. "
@@ -667,7 +667,7 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
         status = kTfLiteError;
       }
     } else {
-      std::cout << "else" << "\n";
+      // std::cout << "else" << "\n";
       if (subgraph->SetTensorParametersReadWrite(
               i, type, get_name(tensor), dims, quantization, is_variable,
               dims_signature_rank, dims_signature_data) != kTfLiteOk) {
@@ -819,6 +819,8 @@ TfLiteStatus InterpreterBuilder::operator()(
   return operator()(interpreter, /*num_threads=*/-1, eType);
 }
 
+
+// @@@@@@@ HOON : subgraph partitioning logic [2] @@@@@@@
 TfLiteStatus InterpreterBuilder::operator()(
     std::unique_ptr<Interpreter>* interpreter, int num_threads, UnitType eType) {
   if (!interpreter) {

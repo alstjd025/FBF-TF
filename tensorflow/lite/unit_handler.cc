@@ -1,8 +1,8 @@
 #include "unit_handler.h"
 #include "kmcontext.h"
 #include <typeinfo>
-#define MULTITHREAD
-//#define GPUONLY
+//#define MULTITHREAD
+#define GPUONLY
 //#define QUANTIZE
 
 extern std::mutex mtx_lock;
