@@ -72,6 +72,38 @@ TfLiteStatus GraphPartitionHelper::Partition(
   return kTfLiteOk;
 }
 
+
+std::vector<TfLiteDelegateParams*>
+GraphPartitionHelper::GetFirstNSmallestPartitions(
+    int n, int min_nodes_per_partition) const {
+  // In general, the number of partitions in a delegate is never likely to be
+  // high enough to cause latency issues. Also considering this is generally a
+  // one-time work, we simply unconditionally sort partitions here according to
+  // the size.
+
+  // HOON : maybe TODO
+  std::cout << "HOON : Smallest Partitions logic " << std::endl;
+  std::vector<TfLiteDelegateParams*> sorted_partitions(partitions_);
+  std::sort(sorted_partitions.begin(), sorted_partitions.end(),
+            [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
+              // Reverse sort
+              return left->nodes_to_replace->size <
+                     right->nodes_to_replace->size;
+            });
+
+  std::vector<TfLiteDelegateParams*> results;
+  auto p_it = sorted_partitions.begin();
+  const int total = sorted_partitions.size();
+  for (int i = 0; i < std::min(total, n); ++i, ++p_it) {
+    auto* p = (*p_it);
+    if (p->nodes_to_replace->size < min_nodes_per_partition) {
+      break;
+    }
+    results.push_back(p);
+  }
+  return results;
+}
+
 std::vector<TfLiteDelegateParams*>
 GraphPartitionHelper::GetFirstNLargestPartitions(
     int n, int min_nodes_per_partition) const {
@@ -79,6 +111,8 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
   // high enough to cause latency issues. Also considering this is generally a
   // one-time work, we simply unconditionally sort partitions here according to
   // the size.
+  std::cout << "HOON : Largest Partitions logic " << std::endl;
+  // HOON : maybe TODO
   std::vector<TfLiteDelegateParams*> sorted_partitions(partitions_);
   std::sort(sorted_partitions.begin(), sorted_partitions.end(),
             [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
@@ -100,10 +134,16 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
   return results;
 }
 
+// same two func .. ???  197
+// this func for default type
 std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
     int n, int min_nodes_per_partition) {
+  // HOON
+  // auto first_n_partitions =
+      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
+  std::cout << "Original GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNLargestPartitions(n, min_nodes_per_partition);
+      GetFirstNSmallestPartitions(n, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
   for (const auto p : first_n_partitions) {
     auto nodes = p->nodes_to_replace;
@@ -155,11 +195,16 @@ TfLiteStatus GraphPartitionHelper::PrepareSupportedNodes(
   return kTfLiteOk;
 }
 
+// this func for fp16 type
 std::vector<int>
 FP16GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
     int n, int min_nodes_per_partition) {
+  // HOON
+  // auto first_n_partitions =
+      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
+  std::cout << "FP16GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNLargestPartitions(n, min_nodes_per_partition);
+      GetFirstNSmallestPartitions(n, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
   if (first_n_partitions.empty()) return ops_to_replace;
 

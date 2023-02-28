@@ -459,6 +459,9 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   TfLiteIntArray* ops_to_replace =
       GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
                       gpu_delegate->MaxDelegatedPartitions());
+
+  
+  
   // std::cout << (auto *)ops_to_replace << std::endl; // HOON : check ops_to_replace TODO
   // HOON
   // delegate flow
@@ -530,7 +533,7 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   ////////////////////////////////////////////////////////////////////
 
   TFLITE_LOG_PROD(TFLITE_LOG_INFO, "Created %d GPU delegate kernels.",
-                  gpu_delegate->num_delegate_kernels());
+                  gpu_delegate->num_delegate_kernels()); // this kernel means "delegate node" num
   return status; // legacy
   //return kTfLiteOk;
 }

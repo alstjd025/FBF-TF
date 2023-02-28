@@ -77,6 +77,10 @@ class GraphPartitionHelper {
   std::vector<TfLiteDelegateParams*> GetFirstNLargestPartitions(
       int n = std::numeric_limits<int>::max(),
       int min_nodes_per_partition = 0) const;
+// HOON
+std::vector<TfLiteDelegateParams*> GetFirstNSmallestPartitions(
+      int n = std::numeric_limits<int>::max(),
+      int min_nodes_per_partition = 0) const;
 
   // Returns a list of node indices of all nodes from the first n largest
   // partitions. If there are fewer paritions than n, all nodes will be
@@ -152,7 +156,6 @@ class FP16GraphPartitionHelper : public GraphPartitionHelper {
   // This will remap input tensors by removing FP16 to FP32 dequantized tensors.
   std::vector<int> GetNodesOfFirstNLargestPartitionsImpl(
       int n, int min_nodes_per_partition) override;
-
  private:
   // This remaps fp32 inputs of the given node to their corresponding fp16
   // version, if applicable. Can be summarized as:

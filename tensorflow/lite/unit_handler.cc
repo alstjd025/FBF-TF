@@ -186,7 +186,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .experimental_flags = 1,
-        .max_delegated_partitions = 3,
+        .max_delegated_partitions = 1, //1
     };
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
     #ifdef MULTITHREAD
