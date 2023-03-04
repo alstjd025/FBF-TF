@@ -3028,12 +3028,13 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
         IsSupported(context, node, registration, allow_quant_ops);
   // get op_name by registration->buitin_code
   printf("CHECKING LAYER %s \n", GetNodeName_ByBuiltin(registration).c_str()); 
-  context->use_distribute_strategy_context = true;
+  // context->use_distribute_strategy_context = true;
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning 
   {
-    if(registration->builtin_code == 2){ //check if concat layer
+    if(registration->builtin_code == 111){ // Hoon check if leakyRelu layer
+    // HOON  : 111->ELU  98->LeakyRELU
     // builtin_ops.h  . 2 or 0 
-        printf("FOUND A CONCAT LAYER... MAKE GPU DEL NODE \n");
+        printf("FOUND A Leaky_RELU LAYER... MAKE GPU DEL NODE \n");
         return false;
     }
     else {
@@ -3045,7 +3046,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
       }
     }
   }
-  context->use_distribute_strategy_context = false; // HOON : just for debugging
+  // context->use_distribute_strategy_context = false; // HOON : just for debugging
   if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
       !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) 
       {
@@ -3095,6 +3096,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
 
+  std::cout << "ops_to replace vector is : ";
   //HOON : print vector ops_to_replace  // max patition option 3 -> 5 
   for (int i = 0; i < ops_to_replace.size(); i++) {
         std::cout << ops_to_replace.at(i) << ' ';

@@ -281,6 +281,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     std::cout << "Starting GPU Job" << "\n";
     double time = 0;
     struct timespec begin, end;
+    double sum_average = 0;
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             //std::cout << "GPU " << *G_Counter << "\n";
@@ -348,17 +349,24 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             std::cout << "\n";
             #endif
             //std::cout << *G_Counter << "\n";
+            float max  = 0;
             for (int i =0; i<10; i++){
                 float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
+                if (value > max){
+                    max = value;
+                }
                 //printf("label : %d, pre : %0.5f \n", i, value);  ///HOON
             }
+            sum_average += max;
             if(!(*G_Counter % 1000))
                 std::cout << "Progress " << int(*G_Counter/1000) << "% \n";
         }
     }
-    std::cout << time << "\n";
+    std::cout << "All invoke time : " << time << "s" << "\n"; // HOON : This is all-invoke time , not ACCURACY ,,,,, 
     time = time / (SEQ * OUT_SEQ);
-    printf("Average elepsed time : %.6fs \n", time);
+    sum_average = sum_average / (SEQ * OUT_SEQ);
+    printf("Average invoke time : %.6f ms \n", time*1000);
+    printf("Average accuracy : %.6f % \n", sum_average*100);
     std::cout << "\n";
     std::cout << "GPU All Jobs done" << "\n";
     return kTfLiteOk;

@@ -139,11 +139,11 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
 std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
     int n, int min_nodes_per_partition) {
   // HOON
-  // auto first_n_partitions =
-      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
-  std::cout << "Original GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNSmallestPartitions(n, min_nodes_per_partition);
+      GetFirstNLargestPartitions(n, min_nodes_per_partition);
+  std::cout << "Original GraphPartitionHelper" << std::endl;
+  // auto first_n_partitions =
+      // GetFirstNSmallestPartitions(n, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
   for (const auto p : first_n_partitions) {
     auto nodes = p->nodes_to_replace;
@@ -200,11 +200,11 @@ std::vector<int>
 FP16GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
     int n, int min_nodes_per_partition) {
   // HOON
-  // auto first_n_partitions =
-      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
-  std::cout << "FP16GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNSmallestPartitions(n, min_nodes_per_partition);
+      GetFirstNLargestPartitions(n, min_nodes_per_partition);
+  std::cout << "FP16GraphPartitionHelper" << std::endl;
+  // auto first_n_partitions =
+      // GetFirstNSmallestPartitions(n, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
   if (first_n_partitions.empty()) return ops_to_replace;
 
