@@ -18,6 +18,7 @@
 #include "thread"
 #include "future"
 
+#include "tensorflow/lite/output_parser.h"
 
 #define Image_x 28
 #define Image_y 28
@@ -75,6 +76,7 @@ class Unit
         std::unique_ptr<tflite::Interpreter> interpreter;
         std::string name;
         int partition;
+        OutputParser* output_parser;
 };
 
 //Unit Class for CPU
@@ -82,7 +84,8 @@ class UnitCPU : public Unit
 {
     public:
         UnitCPU();
-        UnitCPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter);
+        UnitCPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter,
+                std::string model_name);
         ~UnitCPU() {};
         TfLiteStatus Invoke(UnitType eType, std::mutex& mtx_lock,
                                     std::mutex& mtx_lock_,
@@ -102,6 +105,7 @@ class UnitCPU : public Unit
         std::unique_ptr<tflite::Interpreter>* interpreterCPU;
         std::string name;
         int partition;
+        OutputParser* output_parser;
 };
 
 //Unit Class for GPU
@@ -109,7 +113,8 @@ class UnitGPU : public Unit
 {
     public:
         UnitGPU();
-        UnitGPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter);
+        UnitGPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter,
+                std::string model_name);
         ~UnitGPU() {};
         TfLiteStatus Invoke(UnitType eType, std::mutex& mtx_lock,
                                     std::mutex& mtx_lock_,
@@ -129,6 +134,7 @@ class UnitGPU : public Unit
         std::unique_ptr<tflite::Interpreter>* interpreterGPU;
         std::string name;
         int partition;
+        OutputParser* output_parser;
 };
 
 } // End of namespace tflite

@@ -1,13 +1,13 @@
 #include "unit.h"
-#define SEQ 1000
+#define SEQ 1
 #define OUT_SEQ 1
-#define GPUONLY
+#define CPUONLY
 //#define quantize
 #define MONITORING
 //#define mnist
 // #define catdog
+//#define imagenet
 #define imagenet
-//#define mnist
 
 std::mutex mtx_lock;
 
@@ -17,8 +17,14 @@ namespace tflite
 // UnitCPU
 UnitCPU::UnitCPU() : name("NONE"), interpreterCPU(nullptr){}
 
-UnitCPU::UnitCPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter) 
-            : eType(eType_), interpreterCPU(std::move(interpreter)) {}
+UnitCPU::UnitCPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter,
+                std::string model_name) 
+            : eType(eType_), interpreterCPU(std::move(interpreter)) {
+                name = model_name;
+                #ifdef imagenet
+                  output_parser = new OutputParser(416, 416, 10647, 80, 0.6);
+                #endif
+            }
 
 #ifdef MULTITHREAD
 TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
@@ -151,7 +157,11 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //printf("time : %.6fs \n", temp_time);
             time += temp_time;
             #ifdef imagenet
-                //interpreterCPU->get()->PrintOutputTensor(eType);
+                // tensor 948 is output of yolov4
+                interpreterCPU->get()->PrintIntermediateTensor(eType, 0, 0);
+                output_parser->setOutputTensors(interpreterCPU->get()->tensor(948));
+                output_parser->ParseOutput();
+                output_parser->PrintOutput();
             #endif
             #ifdef MONITORING
             // for (int i =0; i<1001; i++){
@@ -186,8 +196,14 @@ UnitType UnitCPU::GetUnitType(){
 // UnitGPU
 UnitGPU::UnitGPU() : name("NONE"), interpreterGPU(nullptr){}
 
-UnitGPU::UnitGPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter) 
-            : eType(eType_), interpreterGPU(std::move(interpreter)) {}
+UnitGPU::UnitGPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpreter,
+                std::string model_name) 
+            : eType(eType_), interpreterGPU(std::move(interpreter)) {
+                name = model_name;
+                #ifdef imagenet
+                  output_parser = new OutputParser(416, 416, 10647, 80, 0.6);
+                #endif
+            }
 
 #ifdef MULTITHREAD
 TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock, 
@@ -323,7 +339,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             *G_Counter += 1;
             double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
             time += temp_time;
-            //printf("time : %.6fs \n", temp_time);
+            printf("job %s latency : %.6fs \n", const_cast<char*>(name.c_str()), temp_time);
             #ifdef MONITORING
             #ifdef imagenet
                 // for (int i =0; i<1000; i++){

@@ -577,7 +577,9 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
   num_fp32_tensors_ = 0;
   for (int i = 0; i < tensors->size(); ++i) {
     const auto* tensor = tensors->Get(i);
+    std::cout << "Parse tensor : " << i << "\n"; 
     std::vector<int> dims = FlatBufferIntArrayToVector(tensor->shape());
+    std::cout << "dims " << dims.size() << "\n";
     for(int j=0; j< dims.size(); ++j){
       std::cout << dims[j] << " ";
     }
@@ -591,7 +593,6 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
     if (type == kTfLiteFloat32) {
       ++num_fp32_tensors_;
     }    
-    std::cout << "Parse tensor : " << i << "\n"; 
     std::cout << "shape : " ;
     for(int j=0; j<tensor->shape()->size(); ++j){
       std::cout << tensor->shape()->Get(j) << " ";

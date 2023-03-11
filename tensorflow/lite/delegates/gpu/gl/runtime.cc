@@ -36,6 +36,8 @@ limitations under the License.
 
 #include "tensorflow/lite/kmdebug.h"
 #include "time.h"
+#include <chrono>
+#include <thread>
 
 namespace tflite {
 namespace gpu {
@@ -605,6 +607,8 @@ absl::Status Runtime::Execute() {
     #endif
     RETURN_IF_ERROR(command_queue_->Dispatch(descriptor.program,
                                              descriptor.num_workgroups));
+    std::cout << "wait for 5 sec" << "\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
     #ifdef lantecy_debug
       clock_gettime(CLOCK_MONOTONIC, &end);
       double latency = (end.tv_sec - begin.tv_sec) + \

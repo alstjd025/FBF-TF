@@ -2,7 +2,7 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define GPUONLY
+#define CPUONLY
 //#define QUANTIZE
 
 extern std::mutex mtx_lock;
@@ -96,7 +96,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
             return kTfLiteError;
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
-        (*builder_)(interpreter, 6);
+        (*builder_)(interpreter, 2);
     }
     #ifdef MULTITHREAD
     TFLITE_MINIMAL_CHECK(interpreter->get()->SetPartitioning(5, eType) == kTfLiteOk);  
@@ -104,7 +104,7 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensors() == kTfLiteOk);  
     UnitCPU* temp;
-    temp = new UnitCPU(eType, std::move(interpreter));
+    temp = new UnitCPU(eType, std::move(interpreter), fileNameOriginal);
     temp->SetInput(input);
     vUnitContainer.push_back(temp);
     iUnitCount++;    
@@ -153,8 +153,6 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
             return kTfLiteError;
         }
         interpreter = new std::unique_ptr<tflite::Interpreter>;
-        // An experimental task to devide a model to multiple subgrpahs
-        //interpreter->get()->SetMultipleSubgraphs(true);
         (*GPUBuilder_)(interpreter, eType);
     }
     else{
@@ -202,7 +200,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphs() == kTfLiteOk);
     UnitGPU* temp;
     tflite::PrintInterpreterStateV2(interpreter->get());
-    temp = new UnitGPU(eType, std::move(interpreter));
+    temp = new UnitGPU(eType, std::move(interpreter), fileNameOriginal);
     temp->SetInput(input);
     //Set ContextHandler Pointer
     vUnitContainer.push_back(temp);

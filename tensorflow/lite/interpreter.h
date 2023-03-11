@@ -426,12 +426,6 @@ class Interpreter {
   // Minsung
   TfLiteStatus QuantizeSubgraph();
 
-  // Minsung
-  void SetMultipleSubgraphs(bool flag);
-
-  // Minsung
-  bool GetMultipleSubgraphFlag();
-
   /// Invoke the interpreter (run the whole graph in dependency order).
   ///
   /// NOTE: It is possible that the interpreter is not in a ready state
@@ -455,6 +449,11 @@ class Interpreter {
   // Minsung
   // PrintOutputTensor
   void PrintOutputTensor(UnitType eType);
+
+  // Minsung
+  // PrintIntermediateTensor
+  void PrintIntermediateTensor(UnitType eType, int subgraph_idx,
+                                int tensor_idx);
 
 
   /// Enable or disable NNAPI (true to enable). Disabled by default.

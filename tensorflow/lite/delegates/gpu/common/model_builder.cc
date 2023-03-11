@@ -2876,6 +2876,18 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     }
   }
   /// Minsung
+
+  // depthconv's dpethwise multiplier in lanenet not working in gpu.
+  // if(registration->builtin_code == 4){
+  //   printf("Found a depthconv layer.");
+  //   return false;
+  // }
+  if(registration->builtin_code == 0){
+    printf("Found a ADD layer.");
+    return false;
+  }
+  //for lanenet
+
   // SPLIT_V operation is not supported for GPU currently
   // in yolov_4
   // if(registration->builtin_code == 102){

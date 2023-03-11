@@ -418,18 +418,8 @@ TfLiteStatus Interpreter::QuantizeSubgraph(){
   return kTfLiteOk;
 }
 
-// Minsung
-// Set experimental flag for deviding a model to multiple subgraphs
-void Interpreter::SetMultipleSubgraphs(bool flag){
-  devide_by_conv = flag;
-}
 
 // Minsung
-// Returns experimental flag which have been set above
-bool Interpreter::GetMultipleSubgraphFlag(){
-  return devide_by_conv;
-}
-
 TfLiteStatus Interpreter::Invoke(UnitType eType, std::mutex& mtx_lock,
                      std::mutex& mtx_lock_,
                      std::mutex& mtx_lock_debug,
@@ -801,6 +791,12 @@ TfLiteStatus Interpreter::PrepareTensorsSharing(UnitType eType){
 void Interpreter::PrintOutputTensor(UnitType eType){
   std::cout << "Interpreter has " << subgraphs_size() << " subgraphs \n";
   final_subgraph().PrintOutputTensorOfSubgraph(eType);
+}
+
+void Interpreter::PrintIntermediateTensor(UnitType eType, int subgraph_idx,
+                                             int tensor_idx){
+  TfLiteTensor* tensor = subgraph(subgraph_idx)->tensor(tensor_idx);
+  subgraph(subgraph_idx)->PrintTensor(*tensor, eType);
 }
 
 
