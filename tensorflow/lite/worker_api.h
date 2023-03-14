@@ -24,7 +24,22 @@
 Author : Minsung Kim
 Contact : alstjd025@gmail.com
 
-This is a worker api source for woker in tensorflow lite.
+
+This is a worker api source for worker in tensorflow lite.
+
+/////////////////////////////////////////////////////////
+/                        WorkerAPI                      /
+/                                                       /
+/  ///////////////      ///////////////                 /
+/  /   [Worker]  /      /   [Worker]  /                 /
+/  /     CPU1    /      /  CPU2  GPU1 /                 /
+/  / interperter /      / interperter /     .  .  .     /     
+/  ///////////////      / interpreter /                 /
+/                       ///////////////                 /
+/                                                       /
+/////////////////////////////////////////////////////////
+
+
 */
 
 namespace tflite{
@@ -33,11 +48,24 @@ class Worker; // forward declare of Worker class
 class WorkerAPI{
   public:
     WorkerAPI();
+    WorkerAPI(const char* model_name);
     ~WorkerAPI();
+
+    // Create worker of a given worker type
+    TfLiteStatus CreateWorker(workerType wType);
+  
+    // Allocates a task to specific worker
+    TfLiteStatus AllocateTask();
+
+    // vector container of worker_ids
+    std::vector<int> worker_ids;
 
     // vector container of workers
     std::vector<Worker*> workers;
 
+    // tflite InterpreterBuilder container
+    std::vector<tflite::InterpreterBuilder*> interpreterbuilders;
+    
 
 };
 

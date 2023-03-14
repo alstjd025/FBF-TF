@@ -29,19 +29,25 @@ This is a worker core source for tensorflow lite.
 
 namespace tflite{
 
+typedef struct job{
+  
+} job;
+
+
 class Worker
 {
   public:
     Worker();
-    Worker();
+    Worker(workerType wType, int w_id);
     
     ~Worker();
 
     // worker id
     int worker_id;
+    workerType type;
 
     // threads, mutex and condition variables for synchronization and multi-
-    // processing
+    // threading
     std::mutex mtx_lock;
     std::condition_variable cond_variable;
     std::thread working_thread;
@@ -51,7 +57,7 @@ class Worker
     
     // interpreter 
     std::unique_ptr<tflite::Interpreter>* interpreter;
-
+    
 
 };
 
