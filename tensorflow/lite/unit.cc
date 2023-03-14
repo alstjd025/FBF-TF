@@ -7,7 +7,16 @@
 //#define mnist
 // #define catdog
 //#define imagenet
-#define imagenet
+#define imagenet 
+#define INPUT_416
+
+#ifdef INPUT_416
+    #define INPUT_SIZE 416
+#endif
+
+#ifdef INPUT_224
+    #define INPUT_SIZE 224
+#endif
 
 std::mutex mtx_lock;
 
@@ -22,7 +31,7 @@ UnitCPU::UnitCPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpre
             : eType(eType_), interpreterCPU(std::move(interpreter)) {
                 name = model_name;
                 #ifdef imagenet
-                  output_parser = new OutputParser(416, 416, 10647, 80, 0.6);
+                  output_parser = new OutputParser(INPUT_SIZE, INPUT_SIZE, 10647, 80, 0.6);
                 #endif
             }
 
@@ -98,15 +107,15 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             #ifdef imagenet
             auto *input_pointer = interpreterCPU->get()->typed_input_tensor<float>(0);
             memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
-            // for (int i=0; i < 224; ++i) {
-            //     for(int j=0; j < 224; j++){
-            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3] = \
+            // for (int i=0; i < INPUT_SIZE; ++i) {
+            //     for(int j=0; j < INPUT_SIZE; j++){
+            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*INPUT_SIZE + j*3] = \
             //          ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
 
-            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3 + 1] = \
+            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*INPUT_SIZE + j*3 + 1] = \
             //          ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
 
-            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3 + 2] = \
+            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*INPUT_SIZE + j*3 + 2] = \
             //          ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
             //     }
             // }
@@ -158,7 +167,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             time += temp_time;
             #ifdef imagenet
                 // tensor 948 is output of yolov4
-                interpreterCPU->get()->PrintIntermediateTensor(eType, 0, 0);
+                //interpreterCPU->get()->PrintIntermediateTensor(eType, 0, 0);
                 output_parser->setOutputTensors(interpreterCPU->get()->tensor(948));
                 output_parser->ParseOutput();
                 output_parser->PrintOutput();
@@ -201,7 +210,7 @@ UnitGPU::UnitGPU(UnitType eType_, std::unique_ptr<tflite::Interpreter>* interpre
             : eType(eType_), interpreterGPU(std::move(interpreter)) {
                 name = model_name;
                 #ifdef imagenet
-                  output_parser = new OutputParser(416, 416, 10647, 80, 0.6);
+                  output_parser = new OutputParser(INPUT_SIZE, INPUT_SIZE, 10647, 80, 0.6);
                 #endif
             }
 
@@ -300,8 +309,20 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
         for(int k=0; k<SEQ; k++){
             //std::cout << "GPU " << *G_Counter << "\n";
             #ifdef imagenet
-            auto *input_pointer = interpreterGPU->get()->typed_input_tensor<float>(0);
-            memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+            //auto *input_pointer = interpreterGPU->get()->typed_input_tensor<float>(0);
+            //memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+            for (int i=0; i < INPUT_SIZE; ++i) {
+                for(int j=0; j < INPUT_SIZE; j++){
+                    interpreterGPU->get()->typed_input_tensor<float>(0)[i*INPUT_SIZE + j*3] = \
+                     ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
+
+                    interpreterGPU->get()->typed_input_tensor<float>(0)[i*INPUT_SIZE + j*3 + 1] = \
+                     ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+
+                    interpreterGPU->get()->typed_input_tensor<float>(0)[i*INPUT_SIZE + j*3 + 2] = \
+                     ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+                }
+            }
             #endif
 
             #ifdef catdog

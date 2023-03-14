@@ -54,7 +54,7 @@ bool OutputParser::ParseOutput(){
   for(int i=0; i<num_classes; ++i){
     for(int j=0; j<num_anchors; ++j){
       float conf = *(data+(i * num_classes + j));
-      if(conf > 0.00001){
+      if(conf > 0.0001){
         printf("%0.5f \n", conf);
         DetectedObject obj;
         obj.class_id = i;
@@ -70,7 +70,7 @@ void OutputParser::PrintOutput(){
   std::cout << "Detected " << output_objects.size() << " objects \n";
   for(size_t i=0; i<output_objects.size(); ++i){
     std::cout << "Class [" << output_objects[i].class_id <<"] \n";
-    std::cout << "Prediction score [";
+    std::cout << "Confidence score [";
     printf("%0.6f] \n", output_objects[i].confidence);
     std::cout << "Box idx [" << output_objects[i].box_idx << "] \n";
     std::cout << "\n";
