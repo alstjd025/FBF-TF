@@ -959,6 +959,25 @@ typedef struct TfLiteDelegate {
   int64_t flags;
 } TfLiteDelegate;
 
+// Minsung
+// worker type
+typedef enum workerType{
+  NONE,
+  CPU,  // means CPU only worker
+  GPU,  // means GPU only worker
+  CO_EX // means co-execution of CPU / GPU
+} workerType;
+
+
+// Minsung
+// sharedcontext for tensor sharing in multiple worker threads
+typedef struct sharedcontext{
+  TfLiteTensor* sharedtensor;
+  int dest;   // means destination 
+  int dept;   // means departure
+} sharedcontext;
+
+
 // Build a 'null' delegate, with all the fields properly set to their default
 // values.
 TfLiteDelegate TfLiteDelegateCreate();
