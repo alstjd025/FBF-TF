@@ -88,6 +88,18 @@ bool IsUnresolvedCustomOp(const TfLiteRegistration& registration);
 
 // Returns a descriptive name with the given op TfLiteRegistration.
 std::string GetOpNameByRegistration(const TfLiteRegistration& registration);
+
+
+// Minsung
+// subgraph metadata for subgraph granularity scheduling
+typedef struct subgraphMetaData{
+  float profiled_latency;
+  std::vector<int> input_tensors;
+  std::vector<int> output_tensors;  
+} subgraphMetaData;
+
+
+
 }  // namespace tflite
 
 #endif  // TENSORFLOW_LITE_UTIL_H_

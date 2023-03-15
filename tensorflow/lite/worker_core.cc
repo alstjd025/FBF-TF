@@ -6,6 +6,7 @@
     exit(1);                                                 \
   }
 
+#define TFLITE_WORKER_MSG(x)
 
 namespace tflite{
   Worker::Worker(){
