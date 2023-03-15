@@ -21,7 +21,7 @@ limitations under the License.
 #include "tensorflow/lite/schema/schema_utils.h"
 
 namespace tflite {
-
+ // HOON  : interpreterbuilder FAILED when use YOLO * models
 TfLiteStatus GetRegistrationFromOpCode(
     const OperatorCode* opcode, const OpResolver& op_resolver,
     ErrorReporter* error_reporter, const TfLiteRegistration** registration) {
@@ -29,15 +29,14 @@ TfLiteStatus GetRegistrationFromOpCode(
   *registration = nullptr;
   auto builtin_code = GetBuiltinCode(opcode);
   int version = opcode->version();
-
   if (builtin_code > BuiltinOperator_MAX ||
       builtin_code < BuiltinOperator_MIN) {
     TF_LITE_REPORT_ERROR(
         error_reporter,
-        "Op builtin_code out of range: %d. Are you using old TFLite binary "
+        "Op builtin_code out of range: %d. Are you using old TFLite binary " //HOON
         "with newer model?",
         builtin_code);
-    status = kTfLiteError;
+    status = kTfLiteError;  //HOON
   } else if (builtin_code != BuiltinOperator_CUSTOM) {
     *registration = op_resolver.FindOp(builtin_code, version);
     if (*registration == nullptr) {

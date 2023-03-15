@@ -3028,13 +3028,14 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
         IsSupported(context, node, registration, allow_quant_ops);
   // get op_name by registration->buitin_code
   printf("CHECKING LAYER %s \n", GetNodeName_ByBuiltin(registration).c_str()); 
-  // context->use_distribute_strategy_context = true;
+  context->use_distribute_strategy_context = true;
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning 
   {
-    if(registration->builtin_code == 111){ // Hoon check if leakyRelu layer
+    if(registration->builtin_code == 9){ // Hoon s
     // HOON  : 111->ELU  98->LeakyRELU
+    // HOON  :  3->CONV  9-> FullyCOnnected
     // builtin_ops.h  . 2 or 0 
-        printf("FOUND A Leaky_RELU LAYER... MAKE GPU DEL NODE \n");
+        printf("FOUND A FALLBACK LAYER... MAKE GPU DEL NODE \n");
         return false;
     }
     else {
@@ -3046,10 +3047,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
       }
     }
   }
-  // context->use_distribute_strategy_context = false; // HOON : just for debugging
+  context->use_distribute_strategy_context = false; // HOON : just for debugging
   if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
       !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) 
       {
+    printf("HOON : This layer is not supported in OPENGL delegation.");
     if (unsupported_details) {
       *unsupported_details =
           "OP is supported, but tensor type isn't matched!";
@@ -3065,7 +3067,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
 
   delegates::FP16GraphPartitionHelper partition_helper(context,
                                                        node_supported_fn);
-  std::set<std::string> unsupported_nodes_info;
+  std::set<std::string> unsupported_nodes_info; // HOON : unsupported_nodes_info ,,,?? 
   if (partition_helper.Partition(&unsupported_nodes_info) != kTfLiteOk) { //HOON
     return TfLiteIntArrayCreate(0);
   }
@@ -3096,12 +3098,12 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
 
-  std::cout << "ops_to replace vector is : ";
+  std::cout << ">>>>>>>>>>>>>>>>>>>>>>>ops_to replace vector is : ";
   //HOON : print vector ops_to_replace  // max patition option 3 -> 5 
   for (int i = 0; i < ops_to_replace.size(); i++) {
         std::cout << ops_to_replace.at(i) << ' ';
     }
-  printf("\n");
+  printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
   printf("(1) : End GetOpsToReplace logic\n");
   return ConvertVectorToTfLiteIntArray(ops_to_replace); // return tfliteintarray*
 }
