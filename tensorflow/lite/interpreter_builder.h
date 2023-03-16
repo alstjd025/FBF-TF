@@ -58,12 +58,35 @@ class InterpreterBuilder {
   InterpreterBuilder(const ::tflite::Model* model,
                      const OpResolver& op_resolver,
                      ErrorReporter* error_reporter = DefaultErrorReporter());
+
+  // Minsung
+  // Use this constructor
+  InterpreterBuilder(const FlatBufferModel& model,
+                    const OpResolver& op_resolver,
+                    const char* model_name,
+                    int model_id);
+
   ~InterpreterBuilder();
   InterpreterBuilder(const InterpreterBuilder&) = delete;
   InterpreterBuilder& operator=(const InterpreterBuilder&) = delete;
   TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter);
   TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter,
                           int num_threads);
+
+  // Minsung
+  // Creates a subgraph.
+  // This funciton is an initial phase of creating a model into invokable subgraph and
+  // move it to the given interpreter.
+  // and wrap it with default job class
+  // (parse nodes, tensors and allocatetensors)
+  TfLiteStatus CreateSubgraphFromFlatBuffer(
+                                std::shared_ptr<tflite::Interpreter> interpreter);
+
+  // Minsung
+  // Creates subset of subgraphs
+  // After profiling the whole subgraph's latency, creates subset of subgraphs so
+  // that the scheduler can handle them.
+  TfLiteStatus CreateSubgraphsFromProfiling();
 
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();
@@ -92,6 +115,14 @@ class InterpreterBuilder {
 
   bool has_flex_op_ = false;
   int num_fp32_tensors_ = 0;
+
+  // Minsung
+  // name of model file
+  std::string model_name_;
+
+  // id of model
+  // Every subgraphs made of this model share the same model id.
+  int model_id_;
 };
 
 }  // namespace tflite

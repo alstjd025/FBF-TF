@@ -19,15 +19,21 @@ namespace tflite{
 
 
   TfLiteStatus WorkFrame::CreateProfilerandScheduler(const char* model){
-    profiler_ = Profiler();
+    // NEED DEBUG: use of make_shared here is quite ambigious.
+    interpreter = std::make_shared<tflite::Interpreter>();
+    scheduler_ = std::make_shared<Scheduler>(interpreter);
+    factory_ = ModelFactory(interpreter);
+    #ifdef DEBUG
+      std::cout << "interpreter count :" << interpreter.use_count() << "\n";
+    #endif
   };
 
 
 
   TfLiteStatus WorkFrame::CreateWorker(workerType wType, int cpu_num){
     // Creates a worker of given workerType.
-    // If given worker type is NONE, will create a default worker.
-    // A default worker only uses single CPU.
+    // If given worker type is NONE, this will create a default worker.
+    // A default worker uses single CPU.
     if(wType == workerType::NONE){
       int new_id;
       new_id = worker_ids.size();

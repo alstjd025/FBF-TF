@@ -661,6 +661,10 @@ class Interpreter {
   // An empty one means there's no delegate to be applied by default or
   // delegates have been applied and doesn't need to be applied again.
   std::vector<TfLiteDelegatePtr> lazy_delegate_providers_;
+
+  // Minsung
+  // Jobs and subgraphs
+  
 };
 
 }  // namespace tflite

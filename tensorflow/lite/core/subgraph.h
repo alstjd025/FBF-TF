@@ -741,6 +741,22 @@ class Subgraph {
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap* resources_ = nullptr;
+
+  // Minsung
+  // Experimental api 
+  // Using subgraph like linked-list?
+  tflite::Subgraph* next_subgraph = nullptr;
+  tflite::Subgraph* prev_subgraph = nullptr;
+  
+  // Minsung
+  // Flag for co-execution of cpu/gpu (layer partitioning)
+  bool co_execution = false;
+  tflite::Subgraph* co_subgraph = nullptr;
+
+  // Minsung
+  // Flag for profiling
+  bool is_profiled = false;
+  
 };
 
 }  // namespace tflite

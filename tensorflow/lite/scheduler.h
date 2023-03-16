@@ -25,28 +25,37 @@ namespace tflite{
 class Scheduler
 {
   // TODO : Consider a better relationship
-  friend class Profiler;
+  friend class ModelFactory;
 
   public:
     Scheduler();
+    Scheduler(std::shared_ptr<tflite::Interpreter> interpreter);
     ~Scheduler();
 
-    tflite::Interpreter* interpreter;  
+    TfLiteStatus Reschedule();
+    SchedulerStatus state;
+    std::shared_ptr<tflite::Interpreter> interpreter_;  
 };
 
-class Profiler 
+
+// ModelFactory doesn't own a scheduler.
+class ModelFactory 
 {
   public:
-    Profiler();
-    Profiler(const char* model, std::shared_ptr<Scheduler> scheduler);
-    ~Profiler();
+    ModelFactory();
+    ModelFactory(std::shared_ptr<tflite::Interpreter> interpreter);
+    ~ModelFactory();
 
-  // Creates a invokable context and profile it by invoking several times.
+  // Creates an invokable context and profile it by invoking several times.
   // Uses layer, subgraph partitioning for optimized scheduling and utilization.
-  TfLiteStatus CreateAndProfileModel(const char* model, std::shared_ptr<Scheduler> scheduler);
-  TfLiteStatus GiveJobtoInterperter(std::shared_ptr<Scheduler> scheduler);
+  TfLiteStatus CreateAndProfileModel(const char* model);
+  TfLiteStatus GiveSubgraphtoInterperter(std::shared_ptr<Scheduler> scheduler);
 
-  tflite::InterpreterBuilder* builder;
+  TfLiteStatus GiveModel(const char* model);
+
+  // Vector container for interpreterBuilders
+  std::vector<tflite::InterpreterBuilder*> builders;
+  std::shared_ptr<tflite::Interpreter> interpreter_; 
 
 };
 

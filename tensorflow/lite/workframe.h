@@ -107,10 +107,23 @@ class WorkFrame{
     // Scheduler for workers.
     // Scheduler owns the interpreter alone and workers can own its
     // weak ptr only.
-    std::weak_ptr<Scheduler> planner_;
+    std::shared_ptr<Scheduler> scheduler_;
 
-    Profiler profiler_;
+    // Profiler
+    ModelFactory factory_;
 
+    // Interpreter
+    // An interpreter object is shared by scheduler and profiler and only
+    // exists in single onject at runtime.
+    // Initialized and shared to scheduler and profiler when 
+    // CreateProfilerandScheduler() called.
+    std::shared_ptr<tflite::Interpreter> interpreter;
+
+    // mutex lock for interpreter // WARNING
+    // Interpreter can only accessed by a single thread.
+    // For now, we don't use this function since Proflier, Scheduler, workFrame works
+    // in one way, not multi-threaded.
+    std::mutex interpreter_lock;
 };
 
 

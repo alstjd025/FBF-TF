@@ -174,6 +174,19 @@ InterpreterBuilder::InterpreterBuilder(const ::tflite::Model* model,
       op_resolver_(op_resolver),
       error_reporter_(ValidateErrorReporter(error_reporter)) {}
 
+InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
+                                      const OpResolver& op_resolver,
+                                      const char* model_name,
+                                      int model_id)
+    : model_(model.GetModel()),
+      op_resolver_(op_resolver),
+      error_reporter_(ValidateErrorReporter(model.error_reporter())),
+      allocation_(model.allocation()),
+      model_id_(model_id),
+      model_name_(model_name)    {}
+
+
+
 InterpreterBuilder::~InterpreterBuilder() {}
 
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping() {

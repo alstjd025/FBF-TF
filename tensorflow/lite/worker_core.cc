@@ -6,7 +6,11 @@
     exit(1);                                                 \
   }
 
-#define TFLITE_WORKER_MSG(x)
+#define TFLITE_WORKER_CHECK(x)                              \
+  if (!(x)) {                                                \
+    fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
+    exit(1);                                                 \
+  }
 
 namespace tflite{
   Worker::Worker(){

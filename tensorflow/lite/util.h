@@ -99,6 +99,41 @@ typedef struct subgraphMetaData{
 } subgraphMetaData;
 
 
+// Minsung
+// Scheduler status
+typedef enum SchedulerState{
+  INIT,           // Initial phase.
+  SCHEDULABLE,    // Schedulable, means interpreter and jobs are ready.
+  BLOCKED         // Not schedulable.
+} SchedulerStatus;
+
+typedef enum JobState{
+  INIT,       // Initial phase.
+  PROFILE,    // Profiling phase. Scheduler will invoke this job for profiling.
+  READY,      // Job is ready to be scheduled.
+  INVOKE,      // Job is currently scheduled and invoking.
+  SLEEP,       // Job is stopped by scheduler.
+  DONE        // Job done and can be erased from mememory.
+} JobState;
+
+typedef enum JobType{
+  NONE,
+  CPU,
+  GPU,
+  CO_EX
+} JobType;
+
+typedef struct Job{
+  int model_id = -1;      // 
+  JobState state = JobState::INIT;
+  JobType type = JobType::NONE;
+  std::vector<std::pair<int, int>> subgraphs;
+  std::vector<int> cpu_affinity;
+} Job;
+
+typedef struct ProfileMetadata{
+
+} ProfileMetadata;
 
 }  // namespace tflite
 
