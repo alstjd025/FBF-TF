@@ -53,8 +53,10 @@ class ModelFactory
 
   TfLiteStatus GiveModel(const char* model);
 
-  // Vector container for interpreterBuilders
-  std::vector<tflite::InterpreterBuilder*> builders;
+  // Map container for interpreterBuilders and model_id
+  // key : model_id, value : interpreterbuilder
+  std::map<int, tflite::InterpreterBuilder*> builder_and_id;
+
   std::shared_ptr<tflite::Interpreter> interpreter_; 
 
 };

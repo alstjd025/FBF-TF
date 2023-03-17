@@ -1611,4 +1611,11 @@ TfLiteStatus Subgraph::SetCustomAllocationForTensor(
   return kTfLiteOk;
 }
 
+TfLiteStatus Subgraph::SetupSubgraphForJob(int job_id, int model_id,
+                                                         int graph_id){
+  model_id_ = model_id;
+  job_id_ = job_id;
+  graph_id_ = graph_id;
+}
+
 }  // namespace tflite

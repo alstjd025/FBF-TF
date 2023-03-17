@@ -42,15 +42,16 @@ namespace tflite{
     
     // Experimental API
     // Giving a model number from recieved model size?
-    int model_number = builders.size();
+    int model_number = builder_and_id.size();
     #ifdef DEBUG
       std::cout << "Currently have " << model_number << " on runtime" << "\n";
     #endif
 
     tflite::InterpreterBuilder* new_builder = \
              new tflite::InterpreterBuilder(**model, *resolver, model_name, \
-                                                              model_number);
-    builders.push_back(new_builder);
+                                                        model_number);
+
+    builder_and_id.insert({model_number, new_builder});
     
     // Now creates an invokable origin subgraph from new model.
     if(new_builder->CreateSubgraphFromFlatBuffer(interpreter_) != kTfLiteOk){
@@ -58,7 +59,7 @@ namespace tflite{
       exit(-1);
     }
     // And schedule it for latency profiling
-
+    
   };
 
   TfLiteStatus ModelFactory::GiveSubgraphtoInterperter(\

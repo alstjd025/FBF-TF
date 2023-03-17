@@ -48,7 +48,7 @@ Below is basic structure of WorkFrame
 /  |--------------------------------------------------| /
 /                                                       /
 /                                                       /
-/  |--------Profiler----------------------------------| /
+/  |--------ModelFactory------------------------------| /
 /  |   interpreterbuilder                             | /
 /  |   -> build from model (model name)               | /
 /  |   -> profile model (maybe invoke?)               | /

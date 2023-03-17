@@ -125,6 +125,7 @@ typedef enum JobType{
 
 typedef struct Job{
   int model_id = -1;      // 
+  int job_id = -1;        //
   JobState state = JobState::INIT;
   JobType type = JobType::NONE;
   std::vector<std::pair<int, int>> subgraphs;

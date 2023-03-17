@@ -151,6 +151,19 @@ class Subgraph {
     return &context_.tensors[tensor_index];
   }
 
+  // Minsung
+  // Setups for scheduling and job initializing.
+  void SetModelid(int id) { model_id_ = id; }
+  int GetModelid() { return model_id_; }
+
+  // Setups for scheduling and job initializing.
+  void SetJobid(int id) { job_id_ = id; }
+  int GetJobid() { return job_id_; }
+
+  // Setups for scheduling and job initializing.
+  void SetGraphid(int id) { graph_id_ = id; }
+  int GetGraphid() { return graph_id_; }
+
   // Read only access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }
 
@@ -424,6 +437,10 @@ class Subgraph {
     if (op_reg.invoke == nullptr) return kTfLiteError;
     return op_reg.invoke(&context_, node);
   }
+
+  // Minsung
+  // Initialize a subgraph with job and model metadata
+  TfLiteStatus SetupSubgraphForJob(int job_id, int model_id, int graph_id);
 
   // Call OpPrepare() for as many ops as possible, allocating memory for their
   // tensors. If an op containing dynamic tensors is found, preparation will be
@@ -756,7 +773,17 @@ class Subgraph {
   // Minsung
   // Flag for profiling
   bool is_profiled = false;
-  
+
+  // Minsung
+  // Stores mother model number
+  int model_id_ = -1;
+
+  // Stores unique id of current subgraph
+  int graph_id_ = -1;
+
+  // Stores unique id of job which current subgraph belongs.
+  int job_id_ = -1;
+
 };
 
 }  // namespace tflite

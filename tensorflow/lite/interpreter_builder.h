@@ -28,6 +28,8 @@ limitations under the License.
 #include "tensorflow/lite/mutable_op_resolver.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
+#include <iostream>
+
 namespace tflite {
 
 /// Build an interpreter capable of interpreting `model`.
@@ -50,6 +52,9 @@ namespace tflite {
 /// reporter, if provided) is at least as long as interpreter's lifetime.
 class InterpreterBuilder {
  public:
+
+  InterpreterBuilder();
+    
   InterpreterBuilder(const FlatBufferModel& model,
                      const OpResolver& op_resolver);
   /// Builds an interpreter given only the raw flatbuffer Model object (instead
@@ -88,8 +93,18 @@ class InterpreterBuilder {
   // that the scheduler can handle them.
   TfLiteStatus CreateSubgraphsFromProfiling();
 
+  // Minsung
+  // Make subgraph to a default(pre-proflied) job
+  TfLiteStatus CreateSubgraphWithDefaultJob(tflite::Subgraph* new_subgraph,
+                                std::shared_ptr<tflite::Interpreter> interpreter);
+
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();
+
+  // Minsung
+  // override function
+  TfLiteStatus BuildLocalIndexToRegistrationMapping(const ::tflite::Model* model,
+                                                const OpResolver& op_resolver);
   TfLiteStatus ParseNodes(
       const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
       Subgraph* subgraph);
@@ -123,6 +138,8 @@ class InterpreterBuilder {
   // id of model
   // Every subgraphs made of this model share the same model id.
   int model_id_;
+
+  int default_thread = 1;
 };
 
 }  // namespace tflite

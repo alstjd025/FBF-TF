@@ -180,14 +180,164 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       int model_id)
     : model_(model.GetModel()),
       op_resolver_(op_resolver),
-      error_reporter_(ValidateErrorReporter(model.error_reporter())),
-      allocation_(model.allocation()),
+      error_reporter_(DefaultErrorReporter()),
+      //allocation_(model->allocation()), check how allocation initialized.
       model_id_(model_id),
       model_name_(model_name)    {}
 
 
 
 InterpreterBuilder::~InterpreterBuilder() {}
+
+TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
+                      std::shared_ptr<tflite::Interpreter> interpreter){
+  if(!interpreter){
+    std::cout << "No interpreter ERROR" << "\n";
+    return kTfLiteError;
+  }
+
+  if(!model_){
+    std::cout << "No model ERROR" << "\n";
+    return kTfLiteError;
+  }
+
+  if(BuildLocalIndexToRegistrationMapping() != kTfLiteOk){
+    std::cout << "Registration Failed" << "\n";
+    return kTfLiteError;
+  }
+
+  // Flatbuffer model schemas define a list of opcodes independent of the graph.
+  // We first map those to registrations. This reduces string lookups for custom
+  // ops since we only do it once per custom op rather than once per custom op
+  // invocation in the model graph.
+  // Construct interpreter with correct number of tensors and operators.
+  auto* subgraphs = model_->subgraphs();
+  auto* buffers = model_->buffers();
+
+  if (subgraphs->size() == 0) {
+    TF_LITE_REPORT_ERROR(error_reporter_, "No subgraph in the model.\n");
+    return kTfLiteError;
+  }
+
+  if (!buffers) {
+    TF_LITE_REPORT_ERROR(error_reporter_, "No buffers in the model.\n");
+    return kTfLiteError;
+  }
+
+  for (int subgraph_index = 0; subgraph_index < subgraphs->size();
+       ++subgraph_index) {
+    const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+    tflite::Subgraph* modified_subgraph = interpreter->CreateSubgraph();
+
+    auto operators = subgraph->operators();
+    auto tensors = subgraph->tensors();
+    if (!operators || !tensors) {
+      TF_LITE_REPORT_ERROR(error_reporter_,
+                           "Did not get operators or tensors in subgraph %d.\n",
+                           subgraph_index);
+      return kTfLiteError;
+    }
+    if (modified_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
+      return kTfLiteError;
+    }
+  
+    // Parse inputs/outputs
+    modified_subgraph->SetInputs(
+        FlatBufferIntArrayToVector(subgraph->inputs()));
+    modified_subgraph->SetOutputs(
+        FlatBufferIntArrayToVector(subgraph->outputs()));
+
+    // Finally setup nodes and tensors
+    if (ParseNodes(operators, modified_subgraph) != kTfLiteOk)
+      return kTfLiteError;
+    if (ParseTensors(buffers, tensors, modified_subgraph) != kTfLiteOk)
+      return kTfLiteError;
+
+    std::vector<int> variables;
+    for (int i = 0; i < modified_subgraph->tensors_size(); ++i) {
+      auto* tensor = modified_subgraph->tensor(i);
+      if (tensor->is_variable) {
+        variables.push_back(i);
+      }
+    }
+    modified_subgraph->SetVariables(std::move(variables));
+  }
+
+  if (num_fp32_tensors_ > 0) {
+    (*interpreter).lazy_delegate_providers_ =
+        op_resolver_.GetDelegates(default_thread);
+  }
+
+  if (ApplyDelegates(interpreter.get(), default_thread) != kTfLiteOk)
+    return kTfLiteError;
+
+  return kTfLiteOk;
+}
+
+TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(){
+
+}
+
+TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
+                                      tflite::Subgraph* new_subgraph,
+                    std::shared_ptr<tflite::Interpreter> interpreter){
+  int num_jobs_in_interpreter = interpreter->GetNumJobsCreated();
+  int num_subgraphs_in_interpreter = static_cast<int>(interpreter->subgraphs_size());
+  new_subgraph->SetModelid(model_id_);
+  new_subgraph->SetJobid(num_jobs_in_interpreter);
+  new_subgraph->SetGraphid(num_subgraphs_in_interpreter); // Change to implicit number of
+  // created subgraphs
+
+  Job new_job = new Job;
+  
+
+}
+
+TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping(
+                                    const ::tflite::Model* model,
+                                    const OpResolver& op_resolver){
+  TfLiteStatus status = kTfLiteOk;
+  // Reset state.
+  flatbuffer_op_index_to_registration_.clear();
+  unresolved_custom_ops_.clear();
+
+  auto opcodes = model->operator_codes();
+  if (!opcodes) {
+    return status;
+  }
+  int num_custom_ops = 0;
+  for (const OperatorCode* opcode : *opcodes) {
+    if (GetBuiltinCode(opcode) == BuiltinOperator_CUSTOM) {
+      num_custom_ops++;
+    }
+  }
+  unresolved_custom_ops_.reserve(num_custom_ops);
+  for (const OperatorCode* opcode : *opcodes) {
+    const TfLiteRegistration* registration = nullptr;
+    status = GetRegistrationFromOpCode(opcode, op_resolver, error_reporter_,
+                                       &registration);
+    if (status != kTfLiteOk) {
+      if (GetBuiltinCode(opcode) != BuiltinOperator_CUSTOM) {
+        return status;
+      }
+      // If it's an unresolved custom op, allow it for now. It might be resolved
+      // by a delegate later.
+      if (!opcode->custom_code()) {
+        error_reporter_->Report(
+            "Operator with CUSTOM builtin_code has no custom_code.\n");
+        return status;
+      }
+      const auto* op_name = opcode->custom_code()->c_str();
+      unresolved_custom_ops_.push_back(CreateUnresolvedCustomOp(op_name));
+      registration = &unresolved_custom_ops_.back();
+      has_flex_op_ |= IsFlexOp(op_name);
+      status = kTfLiteOk;
+    }
+    flatbuffer_op_index_to_registration_.push_back(registration);
+  }
+  return status;
+}
+
 
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping() {
   TfLiteStatus status = kTfLiteOk;

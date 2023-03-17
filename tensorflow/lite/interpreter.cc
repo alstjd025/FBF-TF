@@ -475,4 +475,9 @@ Profiler* Interpreter::GetProfiler() {
   return primary_subgraph().GetProfiler();
 }
 
+tflite::Subgraph* Interpreter::CreateSubgraph(){
+  return new Subgraph(error_reporter_, external_contexts_,
+                      &subgraphs_, &resources_);
+}
+
 }  // namespace tflite

@@ -456,6 +456,13 @@ class Interpreter {
     return primary_subgraph().EnsureTensorDataIsReadable(tensor_index);
   }
 
+  // Minsung
+  // Creats a new subgraph
+  // Use only in interpreterbuilder
+  tflite::Subgraph* CreateSubgraph();
+
+
+
   /// Set the delegate buffer handle to a tensor. It can be called in the
   /// following cases:
   /// 1. Set the buffer handle to a tensor that's not being written by a
@@ -589,6 +596,9 @@ class Interpreter {
   // Get the error reporter associated with this interpreter.
   ErrorReporter* error_reporter() const { return error_reporter_; }
 
+  int GetNumJobsCreated() { return jobs_created; }
+  int AddNumJobsCreated(int add) { jobs_created += add; }
+
 #endif  // DOXYGEN_SKIP
 
  private:
@@ -663,8 +673,9 @@ class Interpreter {
   std::vector<TfLiteDelegatePtr> lazy_delegate_providers_;
 
   // Minsung
-  // Jobs and subgraphs
-  
+  // Jobs
+  std::vector<tflite::Job*> jobs;
+  int jobs_created = 0;
 };
 
 }  // namespace tflite
