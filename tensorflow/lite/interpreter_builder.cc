@@ -191,6 +191,15 @@ InterpreterBuilder::~InterpreterBuilder() {}
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
                       std::shared_ptr<tflite::Interpreter> interpreter){
+  // Creates an acient subgraph from a raw flatbuffer model.
+  // This function follows the instructions below.
+  // 1. Get a raw subgraph from flatbuffer model.
+  // 2. Parse operators and tensors from it.
+  // 3. Parse nodes and tensors to new subgraph from operators and tensors.
+  // 4. Allocate tensors in new subgraph.
+  // 5. Make subgraph with a new Job(default) struct.
+  // 6. Store the Job and subgraph to given interpreter.
+
   if(!interpreter){
     std::cout << "No interpreter ERROR" << "\n";
     return kTfLiteError;
@@ -213,9 +222,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   // Construct interpreter with correct number of tensors and operators.
   auto* subgraphs = model_->subgraphs();
   auto* buffers = model_->buffers();
-
-  if (subgraphs->size() == 0) {
-    TF_LITE_REPORT_ERROR(error_reporter_, "No subgraph in the model.\n");
+  int subgraph_index = 0;
+  // Minsung
+  // We assume that the raw model has only one subgraph.
+  if (subgraphs->size() != 1) {
+    TF_LITE_REPORT_ERROR(error_reporter_, "Raw subgraph in the model Error.\n");
     return kTfLiteError;
   }
 
@@ -224,73 +235,110 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
     return kTfLiteError;
   }
 
-  for (int subgraph_index = 0; subgraph_index < subgraphs->size();
-       ++subgraph_index) {
-    const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
-    tflite::Subgraph* modified_subgraph = interpreter->CreateSubgraph();
+  const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+  tflite::Subgraph* modified_subgraph = interpreter->CreateSubgraph();
 
-    auto operators = subgraph->operators();
-    auto tensors = subgraph->tensors();
-    if (!operators || !tensors) {
-      TF_LITE_REPORT_ERROR(error_reporter_,
-                           "Did not get operators or tensors in subgraph %d.\n",
-                           subgraph_index);
-      return kTfLiteError;
-    }
-    if (modified_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
-      return kTfLiteError;
-    }
-  
-    // Parse inputs/outputs
-    modified_subgraph->SetInputs(
-        FlatBufferIntArrayToVector(subgraph->inputs()));
-    modified_subgraph->SetOutputs(
-        FlatBufferIntArrayToVector(subgraph->outputs()));
-
-    // Finally setup nodes and tensors
-    if (ParseNodes(operators, modified_subgraph) != kTfLiteOk)
-      return kTfLiteError;
-    if (ParseTensors(buffers, tensors, modified_subgraph) != kTfLiteOk)
-      return kTfLiteError;
-
-    std::vector<int> variables;
-    for (int i = 0; i < modified_subgraph->tensors_size(); ++i) {
-      auto* tensor = modified_subgraph->tensor(i);
-      if (tensor->is_variable) {
-        variables.push_back(i);
-      }
-    }
-    modified_subgraph->SetVariables(std::move(variables));
+  auto operators = subgraph->operators();
+  auto tensors = subgraph->tensors();
+  if (!operators || !tensors) {
+    TF_LITE_REPORT_ERROR(error_reporter_,
+                          "Did not get operators or tensors in subgraph %d.\n",
+                          subgraph_index);
+    return kTfLiteError;
+  }
+  if (modified_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
+    return kTfLiteError;
   }
 
+  // Parse inputs/outputs
+  modified_subgraph->SetInputs(
+      FlatBufferIntArrayToVector(subgraph->inputs()));
+  modified_subgraph->SetOutputs(
+      FlatBufferIntArrayToVector(subgraph->outputs()));
+
+  // Finally setup nodes and tensors
+  if (ParseNodes(operators, modified_subgraph) != kTfLiteOk)
+    return kTfLiteError;
+  if (ParseTensors(buffers, tensors, modified_subgraph) != kTfLiteOk)
+    return kTfLiteError;
+
+  std::vector<int> variables;
+  for (int i = 0; i < modified_subgraph->tensors_size(); ++i) {
+    auto* tensor = modified_subgraph->tensor(i);
+    if (tensor->is_variable) {
+      variables.push_back(i);
+    }
+  }
+  modified_subgraph->SetVariables(std::move(variables));
+
+  // Minsung
+  // Needs check
   if (num_fp32_tensors_ > 0) {
     (*interpreter).lazy_delegate_providers_ =
         op_resolver_.GetDelegates(default_thread);
   }
 
+  // Minsung
+  // Needs check
   if (ApplyDelegates(interpreter.get(), default_thread) != kTfLiteOk)
     return kTfLiteError;
+
+  // Minsung
+  // Allocate the new subgraph
+  if(modified_subgraph->AllocateTensors() != kTfLiteOk){
+    std::cout << "Subgraph allocation failed" << "\n";
+    return kTfLiteError;
+  }
+
+  // Minsung
+  // Create a new job from subgraph.
+  Job* new_job = new Job;
+  if(CreateSubgraphWithDefaultJob(modified_subgraph, new_job, interpreter)
+      != kTfLiteOk){
+    std::cout << "CreateSubgraphWithDefaultJob ERROR" << "\n";
+    return kTfLiteError; 
+  }
+
+  // Minsung
+  // Store the job and subgraph to interpreter.
+  if(RegisterJobAndSubgraph(modified_subgraph, new_job, interpreter)
+      != kTfLiteOk){
+    std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
+    return kTfLiteError;
+  }
 
   return kTfLiteOk;
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(){
-
+  
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
                                       tflite::Subgraph* new_subgraph,
+                                      tflite::Job* new_job,
                     std::shared_ptr<tflite::Interpreter> interpreter){
-  int num_jobs_in_interpreter = interpreter->GetNumJobsCreated();
-  int num_subgraphs_in_interpreter = static_cast<int>(interpreter->subgraphs_size());
+  // Setup model, job, graph id 
   new_subgraph->SetModelid(model_id_);
-  new_subgraph->SetJobid(num_jobs_in_interpreter);
-  new_subgraph->SetGraphid(num_subgraphs_in_interpreter); // Change to implicit number of
-  // created subgraphs
+  new_subgraph->SetJobid(interpreter->GetAndAddNumJobsCreated(1));
+  new_subgraph->SetGraphid(interpreter->GetAndAddSubgraphsCreated(1));
 
-  Job new_job = new Job;
+  // Make a new job
+  new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
+  new_job->job_id = new_subgraph->GetJobid();
+  new_job->model_id = model_id_;
+  new_job->state = JobState::PROFILE;
+  new_job->type = JobType::CPU;
+  new_job->subgraphs.push_back(
+                  std::pair<int, int>(new_subgraph->GetGraphid(), -1));
+  return kTfLiteOk;
+}
+
+TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraph(
+                                tflite::Subgraph* new_subgraph,
+                                tflite::Job* new_job,
+                    std::shared_ptr<tflite::Interpreter> interpreter){
   
-
 }
 
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping(

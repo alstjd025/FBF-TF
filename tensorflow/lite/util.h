@@ -21,6 +21,12 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_UTIL_H_
 #define TENSORFLOW_LITE_UTIL_H_
 
+// Minsung
+// CPU setups
+#define DEFAULT_AFFINITY 0
+#define DEFAULT_THREADS  1
+
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -110,7 +116,7 @@ typedef enum SchedulerState{
 typedef enum JobState{
   INIT,       // Initial phase.
   PROFILE,    // Profiling phase. Scheduler will invoke this job for profiling.
-  READY,      // Job is ready to be scheduled.
+  PROFILED,      // Job is ready to be scheduled. Profiling done.
   INVOKE,      // Job is currently scheduled and invoking.
   SLEEP,       // Job is stopped by scheduler.
   DONE        // Job done and can be erased from mememory.
@@ -132,9 +138,9 @@ typedef struct Job{
   std::vector<int> cpu_affinity;
 } Job;
 
-typedef struct ProfileMetadata{
-
-} ProfileMetadata;
+typedef struct ProfileData{
+  
+} ProfileData;
 
 }  // namespace tflite
 

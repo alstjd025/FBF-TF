@@ -596,8 +596,31 @@ class Interpreter {
   // Get the error reporter associated with this interpreter.
   ErrorReporter* error_reporter() const { return error_reporter_; }
 
+
+  // Minsung
+  // For job handling.
+  // The job id is given by the number of jobs been created.
+  /// WARNING: Must use these two functions together so that the
+  //  number of jobs  
   int GetNumJobsCreated() { return jobs_created; }
   int AddNumJobsCreated(int add) { jobs_created += add; }
+  int GetAndAddNumJobsCreated(int add) {
+    int n = jobs_created;
+    jobs_created++;
+    return n;
+  }
+
+  // Minsung
+  // The subgraph id is given by the number of subgraphs been created.
+  int GetNumSubgraphsCreated() {return subgraphs_created; }
+  int AddNumSubgraphsCreated(int add) { subgraphs_created += add; }
+  int GetAndAddSubgraphsCreated(int add){
+    int n = subgraphs_created;
+    subgraphs_created++;
+    return n;
+  }
+
+
 
 #endif  // DOXYGEN_SKIP
 
@@ -674,8 +697,12 @@ class Interpreter {
 
   // Minsung
   // Jobs
-  std::vector<tflite::Job*> jobs;
+  std::unique_ptr<std::vector<tflite::Job*>> jobs;
   int jobs_created = 0;
+
+  // Minsung
+  // Subgraphs
+  int subgraphs_created = 0;
 };
 
 }  // namespace tflite

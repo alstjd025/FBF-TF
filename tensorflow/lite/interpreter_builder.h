@@ -96,8 +96,12 @@ class InterpreterBuilder {
   // Minsung
   // Make subgraph to a default(pre-proflied) job
   TfLiteStatus CreateSubgraphWithDefaultJob(tflite::Subgraph* new_subgraph,
+                                            tflite::Job* new_job,
                                 std::shared_ptr<tflite::Interpreter> interpreter);
 
+  TfLiteStatus RegisterJobAndSubgraph(tflite::Subgraph* new_subgraph,
+                                      tflite::Job* new_job,
+                                std::shared_ptr<tflite::Interpreter> interpreter);
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();
 
