@@ -480,4 +480,51 @@ tflite::Subgraph* Interpreter::CreateSubgraph(){
                       &subgraphs_, &resources_);
 }
 
+TfLiteStatus Interpreter::CreateWorker(workerType wType, int cpu_num){
+  // Creates a worker of given workerType.
+  // A default worker uses single CPU.
+  if(wType == workerType::CO_WORKER){ 
+    
+  }else if(wType == workerType::GPU_WORKER){
+    
+  }else if(wType == workerType::CPU_WORKER){
+    int new_id = GetAndAddWorkersCreated(1);
+    Worker* new_worker = new Worker(wType, new_id);
+    worker_ids.push_back(new_id);
+    workers->push_back(new_worker);
+  }
+}
+
+TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
+  LockJobs();
+  jobs.get()->push_back(new_job);
+  UnlockJobs();
+  return kTfLiteOk;
+}
+
+TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
+  LockJobs();
+  subgraphs_.emplace_back(new_subgraph);
+  UnlockJobs();
+  return kTfLiteOk;
+}
+
+TfLiteStatus Interpreter::GiveJob(){
+
+}
+
+Job* Interpreter::GetJob(){
+  LockJobs();
+
+}
+
+void Interpreter::LockJobs(){
+  job_mutex.lock();
+}
+
+void Interpreter::UnlockJobs(){
+  job_mutex.unlock();
+}
+
+
 }  // namespace tflite

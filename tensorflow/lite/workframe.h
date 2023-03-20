@@ -58,6 +58,8 @@ Below is basic structure of WorkFrame
 /////////////////////////////////////////////////////////
 
 
+
+
 */
 
 namespace tflite{
@@ -68,7 +70,7 @@ class WorkFrame{
     WorkFrame();
 
     // A WorkerAPI needs at least one model and one worker.
-    WorkFrame(const char* model_name, workerType wType);
+    WorkFrame(const char* model_name);
     
     
     ~WorkFrame();
@@ -97,20 +99,14 @@ class WorkFrame{
     TfLiteStatus TestInvoke();
 
   private:
-
-    // vector container of worker_ids
-    std::vector<int> worker_ids;
-
-    // vector container of workers
-    std::vector<Worker*> workers;
-    
+  
     // Scheduler for workers.
     // Scheduler owns the interpreter alone and workers can own its
     // weak ptr only.
     std::shared_ptr<Scheduler> scheduler_;
 
     // Profiler
-    ModelFactory factory_;
+    std::shared_ptr<ModelFactory> factory_;
 
     // Interpreter
     // An interpreter object is shared by scheduler and profiler and only
@@ -124,6 +120,10 @@ class WorkFrame{
     // For now, we don't use this function since Proflier, Scheduler, workFrame works
     // in one way, not multi-threaded.
     std::mutex interpreter_lock;
+
+    // condition variable for scheduler
+    // notifies scheduler when a new job created and registered to interpreter
+    std::condition_variable scheduler_cv;
 };
 
 

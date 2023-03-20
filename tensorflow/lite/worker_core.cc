@@ -17,7 +17,7 @@ namespace tflite{
     
   };
 
-  Worker::Worker(workerType wType, int w_id){
+  Worker::Worker(WorkerType wType, int w_id){
     type = wType;
     worker_id = w_id;
     

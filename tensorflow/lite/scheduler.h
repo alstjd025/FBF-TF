@@ -19,6 +19,8 @@
 #include "future"
 
 
+#include "tensorflow/lite/worker_core.h"
+
 namespace tflite{
 
 
@@ -32,9 +34,29 @@ class Scheduler
     Scheduler(std::shared_ptr<tflite::Interpreter> interpreter);
     ~Scheduler();
 
+    void SchedulerSpin(); 
+    void notify();
+
+    bool CheckSchedulability();
     TfLiteStatus Reschedule();
     SchedulerStatus state;
     std::shared_ptr<tflite::Interpreter> interpreter_;  
+    std::shared_ptr<std::vector<tflite::Job*>> jobs_enqueued;
+
+    std::thread scheduler_thread;
+    std::mutex scheduler_lock;
+    std::condition_variable scheduler_cv_;
+
+
+    // vector container of worker_ids
+    std::vector<int> worker_ids;
+
+    // Holds the number of workers been created.
+    // For numbering workers.
+    int num_created_workers = 0;
+
+    // vector container of workers
+    std::vector<Worker*> workers;
 };
 
 
@@ -45,6 +67,8 @@ class ModelFactory
     ModelFactory();
     ModelFactory(std::shared_ptr<tflite::Interpreter> interpreter);
     ~ModelFactory();
+
+  void ModelFactorySpin();
 
   // Creates an invokable context and profile it by invoking several times.
   // Uses layer, subgraph partitioning for optimized scheduling and utilization.
@@ -58,6 +82,8 @@ class ModelFactory
   std::map<int, tflite::InterpreterBuilder*> builder_and_id;
 
   std::shared_ptr<tflite::Interpreter> interpreter_; 
+
+  std::thread modelfactory_thread;
 
 };
 

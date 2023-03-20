@@ -24,6 +24,7 @@ limitations under the License.
 #include <functional>
 #include <memory>
 #include <vector>
+#include <mutex>
 
 #include "tensorflow/lite/allocation.h"
 #include "tensorflow/lite/c/common.h"  // IWYU pragma: export
@@ -35,6 +36,8 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/stderr_reporter.h"
 #include "tensorflow/lite/type_to_tflitetype.h"
+
+#include "tensorflow/lite/worker_core.h"
 
 namespace tflite {
 
@@ -606,7 +609,7 @@ class Interpreter {
   int AddNumJobsCreated(int add) { jobs_created += add; }
   int GetAndAddNumJobsCreated(int add) {
     int n = jobs_created;
-    jobs_created++;
+    jobs_created += add;
     return n;
   }
 
@@ -616,12 +619,51 @@ class Interpreter {
   int AddNumSubgraphsCreated(int add) { subgraphs_created += add; }
   int GetAndAddSubgraphsCreated(int add){
     int n = subgraphs_created;
-    subgraphs_created++;
+    subgraphs_created += add;
     return n;
   }
 
+  // Minsung
+  // The worker id is given by the number of workers been created.
+  int GetNumWorkersCreated() {return workers_created;}
+  int AddNumWorkersCreated(int add) {workers_created += add;}
+  int GetAndAddWorkersCreated(int add){
+    int n = workers_created;
+    workers_created += add;
+    return n;
+  }
 
+  // Minsung
+  // Add a new job
+  TfLiteStatus AddNewJob(tflite::Job* new_job);
 
+  // Minsung
+  // Give jobs to workers
+  TfLiteStatus GiveJob();
+  
+  // Add a new subgraph
+  TfLiteStatus AddNewSubgraph(tflite::Subgraph* new_subgraph);
+
+  // Creates a new worker of given type
+  TfLiteStatus CreateWorker(workerType wType, int cpu_num);
+
+  // lock jobs
+  void LockJobs();
+
+  // unlock jobs
+  void UnlockJobs();
+
+  // Returns true if job queue is empty
+  bool IsJobEmpty(){
+    return jobs->empty();
+  }
+
+  int GetJobNum(){
+    return jobs->size();
+  }
+
+  Job* GetJob();
+  
 #endif  // DOXYGEN_SKIP
 
  private:
@@ -699,6 +741,13 @@ class Interpreter {
   // Jobs
   std::unique_ptr<std::vector<tflite::Job*>> jobs;
   int jobs_created = 0;
+  std::mutex job_mutex;
+
+  // Misnung
+  // Workers
+  std::unique_ptr<std::vector<tflite::Worker*>> workers;
+  std::vector<int> worker_ids;
+  int workers_created = 0;
 
   // Minsung
   // Subgraphs

@@ -104,17 +104,26 @@ typedef struct subgraphMetaData{
   std::vector<int> output_tensors;  
 } subgraphMetaData;
 
+// Minsung
+// worker type
+typedef enum WorkerType{
+  CPU_WORKER,  // means CPU only worker
+  GPU_WORKER,  // means GPU only worker
+  CO_WORKER // means co-execution of CPU / GPU
+} workerType;
 
 // Minsung
 // Scheduler status
 typedef enum SchedulerState{
-  INIT,           // Initial phase.
+  INIT_SCHED,           // Initial phase.
   SCHEDULABLE,    // Schedulable, means interpreter and jobs are ready.
-  BLOCKED         // Not schedulable.
+  BLOCKED,         // Not schedulable.
+  RESCHEDULE,     // Need reschedule
+  STOP
 } SchedulerStatus;
 
 typedef enum JobState{
-  INIT,       // Initial phase.
+  INIT_JOB,       // Initial phase.
   PROFILE,    // Profiling phase. Scheduler will invoke this job for profiling.
   PROFILED,      // Job is ready to be scheduled. Profiling done.
   INVOKE,      // Job is currently scheduled and invoking.
@@ -123,20 +132,20 @@ typedef enum JobState{
 } JobState;
 
 typedef enum JobType{
-  NONE,
-  CPU,
-  GPU,
-  CO_EX
+  CPU_JOB,
+  GPU_JOB,
+  CO_JOB
 } JobType;
 
 typedef struct Job{
   int model_id = -1;      // 
   int job_id = -1;        //
-  JobState state = JobState::INIT;
-  JobType type = JobType::NONE;
+  JobState state = JobState::INIT_JOB;
+  JobType type = JobType::CPU_JOB;
   std::vector<std::pair<int, int>> subgraphs;
   std::vector<int> cpu_affinity;
 } Job;
+
 
 typedef struct ProfileData{
   

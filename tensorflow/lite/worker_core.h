@@ -9,12 +9,7 @@
 #include <functional>
 #include "condition_variable"
 #include "opencv2/opencv.hpp"
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/model.h"
-#include "tensorflow/lite/optional_debug_tools.h"
-#include "tensorflow/lite/delegates/gpu/delegate.h"
-#include "tensorflow/lite/c/common.h"
+#include "tensorflow/lite/util.h"
 #include "mutex"
 #include "condition_variable"
 #include "thread"
@@ -38,27 +33,28 @@ class Worker
 {
   public:
     Worker();
-    Worker(workerType wType, int w_id);
+    Worker(WorkerType wType, int w_id);
+
+    // Give a worker new Job
+    void GiveJob(tflite::Job* new_job);
     
     ~Worker();
 
     // worker id
     int worker_id;
-    workerType type;
+    WorkerType type;
 
     // threads, mutex and condition variables for synchronization and multi-
     // threading
     std::mutex mtx_lock;
-    std::condition_variable cond_variable;
+    std::condition_variable worker_cv;
     std::thread working_thread;
 
     // queue for data sharing
     std::queue<sharedcontext*>* share_queue;
-    
-    // interpreter 
-    std::unique_ptr<tflite::Interpreter>* interpreter;
-    
 
+    // queue for local jobs
+    std::queue<tflite::Job*> local_jobs;
 };
 
 } //namspace tflite

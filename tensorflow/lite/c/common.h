@@ -959,15 +959,6 @@ typedef struct TfLiteDelegate {
   int64_t flags;
 } TfLiteDelegate;
 
-// Minsung
-// worker type
-typedef enum workerType{
-  NONE,
-  CPU,  // means CPU only worker
-  GPU,  // means GPU only worker
-  CO_EX // means co-execution of CPU / GPU
-} workerType;
-
 
 // Minsung
 // sharedcontext for tensor sharing in multiple worker threads

@@ -99,7 +99,7 @@ class InterpreterBuilder {
                                             tflite::Job* new_job,
                                 std::shared_ptr<tflite::Interpreter> interpreter);
 
-  TfLiteStatus RegisterJobAndSubgraph(tflite::Subgraph* new_subgraph,
+  TfLiteStatus RegisterJobAndSubgraphDefault(tflite::Subgraph* new_subgraph,
                                       tflite::Job* new_job,
                                 std::shared_ptr<tflite::Interpreter> interpreter);
  private:

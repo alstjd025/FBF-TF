@@ -3,32 +3,69 @@
 namespace tflite{
 
   Scheduler::Scheduler(){
-    state = SchedulerState::INIT;
+    state = SchedulerState::INIT_SCHED;
     interpreter_ = nullptr;
   };
 
   Scheduler::Scheduler(std::shared_ptr<tflite::Interpreter> interpreter){
-    state = SchedulerState::INIT;
+    state = SchedulerState::INIT_SCHED;
     interpreter_ = interpreter;
-  }
+    interpreter_->CreateWorker(workerType::CPU_WORKER, 1);
+    scheduler_thread = std::thread(&Scheduler::SchedulerSpin, this);
+  };
+
+  void Scheduler::SchedulerSpin(){
+    std::cout << "Scheduler started" << "\n";
+    while(state != SchedulerState::STOP){
+      std::unique_lock<std::mutex> lock(scheduler_lock);
+      interpreter_->LockJobs();
+      scheduler_cv_.wait(lock, [&] { return interpreter_->IsJobEmpty(); });
+      std::cout << "Schedule started" << "\n";
+      if(interpreter_->IsJobEmpty()){
+        lock.unlock();
+      }else{
+        
+        if(CheckSchedulability()){ // Schedulable
+          state = SchedulerState::SCHEDULABLE;
+          Reschedule();
+        }
+        else{ // Not schedulable
+          state = SchedulerState::BLOCKED;
+        }
+
+      }
+      interpreter_->UnlockJobs();
+    }
+  };
 
   Scheduler::~Scheduler(){
       
   };
 
+
+  bool Scheduler::CheckSchedulability(){
+    // NEEDS IMPL
+    //
+    /////
+    return true;
+  }
+
   TfLiteStatus Scheduler::Reschedule(){
     
   };
 
+  void Scheduler::notify(){
+    scheduler_cv_.notify_one();
+  };
 
-  // Profiler codes //
+  // ModelFactory codes //
   ModelFactory::ModelFactory(){
     interpreter_ = nullptr;
   };
 
   ModelFactory::ModelFactory(std::shared_ptr<tflite::Interpreter> interpreter){
     interpreter_ = interpreter;
-  }
+  };
 
   TfLiteStatus ModelFactory::CreateAndProfileModel(const char* model_name){
     std::unique_ptr<tflite::FlatBufferModel>* model;
@@ -60,6 +97,10 @@ namespace tflite{
     }
     // And schedule it for latency profiling
     
+  };
+
+  void ModelFactory::ModelFactorySpin(){
+
   };
 
   TfLiteStatus ModelFactory::GiveSubgraphtoInterperter(\
