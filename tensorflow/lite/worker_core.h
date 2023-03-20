@@ -10,6 +10,7 @@
 #include "condition_variable"
 #include "opencv2/opencv.hpp"
 #include "tensorflow/lite/util.h"
+#include "tensorflow/lite/core/subgraph.h"
 #include "mutex"
 #include "condition_variable"
 #include "thread"
@@ -37,6 +38,8 @@ class Worker
 
     // Give a worker new Job
     void GiveJob(tflite::Job* new_job);
+
+    void Work();
     
     ~Worker();
 

@@ -728,6 +728,7 @@ class Interpreter {
 
   // Subgraphs
   std::vector<std::unique_ptr<Subgraph>> subgraphs_;
+  std::vector<std::shared_ptr<Subgraph>> subgraphs_shared;
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap resources_;

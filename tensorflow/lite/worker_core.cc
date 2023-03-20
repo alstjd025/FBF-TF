@@ -23,6 +23,10 @@ namespace tflite{
     
   };
 
+  void Worker::Work(){
+
+  }
+
   Worker::~Worker(){
 
   };
