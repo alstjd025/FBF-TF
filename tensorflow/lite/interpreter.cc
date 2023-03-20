@@ -497,7 +497,7 @@ TfLiteStatus Interpreter::CreateWorker(workerType wType, int cpu_num){
 
 TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
   LockJobs();
-  jobs.get()->push_back(new_job);
+  jobs.get()->push(new_job);
   UnlockJobs();
   return kTfLiteOk;
 }
@@ -510,7 +510,15 @@ TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
 }
 
 TfLiteStatus Interpreter::GiveJob(){
-
+  LockJobs();
+  while(!(jobs.get()->empty())){
+    Job* job = jobs.get()->front();
+    if(job->state != JobState::READY){
+      continue;
+    }else{
+      
+    }
+  }
 }
 
 Job* Interpreter::GetJob(){

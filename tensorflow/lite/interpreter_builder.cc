@@ -434,7 +434,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
     std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
-
   return kTfLiteOk;
 }
 
@@ -455,8 +454,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
   new_job->job_id = new_subgraph->GetJobid();
   new_job->model_id = model_id_;
-  new_job->state = JobState::PROFILE;
-  new_job->type = JobType::CPU_JOB;
+  new_job->state = JobState::READY;
+  new_job->invoke_type = InvokeType::PROFILING;
+  new_job->resource_type = JobResourceType::CPU_JOB;
   new_job->subgraphs.push_back(
                   std::pair<int, int>(new_subgraph->GetGraphid(), -1));
   return kTfLiteOk;

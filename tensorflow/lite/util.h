@@ -124,24 +124,29 @@ typedef enum SchedulerState{
 
 typedef enum JobState{
   INIT_JOB,       // Initial phase.
-  PROFILE,    // Profiling phase. Scheduler will invoke this job for profiling.
-  PROFILED,      // Job is ready to be scheduled. Profiling done.
+  READY,        // Job is ready to be scheduled.
   INVOKE,      // Job is currently scheduled and invoking.
   SLEEP,       // Job is stopped by scheduler.
   DONE        // Job done and can be erased from mememory.
 } JobState;
 
-typedef enum JobType{
+typedef enum JobResourceType{
   CPU_JOB,
   GPU_JOB,
   CO_JOB
-} JobType;
+} JobResourceType;
+
+typedef enum InvokeType{ // An invoke type of job
+  CONTINOUS,          
+  PROFILING
+} InvokeType;
 
 typedef struct Job{
   int model_id = -1;      // 
   int job_id = -1;        //
   JobState state = JobState::INIT_JOB;
-  JobType type = JobType::CPU_JOB;
+  InvokeType invoke_type = InvokeType::PROFILING;
+  JobResourceType resource_type = JobResourceType::CPU_JOB;
   std::vector<std::pair<int, int>> subgraphs;
   std::vector<int> cpu_affinity;
 } Job;

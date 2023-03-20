@@ -45,13 +45,13 @@ namespace tflite{
 
   bool Scheduler::CheckSchedulability(){
     // NEEDS IMPL
-    //
+    // interpreter->CheckSchedulability()
     /////
     return true;
   }
 
   TfLiteStatus Scheduler::Reschedule(){
-    
+    interpreter_->GiveJob();
   };
 
   void Scheduler::notify(){
