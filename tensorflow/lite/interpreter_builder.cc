@@ -456,7 +456,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
   new_job->model_id = model_id_;
   new_job->state = JobState::READY;
   new_job->invoke_type = InvokeType::PROFILING;
-  new_job->resource_type = JobResourceType::CPU_JOB;
+  new_job->resource_type = ResourceType::CPU;
   new_job->subgraphs.push_back(
                   std::pair<int, int>(new_subgraph->GetGraphid(), -1));
   return kTfLiteOk;

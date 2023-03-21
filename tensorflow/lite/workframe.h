@@ -77,7 +77,7 @@ class WorkFrame{
 
     // Create worker of a given worker type and number of cpu
     // The number of cpu means how many cpus a single worker will use.
-    TfLiteStatus CreateWorker(workerType wType, int cpu_num);
+    TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);
   
     // Allocates a task to specific worker
     TfLiteStatus AllocateTask();

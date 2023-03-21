@@ -480,24 +480,24 @@ tflite::Subgraph* Interpreter::CreateSubgraph(){
                       &subgraphs_, &resources_);
 }
 
-TfLiteStatus Interpreter::CreateWorker(workerType wType, int cpu_num){
+TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
   // Creates a worker of given workerType.
   // A default worker uses single CPU.
-  if(wType == workerType::CO_WORKER){ 
+  if(wType == ResourceType::CPUGPU){ 
     
-  }else if(wType == workerType::GPU_WORKER){
+  }else if(wType == ResourceType::GPU){
     if(!is_gpu_delegate_prepared){
       // Do GPU Delegation 
     }
     int new_id = GetAndAddWorkersCreated(1);
     Worker* new_worker = new Worker(wType, new_id, this);
     worker_ids.push_back(new_id);
-    workers->push_back(new_worker);
-  }else if(wType == workerType::CPU_WORKER){
+    workers.push_back(new_worker);
+  }else if(wType == ResourceType::CPU){
     int new_id = GetAndAddWorkersCreated(1);
     Worker* new_worker = new Worker(wType, new_id, this);
     worker_ids.push_back(new_id);
-    workers->push_back(new_worker);
+    workers.push_back(new_worker);
   }
 }
 
@@ -516,9 +516,9 @@ TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
 }
 
 TfLiteStatus Interpreter::ReadyWorkers(){
-  for(int i=0; i<workers.get()->size(); ++i){
+  for(int i=0; i<workers.size(); ++i){
     worker_threads.push_back(std::thread(&Worker::Work,
-                               workers.get()->at(i)->returnThis()));
+                               workers.at(i)->returnThis()));
   }
 }
 
@@ -529,9 +529,22 @@ TfLiteStatus Interpreter::GiveJob(){
     if(job->state != JobState::READY){
       continue;
     }else{
-      // worker_threads.push_back(std::thread(&Worker::Work))
+      // Lockup the job lock of worker
+      // !!currently one job for one worker.
+      int worker_idx = 0;
+      while(worker_idx < workers.size())
+        if(workers[worker_idx]->TryLock()){
+          workers[worker_idx]->GiveJob(job); 
+          worker_idx++;
+          workers[worker_idx]->Unlock();
+          jobs.get()->pop();
+        }else{
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          continue;
+        }
     }
   }
+  UnlockJobs();
 }
 
 Job* Interpreter::GetJob(){

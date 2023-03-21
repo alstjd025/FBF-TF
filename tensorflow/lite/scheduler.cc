@@ -10,7 +10,7 @@ namespace tflite{
   Scheduler::Scheduler(std::shared_ptr<tflite::Interpreter> interpreter){
     state = SchedulerState::INIT_SCHED;
     interpreter_ = interpreter;
-    interpreter_->CreateWorker(workerType::CPU_WORKER, 1);
+    interpreter_->CreateWorker(ResourceType::CPU, 1);
     scheduler_thread = std::thread(&Scheduler::SchedulerSpin, this);
   };
 
@@ -20,24 +20,31 @@ namespace tflite{
       std::unique_lock<std::mutex> lock(scheduler_lock);
       interpreter_->LockJobs();
       scheduler_cv_.wait(lock, [&] { return interpreter_->IsJobEmpty(); });
-      std::cout << "Schedule started" << "\n";
-      if(interpreter_->IsJobEmpty()){
-        lock.unlock();
-      }else{
-        
-        if(CheckSchedulability()){ // Schedulable
-          state = SchedulerState::SCHEDULABLE;
-          if(Reschedule() != kTfLiteOk){
-            std::cout << "Rescheudling ERROR" << "\n";
-            exit(-1);
+      if(need_reschedule){
+        std::cout << "Schedule started" << "\n";
+        if(interpreter_->IsJobEmpty()){
+          lock.unlock();
+        }else{
+          if(CheckSchedulability()){ // Schedulable
+            state = SchedulerState::SCHEDULABLE;
+            if(Reschedule() != kTfLiteOk){
+              std::cout << "Rescheudling ERROR" << "\n";
+              exit(-1);
+            }
           }
-        }
-        else{ // Not schedulable
-          state = SchedulerState::BLOCKED;
-        }
+          else{ // Not schedulable
+            state = SchedulerState::NSCHEDULABLE;
+          }
 
+        }
+        need_reschedule = false;
+        interpreter_->UnlockJobs();
       }
-      interpreter_->UnlockJobs();
+      if(DoInvoke() != kTfLiteOk){
+        std::cout << "Invoke returned Error on scheduler" << "\n";
+        std::cout << "Shutting down process" << "\n";
+        exit(-1);
+      }
     }
   };
 
@@ -45,6 +52,9 @@ namespace tflite{
       
   };
 
+  TfLiteStatus Scheduler::DoInvoke(){
+    
+  }
 
   bool Scheduler::CheckSchedulability(){
     // NEEDS IMPL
@@ -64,6 +74,10 @@ namespace tflite{
     }
     interpreter_->GiveJob();
     return kTfLiteOk;
+  };
+
+  void Scheduler::NeedReschedule(){
+    
   };
 
   void Scheduler::notify(){

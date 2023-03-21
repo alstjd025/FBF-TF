@@ -645,10 +645,13 @@ class Interpreter {
   TfLiteStatus AddNewSubgraph(tflite::Subgraph* new_subgraph);
 
   // Creates a new worker of given type
-  TfLiteStatus CreateWorker(workerType wType, int cpu_num);
+  TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);
 
   // Ready worker threads
   TfLiteStatus ReadyWorkers();
+
+  // Do invoke
+  TfLiteStatus DoWork();
 
   // lock jobs
   void LockJobs();
@@ -753,7 +756,7 @@ class Interpreter {
 
   // Misnung
   // Workers
-  std::unique_ptr<std::vector<tflite::Worker*>> workers;
+  std::vector<tflite::Worker*> workers;
   std::vector<std::thread> worker_threads;
   std::vector<int> worker_ids;
   int workers_created = 0;

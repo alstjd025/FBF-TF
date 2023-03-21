@@ -31,15 +31,19 @@ class Worker
 {
   public:
     Worker();
-    Worker(WorkerType wType, int w_id, Interpreter* interpreter);
+    Worker(ResourceType wType, int w_id, Interpreter* interpreter);
 
     // Give a worker new Job
     void GiveJob(tflite::Job* new_job);
 
     void Work();
 
-    bool JobTryLock();
-    void JobUnlock();
+    bool TryLock();
+    void Unlock();
+
+    void WakeWorker();
+
+    void ChangeStateTo(WorkerState state);
 
     Worker* returnThis() {return this;}
     
@@ -47,7 +51,15 @@ class Worker
 
     // worker id
     int worker_id;
-    WorkerType type;
+
+    // type of resource this worker uses
+    ResourceType type;
+
+    // current state of this worker
+    WorkerState state;
+
+    // worker exit flag
+    bool stop_working = true;
 
     // threads, mutex and condition variables for synchronization and multi-
     // threading
@@ -57,6 +69,8 @@ class Worker
 
     // queue for data sharing
     std::queue<sharedcontext*>* share_queue;
+
+    std::vector<tflite::Job*> jobs;
 
     // interpre†er
     // CAREFULLY USE

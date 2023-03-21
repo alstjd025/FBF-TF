@@ -38,6 +38,8 @@ class Scheduler
     // Check schedulability
     bool CheckSchedulability();
 
+    void NeedReschedule();
+
     // Reschedule whole jobs
     TfLiteStatus Reschedule();
 
@@ -45,6 +47,9 @@ class Scheduler
     // Clean up the existing workers and create needed ones.
     TfLiteStatus ReadyWorkers();
 
+    TfLiteStatus DoInvoke();
+
+    bool need_reschedule = false;
 
     SchedulerStatus state;
     std::shared_ptr<tflite::Interpreter> interpreter_;  
