@@ -647,6 +647,9 @@ class Interpreter {
   // Creates a new worker of given type
   TfLiteStatus CreateWorker(workerType wType, int cpu_num);
 
+  // Ready worker threads
+  TfLiteStatus ReadyWorkers();
+
   // lock jobs
   void LockJobs();
 
@@ -739,6 +742,10 @@ class Interpreter {
   std::vector<TfLiteDelegatePtr> lazy_delegate_providers_;
 
   // Minsung
+  // GPU Delegate
+  bool is_gpu_delegate_prepared = false;
+
+  // Minsung
   // Jobs
   std::unique_ptr<std::queue<tflite::Job*>> jobs;
   int jobs_created = 0;
@@ -747,6 +754,7 @@ class Interpreter {
   // Misnung
   // Workers
   std::unique_ptr<std::vector<tflite::Worker*>> workers;
+  std::vector<std::thread> worker_threads;
   std::vector<int> worker_ids;
   int workers_created = 0;
 

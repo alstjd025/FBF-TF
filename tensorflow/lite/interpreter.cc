@@ -486,10 +486,16 @@ TfLiteStatus Interpreter::CreateWorker(workerType wType, int cpu_num){
   if(wType == workerType::CO_WORKER){ 
     
   }else if(wType == workerType::GPU_WORKER){
-    
+    if(!is_gpu_delegate_prepared){
+      // Do GPU Delegation 
+    }
+    int new_id = GetAndAddWorkersCreated(1);
+    Worker* new_worker = new Worker(wType, new_id, this);
+    worker_ids.push_back(new_id);
+    workers->push_back(new_worker);
   }else if(wType == workerType::CPU_WORKER){
     int new_id = GetAndAddWorkersCreated(1);
-    Worker* new_worker = new Worker(wType, new_id);
+    Worker* new_worker = new Worker(wType, new_id, this);
     worker_ids.push_back(new_id);
     workers->push_back(new_worker);
   }
@@ -509,6 +515,13 @@ TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   return kTfLiteOk;
 }
 
+TfLiteStatus Interpreter::ReadyWorkers(){
+  for(int i=0; i<workers.get()->size(); ++i){
+    worker_threads.push_back(std::thread(&Worker::Work,
+                               workers.get()->at(i)->returnThis()));
+  }
+}
+
 TfLiteStatus Interpreter::GiveJob(){
   LockJobs();
   while(!(jobs.get()->empty())){
@@ -516,7 +529,7 @@ TfLiteStatus Interpreter::GiveJob(){
     if(job->state != JobState::READY){
       continue;
     }else{
-      
+      // worker_threads.push_back(std::thread(&Worker::Work))
     }
   }
 }

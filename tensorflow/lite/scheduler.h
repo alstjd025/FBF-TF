@@ -14,12 +14,10 @@
 #include "tensorflow/lite/optional_debug_tools.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 #include "tensorflow/lite/c/common.h"
+
 #include <functional>
 #include "thread"
 #include "future"
-
-
-#include "tensorflow/lite/worker_core.h"
 
 namespace tflite{
 
@@ -37,8 +35,17 @@ class Scheduler
     void SchedulerSpin(); 
     void notify();
 
+    // Check schedulability
     bool CheckSchedulability();
+
+    // Reschedule whole jobs
     TfLiteStatus Reschedule();
+
+    // Ready workers that needed for scheduled jobs.
+    // Clean up the existing workers and create needed ones.
+    TfLiteStatus ReadyWorkers();
+
+
     SchedulerStatus state;
     std::shared_ptr<tflite::Interpreter> interpreter_;  
     std::shared_ptr<std::vector<tflite::Job*>> jobs_enqueued;
@@ -46,17 +53,6 @@ class Scheduler
     std::thread scheduler_thread;
     std::mutex scheduler_lock;
     std::condition_variable scheduler_cv_;
-
-
-    // vector container of worker_ids
-    std::vector<int> worker_ids;
-
-    // Holds the number of workers been created.
-    // For numbering workers.
-    int num_created_workers = 0;
-
-    // vector container of workers
-    std::vector<Worker*> workers;
 };
 
 

@@ -148,7 +148,6 @@ typedef struct Job{
   InvokeType invoke_type = InvokeType::PROFILING;
   JobResourceType resource_type = JobResourceType::CPU_JOB;
   std::vector<std::pair<int, int>> subgraphs;
-  std::vector<std::shared_ptr<tflite::Subgraph>> subgraphs_;
   std::vector<int> cpu_affinity;
 } Job;
 

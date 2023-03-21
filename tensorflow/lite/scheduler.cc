@@ -27,7 +27,10 @@ namespace tflite{
         
         if(CheckSchedulability()){ // Schedulable
           state = SchedulerState::SCHEDULABLE;
-          Reschedule();
+          if(Reschedule() != kTfLiteOk){
+            std::cout << "Rescheudling ERROR" << "\n";
+            exit(-1);
+          }
         }
         else{ // Not schedulable
           state = SchedulerState::BLOCKED;
@@ -49,9 +52,18 @@ namespace tflite{
     /////
     return true;
   }
+  
+  TfLiteStatus Scheduler::ReadyWorkers(){
+    return kTfLiteOk;
+  }
 
   TfLiteStatus Scheduler::Reschedule(){
+    if(ReadyWorkers() != kTfLiteOk){
+      std::cout << "ReadyWorkers EROOR" << "\n";
+      exit(-1);
+    }
     interpreter_->GiveJob();
+    return kTfLiteOk;
   };
 
   void Scheduler::notify(){

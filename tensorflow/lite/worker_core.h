@@ -25,21 +25,23 @@ This is a worker core source for tensorflow lite.
 
 namespace tflite{
 
-typedef struct job{
-  
-} job;
-
+class Interpreter; // pre-declairation of interpreter
 
 class Worker
 {
   public:
     Worker();
-    Worker(WorkerType wType, int w_id);
+    Worker(WorkerType wType, int w_id, Interpreter* interpreter);
 
     // Give a worker new Job
     void GiveJob(tflite::Job* new_job);
 
     void Work();
+
+    bool JobTryLock();
+    void JobUnlock();
+
+    Worker* returnThis() {return this;}
     
     ~Worker();
 
@@ -56,8 +58,11 @@ class Worker
     // queue for data sharing
     std::queue<sharedcontext*>* share_queue;
 
-    // queue for local jobs
-    std::queue<tflite::Job*> local_jobs;
+    // interpre†er
+    // CAREFULLY USE
+    // NEEDS BETTER IMPLEMENTATION
+    Interpreter* interpreter_;
+
 };
 
 } //namspace tflite
