@@ -25,7 +25,12 @@ namespace tflite{
     interpreter_ = interpreter; 
   };
 
+  void Worker::ChangeStateTo(WorkerState new_state){
+    state = new_state;
+  }
+
   void Worker::GiveJob(tflite::Job* new_job){
+    have_job = true;
     jobs.push_back(new_job);
   }
 
@@ -50,7 +55,18 @@ namespace tflite{
     while(stop_working){
       std::unique_lock<std::mutex> lock(mtx_lock);
       worker_cv.wait(lock, [&] { return state == WorkerState::WORKING; });
-      
+      for(int i=0; i<jobs.size(); ++i){
+        Subgraph* working_graph; 
+        if(jobs[i]->resource_type == type){
+          int graphs_to_invoke = jobs[i]->subgraphs.size();
+          for(int j=0; j<graphs_to_invoke; ++j){
+            working_graph = interpreter_->subgraph(jobs[i]->subgraphs[j].first);
+            if(working_graph->Invoke() != kTfLiteOk){
+              std::cout << "Invoke returned Error" << "\n";
+            }
+          }
+        }
+      }
     }
   }
 

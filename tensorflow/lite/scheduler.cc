@@ -17,7 +17,7 @@ namespace tflite{
   void Scheduler::SchedulerSpin(){
     std::cout << "Scheduler started" << "\n";
     while(state != SchedulerState::STOP){
-      std::unique_lock<std::mutex> lock(scheduler_lock);
+    std::unique_lock<std::mutex> lock(scheduler_lock);
       interpreter_->LockJobs();
       scheduler_cv_.wait(lock, [&] { return interpreter_->IsJobEmpty(); });
       if(need_reschedule){
@@ -42,8 +42,8 @@ namespace tflite{
       }
       if(DoInvoke() != kTfLiteOk){
         std::cout << "Invoke returned Error on scheduler" << "\n";
-        std::cout << "Shutting down process" << "\n";
-        exit(-1);
+        std::cout << "Stop scheduler" << "\n";
+        state = SchedulerState::STOP;
       }
     }
   };
@@ -53,7 +53,11 @@ namespace tflite{
   };
 
   TfLiteStatus Scheduler::DoInvoke(){
-    
+    if(interpreter_->DoInvoke() != kTfLiteOk){
+      std::cout << "Interpreter invoke returned ERROR" << "\n";
+      return kTfLiteError;
+    }
+    return kTfLiteOk;
   }
 
   bool Scheduler::CheckSchedulability(){
@@ -77,8 +81,16 @@ namespace tflite{
   };
 
   void Scheduler::NeedReschedule(){
-    
+    need_reschedule = true;
   };
+
+  void Scheduler::ChangeState(SchedulerState new_state){
+    state = new_state;
+  };
+
+  void Scheduler::Join(){
+    scheduler_thread.join();
+  }
 
   void Scheduler::notify(){
     scheduler_cv_.notify_one();
@@ -122,7 +134,7 @@ namespace tflite{
       exit(-1);
     }
     // And schedule it for latency profiling
-    
+    return kTfLiteOk;
   };
 
   void ModelFactory::ModelFactorySpin(){

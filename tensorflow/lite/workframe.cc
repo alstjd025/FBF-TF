@@ -19,6 +19,7 @@ namespace tflite{
     interpreter = std::make_shared<tflite::Interpreter>();
     scheduler_ = std::make_shared<tflite::Scheduler>(interpreter);
     factory_ = std::make_shared<tflite::ModelFactory>(interpreter);
+    scheduler_->Join();
     #ifdef DEBUG
       std::cout << "interpreter count :" << interpreter.use_count() << "\n";
     #endif

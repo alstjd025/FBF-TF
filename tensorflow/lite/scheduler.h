@@ -38,7 +38,11 @@ class Scheduler
     // Check schedulability
     bool CheckSchedulability();
 
+    void ChangeState(SchedulerStatus new_state);
+
     void NeedReschedule();
+
+    void Join();
 
     // Reschedule whole jobs
     TfLiteStatus Reschedule();

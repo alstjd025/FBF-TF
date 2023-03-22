@@ -43,9 +43,13 @@ class Worker
 
     void WakeWorker();
 
-    void ChangeStateTo(WorkerState state);
+    void ChangeStateTo(WorkerState new_state);
+
+    WorkerState returnState() { return state; }
 
     Worker* returnThis() {return this;}
+
+    bool HaveJob() { return have_job; }
     
     ~Worker();
 
@@ -60,6 +64,10 @@ class Worker
 
     // worker exit flag
     bool stop_working = true;
+
+    bool have_job = false;
+
+    bool input_refresh = false;
 
     // threads, mutex and condition variables for synchronization and multi-
     // threading
@@ -77,6 +85,14 @@ class Worker
     // NEEDS BETTER IMPLEMENTATION
     Interpreter* interpreter_;
 
+};
+
+// Worker class for CPU-GPU co-execution
+class CoWorker : public Worker
+{
+  public:
+    CoWorker();
+    ~CoWorker();
 };
 
 } //namspace tflite

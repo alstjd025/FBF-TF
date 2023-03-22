@@ -651,7 +651,7 @@ class Interpreter {
   TfLiteStatus ReadyWorkers();
 
   // Do invoke
-  TfLiteStatus DoWork();
+  TfLiteStatus DoInvoke();
 
   // lock jobs
   void LockJobs();

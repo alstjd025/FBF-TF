@@ -547,6 +547,16 @@ TfLiteStatus Interpreter::GiveJob(){
   UnlockJobs();
 }
 
+TfLiteStatus Interpreter::DoInvoke(){
+  for(int i=0; i<workers.size(); ++i){
+    Worker* worker_ = workers[i];
+    if(worker_->HaveJob()){
+      worker_->ChangeStateTo(WorkerState::WORKING);
+      worker_->WakeWorker();
+    }
+  }
+}
+
 Job* Interpreter::GetJob(){
   LockJobs();
 
