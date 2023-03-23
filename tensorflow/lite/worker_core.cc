@@ -52,7 +52,7 @@ namespace tflite{
 
   void Worker::Work(){
     std::cout << "Worker [" << worker_id << "] started" << "\n";
-    while(stop_working){
+    while(true){
       std::unique_lock<std::mutex> lock(mtx_lock);
       worker_cv.wait(lock, [&] { return state == WorkerState::WORKING; });
       for(int i=0; i<jobs.size(); ++i){
@@ -64,6 +64,8 @@ namespace tflite{
             if(working_graph->Invoke() != kTfLiteOk){
               std::cout << "Invoke returned Error" << "\n";
             }
+            std::cout << "Worker " << worker_id << " job "
+                        << jobs[i]->job_id << " done" << "\n";
           }
         }
       }

@@ -70,8 +70,7 @@ class WorkFrame{
     WorkFrame();
 
     // A WorkerAPI needs at least one model and one worker.
-    WorkFrame(const char* model_name);
-    
+
     
     ~WorkFrame();
 
@@ -85,7 +84,7 @@ class WorkFrame{
 
     // Creates a profiler and a scheduler
     // Call this function at only initial phase.
-    TfLiteStatus CreateProfilerandScheduler(const char* model);
+    TfLiteStatus CreateProfilerandScheduler();
 
     // Gives a job to scheduler.
     // This task will profile a whole model with profiler
@@ -93,6 +92,8 @@ class WorkFrame{
     // A job is a subset of subgraphs.
     // TODO : consider quantized model input
     TfLiteStatus CreateAndGiveJob(const char* model);
+
+    
 
     // Tests invoke with a single job and a single worker
     // Subject to remove

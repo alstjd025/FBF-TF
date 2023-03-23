@@ -112,6 +112,10 @@ Interpreter::Interpreter(ErrorReporter* error_reporter)
       own_external_cpu_backend_context_.get();
 
   primary_subgraph().UseNNAPI(false);
+
+  // Minsung
+  // Add job queue
+  jobs = new std::queue<tflite::Job*>;
 }
 
 Interpreter::~Interpreter() {
@@ -498,12 +502,13 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
     Worker* new_worker = new Worker(wType, new_id, this);
     worker_ids.push_back(new_id);
     workers.push_back(new_worker);
+    std::cout << "Interpreter : Created 1 CPU worker" << "\n";
   }
 }
 
 TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
   LockJobs();
-  jobs.get()->push(new_job);
+  jobs->push(new_job);
   UnlockJobs();
   return kTfLiteOk;
 }
@@ -524,8 +529,8 @@ TfLiteStatus Interpreter::ReadyWorkers(){
 
 TfLiteStatus Interpreter::GiveJob(){
   LockJobs();
-  while(!(jobs.get()->empty())){
-    Job* job = jobs.get()->front();
+  while(!(jobs->empty())){
+    Job* job = jobs->front();
     if(job->state != JobState::READY){
       continue;
     }else{
@@ -537,7 +542,7 @@ TfLiteStatus Interpreter::GiveJob(){
           workers[worker_idx]->GiveJob(job); 
           worker_idx++;
           workers[worker_idx]->Unlock();
-          jobs.get()->pop();
+          jobs->pop();
         }else{
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
           continue;

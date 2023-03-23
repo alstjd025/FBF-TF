@@ -750,7 +750,7 @@ class Interpreter {
 
   // Minsung
   // Jobs
-  std::unique_ptr<std::queue<tflite::Job*>> jobs;
+  std::queue<tflite::Job*>* jobs;
   int jobs_created = 0;
   std::mutex job_mutex;
 

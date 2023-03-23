@@ -398,7 +398,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
     }
   }
   modified_subgraph->SetVariables(std::move(variables));
-
+  std::cout << "Interpreterbuilder : created modified subgraph" << "\n";
   // Minsung
   // Needs check
   if (num_fp32_tensors_ > 0) {
@@ -417,7 +417,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
     std::cout << "Subgraph allocation failed" << "\n";
     return kTfLiteError;
   }
-
+  std::cout << "Interpreterbuilder : Allocated tensors" << "\n";
   // Minsung
   // Create a new job from subgraph.
   Job* new_job = new Job;
@@ -426,7 +426,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
     std::cout << "CreateSubgraphWithDefaultJob ERROR" << "\n";
     return kTfLiteError; 
   }
-
+  std::cout << "Interpreterbuilder : Created subgraph with default job" << "\n";
   // Minsung
   // Store the job and subgraph to interpreter.
   if(RegisterJobAndSubgraphDefault(modified_subgraph, new_job, interpreter)
@@ -434,6 +434,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
     std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
+  std::cout << "Interpreterbuilder : Registered job and subgraph" << "\n";
   return kTfLiteOk;
 }
 
@@ -482,8 +483,8 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphDefault(
     std::cout << "AddNewJob Error" << "\n";
     return kTfLiteError;
   }
-  if(interpreter->AddNewSubgraph(new_subgraph) != kTfLiteError){
-    std::cout << "AddNewSubgraph" << "\n";
+  if(interpreter->AddNewSubgraph(new_subgraph) != kTfLiteOk){
+    std::cout << "AddNewSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
   #ifdef DEBUG

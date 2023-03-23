@@ -40,7 +40,7 @@ class Scheduler
 
     void ChangeState(SchedulerStatus new_state);
 
-    void NeedReschedule();
+    void NeedReschedule(bool flag);
 
     void Join();
 
@@ -54,6 +54,7 @@ class Scheduler
     TfLiteStatus DoInvoke();
 
     bool need_reschedule = false;
+    bool scheduler_stop = false;
 
     SchedulerStatus state;
     std::shared_ptr<tflite::Interpreter> interpreter_;  
@@ -77,13 +78,14 @@ class ModelFactory
 
   // Creates an invokable context and profile it by invoking several times.
   // Uses layer, subgraph partitioning for optimized scheduling and utilization.
-  TfLiteStatus CreateAndProfileModel(const char* model);
+  TfLiteStatus CreateProfileModel(const char* model);
   TfLiteStatus GiveSubgraphtoInterperter(std::shared_ptr<Scheduler> scheduler);
 
   TfLiteStatus GiveModel(const char* model);
 
   // Map container for interpreterBuilders and model_id
   // key : model_id, value : interpreterbuilder
+  int builders_created = 0;
   std::map<int, tflite::InterpreterBuilder*> builder_and_id;
 
   std::shared_ptr<tflite::Interpreter> interpreter_; 

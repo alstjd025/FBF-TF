@@ -12,16 +12,26 @@ namespace tflite{
     interpreter_ = interpreter;
     interpreter_->CreateWorker(ResourceType::CPU, 1);
     scheduler_thread = std::thread(&Scheduler::SchedulerSpin, this);
+    scheduler_thread.detach();
   };
 
   void Scheduler::SchedulerSpin(){
-    std::cout << "Scheduler started" << "\n";
-    while(state != SchedulerState::STOP){
+    std::cout << "Scheduler : Scheduler spin!" << "\n";
+    while(true){
     std::unique_lock<std::mutex> lock(scheduler_lock);
+      std::cout << "scheduler_stop " << scheduler_stop << "\n";
+      scheduler_cv_.wait(lock, [&] { return scheduler_stop; });
+      std::cout << "Scheduler : woke up" << "\n";
       interpreter_->LockJobs();
-      scheduler_cv_.wait(lock, [&] { return interpreter_->IsJobEmpty(); });
+      std::cout << "Scheduler : start scheduling" << "\n";
+      
+
+
+
+
+
+
       if(need_reschedule){
-        std::cout << "Schedule started" << "\n";
         if(interpreter_->IsJobEmpty()){
           lock.unlock();
         }else{
@@ -80,8 +90,8 @@ namespace tflite{
     return kTfLiteOk;
   };
 
-  void Scheduler::NeedReschedule(){
-    need_reschedule = true;
+  void Scheduler::NeedReschedule(bool flag){
+    need_reschedule = flag;
   };
 
   void Scheduler::ChangeState(SchedulerState new_state){
@@ -93,7 +103,8 @@ namespace tflite{
   }
 
   void Scheduler::notify(){
-    scheduler_cv_.notify_one();
+    std::unique_lock<std::mutex> lock(scheduler_lock);
+    scheduler_cv_.notify_all();
   };
 
   // ModelFactory codes //
@@ -105,7 +116,7 @@ namespace tflite{
     interpreter_ = interpreter;
   };
 
-  TfLiteStatus ModelFactory::CreateAndProfileModel(const char* model_name){
+  TfLiteStatus ModelFactory::CreateProfileModel(const char* model_name){
     std::unique_ptr<tflite::FlatBufferModel>* model;
     
     model = new std::unique_ptr<tflite::FlatBufferModel>\
@@ -117,10 +128,11 @@ namespace tflite{
     
     // Experimental API
     // Giving a model number from recieved model size?
-    int model_number = builder_and_id.size();
-    #ifdef DEBUG
-      std::cout << "Currently have " << model_number << " on runtime" << "\n";
-    #endif
+    int model_number = builders_created;
+    builders_created++;
+
+    std::cout << "Factory: Currently have " << model_number << " on runtime" << "\n";
+
 
     tflite::InterpreterBuilder* new_builder = \
              new tflite::InterpreterBuilder(**model, *resolver, model_name, \
