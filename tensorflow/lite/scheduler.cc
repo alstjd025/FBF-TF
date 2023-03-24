@@ -18,34 +18,29 @@ namespace tflite{
   void Scheduler::SchedulerSpin(){
     std::cout << "Scheduler : Scheduler spin!" << "\n";
     while(true){
-    std::unique_lock<std::mutex> lock(scheduler_lock);
+      std::unique_lock<std::mutex> lock(scheduler_lock);
       std::cout << "scheduler_stop " << scheduler_stop << "\n";
-      scheduler_cv_.wait(lock, [&] { return scheduler_stop; });
+      scheduler_cv_.wait(lock, [&] { return state != SchedulerState::STOP; });
       std::cout << "Scheduler : woke up" << "\n";
       interpreter_->LockJobs();
       std::cout << "Scheduler : start scheduling" << "\n";
-      
 
-
-
-
-
-
-      if(need_reschedule){
-        if(interpreter_->IsJobEmpty()){
-          lock.unlock();
-        }else{
-          if(CheckSchedulability()){ // Schedulable
-            state = SchedulerState::SCHEDULABLE;
-            if(Reschedule() != kTfLiteOk){
-              std::cout << "Rescheudling ERROR" << "\n";
-              exit(-1);
-            }
+      if(interpreter_->IsJobEmpty()){
+        std::cout << "Scheduler : scheduler woke up but no jobs in interpreter"
+                  << ". wait for 100ms. " <<"\n";
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        continue;
+      }
+      if(need_reschedule){ // if new job is allocated or SLO violated?
+        if(CheckSchedulability()){ // Schedulable
+          state = SchedulerState::SCHEDULABLE;
+          if(Reschedule() != kTfLiteOk){
+            std::cout << "Rescheudling ERROR" << "\n";
+            exit(-1);
           }
-          else{ // Not schedulable
-            state = SchedulerState::NSCHEDULABLE;
-          }
-
+        }
+        else{ // Not schedulable
+          state = SchedulerState::NSCHEDULABLE;
         }
         need_reschedule = false;
         interpreter_->UnlockJobs();
