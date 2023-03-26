@@ -31,9 +31,11 @@ namespace tflite{
       return kTfLiteError;
     }
     std::cout << "Factory : succesfully created profilemodel" << "\n";
+    scheduler_->ChangeState(SchedulerState::SCHEDULING);
     scheduler_->NeedReschedule(true);
     return kTfLiteOk;
   };
+
 
   TfLiteStatus WorkFrame::AllocateTask(){
 
@@ -45,8 +47,12 @@ namespace tflite{
     return kTfLiteOk;
   };
 
+  void WorkFrame::JoinAll(){
+    scheduler_->Join();
+  }
+  
   WorkFrame::~WorkFrame(){
-    
+    std::cout << "WorkFrame destructor called" << "\n";
   };
 
 

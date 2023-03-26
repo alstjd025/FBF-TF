@@ -109,7 +109,7 @@ typedef struct subgraphMetaData{
 // Scheduler status
 typedef enum SchedulerState{
   INIT_SCHED,           // Initial phase.
-  SCHEDULABLE,    // Schedulable, means interpreter and jobs are ready.
+  SCHEDULING,    // Scheduling, means interpreter and jobs are ready.
   NSCHEDULABLE,         // Not schedulable.
   RESCHEDULE,     // Need reschedule
   STOP

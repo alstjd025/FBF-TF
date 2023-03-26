@@ -23,38 +23,37 @@ namespace tflite{
     worker_id = w_id;
     state = WorkerState::INIT_WORK;
     interpreter_ = interpreter; 
+    working_thread = std::thread(&Worker::Work, this);
+    working_thread.detach();
   };
 
   void Worker::ChangeStateTo(WorkerState new_state){
+    std::cout << " changed worker state1 " << "\n";
+    std::unique_lock<std::mutex> lock(worker_lock);
     state = new_state;
+    std::cout << " changed worker state 2" << "\n";
   }
 
   void Worker::GiveJob(tflite::Job* new_job){
-    have_job = true;
+    std::unique_lock<std::mutex> lock(worker_lock);
+    std::cout << "got job1" << "\n";
+    if(!have_job)
+      have_job = true;
+    std::cout << "got job2" << "\n";
     jobs.push_back(new_job);
-  }
-
-  bool Worker::TryLock(){
-    if(mtx_lock.try_lock()){
-      return true;
-    }else{
-      return false;
-    }
-  }
-
-  void Worker::Unlock(){
-    mtx_lock.unlock();
+    std::cout << "got job3" << "\n";
   }
 
   void Worker::WakeWorker(){
-    worker_cv.notify_one();
+    worker_cv.notify_all();
   }
 
   void Worker::Work(){
     std::cout << "Worker [" << worker_id << "] started" << "\n";
     while(true){
-      std::unique_lock<std::mutex> lock(mtx_lock);
+      std::unique_lock<std::mutex> lock(worker_lock);
       worker_cv.wait(lock, [&] { return state == WorkerState::WORKING; });
+      std::cout << "Worker [" << worker_id << "] woke up" << "\n";
       for(int i=0; i<jobs.size(); ++i){
         Subgraph* working_graph; 
         if(jobs[i]->resource_type == type){
@@ -73,7 +72,7 @@ namespace tflite{
   }
 
   Worker::~Worker(){
-
+    std::cout << "Worker destuctor called " << "\n";
   };
 
 

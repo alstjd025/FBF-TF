@@ -19,12 +19,10 @@ namespace tflite{
     std::cout << "Scheduler : Scheduler spin!" << "\n";
     while(true){
       std::unique_lock<std::mutex> lock(scheduler_lock);
-      std::cout << "scheduler_stop " << scheduler_stop << "\n";
-      scheduler_cv_.wait(lock, [&] { return state != SchedulerState::STOP; });
+      scheduler_cv_.wait(lock, [&] { return state != SchedulerState::STOP &&
+                                      state != SchedulerState::INIT_SCHED; });
       std::cout << "Scheduler : woke up" << "\n";
-      interpreter_->LockJobs();
       std::cout << "Scheduler : start scheduling" << "\n";
-
       if(interpreter_->IsJobEmpty()){
         std::cout << "Scheduler : scheduler woke up but no jobs in interpreter"
                   << ". wait for 100ms. " <<"\n";
@@ -33,7 +31,6 @@ namespace tflite{
       }
       if(need_reschedule){ // if new job is allocated or SLO violated?
         if(CheckSchedulability()){ // Schedulable
-          state = SchedulerState::SCHEDULABLE;
           if(Reschedule() != kTfLiteOk){
             std::cout << "Rescheudling ERROR" << "\n";
             exit(-1);
@@ -42,19 +39,21 @@ namespace tflite{
         else{ // Not schedulable
           state = SchedulerState::NSCHEDULABLE;
         }
+        std::cout << "sda " << "\n";
         need_reschedule = false;
-        interpreter_->UnlockJobs();
       }
+      std::cout << "invoke" << "\n";
       if(DoInvoke() != kTfLiteOk){
         std::cout << "Invoke returned Error on scheduler" << "\n";
         std::cout << "Stop scheduler" << "\n";
         state = SchedulerState::STOP;
       }
+      state = SchedulerState::STOP;
     }
   };
 
   Scheduler::~Scheduler(){
-      
+    std::cout << "Scheduler destructor called" << "\n";
   };
 
   TfLiteStatus Scheduler::DoInvoke(){
@@ -66,31 +65,31 @@ namespace tflite{
   }
 
   bool Scheduler::CheckSchedulability(){
+    std::cout << "Scheduler : needs rescheduling.. checks scehdulability" << "\n";
     // NEEDS IMPL
     // interpreter->CheckSchedulability()
     /////
     return true;
   }
-  
-  TfLiteStatus Scheduler::ReadyWorkers(){
-    return kTfLiteOk;
-  }
 
   TfLiteStatus Scheduler::Reschedule(){
-    if(ReadyWorkers() != kTfLiteOk){
-      std::cout << "ReadyWorkers EROOR" << "\n";
-      exit(-1);
+    if(interpreter_->GiveJob() != kTfLiteOk){
+      std::cout << "GiveJob ERROR" << "\n";
+      return kTfLiteError;
     }
-    interpreter_->GiveJob();
     return kTfLiteOk;
   };
 
   void Scheduler::NeedReschedule(bool flag){
+    scheduler_lock.lock();
     need_reschedule = flag;
+    scheduler_lock.unlock();
   };
 
   void Scheduler::ChangeState(SchedulerState new_state){
+    scheduler_lock.lock();
     state = new_state;
+    scheduler_lock.unlock();
   };
 
   void Scheduler::Join(){

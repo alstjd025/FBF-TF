@@ -37,10 +37,7 @@ class Worker
     void GiveJob(tflite::Job* new_job);
 
     void Work();
-
-    bool TryLock();
-    void Unlock();
-
+    
     void WakeWorker();
 
     void ChangeStateTo(WorkerState new_state);
@@ -71,7 +68,7 @@ class Worker
 
     // threads, mutex and condition variables for synchronization and multi-
     // threading
-    std::mutex mtx_lock;
+    std::mutex worker_lock;
     std::condition_variable worker_cv;
     std::thread working_thread;
 

@@ -49,12 +49,11 @@ class Scheduler
 
     // Ready workers that needed for scheduled jobs.
     // Clean up the existing workers and create needed ones.
-    TfLiteStatus ReadyWorkers();
+    TfLiteStatus ReadyWorkers(); // Not implemented
 
     TfLiteStatus DoInvoke();
 
     bool need_reschedule = false;
-    bool scheduler_stop = false;
 
     SchedulerStatus state;
     std::shared_ptr<tflite::Interpreter> interpreter_;  

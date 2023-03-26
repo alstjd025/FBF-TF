@@ -93,7 +93,7 @@ class WorkFrame{
     // TODO : consider quantized model input
     TfLiteStatus CreateAndGiveJob(const char* model);
 
-    
+    void JoinAll();
 
     // Tests invoke with a single job and a single worker
     // Subject to remove

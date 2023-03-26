@@ -520,7 +520,7 @@ TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   return kTfLiteOk;
 }
 
-TfLiteStatus Interpreter::ReadyWorkers(){
+TfLiteStatus Interpreter::ReadyWorkers(){ // no need?
   for(int i=0; i<workers.size(); ++i){
     worker_threads.push_back(std::thread(&Worker::Work,
                                workers.at(i)->returnThis()));
@@ -529,7 +529,8 @@ TfLiteStatus Interpreter::ReadyWorkers(){
 
 TfLiteStatus Interpreter::GiveJob(){
   LockJobs();
-  while(!(jobs->empty())){
+  while(!jobs->empty() && !workers.empty()){
+    std::cout << "Interperter : give job" << "\n";
     Job* job = jobs->front();
     if(job->state != JobState::READY){
       continue;
@@ -537,34 +538,52 @@ TfLiteStatus Interpreter::GiveJob(){
       // Lockup the job lock of worker
       // !!currently one job for one worker.
       int worker_idx = 0;
-      while(worker_idx < workers.size())
-        if(workers[worker_idx]->TryLock()){
-          workers[worker_idx]->GiveJob(job); 
-          worker_idx++;
-          workers[worker_idx]->Unlock();
-          jobs->pop();
-        }else{
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-          continue;
-        }
+      while(worker_idx < workers.size()){
+        std::cout << "Interpreter : give job to worker " 
+                                        << worker_idx << "\n";
+        workers[worker_idx]->GiveJob(job); 
+        std::cout << "give job" << "\n";
+        worker_idx++;
+        jobs->pop();
+      }
     }
   }
   UnlockJobs();
+  return kTfLiteOk;
 }
 
 TfLiteStatus Interpreter::DoInvoke(){
+  std::cout << "adsf" << "\n";
   for(int i=0; i<workers.size(); ++i){
+    std::cout << "asdf " << "\n";
     Worker* worker_ = workers[i];
     if(worker_->HaveJob()){
+      std::cout << "Interpreter : wake worker " << i << "\n";
       worker_->ChangeStateTo(WorkerState::WORKING);
       worker_->WakeWorker();
     }
   }
+  return kTfLiteOk;
+}
+
+bool Interpreter::IsJobEmpty(){
+  bool flag;
+  LockJobs();
+  flag = jobs->empty();
+  UnlockJobs();
+  return flag;
+}
+
+int Interpreter::GetJobNum(){
+  int n;
+  LockJobs();
+  n = jobs->size();
+  UnlockJobs();
+  return n;
 }
 
 Job* Interpreter::GetJob(){
-  LockJobs();
-
+  // Not implemented.
 }
 
 void Interpreter::LockJobs(){
