@@ -38,6 +38,7 @@ limitations under the License.
 #include "tensorflow/lite/type_to_tflitetype.h"
 
 #include "tensorflow/lite/worker_core.h"
+#include "scheduler.h"
 
 namespace tflite {
 
@@ -756,6 +757,11 @@ class Interpreter {
   std::vector<std::thread> worker_threads;
   std::vector<int> worker_ids;
   int workers_created = 0;
+
+  // Minsung
+  // Scheduler
+  std::thread scheduler_thread;
+  tflite::Scheduler* scheduler_;
 
   // Minsung
   // Subgraphs

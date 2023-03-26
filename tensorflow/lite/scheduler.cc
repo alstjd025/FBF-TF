@@ -2,11 +2,13 @@
 
 namespace tflite{
 
+//legacy
   Scheduler::Scheduler(){
     state = SchedulerState::INIT_SCHED;
     interpreter_ = nullptr;
   };
 
+//legacy
   Scheduler::Scheduler(std::shared_ptr<tflite::Interpreter> interpreter){
     state = SchedulerState::INIT_SCHED;
     interpreter_ = interpreter;
@@ -15,6 +17,7 @@ namespace tflite{
     scheduler_thread.detach();
   };
 
+//legacy
   void Scheduler::SchedulerSpin(){
     std::cout << "Scheduler : Scheduler spin!" << "\n";
     while(true){
@@ -52,10 +55,12 @@ namespace tflite{
     }
   };
 
+//legacy
   Scheduler::~Scheduler(){
     std::cout << "Scheduler destructor called" << "\n";
   };
 
+//legacy
   TfLiteStatus Scheduler::DoInvoke(){
     if(interpreter_->DoInvoke() != kTfLiteOk){
       std::cout << "Interpreter invoke returned ERROR" << "\n";
@@ -64,6 +69,7 @@ namespace tflite{
     return kTfLiteOk;
   }
 
+//legacy
   bool Scheduler::CheckSchedulability(){
     std::cout << "Scheduler : needs rescheduling.. checks scehdulability" << "\n";
     // NEEDS IMPL
@@ -72,6 +78,7 @@ namespace tflite{
     return true;
   }
 
+//legacy
   TfLiteStatus Scheduler::Reschedule(){
     if(interpreter_->GiveJob() != kTfLiteOk){
       std::cout << "GiveJob ERROR" << "\n";
@@ -80,36 +87,42 @@ namespace tflite{
     return kTfLiteOk;
   };
 
+//legacy
   void Scheduler::NeedReschedule(bool flag){
     scheduler_lock.lock();
     need_reschedule = flag;
     scheduler_lock.unlock();
   };
 
+//legacy
   void Scheduler::ChangeState(SchedulerState new_state){
     scheduler_lock.lock();
     state = new_state;
     scheduler_lock.unlock();
   };
 
+//legacy
   void Scheduler::Join(){
     scheduler_thread.join();
   }
 
+//legacy
   void Scheduler::notify(){
     std::unique_lock<std::mutex> lock(scheduler_lock);
     scheduler_cv_.notify_all();
   };
 
-  // ModelFactory codes //
+  // ModelFactory codes // //legacy
   ModelFactory::ModelFactory(){
     interpreter_ = nullptr;
   };
 
+//legacy
   ModelFactory::ModelFactory(std::shared_ptr<tflite::Interpreter> interpreter){
     interpreter_ = interpreter;
   };
 
+//legacy
   TfLiteStatus ModelFactory::CreateProfileModel(const char* model_name){
     std::unique_ptr<tflite::FlatBufferModel>* model;
     
@@ -143,15 +156,18 @@ namespace tflite{
     return kTfLiteOk;
   };
 
+//legacy
   void ModelFactory::ModelFactorySpin(){
 
   };
 
+//legacy
   TfLiteStatus ModelFactory::GiveSubgraphtoInterperter(\
                                       std::shared_ptr<Scheduler> scheduler){
 
   };
 
+//legacy
   ModelFactory::~ModelFactory(){
 
   };

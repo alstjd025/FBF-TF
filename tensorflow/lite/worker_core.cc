@@ -18,6 +18,7 @@ namespace tflite{
     
   };
 
+//legacy
   Worker::Worker(ResourceType wType, int w_id, Interpreter* interpreter){
     type = wType;
     worker_id = w_id;
@@ -27,6 +28,7 @@ namespace tflite{
     working_thread.detach();
   };
 
+//legacy
   void Worker::ChangeStateTo(WorkerState new_state){
     std::cout << " changed worker state1 " << "\n";
     std::unique_lock<std::mutex> lock(worker_lock);
@@ -34,6 +36,7 @@ namespace tflite{
     std::cout << " changed worker state 2" << "\n";
   }
 
+//legacy
   void Worker::GiveJob(tflite::Job* new_job){
     std::unique_lock<std::mutex> lock(worker_lock);
     std::cout << "got job1" << "\n";
@@ -44,10 +47,12 @@ namespace tflite{
     std::cout << "got job3" << "\n";
   }
 
+//legacy
   void Worker::WakeWorker(){
     worker_cv.notify_all();
   }
 
+//legacy
   void Worker::Work(){
     std::cout << "Worker [" << worker_id << "] started" << "\n";
     while(true){
@@ -71,6 +76,7 @@ namespace tflite{
     }
   }
 
+//legacy
   Worker::~Worker(){
     std::cout << "Worker destuctor called " << "\n";
   };

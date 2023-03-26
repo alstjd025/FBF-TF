@@ -99,6 +99,16 @@ class WorkFrame{
     // Subject to remove
     TfLiteStatus TestInvoke();
 
+    // === new codes === //
+
+    TfLiteStatus CreateTfLiteRuntime();
+    TfLiteStatus CreateTfLiteRuntimeWithModel(const char* model);
+    TfLiteStatus AddModelToRuntime(const char* new_model);
+    
+
+    // === //
+
+
   private:
   
     // Scheduler for workers.

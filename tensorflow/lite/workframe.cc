@@ -7,7 +7,7 @@ namespace tflite{
     CreateProfilerandScheduler();
   };
 
-
+//legacy
   TfLiteStatus WorkFrame::CreateProfilerandScheduler(){
     // NEED DEBUG: use of make_shared here is quite ambigious.
     std::cout << "WorkFrame : Creates TfLite Interpreter, " << 
@@ -25,6 +25,7 @@ namespace tflite{
     #endif
   };
 
+//legacy
   TfLiteStatus WorkFrame::CreateAndGiveJob(const char* model){
     if(factory_->CreateProfileModel(model) != kTfLiteOk){
       std::cout << "CreateProfileModel returned ERROR" << "\n";
@@ -36,21 +37,24 @@ namespace tflite{
     return kTfLiteOk;
   };
 
-
+//legacy
   TfLiteStatus WorkFrame::AllocateTask(){
 
   };
 
+//legacy
   TfLiteStatus WorkFrame::TestInvoke(){
     scheduler_->notify();
     std::cout << "notify \n";
     return kTfLiteOk;
   };
 
+//legacy
   void WorkFrame::JoinAll(){
     scheduler_->Join();
   }
   
+//legacy
   WorkFrame::~WorkFrame(){
     std::cout << "WorkFrame destructor called" << "\n";
   };
