@@ -968,6 +968,15 @@ typedef struct sharedcontext{
   int dept;   // means departure
 } sharedcontext;
 
+// Minsung
+// Structure for dynamic subgraph partitioning
+typedef struct{
+  // An array which contains node numbers in a single plan 
+  // (node numbers from original subgraph)
+  int* nodes;
+  // Number of nodes in a single plan
+  int size; 
+} SubgraphPartitioningPlan;
 
 // Build a 'null' delegate, with all the fields properly set to their default
 // values.

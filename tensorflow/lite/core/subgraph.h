@@ -333,6 +333,9 @@ class Subgraph {
 
   Profiler* GetProfiler() { return profiler_.get(); }
 
+  // Minsung
+  const ProfileData& GetProfileData() { return profile_data; }
+
   // Returns a pointer to vector of subgraphs.
   // WARNING: This is an experimental API and subject to change.
   std::vector<std::unique_ptr<Subgraph>>* GetSubgraphs() { return subgraphs_; }

@@ -91,7 +91,8 @@ class InterpreterBuilder {
   // Creates subset of subgraphs
   // After profiling the whole subgraph's latency, creates subset of subgraphs so
   // that the scheduler can handle them.
-  TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph);
+  TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph,
+                                std::shared_ptr<tflite::Interpreter> interpreter);
 
   // Minsung
   // Make subgraph to a default(pre-proflied) job
@@ -109,7 +110,7 @@ class InterpreterBuilder {
   // override function
   TfLiteStatus BuildLocalIndexToRegistrationMapping(const ::tflite::Model* model,
                                                 const OpResolver& op_resolver);
-                                                
+
   TfLiteStatus ParseNodes(
       const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
       Subgraph* subgraph);

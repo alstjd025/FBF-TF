@@ -189,6 +189,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
 
 InterpreterBuilder::~InterpreterBuilder() {}
 
+
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping(
                                     const ::tflite::Model* model,
                                     const OpResolver& op_resolver){
@@ -439,13 +440,187 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
-                                      tflite::Subgraph* profiled_subgraph){
+                                      tflite::Subgraph* profiled_subgraph,
+                          std::shared_ptr<tflite::Interpreter> interpreter){
   if(!profiled_subgraph->IsProfiled()){
     std::cout << "InterpreterBuilder : Subgraph is not profiled \n";
     return kTfLiteError;
   }
-  // now create subgraphs from original one.
-  
+  // Now create subgraphs from original one.
+  // 1. read profiled data
+  // 2. make new subgraphs
+  // 3. parse nodes and tensors from original nodes_and_registrations
+  // 4. 
+  // Jobs to do
+  // 1. Allocate each subgraphs with new subgraphs input outputs??
+  // 2. Data transfer between subgraphs
+  auto* subgraphs = model_->subgraphs();
+  auto* buffers = model_->buffers();
+  if (subgraphs->size() == 0) {
+    TF_LITE_REPORT_ERROR(error_reporter_, "No subgraph in the model.\n");
+    return kTfLiteError;
+  }
+  if (!buffers) {
+    TF_LITE_REPORT_ERROR(error_reporter_, "No buffers in the model.\n");
+    return kTfLiteError;
+  }
+
+  int new_subgraph_index = 0;
+  int count_node_per_subgraph = 0;
+  int total_count_node_per_subgraph = 0; 
+  int count_tensor_per_subgraph = 0;
+  int total_count_tensor_per_subgraph = 0;
+  std::vector<TfLiteIntArray*> inputs;
+  std::vector<TfLiteIntArray*> outputs;
+  for (int subgraph_index = 0; subgraph_index < subgraphs->size();
+      ++subgraph_index) {
+        // Note : Assume that we have only one subgraph before.
+    const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+    const auto profile_ = profiled_subgraph->GetProfileData();
+    auto operators = subgraph->operators();
+    auto tensors = subgraph->tensors();
+    // Look for Conv2d OPs and save tensor index
+    std::vector<int> conv_idx;
+    int i = 0;
+    bool set_input = true;
+    std::vector<int>* input_tensor = new std::vector<int>;
+    std::vector<int>* output_tensor = new std::vector<int>;
+    std::vector<int>* tensors_ = new std::vector<int>;
+    std::vector<SubgraphPartitioningPlan*> master_partitioning_plan;
+    /////////////////////////////////////////////
+    /// Refactored code for dividing subgraph ///
+    /////////////////////////////////////////////
+
+    //TODO: allocate, initialize jobs and subgraphs for scheduling
+
+    auto CreatePartitioningPlanFromProfile = [&](ProfileData& profile){
+      for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
+        SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
+        new_plan->size = profile.layer_subsets[i].size();
+        new_plan->nodes = new int[new_plan->size];
+        for(int j=0; j<profile.layer_subsets[i].size(); ++j){ //layers
+          new_plan->nodes[j] = profile.layer_subsets[i][j];
+        }
+        master_partitioning_plan.push_back(new_plan);
+      }
+      
+    };
+
+    //std::vector<SubgraphPartitioningPlan*> master_partitioning_plan = 
+                      //(*interpreter)->subgraph_partitioning_plan;
+    //For profiling
+    std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
+    std::vector<std::pair<int, std::vector<int>>> shared_info;
+
+    // tensor bucket
+    int shared_tensor_bucket[tensors->size()][master_partitioning_plan.size()];
+    for(int i=0; i<tensors->size(); ++i)
+      for(int j=0; j<master_partitioning_plan.size(); ++j)
+        shared_tensor_bucket[i][j] = 0;
+
+    for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
+                                    ++partition_itr){
+      const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
+      const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
+      for(int j=0; j < num_nodes_in_partition; ++j){
+        std::cout << "j and node " << j << " " << num_nodes_in_partition << "\n";
+        int working_op = nodes_in_partition[j];
+        const auto* op = operators->Get(working_op);
+        int op_index = op->opcode_index();
+        /// get every tensor indices of all nodes
+        for(int k=0; k<FlatBufferIntArrayToVector(op->inputs()).size(); ++k)
+          tensors_->push_back(FlatBufferIntArrayToVector(op->inputs())[k]);
+        for(int k=0; k<FlatBufferIntArrayToVector(op->outputs()).size(); ++k)
+          tensors_->push_back(FlatBufferIntArrayToVector(op->outputs())[k]);          
+
+        /// input tensor should be first node's input tensor in partitioning plan
+        if(j == 0){
+          input_tensor = new std::vector<int>;
+          input_tensor->push_back(FlatBufferIntArrayToVector(op->inputs())[0]);
+          std::cout << "Cur Subgraph input tensor : ";
+          for(int j=0; j<input_tensor->size(); ++j){
+            std::cout << input_tensor->at(j) << " ";
+          }     
+          std::cout << "\n";
+        }  /// output tensor should be last node's output tensor in partitioning plan
+        if(j == num_nodes_in_partition - 1){
+          output_tensor = new std::vector<int>;
+          output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
+          std::cout << "Cur Subgraph output tensor : ";
+          for(int j=0; j<output_tensor->size(); ++j){
+            std::cout << output_tensor->at(j) << " ";
+          }
+          std::cout << "\n";
+          /// Make a new subgraph here
+          tflite::Subgraph* new_subgraph = interpreter->CreateSubgraph();
+          if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
+            return kTfLiteError;
+          }
+          std::pair<int, std::vector<int>> graph_and_tensors(partition_itr, *tensors_);
+          subgraph_and_tensors.push_back(graph_and_tensors);
+          std::cout << "Cur Subgraph tensors : ";
+          for(int m=0; m<tensors_->size(); ++m){
+            std::cout << tensors_->at(m) << " ";
+          }
+          std::cout << "\n";
+          new_subgraph->SetInputs(
+                      std::vector<int>(input_tensor->begin(), input_tensor->end()));
+          new_subgraph->SetOutputs(
+                      std::vector<int>(output_tensor->begin(), output_tensor->end()));
+          if (ParseNodes(operators, new_subgraph,\
+                          nodes_in_partition[0], nodes_in_partition[j]) != kTfLiteOk)
+            return kTfLiteError;
+          if (ParseTensors(buffers, tensors, new_subgraph, *tensors_) != kTfLiteOk)
+            return kTfLiteError;
+          std::vector<int> variables;
+          for (int l = 0; l < new_subgraph->tensors_size(); ++l) {
+            auto* tensor = new_subgraph->tensor(l);
+            if (tensor->is_variable) {
+              variables.push_back(i);
+            }
+          }
+          new_subgraph->SetVariables(std::move(variables));
+        }
+      }
+      input_tensor->clear();
+      delete input_tensor;
+      tensors_->clear();
+      delete tensors_;
+      output_tensor->clear();
+      delete output_tensor;
+      tensors_ = new std::vector<int>;
+      output_tensor = new std::vector<int>;
+    } 
+    // Check for shared tensors
+    for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
+      std::cout << "subgraph [" << graph_idx << "] tensors" << "\n";
+      for(size_t j=0; j<subgraph_and_tensors[graph_idx].second.size(); ++j){
+        int tensor = subgraph_and_tensors[graph_idx].second[j];
+        if(shared_tensor_bucket[tensor][graph_idx] != 1)
+          shared_tensor_bucket[tensor][graph_idx] = 1; // Tensor shared flag
+        std::cout << tensor << " ";
+      }
+      std::cout << "\n";
+    }
+    // Save shared tensor info to interpreter's graph_and_shared_tensor.
+    // Will used when AllocateTensorsofAllSubgraphs called.
+    for(size_t t=0; t<tensors->size(); ++t){
+      std::pair<int, std::vector<int>> pair_tensor_graph;
+      std::vector<int> sharing_subgraph_indicies;
+      for(size_t g=0; g<subgraph_and_tensors.size(); ++g){
+        if(shared_tensor_bucket[t][g]){
+          sharing_subgraph_indicies.push_back(g);
+        }
+      }
+      if(sharing_subgraph_indicies.size() > 1){
+        pair_tensor_graph.first = t;        // tensor index
+        pair_tensor_graph.second = sharing_subgraph_indicies; // subgraph indicies
+        shared_info.push_back(pair_tensor_graph);
+      }
+      sharing_subgraph_indicies.clear();
+    }
+    (interpreter)->shared_tensor_and_graph = shared_info; 
+  }
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
