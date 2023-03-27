@@ -438,8 +438,14 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   return kTfLiteOk;
 }
 
-TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(){
-
+TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
+                                      tflite::Subgraph* profiled_subgraph){
+  if(!profiled_subgraph->IsProfiled()){
+    std::cout << "InterpreterBuilder : Subgraph is not profiled \n";
+    return kTfLiteError;
+  }
+  // now create subgraphs from original one.
+  
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
@@ -559,6 +565,205 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
 
   return status;
 }
+
+
+
+TfLiteStatus InterpreterBuilder::ParseNodes(
+    const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
+    Subgraph* subgraph, int op_st, int op_end) {
+  TfLiteStatus status = kTfLiteOk;
+
+  // Reduce the number of redundant allocations
+  subgraph->ReserveNodes(op_end);
+  //if(op_st == op_end) // If a Layer has single node
+  op_end++;
+  for (int i = op_st; i < op_end; ++i) {
+    std::cout << "Parse Node op idx : " << i << " \n";
+    const auto* op = operators->Get(i);
+    int index = op->opcode_index();
+    if (index < 0 || index >= flatbuffer_op_index_to_registration_.size()) {
+      error_reporter_->Report("Missing registration for opcode_index %d\n",
+                              index);
+      status = kTfLiteError;
+      continue;
+    }
+    const TfLiteRegistration* registration =
+        flatbuffer_op_index_to_registration_[index];
+    if (registration == nullptr) {
+      error_reporter_->Report("Skipping op for opcode_index %d\n", index);
+      status = kTfLiteError;
+      continue;
+    }
+
+    BuiltinOperator op_type =
+        static_cast<BuiltinOperator>(registration->builtin_code);
+    if (op_type != BuiltinOperator_CUSTOM && op->custom_options()) {
+      error_reporter_->Report(
+          "Found builtin operator %s with custom options.\n",
+          EnumNameBuiltinOperator(op_type));
+    }
+
+    if (op_type == BuiltinOperator_CUSTOM) {
+      if (op->custom_options()) {
+        subgraph->AddNodeWithParameters(
+            FlatBufferIntArrayToVector(op->inputs()),
+            FlatBufferIntArrayToVector(op->outputs()),
+            FlatBufferIntArrayToVector(op->intermediates()),
+            reinterpret_cast<const char*>(op->custom_options()->data()),
+            op->custom_options()->size(), nullptr, registration);
+      } else {
+        subgraph->AddNodeWithParameters(
+            FlatBufferIntArrayToVector(op->inputs()),
+            FlatBufferIntArrayToVector(op->outputs()),
+            FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
+            nullptr, registration);
+      }
+    } else {
+      void* builtin_data = nullptr;
+      MallocDataAllocator malloc_allocator;
+      TF_LITE_ENSURE_STATUS(ParseOpData(op, op_type, error_reporter_,
+                                        &malloc_allocator, &builtin_data));
+      subgraph->AddNodeWithParameters(
+          FlatBufferIntArrayToVector(op->inputs()),
+          FlatBufferIntArrayToVector(op->outputs()),
+          FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
+          builtin_data, registration);
+      std::cout << "Nodes Modifying" << "\n inputs: ";
+      for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j){
+        std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
+      }
+      std::cout << "\n outputs: ";
+      for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j){
+        std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
+      }
+      std::cout << "\n Intermediates: ";
+      for(int j=0; j<FlatBufferIntArrayToVector(op->intermediates()).size(); ++j){
+        std::cout << FlatBufferIntArrayToVector(op->intermediates())[j] << " ";
+      }
+      std::cout << "\n";
+      std::cout << "Nodes Modifyed" << "\n";
+    }
+  }
+  return status;
+}
+
+
+// Minsung
+// ParseTensors with specific index of operators
+TfLiteStatus InterpreterBuilder::ParseTensors(
+    const flatbuffers::Vector<flatbuffers::Offset<Buffer>>* buffers,
+    const flatbuffers::Vector<flatbuffers::Offset<Tensor>>* tensors,
+    Subgraph* subgraph, std::vector<int> tensor_idx) {
+  TfLiteStatus status = kTfLiteOk;
+  std::cout << "ParseTensors" << "\n";
+  // A little helper to get the names of inputs and outputs. Note that they
+  // must outlive the subgraph.
+  auto get_name = [](const tflite::Tensor* t) -> const char* {
+    auto name = t->name();
+    if (name) return name->c_str();
+    return kEmptyTensorName;
+  };
+  num_fp32_tensors_ = 0;
+  for (int i = 0; i < tensor_idx.size(); ++i) {
+    const auto* tensor = tensors->Get(tensor_idx[i]);
+    std::vector<int> dims = FlatBufferIntArrayToVector(tensor->shape());
+    TfLiteType type;
+    if (ConvertTensorType(tensor->type(), &type, error_reporter_) !=
+        kTfLiteOk) {
+      status = kTfLiteError;
+      continue;
+    }
+    if (type == kTfLiteFloat32) {
+      ++num_fp32_tensors_;
+    }
+    std::cout << "Parse tensor : " << tensor_idx[i] << "\n"; 
+    std::cout << "shape : " ;
+    for(int j=0; j<tensor->shape()->size(); ++j){
+      std::cout << tensor->shape()->Get(j) << " ";
+    }
+    std::cout << "\n";
+    auto get_readonly_data = [&](const char** buffer_data,
+                                 size_t* buffer_size) {
+      // TODO(aselle): Check what happens if we have an unspecified size
+      // constant.
+      *buffer_data = nullptr;
+      if (tensor->buffer() == 0) return kTfLiteOk;
+      if (tensor->buffer() >= buffers->size()) {
+        error_reporter_->Report(
+            "Tensor %d specifies out of range buffer %d (only %d buffers).\n",
+            tensor_idx[i], tensor->buffer(), buffers->size());
+        return kTfLiteError;
+      }
+      if (auto* buffer = (*buffers)[tensor->buffer()]) {
+        if (auto* array = buffer->data()) {
+          if (size_t size = array->size()) {
+            *buffer_size = size;
+            *buffer_data = reinterpret_cast<const char*>(array->data());
+            return kTfLiteOk;
+          }
+        }
+      }
+      return kTfLiteOk;
+    };
+    size_t buffer_size = 0;
+    const char* buffer_ptr;
+    TF_LITE_ENSURE_STATUS(get_readonly_data(&buffer_ptr, &buffer_size));
+
+    const auto* src_quantization = tensor->quantization();
+    TfLiteQuantization quantization;
+    if (ParseQuantization(src_quantization, &quantization, dims) != kTfLiteOk) {
+      error_reporter_->Report("Tensor %d has invalid quantization parameters.",
+                              tensor_idx[i]);
+      status = kTfLiteError;
+    }
+    size_t dims_signature_rank = 0;
+    const int* dims_signature_data = nullptr;
+    if (tensor->shape_signature()) {
+      dims_signature_rank = tensor->shape_signature()->size();
+      dims_signature_data = tensor->shape_signature()->data();
+    }
+
+    bool is_variable = tensor->is_variable();
+    if (buffer_ptr) {
+      std::cout << "buffer_ptr" << "\n";
+      if (is_variable) {
+        error_reporter_->Report(
+            "Tensor %d is a variable tensor with buffer. "
+            "It's not supported now.\n",
+            i);
+        status = kTfLiteError;
+      }
+
+      // TODO(b/144999664): Only constant sparse tensor is supported now.
+      const auto* src_sparsity = tensor->sparsity();
+      TfLiteSparsity* sparsity = nullptr;
+      if (ParseSparsity(src_sparsity, &sparsity) != kTfLiteOk) {
+        error_reporter_->Report("Tensor %d has invalid sparsity parameters.",
+                                tensor_idx[i]);
+        status = kTfLiteError;
+      }
+      if (subgraph->SetTensorParametersReadOnly(
+              tensor_idx[i], type, get_name(tensor), dims, quantization, buffer_ptr,
+              buffer_size, allocation_, sparsity) != kTfLiteOk) {
+        error_reporter_->Report("Tensor %d is invalidly specified in schema.\n",
+                                tensor_idx[i]);
+        status = kTfLiteError;
+      }
+    } else {
+      std::cout << "else" << "\n";
+      if (subgraph->SetTensorParametersReadWrite(
+              tensor_idx[i], type, get_name(tensor), dims, quantization, is_variable,
+              dims_signature_rank, dims_signature_data) != kTfLiteOk) {
+        error_reporter_->Report("Tensor %d is invalidly specified in schema.\n",
+                                tensor_idx[i]);
+        status = kTfLiteError;
+      }
+    }
+  }
+  
+  return status;
+}
+
 
 TfLiteStatus InterpreterBuilder::ParseQuantization(
     const QuantizationParameters* src_quantization,

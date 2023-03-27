@@ -152,7 +152,9 @@ typedef struct Job{
 
 
 typedef struct ProfileData{
-  
+  std::vector<float> latency_by_layers;
+  std::vector<std::vector<int>> layer_subsets;
+  bool is_valid;
 } ProfileData;
 
 }  // namespace tflite

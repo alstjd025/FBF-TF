@@ -152,6 +152,9 @@ class Subgraph {
   }
 
   // Minsung
+  bool IsProfiled() { return is_profiled; }
+
+  // Minsung
   // Setups for scheduling and job initializing.
   void SetModelid(int id) { model_id_ = id; }
   int GetModelid() { return model_id_; }
@@ -773,6 +776,7 @@ class Subgraph {
   // Minsung
   // Flag for profiling
   bool is_profiled = false;
+  ProfileData profile_data;
 
   // Minsung
   // Stores mother model number
