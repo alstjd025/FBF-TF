@@ -90,6 +90,8 @@ Interpreter::Interpreter(ErrorReporter* error_reporter)
   // TODO(b/128420794): Include the TFLite runtime version in the log.
   // Prod logging is useful for mobile platforms where scraping console logs is
   // critical for debugging.
+
+std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
 #if defined(TFLITE_IS_MOBILE_PLATFORM)
   TFLITE_LOG_PROD_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
 #else
@@ -112,10 +114,12 @@ Interpreter::Interpreter(ErrorReporter* error_reporter)
       own_external_cpu_backend_context_.get();
 
   primary_subgraph().UseNNAPI(false);
-
   // Minsung
   // Add job queue
   jobs = new std::queue<tflite::Job*>;
+  scheduler_ = new LiteScheduler;
+  
+  
 }
 
 Interpreter::~Interpreter() {
@@ -297,6 +301,16 @@ TfLiteStatus Interpreter::Invoke() {
   }
 
   return kTfLiteOk;
+}
+
+// Minsung
+TfLiteStatus Interpreter::DebugInvoke(){
+  for(int i=0; i<subgraphs_.size(); ++i){
+    if(subgraphs_[i]->Invoke() != kTfLiteOk){
+      std::cout << "Subgraph [" << i << "] returned Error" << "\n";
+      return kTfLiteError;
+    }
+  }
 }
 
 TfLiteStatus Interpreter::AddTensors(int tensors_to_add,

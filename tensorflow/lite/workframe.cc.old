@@ -18,8 +18,8 @@ namespace tflite{
     std::cout << "Created default interpreter" << "\n";
     scheduler_ = std::make_shared<tflite::Scheduler>(interpreter);
     std::cout << "Created default scheduler" << "\n";
-    factory_ = std::make_shared<tflite::ModelFactory>(interpreter);
-    std::cout << "Created default modelfactory" << "\n";
+    // factory_ = std::make_shared<tflite::ModelFactory>(interpreter);
+    // std::cout << "Created default modelfactory" << "\n";
     #ifdef DEBUG
       std::cout << "interpreter count :" << interpreter.use_count() << "\n";
     #endif

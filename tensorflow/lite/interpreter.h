@@ -37,8 +37,8 @@ limitations under the License.
 #include "tensorflow/lite/stderr_reporter.h"
 #include "tensorflow/lite/type_to_tflitetype.h"
 
+#include "tensorflow/lite/lite_scheduler.h"
 #include "tensorflow/lite/worker_core.h"
-#include "scheduler.h"
 
 namespace tflite {
 
@@ -634,6 +634,9 @@ class Interpreter {
     return n;
   }
 
+  // Minsung 
+  TfLiteStatus CreateNewWokersAndScheduler();
+
   // Minsung
   // Add a new job
   TfLiteStatus AddNewJob(tflite::Job* new_job);
@@ -653,6 +656,9 @@ class Interpreter {
 
   // Do invoke
   TfLiteStatus DoInvoke();
+
+  // Invoke test
+  TfLiteStatus DebugInvoke();
 
   // lock jobs
   void LockJobs();
@@ -674,6 +680,7 @@ class Interpreter {
   friend class tflite::InterpreterTest;
   friend class tflite::TestDelegate;
   friend class tflite::delegates::InterpreterUtils;
+  
 
   /// Set the value of an external context.
   static void SetExternalContext(struct TfLiteContext* context,
@@ -761,7 +768,7 @@ class Interpreter {
   // Minsung
   // Scheduler
   std::thread scheduler_thread;
-  tflite::Scheduler* scheduler_;
+  LiteScheduler* scheduler_;
 
   // Minsung
   // Subgraphs

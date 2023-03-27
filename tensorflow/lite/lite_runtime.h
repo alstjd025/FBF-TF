@@ -34,11 +34,17 @@ class TfLiteRuntime{
     // Creates Interpreter
     TfLiteStatus CreateTfLiteRuntime();
 
-    // Creates Interpreter with a model
-    TfLiteStatus CreateaTfLiteRuntimeWithModel(const char* model);
     TfLiteStatus AddModelToRuntime(const char* new_model);
 
+    TfLiteStatus DebugInvoke();
+
   private:
-}
+    std::shared_ptr<tflite::Interpreter> interpreter;
+
+    // Map container for interpreterBuilders and model_id
+    // key : model_id, value : interpreterbuilder
+    int builders_created = 0;
+    std::map<int, tflite::InterpreterBuilder*> builder_and_id;
+};
 
 } // namespace tflite

@@ -117,7 +117,7 @@ class WorkFrame{
     std::shared_ptr<Scheduler> scheduler_;
 
     // Profiler
-    std::shared_ptr<ModelFactory> factory_;
+    // std::shared_ptr<ModelFactory> factory_;
 
     // Interpreter
     // An interpreter object is shared by scheduler and profiler and only
