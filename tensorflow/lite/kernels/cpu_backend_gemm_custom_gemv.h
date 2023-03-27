@@ -151,7 +151,7 @@ bool CustomGemv(
     const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
     const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
     CpuBackendContext* context) {
-  std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_custom_gemv.h/CustomGemv()\n";
+  //std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_custom_gemv.h/CustomGemv()\n";
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm: CustomGemv");
   using Impl = CustomGemvImpl<LhsScalar, RhsScalar, AccumScalar, DstScalar,
                               quantization_flavor>;

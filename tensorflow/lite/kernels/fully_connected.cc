@@ -713,7 +713,6 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
           GetTensorShape(bias), GetTensorData<float>(bias),
           GetTensorShape(output), GetTensorData<float>(output),
           CpuBackendContext::GetFromContext(context));
-      std::cout <<"EvalFloat : " << *(float*)output->data.data << std::endl;
     }
   }
 

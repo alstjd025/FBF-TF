@@ -29,7 +29,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
     int model_number = builders_created;
     builders_created++;
 
-    std::cout << "Factory: Currently have " << model_number << " on runtime" << "\n";
+    std::cout << "RUNTIME: Currently have " << model_number << " on runtime" << "\n";
 
 
     tflite::InterpreterBuilder* new_builder = \

@@ -98,9 +98,10 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
   TFLITE_LOG_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
 #endif
 
-  // There's always at least 1 subgraph which is the primary subgraph.
-  AddSubgraphs(1);
-  context_ = primary_subgraph().context();
+  // legacy
+  // // There's always at least 1 subgraph which is the primary subgraph.
+  // AddSubgraphs(1);
+  // context_ = primary_subgraph().context();
 
   // Reserve some space for the tensors to avoid excessive resizing.
   for (int i = 0; i < kTfLiteMaxExternalContexts; ++i) {
@@ -113,7 +114,9 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
   external_contexts_[kTfLiteCpuBackendContext] =
       own_external_cpu_backend_context_.get();
 
-  primary_subgraph().UseNNAPI(false);
+  // legacy
+  // primary_subgraph().UseNNAPI(false);
+  
   // Minsung
   // Add job queue
   jobs = new std::queue<tflite::Job*>;

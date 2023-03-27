@@ -130,7 +130,7 @@ struct GemmImplUsingRuy {
       const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
       const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
       CpuBackendContext* context) {
-    std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_ruy.h/GemmImpIUsingRuy::Run()\n";
+   // std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_ruy.h/GemmImpIUsingRuy::Run()\n";
     ruy::Matrix<LhsScalar> ruy_lhs;
     ruy::Matrix<RhsScalar> ruy_rhs;
     ruy::Matrix<DstScalar> ruy_dst;

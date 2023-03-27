@@ -126,7 +126,7 @@ void Gemm(const MatrixParams<LhsScalar>& lhs_params, const LhsScalar* lhs_data,
           const MatrixParams<DstScalar>& dst_params, DstScalar* dst_data,
           const GemmParams<AccumScalar, DstScalar, quantization_flavor>& params,
           CpuBackendContext* context) {
-  std::cout << "tensorflow/lite/kernels/cpu_backend_gemm.h/Gemm()" << std::endl;
+  //std::cout << "tensorflow/lite/kernels/cpu_backend_gemm.h/Gemm()" << std::endl;
   ruy::profiler::ScopeLabel label("cpu_backend_gemm::Gemm");
   ValidateParams(lhs_params, rhs_params, dst_params, params);
   // In some cases we want to unconditionally use ruy as the backend, overriding
