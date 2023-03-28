@@ -103,7 +103,7 @@ class InterpreterBuilder {
   TfLiteStatus RegisterJobAndSubgraphDefault(tflite::Subgraph* new_subgraph,
                                       tflite::Job* new_job,
                                 std::shared_ptr<tflite::Interpreter> interpreter);
-                                
+  // Delete               
   TfLiteStatus DeleteSubgraphAndJob(tflite::Subgraph* del_subgraph,
                                 std::shared_ptr<tflite::Interpreter> interpreter);
   

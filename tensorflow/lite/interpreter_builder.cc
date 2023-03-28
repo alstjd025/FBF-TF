@@ -518,11 +518,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       for(int j=0; j<master_partitioning_plan.size(); ++j)
       shared_tensor_bucket[i][j] = 0;
 
+    std::vector<tflite::Subgraph*> subgraphs_created;
     std::queue<tflite::Subgraph*> prev_queue;
     for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
                                                 ++partition_itr){
       /// Make a new subgraph
       tflite::Subgraph* new_subgraph = interpreter->CreateSubgraph();
+      subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // and make linked-list structure
         prev_queue.front()->SetNextSubgraph(new_subgraph);
         new_subgraph->SetPrevSubgraph(prev_queue.front());
@@ -636,20 +638,23 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     // Will used when AllocateTensorsofAllSubgraphs called.
     for(size_t t=0; t<tensors->size(); ++t){
       std::pair<int, std::vector<int>> pair_tensor_graph;
-      std::vector<int> sharing_subgraph_indicies;
+      std::vector<int> sharing_subgraph_id;
       for(size_t g=0; g<subgraph_and_tensors.size(); ++g){
         if(shared_tensor_bucket[t][g]){
-          sharing_subgraph_indicies.push_back(g);
+          sharing_subgraph_id.push_back(subgraphs_created[g]->GetGraphid());
         }
       }
-      if(sharing_subgraph_indicies.size() > 1){
+      if(sharing_subgraph_id.size() > 1){
         pair_tensor_graph.first = t;        // tensor index
-        pair_tensor_graph.second = sharing_subgraph_indicies; // subgraph indicies
+        pair_tensor_graph.second = sharing_subgraph_id; // subgraph id
         shared_info.push_back(pair_tensor_graph);
       }
-      sharing_subgraph_indicies.clear();
+      sharing_subgraph_id.clear();
     }
-   // (*interpreter)->shared_tensor_and_graph = shared_info;
+    SharedTensorsInGraphs* temp = new SharedTensorsInGraphs;
+    temp->pair_tensor_graph = shared_info;
+    temp->model_id = model_id_;
+   (interpreter)->shared_tensor_and_graph = shared_info;
   }
   // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH HERE
 }

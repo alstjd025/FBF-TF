@@ -96,14 +96,12 @@ bool IsUnresolvedCustomOp(const TfLiteRegistration& registration);
 std::string GetOpNameByRegistration(const TfLiteRegistration& registration);
 
 
-// Minsung
-// subgraph metadata for subgraph granularity scheduling
-typedef struct subgraphMetaData{
-  float profiled_latency;
-  std::vector<int> input_tensors;
-  std::vector<int> output_tensors;  
-} subgraphMetaData;
+typedef struct SharedTensorsInGraphs{
+  int model_id; // identifier
 
+  // <Graph id, tensor indices>
+  std::pair<int, std::vector<int>> pair_tensor_graph;
+} SharedTensorsInGraphs;
 
 // Minsung
 // Scheduler status

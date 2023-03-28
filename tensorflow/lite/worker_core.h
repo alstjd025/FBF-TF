@@ -47,6 +47,8 @@ class Worker
     Worker* returnThis() {return this;}
 
     bool HaveJob() { return have_job; }
+
+    void DeleteJob(int job_id); 
     
     ~Worker();
 

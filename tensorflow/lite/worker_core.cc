@@ -36,6 +36,14 @@ namespace tflite{
     std::cout << " changed worker state 2" << "\n";
   }
 
+  void Worker::DeleteJob(int job_id){
+    std::unique_lock<std::mutex> lock(worker_lock);
+    for(size_t i=0; jobs.size(); ++i){
+      if(jobs[i]->job_id == job_id)
+        jobs.erase(jobs.begin() + i);
+    }
+  }
+
 //legacy
   void Worker::GiveJob(tflite::Job* new_job){
     std::unique_lock<std::mutex> lock(worker_lock);

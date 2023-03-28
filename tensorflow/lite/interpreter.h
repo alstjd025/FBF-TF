@@ -753,6 +753,9 @@ class Interpreter {
   std::vector<TfLiteDelegatePtr> lazy_delegate_providers_;
 
   // Minsung
+  std::vector<SharedTensorsInGraphs*> shared_tensor_and_graph;
+
+  // Minsung
   // GPU Delegate
   bool is_gpu_delegate_prepared = false;
 

@@ -537,6 +537,32 @@ TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   return kTfLiteOk;
 }
 
+TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
+  LockJobs();
+  for(size_t i=0; i<subgraphs_.size(); ++i){
+    if(subgraphs_[i]->GetGraphid() == subgraph_id){
+      subgraphs_.erase(subgraphs_.begin()+i);
+    }
+  }
+  for(size_t i=0; i<subgraphs_shared.size(); ++i){
+    if(subgraphs_shared[i]->GetGraphid() == subgraph_id){
+      subgraphs_shared.erase(subgraphs_shared.begin()+i);
+    }
+  }
+  UnlockJobs();
+}
+
+TfLiteStatus Interpreter::DeleteJob(int job_id){
+  LockJobs();
+  for(auto worker : workers){
+    if(worker->have_job && worker->returnState() == WorkerState::WORKING){
+      worker->ChangeStateTo(WorkerState::BLOCKED);
+      worker->DeleteJob(job_id);
+    }
+  }
+  UnlockJobs();
+}
+
 TfLiteStatus Interpreter::ReadyWorkers(){ // no need?
   for(int i=0; i<workers.size(); ++i){
     worker_threads.push_back(std::thread(&Worker::Work,
