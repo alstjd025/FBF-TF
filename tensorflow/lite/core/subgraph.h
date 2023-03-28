@@ -167,6 +167,22 @@ class Subgraph {
   void SetGraphid(int id) { graph_id_ = id; }
   int GetGraphid() { return graph_id_; }
 
+  // Minsung
+  std::vector<int>& GetActualInput() { return actual_input; }
+  std::vector<int>& GetActualOutput() { return actual_output; }
+  void SetActualInput(std::vector<int>& i) { actual_input = i; }
+  void SetActualOutput(std::vector<int>& o) { actual_output = o; }
+
+  tflite::Subgraph* GetNextSubgraph() { return next_subgraph; }
+  tflite::Subgraph* GetPrevSubgraph() { return prev_subgraph; }
+  tflite::Subgraph* GetCoSubgraph() { return co_subgraph; }
+
+  void SetNextSubgraph(tflite::Subgraph* n) { next_subgraph= n; }
+  void SetPrevSubgraph(tflite::Subgraph* p) { prev_subgraph = p; }
+
+  void SetOriginalSubgraph() { is_original = true; }
+  bool IsOriginalSubgraph() { return is_original; }
+
   // Read only access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }
 
@@ -770,6 +786,8 @@ class Subgraph {
   // Using subgraph like linked-list?
   tflite::Subgraph* next_subgraph = nullptr;
   tflite::Subgraph* prev_subgraph = nullptr;
+  std::vector<int> actual_input;
+  std::vector<int> actual_output;
   
   // Minsung
   // Flag for co-execution of cpu/gpu (layer partitioning)
@@ -779,6 +797,7 @@ class Subgraph {
   // Minsung
   // Flag for profiling
   bool is_profiled = false;
+  bool is_original = false;
   ProfileData profile_data;
 
   // Minsung

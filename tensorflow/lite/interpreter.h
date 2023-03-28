@@ -641,12 +641,16 @@ class Interpreter {
   // Add a new job
   TfLiteStatus AddNewJob(tflite::Job* new_job);
 
+  TfLiteStatus DeleteJob(int job_id);
+
   // Minsung
   // Give jobs to workers
   TfLiteStatus GiveJob();
   
   // Add a new subgraph
   TfLiteStatus AddNewSubgraph(tflite::Subgraph* new_subgraph);
+
+  TfLiteStatus DeleteSubgraph(int subgraph_id);
 
   // Creates a new worker of given type
   TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);

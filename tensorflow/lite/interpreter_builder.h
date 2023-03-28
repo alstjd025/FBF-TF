@@ -103,6 +103,10 @@ class InterpreterBuilder {
   TfLiteStatus RegisterJobAndSubgraphDefault(tflite::Subgraph* new_subgraph,
                                       tflite::Job* new_job,
                                 std::shared_ptr<tflite::Interpreter> interpreter);
+                                
+  TfLiteStatus DeleteSubgraphAndJob(tflite::Subgraph* del_subgraph,
+                                std::shared_ptr<tflite::Interpreter> interpreter);
+  
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();
 
@@ -160,6 +164,9 @@ class InterpreterBuilder {
   // id of model
   // Every subgraphs made of this model share the same model id.
   int model_id_;
+
+  // stores every subgraph ids made from this interpreterbuilder 
+  std::vector<int> graph_subsets; 
 
   int default_thread = 1;
 };

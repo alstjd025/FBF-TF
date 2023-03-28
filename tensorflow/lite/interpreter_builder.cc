@@ -378,7 +378,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   if (modified_subgraph->AddTensors(tensors->size()) != kTfLiteOk) {
     return kTfLiteError;
   }
-
+  
+  // Set this subgraph as original one.
+  // Original subgraph should be only one for a model at runtime.
+  modified_subgraph->SetOriginalSubgraph();
   // Parse inputs/outputs
   modified_subgraph->SetInputs(
       FlatBufferIntArrayToVector(subgraph->inputs()));
@@ -401,14 +404,14 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   modified_subgraph->SetVariables(std::move(variables));
   std::cout << "Interpreterbuilder : created modified subgraph" << "\n";
   // Minsung
-  // Needs check
+  // Needs check if neccesary
   if (num_fp32_tensors_ > 0) {
     (*interpreter).lazy_delegate_providers_ =
         op_resolver_.GetDelegates(default_thread);
   }
 
   // Minsung
-  // Needs check
+  // Needs check if neccesary
   if (ApplyDelegates(interpreter.get(), default_thread) != kTfLiteOk)
     return kTfLiteError;
 
@@ -493,7 +496,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
 
     //TODO: allocate, initialize jobs and subgraphs for scheduling
 
-    auto CreatePartitioningPlanFromProfile = [&](ProfileData& profile){
+    auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
       for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
         new_plan->size = profile.layer_subsets[i].size();
@@ -503,23 +506,29 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         }
         master_partitioning_plan.push_back(new_plan);
       }
-      
+      return;
     };
+    CreatePartitioningPlanFromProfile(profile_);
 
-    //std::vector<SubgraphPartitioningPlan*> master_partitioning_plan = 
-                      //(*interpreter)->subgraph_partitioning_plan;
     //For profiling
     std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
     std::vector<std::pair<int, std::vector<int>>> shared_info;
-
-    // tensor bucket
     int shared_tensor_bucket[tensors->size()][master_partitioning_plan.size()];
     for(int i=0; i<tensors->size(); ++i)
       for(int j=0; j<master_partitioning_plan.size(); ++j)
-        shared_tensor_bucket[i][j] = 0;
+      shared_tensor_bucket[i][j] = 0;
 
+    std::queue<tflite::Subgraph*> prev_queue;
     for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
-                                    ++partition_itr){
+                                                ++partition_itr){
+      /// Make a new subgraph
+      tflite::Subgraph* new_subgraph = interpreter->CreateSubgraph();
+      if(!prev_queue.empty()){ // and make linked-list structure
+        prev_queue.front()->SetNextSubgraph(new_subgraph);
+        new_subgraph->SetPrevSubgraph(prev_queue.front());
+        prev_queue.pop();
+      }
+      prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
       for(int j=0; j < num_nodes_in_partition; ++j){
@@ -532,7 +541,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           tensors_->push_back(FlatBufferIntArrayToVector(op->inputs())[k]);
         for(int k=0; k<FlatBufferIntArrayToVector(op->outputs()).size(); ++k)
           tensors_->push_back(FlatBufferIntArrayToVector(op->outputs())[k]);          
-
         /// input tensor should be first node's input tensor in partitioning plan
         if(j == 0){
           input_tensor = new std::vector<int>;
@@ -542,6 +550,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             std::cout << input_tensor->at(j) << " ";
           }     
           std::cout << "\n";
+          new_subgraph->SetActualInput(*input_tensor); // set 'actual' input tensors
         }  /// output tensor should be last node's output tensor in partitioning plan
         if(j == num_nodes_in_partition - 1){
           output_tensor = new std::vector<int>;
@@ -551,8 +560,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             std::cout << output_tensor->at(j) << " ";
           }
           std::cout << "\n";
-          /// Make a new subgraph here
-          tflite::Subgraph* new_subgraph = interpreter->CreateSubgraph();
+          new_subgraph->SetActualOutput(*output_tensor); // set 'actual' output tensors
           if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
             return kTfLiteError;
           }
@@ -563,9 +571,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             std::cout << tensors_->at(m) << " ";
           }
           std::cout << "\n";
-          new_subgraph->SetInputs(
+          new_subgraph->SetInputs(  // set 'all' input tensors
                       std::vector<int>(input_tensor->begin(), input_tensor->end()));
-          new_subgraph->SetOutputs(
+          new_subgraph->SetOutputs(  // set 'all' output tensors
                       std::vector<int>(output_tensor->begin(), output_tensor->end()));
           if (ParseNodes(operators, new_subgraph,\
                           nodes_in_partition[0], nodes_in_partition[j]) != kTfLiteOk)
@@ -580,6 +588,28 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             }
           }
           new_subgraph->SetVariables(std::move(variables));
+          // Minsung
+          // Allocate the new subgraph
+          if(new_subgraph->AllocateTensors() != kTfLiteOk){
+            std::cout << "Subgraph allocation failed" << "\n";
+            return kTfLiteError;
+          }
+          std::cout << "Interpreterbuilder : Allocated tensors" << "\n";
+          Job* new_job = new Job;
+          if(CreateSubgraphWithDefaultJob(new_subgraph, new_job, interpreter)
+              != kTfLiteOk){
+            std::cout << "CreateSubgraphWithDefaultJob ERROR" << "\n";
+            return kTfLiteError; 
+          }
+          std::cout << "Interpreterbuilder : Created subgraph with job" << "\n";
+          // Minsung
+          // Store the job and subgraph to interpreter.
+          if(RegisterJobAndSubgraphDefault(new_subgraph, new_job, interpreter)
+              != kTfLiteOk){
+            std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
+            return kTfLiteError;
+          }
+          std::cout << "Interpreterbuilder : Registered job and subgraph" << "\n";
         }
       }
       input_tensor->clear();
@@ -591,7 +621,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
     } 
-    // Check for shared tensors
+    // Fill shared tensor bucket  
     for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
       std::cout << "subgraph [" << graph_idx << "] tensors" << "\n";
       for(size_t j=0; j<subgraph_and_tensors[graph_idx].second.size(); ++j){
@@ -602,7 +632,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       std::cout << "\n";
     }
-    // Save shared tensor info to interpreter's graph_and_shared_tensor.
+    // Save shared intermediate tensor info to interpreter's graph_and_shared_tensor.
     // Will used when AllocateTensorsofAllSubgraphs called.
     for(size_t t=0; t<tensors->size(); ++t){
       std::pair<int, std::vector<int>> pair_tensor_graph;
@@ -619,8 +649,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       sharing_subgraph_indicies.clear();
     }
-    (interpreter)->shared_tensor_and_graph = shared_info; 
+   // (*interpreter)->shared_tensor_and_graph = shared_info;
   }
+  // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH HERE
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
@@ -631,7 +662,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
   new_subgraph->SetModelid(model_id_);
   new_subgraph->SetJobid(interpreter->GetAndAddNumJobsCreated(1));
   new_subgraph->SetGraphid(interpreter->GetAndAddSubgraphsCreated(1));
-
+  graph_subsets.push_back(new_subgraph->GetGraphid());
   // Make a new job
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
   new_job->job_id = new_subgraph->GetJobid();
