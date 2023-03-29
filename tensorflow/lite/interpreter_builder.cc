@@ -654,7 +654,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     SharedTensorsInGraphs* temp = new SharedTensorsInGraphs;
     temp->pair_tensor_graph = shared_info;
     temp->model_id = model_id_;
-   (interpreter)->shared_tensor_and_graph = shared_info;
+   (interpreter)->shared_tensor_and_graph.push_back(temp);
   }
   // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH HERE
 }

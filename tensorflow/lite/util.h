@@ -100,7 +100,7 @@ typedef struct SharedTensorsInGraphs{
   int model_id; // identifier
 
   // <Graph id, tensor indices>
-  std::pair<int, std::vector<int>> pair_tensor_graph;
+  std::vector<std::pair<int, std::vector<int>>> pair_tensor_graph;
 } SharedTensorsInGraphs;
 
 // Minsung
