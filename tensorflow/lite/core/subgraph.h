@@ -559,6 +559,11 @@ class Subgraph {
   // Entry point for C node plugin API to get the execution plan.
   static TfLiteStatus GetExecutionPlan(struct TfLiteContext* context,
                                        TfLiteIntArray** execution_plan);
+                              
+  /// Minsung
+  // Above functions have bug.
+  // So better use this one.
+  void GetExecutionPlanSafe(TfLiteIntArray** execution_plan);
 
   // WARNING: This is an experimental interface that is subject to change.
   // Provides a preview of post-delegation partitioning. Each
@@ -780,6 +785,11 @@ class Subgraph {
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap* resources_ = nullptr;
+
+
+  // Minsung
+  // Tensor allocation flag
+  bool is_allocated = false;
 
   // Minsung
   // Experimental api 

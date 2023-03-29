@@ -245,6 +245,56 @@ TfLiteStatus Interpreter::AllocateTensors() {
   return primary_subgraph().AllocateTensors();
 }
 
+// Minsung
+// First, allocate first subgraph of subgraph subset(which made from same model).
+// Check the input tensor range from it.
+// Resize intermediate sharing tensors of all subgraph subset.
+// Finally allocate tensors of all subgraph subset.
+TfLiteStatus Interpreter::AllocateTensorsforJobs(){
+
+}
+
+TfLiteStatus Interpreter::GetIntermediateTensorRange(int* begin, int* end){
+  TfLiteIntArray* execution_plan = TfLiteIntArrayCreate(0);
+  subgraph(0)->GetExecutionPlan(context_, &execution_plan);
+  std::cout << "GetIntermediateTensorRange" << "\n";
+  if(execution_plan->size < 0){
+    std::cout << "[ERROR] Execution Plan size < 0 in subgraph 0" << "\n";
+    return kTfLiteError;
+  }
+  TfLiteNode* node;
+  TfLiteRegistration* registration;
+  // First, get first node's output tensor index.
+  int first_execution_plan = execution_plan->data[0];
+  if(subgraph(0)->GetNodeAndRegistration(
+        first_execution_plan, &node, &registration) != kTfLiteOk)
+    return kTfLiteError;
+  *begin = node->outputs->data[0];
+  std::cout << "begin : " << *begin << "\n";
+  // Get last node's input tensor index from final subgraph.
+  // Because the node's intput & output tensor(which are intermediate tensors)
+  // idices are in ascending order, we can get intermediate tensors range.
+  if(subgraphs_size() > 1){   // If interpreter has more than one subgraph.
+    TfLiteIntArray* execution_plan;
+    int final_subgraph = subgraphs_size()-1;
+    subgraph(final_subgraph)->GetExecutionPlanSafe(&execution_plan);
+    int last_execution_plan = execution_plan->data[execution_plan->size - 1];
+    if(subgraph(final_subgraph)->GetNodeAndRegistration(
+        last_execution_plan, &node, &registration) != kTfLiteOk)
+              return kTfLiteError;
+    *end = node->outputs->data[0];
+    TfLiteIntArrayFree(execution_plan);
+  }else{  // Or interpreter has only one subgraph
+    int last_execution_plan = execution_plan->data[execution_plan->size - 1];
+    if(subgraph(0)->GetNodeAndRegistration(
+          last_execution_plan, &node, &registration) != kTfLiteOk)
+      return kTfLiteError;
+    *end = node->outputs->data[0];
+  }
+  TfLiteIntArrayFree(execution_plan);
+  return kTfLiteOk;
+}
+
 void Interpreter::ReserveNodes(int count) {
   primary_subgraph().ReserveNodes(count);
 }
@@ -533,6 +583,42 @@ TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
 TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   LockJobs();
   subgraphs_.emplace_back(new_subgraph);
+  UnlockJobs();
+  return kTfLiteOk;
+}
+
+TfLiteStatus Interpreter::RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph){
+  LockJobs();
+  if(subgraph_subsets.empty()){ // if subgraph subset is empty, create new one
+    std::pair<int, std::vector<int>> new_subset;
+    new_subset.first = new_subgraph->GetModelid();
+    new_subset.second.push_back(new_subgraph->GetGraphid());
+    subgraph_subsets.push_back(new_subset);
+    UnlockJobs();
+    return kTfLiteOk;
+  }
+  for(auto subset : subgraph_subsets){
+    bool register_needed = false;
+    if(subset.first == new_subgraph->GetModelid()){ // if a same model id exists.
+      for(size_t i=0; i<subset.second.size(); ++i){
+        if(subset.second[i] == new_subgraph->GetGraphid()){
+          break; // subgraph already registered.
+        }
+        if(i == subset.second.size()-1) // subgraph not registered.
+          register_needed = true;
+      }
+      if(register_needed){
+        subset.second.push_back(new_subgraph->GetGraphid());
+        UnlockJobs();
+        return kTfLiteOk;
+      }
+    }
+  }
+  // if there is no same model id in subsets, register new one. 
+  std::pair<int, std::vector<int>> new_subset;
+  new_subset.first = new_subgraph->GetModelid();
+  new_subset.second.push_back(new_subgraph->GetGraphid());
+  subgraph_subsets.push_back(new_subset);
   UnlockJobs();
   return kTfLiteOk;
 }

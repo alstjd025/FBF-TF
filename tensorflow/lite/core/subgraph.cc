@@ -472,6 +472,14 @@ TfLiteStatus Subgraph::GetExecutionPlan(struct TfLiteContext* context,
       ->GetExecutionPlan(execution_plan);
 }
 
+// Minsung
+void Subgraph::GetExecutionPlanSafe(TfLiteIntArray** execution_plan){
+  (*execution_plan) = TfLiteIntArrayCreate(execution_plan_.size());
+  for(int i = 0; i<execution_plan_.size(); ++i){
+    (*execution_plan)->data[i] = execution_plan_[i];
+  }
+}
+
 void Subgraph::FreeDelegatePartitioningData() {
   for (auto& params : partitioning_preview_cache_) {
     TfLiteIntArrayFree(params.nodes_to_replace);
@@ -686,6 +694,10 @@ TfLiteStatus Subgraph::AllocateTensors() {
   TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
 
   state_ = kStateInvokable;
+  
+  // Minsung
+  // change the allocation flag
+  is_allocated = true;
 
   // Reset the variable tensors to zero after (re)allocating the tensors.
   // Developers shouldn't rely on the side effect of this function to reset

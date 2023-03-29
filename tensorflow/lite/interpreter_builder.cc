@@ -656,7 +656,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     temp->model_id = model_id_;
    (interpreter)->shared_tensor_and_graph.push_back(temp);
   }
-  // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH HERE
+  // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH HERE AND ALLOCATE TENSORS
+
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
@@ -672,7 +673,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
   new_job->job_id = new_subgraph->GetJobid();
   new_job->model_id = model_id_;
-  new_job->state = JobState::READY;
+  new_job->state = JobState::INIT_JOB;
   new_job->invoke_type = InvokeType::PROFILING;
   new_job->resource_type = ResourceType::CPU;
   new_job->subgraphs.push_back(
@@ -704,12 +705,17 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphDefault(
     std::cout << "AddNewSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
+  if(interpreter->RegisterSubgraphSubsets(new_subgraph) != kTfLiteOk){
+    std::cout << "Registersubgraph ERROR" << "\n";
+    return kTfLiteError;
+  }
   #ifdef DEBUG
     std::cout "Add new subgraph and job" << "\n";
   #endif
 
   return kTfLiteOk;
 }
+
 
 TfLiteStatus InterpreterBuilder::ParseNodes(
     const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,

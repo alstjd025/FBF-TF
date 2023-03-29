@@ -43,8 +43,10 @@ class TfLiteRuntime{
 
     // Map container for interpreterBuilders and model_id
     // key : model_id, value : interpreterbuilder
-    int builders_created = 0;
     std::map<int, tflite::InterpreterBuilder*> builder_and_id;
+    int builders_created = 0;
+
+    
 };
 
 } // namespace tflite

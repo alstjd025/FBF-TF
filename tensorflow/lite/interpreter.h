@@ -359,6 +359,12 @@ class Interpreter {
   // success or failure.
   TfLiteStatus AllocateTensors();
 
+  // Minsung
+  TfLiteStatus AllocateTensorsforJobs();
+
+  // Minsung
+  TfLiteStatus GetIntermediateTensorRange(int* begin, int*end);
+
   /// Invoke the interpreter (run the whole graph in dependency order).
   ///
   /// NOTE: It is possible that the interpreter is not in a ready state
@@ -647,8 +653,11 @@ class Interpreter {
   // Give jobs to workers
   TfLiteStatus GiveJob();
   
-  // Add a new subgraph
+  // Add a new subgraph (WARNING: use )
   TfLiteStatus AddNewSubgraph(tflite::Subgraph* new_subgraph);
+
+  // Register new subgraph to subgraph subsets with id.
+  TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
 
   TfLiteStatus DeleteSubgraph(int subgraph_id);
 
@@ -743,6 +752,13 @@ class Interpreter {
   // Subgraphs
   std::vector<std::unique_ptr<Subgraph>> subgraphs_;
   std::vector<std::shared_ptr<Subgraph>> subgraphs_shared;
+
+  // Minsung
+  // Subgraph subsets
+  // A pair contains model id, subgraph ids
+  // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are built
+  //     from a model id 1.
+  std::vector<std::pair<int, std::vector<int>>> subgraph_subsets;
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap resources_;

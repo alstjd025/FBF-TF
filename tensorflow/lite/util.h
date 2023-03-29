@@ -114,8 +114,8 @@ typedef enum SchedulerState{
 } SchedulerStatus;
 
 typedef enum JobState{
-  INIT_JOB,       // Initial phase.
-  READY,        // Job is ready to be scheduled.
+  INIT_JOB,       // Initial phase. 
+  READY,        // Job is ready to be scheduled.(allocation & op mapping done)
   INVOKE,      // Job is currently scheduled and invoking.
   SLEEP,       // Job is stopped by scheduler.
   DONE        // Job done and can be erased from mememory.
