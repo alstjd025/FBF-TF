@@ -360,7 +360,7 @@ class Interpreter {
   TfLiteStatus AllocateTensors();
 
   // Minsung
-  TfLiteStatus AllocateTensorsforJobs();
+  TfLiteStatus AllocateTensorsofSubsets(int model_id);
 
   // Minsung
   TfLiteStatus GetIntermediateTensorRange(int* begin, int*end);
@@ -592,6 +592,18 @@ class Interpreter {
     return &*subgraphs_[subgraph_index];
   }
 
+  // Minsung
+  // Get a pointer of a subgraph of given id.
+  Subgraph* subgraph_id(int id){
+    if(subgraphs_size() > 0){
+      for(size_t i=0; i<subgraphs_.size(); ++i){
+        if(subgraphs_[i]->GetGraphid() == id)
+          return &*subgraphs_[i];
+      }
+    }
+    return nullptr;
+  }
+
   /// WARNING: Experimental interface, subject to change
   Subgraph& primary_subgraph() {
     return *subgraphs_.front();  /// Safe as subgraphs_ always has 1 entry.
@@ -758,6 +770,7 @@ class Interpreter {
   // A pair contains model id, subgraph ids
   // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are built
   //     from a model id 1.
+  // Assume that first subgraph of subset is input subgraph.
   std::vector<std::pair<int, std::vector<int>>> subgraph_subsets;
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.

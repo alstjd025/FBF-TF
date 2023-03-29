@@ -246,12 +246,36 @@ TfLiteStatus Interpreter::AllocateTensors() {
 }
 
 // Minsung
-// First, allocate first subgraph of subgraph subset(which made from same model).
+// First, allocate first subgraph of subgraph subset(which made from same model id).
+// (first subgraph means the subgraph which owns the input tensor of a model)
 // Check the input tensor range from it.
 // Resize intermediate sharing tensors of all subgraph subset.
 // Finally allocate tensors of all subgraph subset.
-TfLiteStatus Interpreter::AllocateTensorsforJobs(){
+TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
+  Subgraph* working_subgraph;
+  for(auto subset : subgraph_subsets){
+    if(subset.first == model_id){
+      if(subset.second.size() > 0){
+        working_subgraph = subgraph_id(subset.second[0]); // Allocate first subgraph
+        if(working_subgraph->AllocateTensors() != kTfLiteOk){
+          std::cout << "AllocateTensors of graph [" << subset.second[0] << "] "
+          << "returned ERROR" << "\n";
+          return kTfLiteError;
+        }
+        // Resize intermediate shared tensors
+        
+        //
+        for(size_t i=1; i<subset.second.size(); ++i){ // Now, allocate others
+          working_subgraph = subgraph_id(subset.second[i]);
 
+        }
+      }else{
+        std::cout << "Interpreter : Allocation Error, no registerd subgraph of "
+                  << "model id [" << model_id << "] \n";
+        return kTfLiteError;
+      }
+    }
+  }
 }
 
 TfLiteStatus Interpreter::GetIntermediateTensorRange(int* begin, int* end){
@@ -635,7 +659,16 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
       subgraphs_shared.erase(subgraphs_shared.begin()+i);
     }
   }
+  for(auto subset : subgraph_subsets){
+    for(size_t i=0; i<subset.second.size(); ++i){
+      if(subset.second[i] == subgraph_id){
+        subset.second.erase(subset.second.begin()+i);
+        break;
+      }
+    }
+  }
   UnlockJobs();
+  return kTfLiteOk;
 }
 
 TfLiteStatus Interpreter::DeleteJob(int job_id){
