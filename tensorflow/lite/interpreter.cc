@@ -773,13 +773,6 @@ TfLiteStatus Interpreter::DeleteJob(int job_id){
   UnlockJobs();
 }
 
-TfLiteStatus Interpreter::ReadyWorkers(){ // no need?
-  for(int i=0; i<workers.size(); ++i){
-    worker_threads.push_back(std::thread(&Worker::Work,
-                               workers.at(i)->returnThis()));
-  }
-}
-
 TfLiteStatus Interpreter::GiveJob(){
   LockJobs();
   while(!jobs->empty() && !workers.empty()){

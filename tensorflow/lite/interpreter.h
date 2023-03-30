@@ -697,9 +697,6 @@ class Interpreter {
   // Creates a new worker of given type
   TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);
 
-  // Ready worker threads
-  TfLiteStatus ReadyWorkers();
-
   // Do invoke
   TfLiteStatus DoInvoke();
 

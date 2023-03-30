@@ -103,8 +103,13 @@ class InterpreterBuilder {
                                 std::shared_ptr<tflite::Interpreter> interpreter);
 
   // Minsung
-  // Make subgraph to a default(pre-proflied) job
-  TfLiteStatus CreateSubgraphWithDefaultJob(tflite::Subgraph* new_subgraph,
+  // Bind subgraph to a default(pre-proflied) job
+  TfLiteStatus BindSubgraphWithDefaultJob(tflite::Subgraph* new_subgraph,
+                                            tflite::Job* new_job,
+                                std::shared_ptr<tflite::Interpreter> interpreter);
+
+  // Minsung
+  TfLiteStatus BindSubgraphWithJob(std::vector<tflite::Subgraph*>& new_subgraphs,
                                             tflite::Job* new_job,
                                 std::shared_ptr<tflite::Interpreter> interpreter);
 
