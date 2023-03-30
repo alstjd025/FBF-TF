@@ -540,6 +540,27 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   return status;
 }
 
+TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(std::vector<int>& graph_subset,
+                                                    TfLiteDelegate* delegate){
+  TfLiteStatus status = kTfLiteOk;
+  for(auto graph_id : graph_subset){
+    if(delegate_provided_ != nullptr)
+      status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_);
+    else{
+      std::cout << "No delegate exists in this interpreter" << "\n";
+      return kTfLiteError;
+    }
+    if(status != kTfLiteOk)
+      break;
+  }
+  return status;
+}
+
+TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* delegate){
+  delegate_provided_ = delegate;
+  return kTfLiteOk;
+}
+
 TfLiteStatus Interpreter::RemoveAllDelegates() {
   for (auto& subgraph : subgraphs_) {
     TF_LITE_ENSURE_STATUS(subgraph->RemoveAllDelegates());

@@ -37,9 +37,9 @@ void LiteScheduler::SchedulerSpin(){
     }      
     if(need_reschedule){
       // profile unprofiled models
-    }else{
-
+      // Some profiling logic here
     }
+    // schedule jobs to workers and wake all                 
   };
 }
 

@@ -434,6 +434,16 @@ class Interpreter {
   /// WARNING: This is an experimental API and subject to change.
   TfLiteStatus ModifyGraphWithDelegate(TfLiteDelegate* delegate);
 
+  // Minsung
+  // Modifies specific subgraphs with given ids with given delegate.
+  TfLiteStatus ModifyGraphWithDelegateImpl(std::vector<int>& graph_subset,
+                                        TfLiteDelegate* delegate);
+
+  // Minsung
+  // Register given delegate object to this interpreter.
+  // Currently only one deldegate.
+  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate);
+
   // Owning handle to a TfLiteDelegate instance.
   using TfLiteDelegatePtr =
       std::unique_ptr<TfLiteDelegate, void (*)(TfLiteDelegate*)>;
@@ -810,6 +820,10 @@ class Interpreter {
   // Scheduler
   std::thread scheduler_thread;
   LiteScheduler* scheduler_;
+
+  // Minsung
+  // Delegate
+  TfLiteDelegate* delegate_provided_ = nullptr;
 
   // Minsung
   // Subgraphs

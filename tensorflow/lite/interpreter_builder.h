@@ -176,7 +176,8 @@ class InterpreterBuilder {
   // stores every subgraph ids made from this interpreterbuilder 
   std::vector<int> graph_subsets; 
 
-  int default_thread = 1;
+  
+  int default_thread = 4;
 
   // flag for dummy using dummy plan on subgraph partitioning
   bool use_dummy_plan_ = false;

@@ -141,6 +141,7 @@ typedef enum InvokeType{ // An invoke type of job
 typedef struct Job{
   int model_id = -1;      // 
   int job_id = -1;        //
+  float time_slot;
   JobState state = JobState::INIT_JOB;
   InvokeType invoke_type = InvokeType::PROFILING;
   ResourceType resource_type = ResourceType::CPU;
