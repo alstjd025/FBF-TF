@@ -28,6 +28,8 @@ class LiteScheduler
 
     void SchedulerSpin(); 
     void Wake();
+    void Join();
+    void NeedReschedule();
 
     bool need_reschedule = false;
     bool stop_scheduler = false;

@@ -46,12 +46,12 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   // Giving a model number from recieved model size?
   int model_number = builders_created;
   builders_created++;
-
+  
   std::cout << "RUNTIME: Currently have " << model_number << " on runtime" << "\n";
 
   ProfileData dummy_profile;
   // fill dummy profile here //
-
+  
   // end //
 
   tflite::InterpreterBuilder* new_builder = \
@@ -73,6 +73,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
 
 void TfLiteRuntime::WakeScheduler(){
   interpreter->WakeScheduler();
+  interpreter->JoinScheduler();
 }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke(){

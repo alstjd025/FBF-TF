@@ -246,6 +246,14 @@ TfLiteStatus Interpreter::AllocateTensors() {
 }
 
 // Minsung
+TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
+
+  return kTfLiteOk;
+}
+
+
+
+// Minsung
 // First, allocate first subgraph of subgraph subset(which made from same model id).
 // (first subgraph means the subgraph which owns the input tensor of a model)
 // Check the input tensor range from it.
@@ -430,6 +438,14 @@ TfLiteStatus Interpreter::DebugInvoke(){
 
 void Interpreter::WakeScheduler(){
   scheduler_->Wake();
+}
+
+void Interpreter::JoinScheduler(){
+  scheduler_->Join();
+}
+
+void Interpreter::NotifyRescheduleToScheduler(){
+  scheduler_->NeedReschedule();
 }
 
 
@@ -666,6 +682,7 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
 TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
   LockJobs();
   jobs->push(new_job);
+  job_vector.push_back(new_job);
   UnlockJobs();
   return kTfLiteOk;
 }
@@ -731,6 +748,14 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
         subset.second.erase(subset.second.begin()+i);
         break;
       }
+    }
+  }
+  for(auto job_ : job_vector){
+    for(size_t i=0; i<job_->subgraphs.size(); ++i){
+      if(job_->subgraphs[i].first == subgraph_id ||
+        job_->subgraphs[i].second == subgraph_id)
+          job_->subgraphs.erase(job_->subgraphs.begin()+i);
+        break;
     }
   }
   UnlockJobs();

@@ -26,30 +26,40 @@ void LiteScheduler::Wake(){
   scheduler_cv_.notify_all();
 }
 
+void LiteScheduler::Join(){
+  scheduler_thread.join();
+}
+
+void LiteScheduler::NeedReschedule(){
+  std::unique_lock<std::mutex> lock(scheduler_lock);
+  need_reschedule = true;
+}
+
 // new
 void LiteScheduler::SchedulerSpin(){
   std::cout << "Scheduler: Scheduler spin!" << "\n";
   while(true){
     //wait for notify ()
     std::unique_lock<std::mutex> lock(scheduler_lock);
-    scheduler_cv_.wait(lock, [&] { return !stop_scheduler; });
-    if(interpreter_->IsJobEmpty()){
-      std::cout << "Scheduler : scheduler woke up but no jobs in interpreter"
-                << ". Stops scheduler" <<"\n";
-      stop_scheduler = true;
-      continue;
-    }      
+    scheduler_cv_.wait(lock, [&] { return !stop_scheduler; });    
     if(need_reschedule){
+      if(interpreter_->IsJobEmpty()){
+        std::cout << "Scheduler : scheduler woke up but no jobs in interpreter"
+                  << ". Stops scheduler" <<"\n";
+        stop_scheduler = true;
+        continue;
+      }  
       // profile unprofiled models
       // Some profiling logic here
       // Create workers if needed
       // schedule jobs to workers and wake all  
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);
-      interpreter_->CreateWorker(ResourceType::CPU, 2);
+      //interpreter_->CreateWorker(ResourceType::CPU, 2);
       interpreter_->GiveJob();               
     }
-    // schedule jobs
+    // schedule jobs with scheduling algorithm.
+    
     
   };
 }

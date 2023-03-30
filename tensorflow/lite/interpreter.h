@@ -362,6 +362,8 @@ class Interpreter {
   // Minsung
   TfLiteStatus AllocateTensorsofSubsets(int model_id);
 
+  TfLiteStatus ReadyJobsofGivenModel(int model_id);
+
   // Minsung
   // Get the intermediate tensor range(means index range) from subgraphs
   // which shares same model id.
@@ -677,6 +679,7 @@ class Interpreter {
 
   void WakeScheduler();
   void JoinScheduler();
+  void NotifyRescheduleToScheduler();
 
   // Minsung
   // Give jobs to workers
@@ -689,6 +692,7 @@ class Interpreter {
   TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
 
   TfLiteStatus DeleteSubgraph(int subgraph_id);
+
 
   // Creates a new worker of given type
   TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);
@@ -808,6 +812,7 @@ class Interpreter {
 
   // Minsung
   // Jobs
+  std::vector<tflite::Job*> job_vector;
   std::queue<tflite::Job*>* jobs;
   int jobs_created = 0;
   std::mutex job_mutex;

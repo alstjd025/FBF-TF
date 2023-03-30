@@ -711,6 +711,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(
   new_job->resource_type = ResourceType::CPU;
   new_job->subgraphs.push_back(
                   std::pair<int, int>(new_subgraph->GetGraphid(), -1));
+  
   return kTfLiteOk;
 }
 
