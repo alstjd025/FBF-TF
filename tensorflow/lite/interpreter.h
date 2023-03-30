@@ -363,7 +363,11 @@ class Interpreter {
   TfLiteStatus AllocateTensorsofSubsets(int model_id);
 
   // Minsung
-  TfLiteStatus GetIntermediateTensorRange(int* begin, int*end);
+  // Get the intermediate tensor range(means index range) from subgraphs
+  // which shares same model id.
+  // Used in allocatetensors.
+  TfLiteStatus GetIntermediateTensorRangeWithGraphSubset(int model_id, 
+                                                      int* begin, int*end);
 
   /// Invoke the interpreter (run the whole graph in dependency order).
   ///
@@ -593,7 +597,7 @@ class Interpreter {
   }
 
   // Minsung
-  // Get a pointer of a subgraph of given id.
+  // Get a pointer to a subgraph of given id.
   Subgraph* subgraph_id(int id){
     if(subgraphs_size() > 0){
       for(size_t i=0; i<subgraphs_.size(); ++i){
@@ -771,6 +775,7 @@ class Interpreter {
   // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are built
   //     from a model id 1.
   // Assume that first subgraph of subset is input subgraph.
+  // The subgraph which owns the output tensor depends on model stucture.
   std::vector<std::pair<int, std::vector<int>>> subgraph_subsets;
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.

@@ -1630,4 +1630,13 @@ TfLiteStatus Subgraph::SetupSubgraphForJob(int job_id, int model_id,
   graph_id_ = graph_id;
 }
 
+std::vector<int> Subgraph::GetTensorShape(int tensor_index){
+  TfLiteTensor* tensor = &tensors_[tensor_index];
+  std::vector<int> dims;
+  for(int i=0; i<tensor->dims->size; ++i){
+    dims.push_back(tensor->dims->data[i]);
+  }
+  return dims;  
+}
+
 }  // namespace tflite

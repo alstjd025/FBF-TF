@@ -60,6 +60,11 @@ namespace tflite{
     worker_cv.notify_all();
   }
 
+// new code
+void Worker::Work(){
+  
+}
+
 //legacy
   void Worker::Work(){
     std::cout << "Worker [" << worker_id << "] started" << "\n";

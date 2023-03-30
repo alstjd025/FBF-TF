@@ -174,6 +174,7 @@ InterpreterBuilder::InterpreterBuilder(const ::tflite::Model* model,
       op_resolver_(op_resolver),
       error_reporter_(ValidateErrorReporter(error_reporter)) {}
 
+
 InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
                                       const char* model_name,
@@ -183,7 +184,22 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
       error_reporter_(DefaultErrorReporter()),
       //allocation_(model->allocation()), check how allocation initialized.
       model_id_(model_id),
-      model_name_(model_name)    {}
+      model_name_(model_name) {}
+
+
+InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
+                                      const OpResolver& op_resolver,
+                                      const char* model_name,
+                                      int model_id, bool use_dummy_plan,
+                                      const ProfileData& dummy_profile)
+    : model_(model.GetModel()),
+      op_resolver_(op_resolver),
+      error_reporter_(DefaultErrorReporter()),
+      //allocation_(model->allocation()), check how allocation initialized.
+      model_id_(model_id),
+      model_name_(model_name),
+      use_dummy_plan_(use_dummy_plan),
+      dummy_profile_(dummy_profile)    {}
 
 
 
@@ -449,6 +465,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "InterpreterBuilder : Subgraph is not profiled \n";
     return kTfLiteError;
   }
+  
   // Now create subgraphs from original one.
   // 1. read profiled data
   // 2. make new subgraphs
@@ -508,7 +525,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       return;
     };
-    CreatePartitioningPlanFromProfile(profile_);
+    if(use_dummy_plan_){
+      std::cout << "Using dummy partitioning plan" << "\n";
+      CreatePartitioningPlanFromProfile(dummy_profile_);
+    }else{
+      std::cout << "Using profile base partitioning plan" << "\n";
+      CreatePartitioningPlanFromProfile(profile_);
+    }
 
     //For profiling
     std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
@@ -656,8 +679,18 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     temp->model_id = model_id_;
    (interpreter)->shared_tensor_and_graph.push_back(temp);
   }
-  // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH HERE AND ALLOCATE TENSORS
-
+  // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH AND ALLOCATE TENSORS
+  if(interpreter->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
+    std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
+    return kTfLiteError;
+  }
+  if(interpreter->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
+      != kTfLiteOk){
+    std::cout << "DeleteSubgraph ERROR" << "\n";
+    return kTfLiteError;
+  }
+  std::cout << "Interpreterbuilder: Subgraphs & job created" << "\n";
+  return kTfLiteOk;
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphWithDefaultJob(

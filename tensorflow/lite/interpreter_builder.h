@@ -71,6 +71,14 @@ class InterpreterBuilder {
                     const char* model_name,
                     int model_id);
 
+  // Minsung
+  // Use this constructor for dummy profile
+  InterpreterBuilder(const FlatBufferModel& model,
+                    const OpResolver& op_resolver,
+                    const char* model_name,
+                    int model_id, bool use_dummy_plan,
+                    const ProfileData& dummy_profile);
+
   ~InterpreterBuilder();
   InterpreterBuilder(const InterpreterBuilder&) = delete;
   InterpreterBuilder& operator=(const InterpreterBuilder&) = delete;
@@ -169,6 +177,10 @@ class InterpreterBuilder {
   std::vector<int> graph_subsets; 
 
   int default_thread = 1;
+
+  // flag for dummy using dummy plan on subgraph partitioning
+  bool use_dummy_plan_ = false;
+  ProfileData dummy_profile_;
 };
 
 }  // namespace tflite

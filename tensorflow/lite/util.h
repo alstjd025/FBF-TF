@@ -99,7 +99,7 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration);
 typedef struct SharedTensorsInGraphs{
   int model_id; // identifier
 
-  // <Graph id, tensor indices>
+  // <tensor id, subgraph ids>
   std::vector<std::pair<int, std::vector<int>>> pair_tensor_graph;
 } SharedTensorsInGraphs;
 

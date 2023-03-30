@@ -262,12 +262,42 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
           << "returned ERROR" << "\n";
           return kTfLiteError;
         }
-        // Resize intermediate shared tensors
-        
-        //
-        for(size_t i=1; i<subset.second.size(); ++i){ // Now, allocate others
-          working_subgraph = subgraph_id(subset.second[i]);
-
+        // Resize intermediate shared tensors with GetIntermediateTensorRange()
+        int input_tensor_begin_idx, input_tensor_end_idx;
+        if(GetIntermediateTensorRangeWithGraphSubset(model_id,
+                    &input_tensor_begin_idx, &input_tensor_end_idx) != kTfLiteOk){
+          std::cout << "GetIntermediateTensorRangeWithGraphSubset ERROR" << "\n";
+          return kTfLiteError;
+        }
+        // resize code here
+        // 
+        for(auto shared_tensor_and_graph_ : shared_tensor_and_graph){
+          if(shared_tensor_and_graph_->model_id == model_id){
+            for(int i=0; i<shared_tensor_and_graph_->pair_tensor_graph.size(); ++i){
+              std::cout << "shared tensor [" 
+                    << shared_tensor_and_graph_->pair_tensor_graph[i].first << "] \n";
+              int base_tensor = shared_tensor_and_graph_->pair_tensor_graph[i].first;
+              if(base_tensor >= input_tensor_begin_idx && base_tensor <= input_tensor_end_idx){
+                TfLiteTensor* working_tensor;
+                std::vector<int> match_dims;
+                for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
+                  std::cout << shared_tensor_and_graph_->pair_tensor_graph[i].second[j] << " ";
+                  int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
+                  if(j == 0){
+                    working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
+                    match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
+                  }
+                  else
+                    subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
+                    if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
+                      return kTfLiteError;
+                }
+                working_tensor = nullptr;
+                match_dims.clear();
+                std::cout << "\n";
+              }
+            }           
+          }
         }
       }else{
         std::cout << "Interpreter : Allocation Error, no registerd subgraph of "
@@ -278,9 +308,18 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
   }
 }
 
-TfLiteStatus Interpreter::GetIntermediateTensorRange(int* begin, int* end){
+TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id, 
+                                                            int* begin, int* end){
   TfLiteIntArray* execution_plan = TfLiteIntArrayCreate(0);
-  subgraph(0)->GetExecutionPlan(context_, &execution_plan);
+  int input_subgraph_id;
+  int last_subgraph_id;
+  for(auto subset : subgraph_subsets){
+    if(subset.first == model_id){
+      subgraph_id(subset.second[0])->GetExecutionPlanSafe(&execution_plan);
+      input_subgraph_id = subset.second[0];
+      last_subgraph_id = subset.second.back();
+    }
+  }
   std::cout << "GetIntermediateTensorRange" << "\n";
   if(execution_plan->size < 0){
     std::cout << "[ERROR] Execution Plan size < 0 in subgraph 0" << "\n";
@@ -290,7 +329,7 @@ TfLiteStatus Interpreter::GetIntermediateTensorRange(int* begin, int* end){
   TfLiteRegistration* registration;
   // First, get first node's output tensor index.
   int first_execution_plan = execution_plan->data[0];
-  if(subgraph(0)->GetNodeAndRegistration(
+  if(subgraph_id(input_subgraph_id)->GetNodeAndRegistration(
         first_execution_plan, &node, &registration) != kTfLiteOk)
     return kTfLiteError;
   *begin = node->outputs->data[0];
@@ -300,17 +339,16 @@ TfLiteStatus Interpreter::GetIntermediateTensorRange(int* begin, int* end){
   // idices are in ascending order, we can get intermediate tensors range.
   if(subgraphs_size() > 1){   // If interpreter has more than one subgraph.
     TfLiteIntArray* execution_plan;
-    int final_subgraph = subgraphs_size()-1;
-    subgraph(final_subgraph)->GetExecutionPlanSafe(&execution_plan);
+    subgraph_id(last_subgraph_id)->GetExecutionPlanSafe(&execution_plan);
     int last_execution_plan = execution_plan->data[execution_plan->size - 1];
-    if(subgraph(final_subgraph)->GetNodeAndRegistration(
+    if(subgraph_id(last_subgraph_id)->GetNodeAndRegistration(
         last_execution_plan, &node, &registration) != kTfLiteOk)
               return kTfLiteError;
     *end = node->outputs->data[0];
     TfLiteIntArrayFree(execution_plan);
   }else{  // Or interpreter has only one subgraph
     int last_execution_plan = execution_plan->data[execution_plan->size - 1];
-    if(subgraph(0)->GetNodeAndRegistration(
+    if(subgraph_id(input_subgraph_id)->GetNodeAndRegistration(
           last_execution_plan, &node, &registration) != kTfLiteOk)
       return kTfLiteError;
     *end = node->outputs->data[0];

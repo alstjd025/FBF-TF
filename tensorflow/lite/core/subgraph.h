@@ -131,6 +131,10 @@ class Subgraph {
   // Overrides execution plan. This bounds checks indices sent in.
   TfLiteStatus SetExecutionPlan(const std::vector<int>& new_plan);
 
+  // Minsung
+  // Return a given tensor's shape
+  std::vector<int> GetTensorShape(int tensor_index);
+
   // Get a mutable tensor data structure.
   // TODO(aselle): Create a safe ArrayHandle interface to avoid exposing this
   // read/write access to structure
@@ -559,7 +563,7 @@ class Subgraph {
   // Entry point for C node plugin API to get the execution plan.
   static TfLiteStatus GetExecutionPlan(struct TfLiteContext* context,
                                        TfLiteIntArray** execution_plan);
-                              
+
   /// Minsung
   // Above functions have bug.
   // So better use this one.
