@@ -277,8 +277,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
           std::cout << "GetIntermediateTensorRangeWithGraphSubset ERROR" << "\n";
           return kTfLiteError;
         }
-        // resize code here
-        // 
         for(auto shared_tensor_and_graph_ : shared_tensor_and_graph){
           if(shared_tensor_and_graph_->model_id == model_id){
             for(int i=0; i<shared_tensor_and_graph_->pair_tensor_graph.size(); ++i){
