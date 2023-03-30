@@ -27,7 +27,7 @@ class LiteScheduler
     ~LiteScheduler();
 
     void SchedulerSpin(); 
-
+    void Wake();
 
     bool need_reschedule = false;
     bool stop_scheduler = false;

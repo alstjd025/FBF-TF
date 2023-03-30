@@ -120,7 +120,7 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
   // Minsung
   // Add job queue
   jobs = new std::queue<tflite::Job*>;
-  scheduler_ = new LiteScheduler;
+  scheduler_ = new LiteScheduler(this); //create scheduler thread here
   
   
 }
@@ -428,6 +428,11 @@ TfLiteStatus Interpreter::DebugInvoke(){
   }
 }
 
+void Interpreter::WakeScheduler(){
+  scheduler_->Wake();
+}
+
+
 TfLiteStatus Interpreter::AddTensors(int tensors_to_add,
                                      int* first_new_tensor_index) {
   return primary_subgraph().AddTensors(tensors_to_add, first_new_tensor_index);
@@ -558,6 +563,7 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(std::vector<int>& graph_su
 
 TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* delegate){
   delegate_provided_ = delegate;
+  is_gpu_delegate_prepared = true;
   return kTfLiteOk;
 }
 
@@ -641,7 +647,8 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
     
   }else if(wType == ResourceType::GPU){
     if(!is_gpu_delegate_prepared){
-      // Do GPU Delegation 
+      std::cout << "Interpreter : No GPU delegation found for CreateWorker" << "\n";
+      return kTfLiteError;
     }
     int new_id = GetAndAddWorkersCreated(1);
     Worker* new_worker = new Worker(wType, new_id, this);

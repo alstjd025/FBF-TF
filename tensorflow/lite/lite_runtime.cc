@@ -71,6 +71,9 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   return kTfLiteOk;
 };
 
+void TfLiteRuntime::WakeScheduler(){
+  interpreter->WakeScheduler();
+}
 
 TfLiteStatus TfLiteRuntime::DebugInvoke(){
   if(interpreter->DebugInvoke() != kTfLiteOk){

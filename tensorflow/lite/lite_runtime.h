@@ -38,6 +38,8 @@ class TfLiteRuntime{
 
     TfLiteStatus DebugInvoke();
 
+    void WakeScheduler();
+
   private:
     std::shared_ptr<tflite::Interpreter> interpreter;
 

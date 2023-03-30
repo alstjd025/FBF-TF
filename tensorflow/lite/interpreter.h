@@ -675,6 +675,9 @@ class Interpreter {
 
   TfLiteStatus DeleteJob(int job_id);
 
+  void WakeScheduler();
+  void JoinScheduler();
+
   // Minsung
   // Give jobs to workers
   TfLiteStatus GiveJob();
