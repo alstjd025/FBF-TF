@@ -654,6 +654,10 @@ tflite::Subgraph* Interpreter::CreateSubgraph(){
                       &subgraphs_, &resources_);
 }
 
+TfLiteStatus Interpreter::CreateJobsAndSubgraphs(){
+
+}
+
 TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
   // Creates a worker of given workerType.
   // A default worker uses single CPU.

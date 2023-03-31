@@ -26,6 +26,8 @@ Author : Minsung Kim
 
 namespace tflite{
 
+class LiteScheduler;
+
 class TfLiteRuntime{
   public:
     TfLiteRuntime();
@@ -42,13 +44,13 @@ class TfLiteRuntime{
 
   private:
     std::shared_ptr<tflite::Interpreter> interpreter;
+    LiteScheduler* scheduler;
 
     // Map container for interpreterBuilders and model_id
     // key : model_id, value : interpreterbuilder
     std::map<int, tflite::InterpreterBuilder*> builder_and_id;
     int builders_created = 0;
 
-    
 };
 
 } // namespace tflite

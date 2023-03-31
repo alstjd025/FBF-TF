@@ -1,5 +1,6 @@
 #include "tensorflow/lite/lite_scheduler.h"
 #include "tensorflow/lite/interpreter.h"
+#include "tensorflow/lite/interpreter_builder.h"  
 
 namespace tflite{
 // new
@@ -35,6 +36,21 @@ void LiteScheduler::NeedReschedule(){
   need_reschedule = true;
 }
 
+void LiteScheduler::Profile(){
+
+}
+
+TfLiteStatus LiteScheduler::RegisterInterpreterBuilder(InterpreterBuilder* builder){
+  for(auto builder_ : builders){
+    if(builder_->GetModelid() == builder->GetModelid()){
+      std::cout << "Model id [" << builder->GetModelid() << "] already exists" << "\n";
+      return kTfLiteError;
+    }
+  }
+  builders.push_back(builder);
+  return kTfLiteOk;
+}
+
 // new
 void LiteScheduler::SchedulerSpin(){
   std::cout << "Scheduler: Scheduler spin!" << "\n";
@@ -53,6 +69,8 @@ void LiteScheduler::SchedulerSpin(){
       // Some profiling logic here
       // Create workers if needed
       // schedule jobs to workers and wake all  
+      Profile();
+      interpreter_->CreateJobsAndSubgraphs();
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);
       //interpreter_->CreateWorker(ResourceType::CPU, 2);

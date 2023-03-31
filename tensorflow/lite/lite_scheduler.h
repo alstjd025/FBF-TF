@@ -18,6 +18,7 @@
 namespace tflite{
 
 class Interpreter; // forward declaire
+class InterpreterBuilder;
 
 class LiteScheduler
 {
@@ -26,16 +27,19 @@ class LiteScheduler
     LiteScheduler(Interpreter* interpreter);
     ~LiteScheduler();
 
+    void Profile();
     void SchedulerSpin(); 
     void Wake();
     void Join();
     void NeedReschedule();
+    TfLiteStatus RegisterInterpreterBuilder(InterpreterBuilder* builder);
 
     bool need_reschedule = false;
     bool stop_scheduler = false;
     SchedulerStatus state;
 
     Interpreter* interpreter_;
+    std::vector<InterpreterBuilder*> builders;
     std::shared_ptr<std::vector<tflite::Job*>> jobs_enqueued;
 
     std::thread scheduler_thread;

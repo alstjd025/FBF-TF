@@ -483,11 +483,14 @@ class Interpreter {
   }
 
   // Minsung
-  // Creats a new subgraph
+  // Create a new subgraph
   // Use only in interpreterbuilder
   tflite::Subgraph* CreateSubgraph();
 
-
+  // Minsung
+  // Create job (with subgraphs) with given profile
+  // Only call this function when rescheduling needed. 
+  TfLiteStatus CreateJobsAndSubgraphs();
 
   /// Set the delegate buffer handle to a tensor. It can be called in the
   /// following cases:
@@ -609,6 +612,10 @@ class Interpreter {
   }
 
   // Minsung
+  // Get a pointer to scheduler
+  LiteScheduler* GetScheduler() { return scheduler_; };
+
+  // Minsung
   // Get a pointer to a subgraph of given id.
   Subgraph* subgraph_id(int id){
     if(subgraphs_size() > 0){
@@ -692,7 +699,6 @@ class Interpreter {
   TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
 
   TfLiteStatus DeleteSubgraph(int subgraph_id);
-
 
   // Creates a new worker of given type
   TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);

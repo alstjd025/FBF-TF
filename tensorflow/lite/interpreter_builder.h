@@ -18,6 +18,7 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_INTERPRETER_BUILDER_H_
 #define TENSORFLOW_LITE_INTERPRETER_BUILDER_H_
 
+
 #include <memory>
 
 #include "tensorflow/lite/c/common.h"
@@ -85,6 +86,8 @@ class InterpreterBuilder {
   TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter);
   TfLiteStatus operator()(std::unique_ptr<Interpreter>* interpreter,
                           int num_threads);
+
+  int GetModelid() { return model_id_; }
 
   // Minsung
   // Creates a subgraph.

@@ -1,7 +1,5 @@
 #include "tensorflow/lite/lite_runtime.h"
-
-
-
+#include "tensorflow/lite/lite_scheduler.h"
 
 namespace tflite{
 
@@ -22,6 +20,7 @@ TfLiteRuntime::TfLiteRuntime(){
   };
   MyDelegate = TfLiteGpuDelegateV2Create(&options);
   interpreter->RegisterDelegate(MyDelegate);
+  scheduler = interpreter->GetScheduler();
 };
 
 TfLiteRuntime::~TfLiteRuntime(){
@@ -65,6 +64,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
     std::cout << "CreateSubgraphFromFlatBuffer returned Error" << "\n";
     exit(-1);
   }
+  scheduler->RegisterInterpreterBuilder(new_builder);
   // And schedule it for latency profiling
   
 
