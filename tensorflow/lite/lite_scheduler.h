@@ -18,6 +18,7 @@
 namespace tflite{
 
 class Interpreter; // forward declaire
+class Subgraph;
 class InterpreterBuilder;
 
 class LiteScheduler
@@ -28,6 +29,7 @@ class LiteScheduler
     ~LiteScheduler();
 
     void Profile();
+    TfLiteStatus RebuildSubgraphsAndJobs();
     void SchedulerSpin(); 
     void Wake();
     void Join();

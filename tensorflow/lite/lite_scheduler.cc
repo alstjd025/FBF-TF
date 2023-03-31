@@ -1,6 +1,7 @@
 #include "tensorflow/lite/lite_scheduler.h"
 #include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/interpreter_builder.h"  
+#include "tensorflow/lite/interpreter_builder.h" 
+#include "tensorflow/lite/core/subgraph.h" 
 
 namespace tflite{
 // new
@@ -14,6 +15,7 @@ LiteScheduler::LiteScheduler(){
 //legacy
 LiteScheduler::LiteScheduler(Interpreter* interpreter){
   state = SchedulerState::INIT_SCHED;
+  need_reschedule = true;
   interpreter_ = interpreter;
   scheduler_thread = std::thread(&LiteScheduler::SchedulerSpin, this);
   scheduler_thread.detach();
@@ -36,9 +38,6 @@ void LiteScheduler::NeedReschedule(){
   need_reschedule = true;
 }
 
-void LiteScheduler::Profile(){
-
-}
 
 TfLiteStatus LiteScheduler::RegisterInterpreterBuilder(InterpreterBuilder* builder){
   for(auto builder_ : builders){
@@ -70,16 +69,37 @@ void LiteScheduler::SchedulerSpin(){
       // Create workers if needed
       // schedule jobs to workers and wake all  
       Profile();
-      interpreter_->CreateJobsAndSubgraphs();
+
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);
       //interpreter_->CreateWorker(ResourceType::CPU, 2);
-      interpreter_->GiveJob();               
+      interpreter_->GiveJob();          
     }
     // schedule jobs with scheduling algorithm.
-    
-    
   };
 }
+
+void LiteScheduler::Profile(){
+  // Debugging code 
+  for(auto builder : builders){
+    if(builder->GetModelid() == 0){
+      Subgraph* original_graph_profiled = 
+            interpreter_->returnProfiledOriginalSubgraph(0);
+      if(original_graph_profiled == nullptr){
+        std::cout << "Model id " << builder->GetModelid() << " no subgraph. \n"; 
+        continue;
+      }
+      if(builder->CreateSubgraphsFromProfiling(original_graph_profiled, 
+                    std::make_shared<tflite::Interpreter>(interpreter_))
+          != kTfLiteOk){
+            std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+      }
+    }
+  }
+}
+
+TfLiteStatus LiteScheduler::RebuildSubgraphsAndJobs(){
+
+};
 
 } //namespace tflite

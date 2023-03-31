@@ -654,9 +654,6 @@ tflite::Subgraph* Interpreter::CreateSubgraph(){
                       &subgraphs_, &resources_);
 }
 
-TfLiteStatus Interpreter::CreateJobsAndSubgraphs(){
-
-}
 
 TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
   // Creates a worker of given workerType.
@@ -812,6 +809,27 @@ TfLiteStatus Interpreter::DoInvoke(){
     }
   }
   return kTfLiteOk;
+}
+
+tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id){
+  for(auto subgraph_subset : subgraph_subsets){
+    for(auto graph_id : subgraph_subset.second){
+      Subgraph* working_graph = subgraph_id(graph_id);
+      if(working_graph == nullptr){
+        std::cout << "Cannot get pointer to subgraph " << graph_id
+                  << "\n";
+        return nullptr;
+      }
+      if(working_graph->GetModelid() != id)
+        continue;
+      if(working_graph->IsOriginalSubgraph() &&
+          !working_graph->IsProfiled()){
+        working_graph->SetProfiled();
+        return working_graph;
+      }
+    }
+  }
+  return nullptr; // no more profiled original subgraph
 }
 
 bool Interpreter::IsJobEmpty(){

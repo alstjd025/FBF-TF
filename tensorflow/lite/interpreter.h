@@ -488,9 +488,7 @@ class Interpreter {
   tflite::Subgraph* CreateSubgraph();
 
   // Minsung
-  // Create job (with subgraphs) with given profile
-  // Only call this function when rescheduling needed. 
-  TfLiteStatus CreateJobsAndSubgraphs();
+  tflite::Subgraph* returnProfiledOriginalSubgraph(int id);
 
   /// Set the delegate buffer handle to a tensor. It can be called in the
   /// following cases:
@@ -675,8 +673,7 @@ class Interpreter {
     return n;
   }
 
-  // Minsung 
-  TfLiteStatus CreateNewWokersAndScheduler();
+
 
   // Minsung
   // Add a new job

@@ -157,6 +157,7 @@ class Subgraph {
 
   // Minsung
   bool IsProfiled() { return is_profiled; }
+  void SetProfiled() { is_profiled = true; }
 
   // Minsung
   // Setups for scheduling and job initializing.
@@ -355,6 +356,7 @@ class Subgraph {
 
   // Minsung
   const ProfileData& GetProfileData() { return profile_data; }
+  ProfileData& GetProfileDataUnsafe() { return profile_data; }
 
   // Returns a pointer to vector of subgraphs.
   // WARNING: This is an experimental API and subject to change.
