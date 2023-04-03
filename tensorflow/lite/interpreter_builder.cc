@@ -514,7 +514,20 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     /////////////////////////////////////////////
 
     //TODO: allocate, initialize jobs and subgraphs for scheduling
-
+    dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    dummy_profile_.layer_subsets[0].push_back(0);
+    dummy_profile_.layer_subsets[0].push_back(1);
+    dummy_profile_.layer_subsets[0].push_back(2);
+    dummy_profile_.layer_subsets[0].push_back(3);
+    dummy_profile_.layer_subsets[0].push_back(4);
+    dummy_profile_.layer_subsets[0].push_back(5);
+    dummy_profile_.layer_subsets[0].push_back(6);
+    dummy_profile_.layer_subsets[1].push_back(7);
+    dummy_profile_.layer_subsets[1].push_back(8);
+    dummy_profile_.layer_subsets[1].push_back(9);
+    dummy_profile_.layer_subsets[1].push_back(10);
+    dummy_profile_.layer_subsets[1].push_back(11);
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
       for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
@@ -547,6 +560,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
                                                 ++partition_itr){
       /// Make a new subgraph
+      std::cout << "making new subgraph" << "\n";
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // and make linked-list structure
@@ -587,6 +601,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           }
           std::cout << "\n";
           new_subgraph->SetActualOutput(*output_tensor); // set 'actual' output tensors
+          std::cout << "Add tensors to this graph : " << tensors->size() << "\n";
           if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
             return kTfLiteError;
           }
@@ -626,6 +641,17 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
     } 
+    tflite::Job* new_job = new tflite::Job;
+    if(BindSubgraphWithJob(subgraphs_created, new_job, interpreter_) !=
+        kTfLiteOk){
+      std::cout << "BindSubgraphWithJob ERROR" << "\n";
+      return kTfLiteError;
+    }
+    if(RegisterJobAndSubgraphs(subgraphs_created, new_job, interpreter_) !=
+        kTfLiteOk){
+      std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
+      return kTfLiteError;
+    }
     // Fill shared tensor bucket  
     for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
       std::cout << "subgraph [" << graph_idx << "] tensors" << "\n";
@@ -644,10 +670,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       std::vector<int> sharing_subgraph_id;
       for(size_t g=0; g<subgraph_and_tensors.size(); ++g){
         if(shared_tensor_bucket[t][g]){
+          std::cout << "graph id : " << subgraphs_created[g]->GetGraphid() << " push" << "\n";
           sharing_subgraph_id.push_back(subgraphs_created[g]->GetGraphid());
         }
       }
       if(sharing_subgraph_id.size() > 1){
+        
         pair_tensor_graph.first = t;        // tensor index
         pair_tensor_graph.second = sharing_subgraph_id; // subgraph id
         shared_info.push_back(pair_tensor_graph);
@@ -660,19 +688,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
    (interpreter_)->shared_tensor_and_graph.push_back(temp);
   }
   // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH AND ALLOCATE TENSORS
-  tflite::Job* new_job = new tflite::Job;
-  if(BindSubgraphWithJob(subgraphs_created, new_job, interpreter_) !=
-      kTfLiteOk){
-    std::cout << "BindSubgraphWithJob ERROR" << "\n";
-    return kTfLiteError;
-  }
-  if(RegisterJobAndSubgraphs(subgraphs_created, new_job, interpreter_) !=
-      kTfLiteOk){
-    std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
-    return kTfLiteError;
-  }
   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
+    return kTfLiteError;
+  }
+  if(interpreter_->ReadyJobsofGivenModel(model_id_) != kTfLiteOk){
+    std::cout << "ReadyJobsofGivenModel ERROR" << "\n";
     return kTfLiteError;
   }
   if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 

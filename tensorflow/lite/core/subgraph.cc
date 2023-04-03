@@ -704,7 +704,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors();
-
+  std::cout << "subgraph tensors after allocation :" << tensors_size() << "\n";
   return kTfLiteOk;
 }
 

@@ -2,6 +2,7 @@
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/interpreter_builder.h" 
 #include "tensorflow/lite/core/subgraph.h" 
+#include "tensorflow/lite/optional_debug_tools.h"
 
 namespace tflite{
 // new
@@ -76,8 +77,10 @@ void LiteScheduler::SchedulerSpin(){
       // profile unprofiled models
       // Some profiling logic here
       // Create workers if needed
-      // schedule jobs to workers and wake all  
+      // schedule jobs to workers and wake all
+      PrintInterpreterStateV2(interpreter_);
       Profile();
+      PrintInterpreterStateV2(interpreter_);
 
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);
@@ -102,11 +105,10 @@ void LiteScheduler::Profile(){
         std::cout << "Model id " << builder->GetModelid() << " no subgraph. \n"; 
         continue;
       }
-      // if(builder->CreateSubgraphsFromProfiling(original_graph_profiled, 
-      //                               std::make_shared<tflite::Interpreter>(interpreter_))
-      //     != kTfLiteOk){
-      //       std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
-      //}
+      if(builder->CreateSubgraphsFromProfiling(original_graph_profiled)
+          != kTfLiteOk){
+            std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+      }
     }
   }
 }

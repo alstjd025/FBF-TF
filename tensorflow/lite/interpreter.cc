@@ -249,7 +249,12 @@ TfLiteStatus Interpreter::AllocateTensors() {
 
 // Minsung
 TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
-
+  LockJobs();
+  for(auto job : job_vector){
+    if(job->job_id == model_id)
+      job->state = JobState::READY;
+  }
+  UnlockJobs();
   return kTfLiteOk;
 }
 
@@ -289,7 +294,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                 TfLiteTensor* working_tensor;
                 std::vector<int> match_dims;
                 for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
-                  std::cout << shared_tensor_and_graph_->pair_tensor_graph[i].second[j] << " ";
                   int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
                   if(j == 0){
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
@@ -302,7 +306,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                 }
                 working_tensor = nullptr;
                 match_dims.clear();
-                std::cout << "\n";
               }
             }           
           }
@@ -314,6 +317,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
       }
     }
   }
+  return kTfLiteOk;
 }
 
 TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id, 
@@ -779,10 +783,11 @@ TfLiteStatus Interpreter::GiveJob(){
   while(!jobs->empty() && !workers.empty()){
     std::cout << "Interperter : give job" << "\n";
     Job* job = jobs->front();
-    if(job->state != JobState::READY){
+    if(job->state == JobState::DONE){
+      jobs->pop();
       continue;
-    }else{
-      // Lockup the job lock of worker
+    }else if(job->state == JobState::READY){
+      // Lockup the job lock of worker.
       // !!currently one job for one worker.
       int worker_idx = 0;
       while(worker_idx < workers.size()){

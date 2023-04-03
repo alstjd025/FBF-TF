@@ -210,6 +210,7 @@ class Subgraph {
   // TODO(ycling): Move this function to an external context interface.
   resource::ResourceMap& resources() { return *resources_; }
 
+  /// Return the number of tensors in the model.
   size_t tensors_size() const { return tensors_.size(); }
 
   // Return the number of ops in the model.

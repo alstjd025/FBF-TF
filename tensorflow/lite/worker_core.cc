@@ -78,6 +78,9 @@ namespace tflite{
             }
             std::cout << "Worker " << worker_id << " job "
                         << jobs[i]->job_id << " done" << "\n";
+            interpreter_->LockJobs();
+            jobs[i]->state == JobState::DONE;
+            interpreter_->UnlockJobs();
           }
         }
       }

@@ -197,6 +197,11 @@ class Interpreter {
   /// Read only access to list of inputs.
   const std::vector<int>& inputs() const { return primary_subgraph().inputs(); }
 
+  /// Minsung
+  /// Acess to list of inputs in subgraph
+  const std::vector<int>& inputs(int subgraph_id_) { return subgraph_id(subgraph_id_)->inputs(); }
+
+
   /// Return the name of a given input. The given index must be between 0 and
   /// inputs().size().
   const char* GetInputName(int index) const {
@@ -207,6 +212,13 @@ class Interpreter {
   const std::vector<int>& outputs() const {
     return primary_subgraph().outputs();
   }
+
+  /// Minsung
+  /// Access to list of outputs of a specific subgraph.
+  const std::vector<int>& outputs(int subgraph_id_) {
+    return subgraph_id(subgraph_id_)->outputs();
+  }
+
 
   /// Read only access to list of variable tensors.
   const std::vector<int>& variables() const {
@@ -224,6 +236,11 @@ class Interpreter {
 
   /// Return the number of ops in the model.
   size_t nodes_size() const { return primary_subgraph().nodes_size(); }
+
+  /// Minsung
+  /// Return the number of ops in a subgraph
+  int nodes_size(int subgraph_id_) {return subgraph_id(subgraph_id_)->nodes_size();}
+
 
   /// WARNING: Experimental interface, subject to change
   const std::vector<int>& execution_plan() const {
@@ -248,12 +265,27 @@ class Interpreter {
     return primary_subgraph().tensor(tensor_index);
   }
 
+  /// Minsung
+  // Get a mutable tensor data structure from a given subgraph.
+  TfLiteTensor* tensor(int subgraph_id_, int tensor_index) {
+    return subgraph_id(subgraph_id_)->tensor(tensor_index);
+  }
+
   /// Get a pointer to an operation and registration data structure if in
   /// bounds.
   const std::pair<TfLiteNode, TfLiteRegistration>* node_and_registration(
       int node_index) const {
     return primary_subgraph().node_and_registration(node_index);
   }
+
+  /// Minsung
+  /// Get a pointer to an operation and registration data structure if in
+  /// bounds from a subgraph.
+  const std::pair<TfLiteNode, TfLiteRegistration>* node_and_registration(
+      int node_index, int subgraph_id_) {
+    return subgraph_id(subgraph_id_)->node_and_registration(node_index);
+  }
+
 
   /// Perform a checked cast to the appropriate tensor type (mutable pointer
   /// version).
@@ -812,7 +844,9 @@ class Interpreter {
 
   // Minsung
   // Jobs
-  std::vector<tflite::Job*> job_vector;
+  // these two variable shares same job's pointer
+  // use job vector to modify specific job, use queue to allocate job to worker.
+  std::vector<tflite::Job*> job_vector; 
   std::queue<tflite::Job*>* jobs;
   int jobs_created = 0;
   std::mutex job_mutex;
