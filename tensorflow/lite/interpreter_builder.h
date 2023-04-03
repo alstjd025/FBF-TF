@@ -76,6 +76,7 @@ class InterpreterBuilder {
   // Use this constructor for dummy profile
   InterpreterBuilder(const FlatBufferModel& model,
                     const OpResolver& op_resolver,
+                    std::shared_ptr<tflite::Interpreter> interpreter,
                     const char* model_name,
                     int model_id, bool use_dummy_plan,
                     const ProfileData& dummy_profile);
@@ -102,8 +103,7 @@ class InterpreterBuilder {
   // Creates subset of subgraphs
   // After profiling the whole subgraph's latency, creates subset of subgraphs so
   // that the scheduler can handle them.
-  TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph,
-                                std::shared_ptr<tflite::Interpreter> interpreter);
+  TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph);
 
   // Minsung
   // Bind subgraph to a default(pre-proflied) job
@@ -196,6 +196,8 @@ class InterpreterBuilder {
   // flag for dummy using dummy plan on subgraph partitioning
   bool use_dummy_plan_ = false;
   ProfileData dummy_profile_;
+
+  std::shared_ptr<tflite::Interpreter> interpreter_;
 };
 
 }  // namespace tflite

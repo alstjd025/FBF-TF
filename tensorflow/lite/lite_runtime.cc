@@ -24,7 +24,7 @@ TfLiteRuntime::TfLiteRuntime(){
 };
 
 TfLiteRuntime::~TfLiteRuntime(){
-
+  std::cout << "TfLiteRuntime destructor called" << "\n";
 };
 
 TfLiteStatus TfLiteRuntime::CreateTfLiteRuntime(){
@@ -54,8 +54,8 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   // end //
 
   tflite::InterpreterBuilder* new_builder = \
-            new tflite::InterpreterBuilder(**model_, *resolver, model, \
-                                                      model_number, true, dummy_profile);
+            new tflite::InterpreterBuilder(**model_, *resolver, interpreter, model, \
+                                                  model_number, true, dummy_profile);
 
   builder_and_id.insert({model_number, new_builder});
   
@@ -73,6 +73,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
 
 void TfLiteRuntime::WakeScheduler(){
   interpreter->WakeScheduler();
+  std::this_thread::sleep_for(std::chrono::seconds(3));
   interpreter->JoinScheduler();
 }
 

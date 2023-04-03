@@ -189,6 +189,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
 
 InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
+                      std::shared_ptr<tflite::Interpreter> interpreter,
                                       const char* model_name,
                                       int model_id, bool use_dummy_plan,
                                       const ProfileData& dummy_profile)
@@ -196,6 +197,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
       op_resolver_(op_resolver),
       error_reporter_(DefaultErrorReporter()),
       //allocation_(model->allocation()), check how allocation initialized.
+      interpreter_(interpreter),
       model_id_(model_id),
       model_name_(model_name),
       use_dummy_plan_(use_dummy_plan),
@@ -454,13 +456,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
     std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
-  std::cout << "Interpreterbuilder : Registered job and subgraph" << "\n";
+  std::cout << "Interpreterbuilder : Registered default job and subgraph" << "\n";
   return kTfLiteOk;
 }
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
-                                      tflite::Subgraph* profiled_subgraph,
-                          std::shared_ptr<tflite::Interpreter> interpreter){
+                                      tflite::Subgraph* profiled_subgraph){
   if(!profiled_subgraph->IsProfiled()){
     std::cout << "InterpreterBuilder : Subgraph is not profiled \n";
     return kTfLiteError;
@@ -546,7 +547,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
                                                 ++partition_itr){
       /// Make a new subgraph
-      tflite::Subgraph* new_subgraph = interpreter->CreateSubgraph();
+      tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // and make linked-list structure
         prev_queue.front()->SetNextSubgraph(new_subgraph);
@@ -656,25 +657,25 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     SharedTensorsInGraphs* temp = new SharedTensorsInGraphs;
     temp->pair_tensor_graph = shared_info;
     temp->model_id = model_id_;
-   (interpreter)->shared_tensor_and_graph.push_back(temp);
+   (interpreter_)->shared_tensor_and_graph.push_back(temp);
   }
   // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH AND ALLOCATE TENSORS
   tflite::Job* new_job = new tflite::Job;
-  if(BindSubgraphWithJob(subgraphs_created, new_job, interpreter) !=
+  if(BindSubgraphWithJob(subgraphs_created, new_job, interpreter_) !=
       kTfLiteOk){
     std::cout << "BindSubgraphWithJob ERROR" << "\n";
     return kTfLiteError;
   }
-  if(RegisterJobAndSubgraphs(subgraphs_created, new_job, interpreter) !=
+  if(RegisterJobAndSubgraphs(subgraphs_created, new_job, interpreter_) !=
       kTfLiteOk){
     std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
     return kTfLiteError;
   }
-  if(interpreter->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
+  if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
   }
-  if(interpreter->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
+  if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
       != kTfLiteOk){
     std::cout << "DeleteSubgraph ERROR" << "\n";
     return kTfLiteError;
@@ -696,7 +697,7 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
   new_job->job_id = new_subgraph->GetJobid();
   new_job->model_id = model_id_;
-  new_job->state = JobState::INIT_JOB;
+  new_job->state = JobState::READY; //In this function, subgraph is already allocated. so job is READY.
   new_job->invoke_type = InvokeType::PROFILING;
   new_job->resource_type = ResourceType::CPU;
   new_job->subgraphs.push_back(

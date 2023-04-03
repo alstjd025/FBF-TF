@@ -8,7 +8,7 @@ namespace tflite{
 LiteScheduler::LiteScheduler(){
   state = SchedulerState::INIT_SCHED;
   scheduler_thread = std::thread(&LiteScheduler::SchedulerSpin, this);
-  scheduler_thread.detach();
+  //scheduler_thread.detach();
 };
 
 
@@ -18,22 +18,29 @@ LiteScheduler::LiteScheduler(Interpreter* interpreter){
   need_reschedule = true;
   interpreter_ = interpreter;
   scheduler_thread = std::thread(&LiteScheduler::SchedulerSpin, this);
-  scheduler_thread.detach();
+  //scheduler_thread.detach();
 };
 
-LiteScheduler::~LiteScheduler() {};
+LiteScheduler::~LiteScheduler() {
+    std::cout << "LiteScheduler destructor called" << "\n";
+};
 
 
 void LiteScheduler::Wake(){
+  std::cout << "wake scheduler1" << "\n";
   std::unique_lock<std::mutex> lock(scheduler_lock);
+  stop_scheduler = true;
   scheduler_cv_.notify_all();
+  std::cout << "wake scheduler2" << "\n";
 }
 
 void LiteScheduler::Join(){
+  std::cout << "join scheduler "<< "\n";
   scheduler_thread.join();
 }
 
 void LiteScheduler::NeedReschedule(){
+  std::cout << "need reschedule" << "\n";
   std::unique_lock<std::mutex> lock(scheduler_lock);
   need_reschedule = true;
 }
@@ -56,12 +63,14 @@ void LiteScheduler::SchedulerSpin(){
   while(true){
     //wait for notify ()
     std::unique_lock<std::mutex> lock(scheduler_lock);
-    scheduler_cv_.wait(lock, [&] { return !stop_scheduler; });    
+    std::cout << "scheduler sleeps" << "\n";
+    scheduler_cv_.wait(lock, [&] { return stop_scheduler; });    
+    std::cout << "scheduler woke up" << "\n";
     if(need_reschedule){
       if(interpreter_->IsJobEmpty()){
         std::cout << "Scheduler : scheduler woke up but no jobs in interpreter"
                   << ". Stops scheduler" <<"\n";
-        stop_scheduler = true;
+        stop_scheduler = false;
         continue;
       }  
       // profile unprofiled models
@@ -76,11 +85,15 @@ void LiteScheduler::SchedulerSpin(){
       interpreter_->GiveJob();          
     }
     // schedule jobs with scheduling algorithm.
+    if(interpreter_->DoInvoke() != kTfLiteOk){
+      std::cout << "Invoke returned error" << "\n";
+    }
   };
 }
 
 void LiteScheduler::Profile(){
   // Debugging code 
+  std::cout << "Scheduler: Profile" << "\n";
   for(auto builder : builders){
     if(builder->GetModelid() == 0){
       Subgraph* original_graph_profiled = 
@@ -89,11 +102,11 @@ void LiteScheduler::Profile(){
         std::cout << "Model id " << builder->GetModelid() << " no subgraph. \n"; 
         continue;
       }
-      if(builder->CreateSubgraphsFromProfiling(original_graph_profiled, 
-                    std::make_shared<tflite::Interpreter>(interpreter_))
-          != kTfLiteOk){
-            std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
-      }
+      // if(builder->CreateSubgraphsFromProfiling(original_graph_profiled, 
+      //                               std::make_shared<tflite::Interpreter>(interpreter_))
+      //     != kTfLiteOk){
+      //       std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+      //}
     }
   }
 }

@@ -37,7 +37,7 @@ class LiteScheduler
     TfLiteStatus RegisterInterpreterBuilder(InterpreterBuilder* builder);
 
     bool need_reschedule = false;
-    bool stop_scheduler = false;
+    bool stop_scheduler = false; //if false, scheduler stops.
     SchedulerStatus state;
 
     Interpreter* interpreter_;

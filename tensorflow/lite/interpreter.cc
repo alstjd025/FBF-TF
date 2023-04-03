@@ -121,6 +121,7 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
   // Add job queue
   jobs = new std::queue<tflite::Job*>;
   scheduler_ = new LiteScheduler(this); //create scheduler thread here
+  std::cout << "Interperter Created with new job queue and scheduler" << "\n";
   
   
 }
@@ -145,6 +146,7 @@ Interpreter::~Interpreter() {
       internal_context->ClearCaches();
     }
   }
+  std::cout << "Interpreter destructor called" << "\n";
 }
 
 void Interpreter::SetExternalContext(TfLiteExternalContextType type,
@@ -833,6 +835,7 @@ tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id){
 }
 
 bool Interpreter::IsJobEmpty(){
+  std::cout << "isjobempty" << "\n";
   bool flag;
   LockJobs();
   flag = jobs->empty();
