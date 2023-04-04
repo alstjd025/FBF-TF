@@ -521,13 +521,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     dummy_profile_.layer_subsets[0].push_back(2);
     dummy_profile_.layer_subsets[0].push_back(3);
     dummy_profile_.layer_subsets[0].push_back(4);
-    dummy_profile_.layer_subsets[0].push_back(5);
-    dummy_profile_.layer_subsets[0].push_back(6);
+    dummy_profile_.layer_subsets[1].push_back(5);
+    dummy_profile_.layer_subsets[1].push_back(6);
     dummy_profile_.layer_subsets[1].push_back(7);
     dummy_profile_.layer_subsets[1].push_back(8);
-    dummy_profile_.layer_subsets[1].push_back(9);
-    dummy_profile_.layer_subsets[1].push_back(10);
-    dummy_profile_.layer_subsets[1].push_back(11);
+    // dummy_profile_.layer_subsets[1].push_back(9);
+    // dummy_profile_.layer_subsets[1].push_back(10);
+    // dummy_profile_.layer_subsets[1].push_back(11);
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
       for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
@@ -563,7 +563,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       std::cout << "making new subgraph" << "\n";
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
       subgraphs_created.push_back(new_subgraph);
-      if(!prev_queue.empty()){ // and make linked-list structure
+      if(!prev_queue.empty()){ // make linked-list structure
         prev_queue.front()->SetNextSubgraph(new_subgraph);
         new_subgraph->SetPrevSubgraph(prev_queue.front());
         prev_queue.pop();

@@ -251,14 +251,12 @@ TfLiteStatus Interpreter::AllocateTensors() {
 TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
   LockJobs();
   for(auto job : job_vector){
-    if(job->job_id == model_id)
+    if(job->model_id == model_id)
       job->state = JobState::READY;
   }
   UnlockJobs();
   return kTfLiteOk;
 }
-
-
 
 // Minsung
 // First, allocate first subgraph of subgraph subset(which made from same model id).
@@ -782,7 +780,9 @@ TfLiteStatus Interpreter::GiveJob(){
   LockJobs();
   while(!jobs->empty() && !workers.empty()){
     std::cout << "Interperter : give job" << "\n";
+    std::cout << "Interpreter : job queue has " << jobs->size() << "jobs\n";
     Job* job = jobs->front();
+    std::cout << "Interpreter : job state : " << job->state << "\n";
     if(job->state == JobState::DONE){
       jobs->pop();
       continue;

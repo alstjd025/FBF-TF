@@ -188,6 +188,10 @@ class Subgraph {
   void SetOriginalSubgraph() { is_original = true; }
   bool IsOriginalSubgraph() { return is_original; }
 
+  // Minsung
+  // Access to an input tensor (for multiple subgraphs and GPUdelegate)
+  int GetInputTensorIndex() { return inputs()[inputs().size()-1]; }
+
   // Read only access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }
 
