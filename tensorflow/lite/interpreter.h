@@ -321,6 +321,10 @@ class Interpreter {
     return tensor(inputs()[index]);
   }
 
+  // Minsung
+  // returns a pointer to initial input tensor of given model's subgraphs.
+  TfLiteTensor* input_tensor_of_model(int model_id);
+
   /// Return a mutable pointer into the data of a given input tensor. The given
   /// index must be between 0 and inputs().size().
   template <class T>

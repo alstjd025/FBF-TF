@@ -89,6 +89,7 @@ class InterpreterBuilder {
                           int num_threads);
 
   int GetModelid() { return model_id_; }
+  const std::string GetModelName() { return model_name_; }
 
   // Minsung
   // Creates a subgraph.

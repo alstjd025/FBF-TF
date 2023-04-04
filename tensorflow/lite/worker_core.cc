@@ -68,6 +68,7 @@ void Worker::Work(){
     worker_cv.wait(lock, [&] { return state == WorkerState::WORKING; });
     std::cout << "Worker [" << worker_id << "] woke up" << "\n";
     for(int i=0; i<jobs.size(); ++i){
+      std::this_thread::sleep_for(std::chrono::seconds(5));
       Subgraph* working_graph; 
       if(jobs[i]->resource_type == type){
         int graphs_to_invoke = jobs[i]->subgraphs.size();
@@ -75,7 +76,7 @@ void Worker::Work(){
           std::cout << "working graph id : " << jobs[i]->subgraphs[j].first << "\n";
           working_graph = interpreter_->subgraph_id(jobs[i]->subgraphs[j].first);
           // check if intermediate tensor copy needed here
-          //
+          CopyIntermediateDataIfNeeded(working_graph);
           ////
           if(working_graph->Invoke() != kTfLiteOk){
             std::cout << "Invoke returned Error" << "\n";

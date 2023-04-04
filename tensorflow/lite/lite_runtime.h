@@ -8,6 +8,7 @@
 #include <utility>
 #include <queue>
 #include "condition_variable"
+#include "opencv2/opencv.hpp"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
@@ -39,6 +40,8 @@ class TfLiteRuntime{
     TfLiteStatus AddModelToRuntime(const char* new_model);
 
     TfLiteStatus DebugInvoke();
+
+    void FeedInputToModel(const char* model, std::vector<cv::Mat>& input);
 
     void WakeScheduler();
 

@@ -1,6 +1,43 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
 
+void PrintTensor(TfLiteTensor& tensor){
+  std::cout << "[Print Tensor]" << "\n";
+  int tensor_data_dims_size = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< tensor.dims->size; i++){
+    if(i == 1){
+      tensor_axis = tensor.dims->data[i];
+    }
+    tensor_data_size *= tensor.dims->data[i]; 
+  }
+  std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Tensor DATA " << "\n";
+  if(tensor.type == TfLiteType::kTfLiteFloat32){
+    std::cout << "[FLOAT32 TENSOR]" << "\n";
+    auto data_st = (float*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        float data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%0.6f ", data);
+        }
+        else if (data != 0) {
+          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+      std::cout << "\n";
+    }
+  }
+}
+
+
 namespace tflite{
 
 TfLiteRuntime::TfLiteRuntime(){
@@ -71,10 +108,29 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   return kTfLiteOk;
 };
 
+void TfLiteRuntime::FeedInputToModel(const char* model,
+                                    std::vector<cv::Mat>& input){
+  TfLiteTensor* input_tensor = nullptr;
+  for(auto builder : builder_and_id){
+    if(builder.second->GetModelName() == std::string(model)){
+      input_tensor = interpreter->input_tensor_of_model(builder.first);
+    }
+  }
+  if(input_tensor == nullptr){
+    std::cout << "TfLiteRuntime : cannont get pointer to input tensor, model["
+              << model << "]" << "\n";
+    return;
+  }
+  auto *input_pointer = (float*)input_tensor->data.raw;
+  memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+  PrintTensor(*input_tensor);
+  interpreter->JoinScheduler();
+} 
+
 void TfLiteRuntime::WakeScheduler(){
   interpreter->WakeScheduler();
-  std::this_thread::sleep_for(std::chrono::seconds(3));
-  interpreter->JoinScheduler();
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  
 }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke(){
@@ -83,5 +139,7 @@ TfLiteStatus TfLiteRuntime::DebugInvoke(){
   }
   return kTfLiteOk;
 };
+
+
 
 }

@@ -682,6 +682,16 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
   }
 }
 
+TfLiteTensor* Interpreter::input_tensor_of_model(int model_id){
+  for(auto subgraph_subset : subgraph_subsets){
+    if(subgraph_subset.first == model_id){
+      Subgraph* graph = subgraph_id(subgraph_subset.second.at(0));
+      int input_tensor_idx = graph->GetInputTensorIndex();
+      return graph->tensor(input_tensor_idx);
+    }
+  }
+}
+
 TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
   LockJobs();
   jobs->push(new_job);
