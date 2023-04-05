@@ -818,6 +818,7 @@ class Subgraph {
   // Minsung
   // Flag for profiling
   bool is_profiled = false;
+  
   bool is_original = false;
   ProfileData profile_data;
 

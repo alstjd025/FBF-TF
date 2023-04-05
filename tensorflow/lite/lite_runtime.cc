@@ -112,7 +112,9 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
                                     std::vector<cv::Mat>& input){
   TfLiteTensor* input_tensor = nullptr;
   for(auto builder : builder_and_id){
-    if(builder.second->GetModelName() == std::string(model)){
+    if(!strcmp(builder.second->GetModelName().c_str(), model)){
+      std::cout << builder.second->GetModelName() << "\n";
+      std::cout << "look for input tensor model " << std::string(model) << "\n";
       input_tensor = interpreter->input_tensor_of_model(builder.first);
     }
   }
@@ -121,8 +123,13 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
               << model << "]" << "\n";
     return;
   }
-  auto *input_pointer = (float*)input_tensor->data.raw;
-  memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+  auto input_pointer = (float*)input_tensor->data.data;
+  // Works on MNIST currently.
+  for (int i=0; i<28; i++){
+      for (int j=0; j<28; j++){
+          input_pointer[i*28 + j] = ((float)input[0].at<uchar>(i, j)/255.0);          
+      }
+  } 
   PrintTensor(*input_tensor);
   interpreter->JoinScheduler();
 } 

@@ -685,8 +685,16 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
 TfLiteTensor* Interpreter::input_tensor_of_model(int model_id){
   for(auto subgraph_subset : subgraph_subsets){
     if(subgraph_subset.first == model_id){
+      std::cout << "found a input subgraph of model : " << model_id << "\n";
+      std::cout << "subgraph subset:" << subgraph_subset.second.size() << "\n";
+      for(size_t i=0; i<subgraph_subset.second.size(); ++i){
+        std::cout << subgraph_subset.second[i];
+      }
+      std::cout << "\n";
       Subgraph* graph = subgraph_id(subgraph_subset.second.at(0));
+      std::cout << "input tensor vector" << graph->inputs().size() << "\n";
       int input_tensor_idx = graph->GetInputTensorIndex();
+      std::cout << "input tensot idx : " << input_tensor_idx << "\n";
       return graph->tensor(input_tensor_idx);
     }
   }
