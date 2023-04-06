@@ -176,6 +176,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     std::cout << "# Base interpreter has been created #" << "\n";
     std::cout << "#####################################" << "\n";
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
+    //Work_Hoon : start  point
     TfLiteDelegate *MyDelegate = NULL;
     const TfLiteGpuDelegateOptionsV2 options = {
         .is_precision_loss_allowed = 0, 
@@ -188,6 +189,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         .experimental_flags = 1,
         .max_delegated_partitions = 1, //1
     };
+    
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
     #ifdef MULTITHREAD
     
