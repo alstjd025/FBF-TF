@@ -42,7 +42,7 @@ void LiteScheduler::Join(){
 
 void LiteScheduler::NeedReschedule(){
   std::cout << "need reschedule" << "\n";
-  std::unique_lock<std::mutex> lock(scheduler_lock);
+  //std::unique_lock<std::mutex> lock(scheduler_lock);
   need_reschedule = true;
 }
 
@@ -80,6 +80,7 @@ void LiteScheduler::SchedulerSpin(){
       // schedule jobs to workers and wake all
       PrintInterpreterStateV2(interpreter_);
       Profile();
+      FlushAndEnqueueJobs();
       PrintInterpreterStateV2(interpreter_);
 
       std::cout << "Scheduler: Creates worker" << "\n";
@@ -113,10 +114,28 @@ void LiteScheduler::Profile(){
       }
       if(builder->CreateSubgraphsFromProfiling(original_graph_profiled)
           != kTfLiteOk){
-            std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+        std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+      }
+    }
+    else if(builder->GetModelid() == 1){
+      Subgraph* original_graph_profiled = 
+            interpreter_->returnProfiledOriginalSubgraph(1);
+      if(original_graph_profiled == nullptr){
+        std::cout << "Model id " << builder->GetModelid() << " no subgraph. \n"; 
+        continue;
+      }
+      if(builder->CreateSubgraphsFromProfiling(original_graph_profiled)
+          != kTfLiteOk){
+        std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
       }
     }
   }
+}
+
+void LiteScheduler::FlushAndEnqueueJobs(){
+  std::cout << "FlushAndEnqueueJobs" << "\n";
+  interpreter_->FlushJobs();
+  interpreter_->EnqueueJobs();
 }
 
 TfLiteStatus LiteScheduler::RebuildSubgraphsAndJobs(){

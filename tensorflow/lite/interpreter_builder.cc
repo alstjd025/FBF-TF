@@ -511,18 +511,29 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     /////////////////////////////////////////////
     /// Refactored code for dividing subgraph ///
     /////////////////////////////////////////////
-
-    dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    dummy_profile_.layer_subsets[0].push_back(0);
-    dummy_profile_.layer_subsets[0].push_back(1);
-    dummy_profile_.layer_subsets[0].push_back(2);
-    dummy_profile_.layer_subsets[0].push_back(3);
-    dummy_profile_.layer_subsets[0].push_back(4);
-    dummy_profile_.layer_subsets[1].push_back(5);
-    dummy_profile_.layer_subsets[1].push_back(6);
-    dummy_profile_.layer_subsets[1].push_back(7);
-    dummy_profile_.layer_subsets[1].push_back(8);
+    if(model_id_ == 0){ // mnist case
+      dummy_profile_.layer_subsets.push_back(std::vector<int>());
+      dummy_profile_.layer_subsets.push_back(std::vector<int>());
+      dummy_profile_.layer_subsets[0].push_back(0);
+      dummy_profile_.layer_subsets[0].push_back(1);
+      dummy_profile_.layer_subsets[0].push_back(2);
+      dummy_profile_.layer_subsets[0].push_back(3);
+      dummy_profile_.layer_subsets[0].push_back(4);
+      dummy_profile_.layer_subsets[1].push_back(5);
+      dummy_profile_.layer_subsets[1].push_back(6);
+      dummy_profile_.layer_subsets[1].push_back(7);
+      dummy_profile_.layer_subsets[1].push_back(8);
+    }
+    else if(model_id_ == 1){ // mobilenet case
+      dummy_profile_.layer_subsets.push_back(std::vector<int>());
+      dummy_profile_.layer_subsets.push_back(std::vector<int>());
+      for(size_t i=0; i<68; ++i){
+        dummy_profile_.layer_subsets[0].push_back(i);
+      }
+      for(size_t i=68; i<124; ++i){
+        dummy_profile_.layer_subsets[1].push_back(i);
+      }
+    }
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
       for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
@@ -624,11 +635,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       std::cout << "BindSubgraphWithJob ERROR" << "\n";
       return kTfLiteError;
     }
+    std::cout << "BindSubgraphWithJob" << "\n";
     if(RegisterJobAndSubgraphs(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
       return kTfLiteError;
     }
+    std::cout << "RegisterJobAndSubgraphs" << "\n";
     // Fill shared tensor bucket  
     for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
       for(size_t j=0; j<subgraph_and_tensors[graph_idx].second.size(); ++j){
@@ -665,10 +678,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
   }
+  std::cout << "allocated tensors" << "\n";
   if(interpreter_->ReadyJobsofGivenModel(model_id_) != kTfLiteOk){
     std::cout << "ReadyJobsofGivenModel ERROR" << "\n";
     return kTfLiteError;
   }
+  std::cout << "ReadyJobsofGivenModel" << "\n";
   if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
       != kTfLiteOk){
     std::cout << "DeleteSubgraph ERROR" << "\n";

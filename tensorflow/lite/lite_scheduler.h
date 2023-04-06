@@ -29,6 +29,7 @@ class LiteScheduler
     LiteScheduler(Interpreter* interpreter);
     ~LiteScheduler();
 
+    void FlushAndEnqueueJobs();
     void Profile();
     TfLiteStatus RebuildSubgraphsAndJobs();
     void SchedulerSpin(); 

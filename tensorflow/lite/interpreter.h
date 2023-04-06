@@ -752,6 +752,9 @@ class Interpreter {
   bool IsJobQueueEmpty();
   bool IsJobVectorEmpty();
 
+  void FlushJobs();
+  void EnqueueJobs();
+
   int GetJobNum();
 
   Job* GetJob();

@@ -98,7 +98,7 @@ class Worker
 
     std::vector<tflite::Job*> jobs;
 
-    // interpre†er
+    // interpreter
     // CAREFULLY USE
     // NEEDS BETTER IMPLEMENTATION
     Interpreter* interpreter_;

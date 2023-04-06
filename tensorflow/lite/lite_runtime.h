@@ -53,6 +53,7 @@ class TfLiteRuntime{
                           INPUT_TYPE input_type);
 
     void WakeScheduler();
+    void JoinScheduler();
 
   private:
     std::shared_ptr<tflite::Interpreter> interpreter;

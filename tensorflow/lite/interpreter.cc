@@ -773,14 +773,8 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
         break;
     }
   }
-  // Flush job queue and push jobs .
-  while(!jobs->empty()){
-    jobs->pop();
-  }
-
-  // scheduler must reschedule and fill the job queue.
-  scheduler_->NeedReschedule();
   UnlockJobs();
+  FlushJobs();
   return kTfLiteOk;
 }
 
@@ -793,6 +787,30 @@ TfLiteStatus Interpreter::DeleteJob(int job_id){
     }
   }
   UnlockJobs();
+}
+
+void Interpreter::FlushJobs(){
+  LockJobs();
+  // Flush job queue and push jobs .
+  while(!jobs->empty()){
+    jobs->pop();
+  }
+  // scheduler must reschedule and fill the job queue.
+  scheduler_->NeedReschedule();
+  UnlockJobs();
+}
+
+void Interpreter::EnqueueJobs(){
+  LockJobs();
+  if(!jobs->empty() || job_vector.empty()){
+    UnlockJobs();
+    std::cout << "Job queue or vector ERROR" << "\n";
+    return;
+  }
+  for(size_t i=0; i<job_vector.size(); ++i){
+    if(job_vector[i]->state == JobState::READY)
+      jobs->push(job_vector[i]);
+  }
 }
 
 TfLiteStatus Interpreter::GiveJob(){

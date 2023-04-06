@@ -161,12 +161,16 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
     break;
   }
   //PrintTensor(*input_tensor);
-  interpreter->JoinScheduler();
+  
 } 
 
 void TfLiteRuntime::WakeScheduler(){
   interpreter->WakeScheduler();
   std::this_thread::sleep_for(std::chrono::seconds(1));
+}
+
+void TfLiteRuntime::JoinScheduler(){
+  interpreter->JoinScheduler();
 }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke(){
