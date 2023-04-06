@@ -870,7 +870,7 @@ class Interpreter {
   // Minsung
   // Delegate
   TfLiteDelegate* delegate_provided_ = nullptr;
-
+  int test_value = 0;
   // Minsung
   // Subgraphs
   int subgraphs_created = 0;

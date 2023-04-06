@@ -97,8 +97,7 @@ class InterpreterBuilder {
   // move it to the given interpreter.
   // and wrap it with default job class
   // (parse nodes, tensors and allocatetensors)
-  TfLiteStatus CreateSubgraphFromFlatBuffer(
-                                std::shared_ptr<tflite::Interpreter> interpreter);
+  TfLiteStatus CreateSubgraphFromFlatBuffer();
 
   // Minsung
   // Creates subset of subgraphs
@@ -118,17 +117,11 @@ class InterpreterBuilder {
                                 std::shared_ptr<tflite::Interpreter> interpreter);
 
   TfLiteStatus RegisterJobAndSubgraphDefault(tflite::Subgraph* new_subgraph,
-                                      tflite::Job* new_job,
-                                std::shared_ptr<tflite::Interpreter> interpreter);
+                                      tflite::Job* new_job);
   
   
   TfLiteStatus RegisterJobAndSubgraphs(std::vector<tflite::Subgraph*> new_subgraphs,
-                                      tflite::Job* new_job,
-                                std::shared_ptr<tflite::Interpreter> interpreter);
-  
-  // Delete               
-  TfLiteStatus DeleteSubgraphAndJob(tflite::Subgraph* del_subgraph,
-                                std::shared_ptr<tflite::Interpreter> interpreter);
+                                      tflite::Job* new_job);
   
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();

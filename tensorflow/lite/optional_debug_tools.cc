@@ -145,8 +145,9 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
     int subgraph_id = interpreter->subgraph(subgraph_index)->GetGraphid();
     int tensor_size = interpreter->subgraph_id(subgraph_id)->tensors_size();
     int node_size = interpreter->nodes_size(subgraph_id);
-    printf("Subgraph %d has %d tensors and %d nodes\n", subgraph_id,
+    printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
         tensor_size, node_size);
+    printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
     
     for (size_t node_index = 0; node_index < node_size;
         node_index++) {

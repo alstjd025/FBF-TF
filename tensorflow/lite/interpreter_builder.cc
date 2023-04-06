@@ -336,8 +336,7 @@ class MallocDataAllocator : public BuiltinDataAllocator {
 }  // namespace
 
 
-TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
-                      std::shared_ptr<tflite::Interpreter> interpreter){
+TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   // Creates an acient subgraph from a raw flatbuffer model.
   // This function follows the instructions below.
   // 1. Get a raw subgraph from flatbuffer model.
@@ -347,7 +346,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   // 5. Make subgraph with a new Job(default) struct.
   // 6. Store the Job and subgraph to given interpreter.
 
-  if(!interpreter){
+  if(!interpreter_){
     std::cout << "No interpreter ERROR" << "\n";
     return kTfLiteError;
   }
@@ -383,7 +382,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   }
 
   const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
-  tflite::Subgraph* modified_subgraph = interpreter->CreateSubgraph();
+  tflite::Subgraph* modified_subgraph = interpreter_->CreateSubgraph();
 
   auto operators = subgraph->operators();
   auto tensors = subgraph->tensors();
@@ -424,13 +423,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   // Minsung
   // Needs check if neccesary
   if (num_fp32_tensors_ > 0) {
-    (*interpreter).lazy_delegate_providers_ =
+    (*interpreter_).lazy_delegate_providers_ =
         op_resolver_.GetDelegates(default_thread);
   }
 
   // Minsung
   // Needs check if neccesary
-  if (ApplyDelegates(interpreter.get(), default_thread) != kTfLiteOk)
+  if (ApplyDelegates(interpreter_.get(), default_thread) != kTfLiteOk)
     return kTfLiteError;
 
   // Minsung
@@ -443,7 +442,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   // Minsung
   // Create a new job from subgraph.
   Job* new_job = new Job;
-  if(BindSubgraphWithDefaultJob(modified_subgraph, new_job, interpreter)
+  if(BindSubgraphWithDefaultJob(modified_subgraph, new_job, interpreter_)
       != kTfLiteOk){
     std::cout << "BindSubgraphWithDefaultJob ERROR" << "\n";
     return kTfLiteError; 
@@ -451,7 +450,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(
   std::cout << "Interpreterbuilder : Created subgraph with default job" << "\n";
   // Minsung
   // Store the job and subgraph to interpreter.
-  if(RegisterJobAndSubgraphDefault(modified_subgraph, new_job, interpreter)
+  if(RegisterJobAndSubgraphDefault(modified_subgraph, new_job)
       != kTfLiteOk){
     std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
     return kTfLiteError;
@@ -647,7 +646,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       std::cout << "BindSubgraphWithJob ERROR" << "\n";
       return kTfLiteError;
     }
-    if(RegisterJobAndSubgraphs(subgraphs_created, new_job, interpreter_) !=
+    if(RegisterJobAndSubgraphs(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
       return kTfLiteError;
@@ -756,8 +755,7 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithJob(
 // This function binds a subset of subgraphs and a job to interpreter
 TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphDefault(
                     tflite::Subgraph* new_subgraph,
-                    tflite::Job* new_job,
-                    std::shared_ptr<tflite::Interpreter> interpreter){
+                    tflite::Job* new_job){
   if(new_job->job_id != new_subgraph->GetJobid()){
     std::cout << "Job ID MISSMATCH" << "\n";
     return kTfLiteError;
@@ -770,15 +768,15 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphDefault(
     std::cout << "Graph ID MISSMATCH" << "\n";
     return kTfLiteError;
   }
-  if(interpreter->AddNewJob(new_job) != kTfLiteOk){
+  if(interpreter_->AddNewJob(new_job) != kTfLiteOk){
     std::cout << "AddNewJob Error" << "\n";
     return kTfLiteError;
   }
-  if(interpreter->AddNewSubgraph(new_subgraph) != kTfLiteOk){
+  if(interpreter_->AddNewSubgraph(new_subgraph) != kTfLiteOk){
     std::cout << "AddNewSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
-  if(interpreter->RegisterSubgraphSubsets(new_subgraph) != kTfLiteOk){
+  if(interpreter_->RegisterSubgraphSubsets(new_subgraph) != kTfLiteOk){
     std::cout << "Registersubgraph ERROR" << "\n";
     return kTfLiteError;
   }
@@ -791,10 +789,9 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphDefault(
 
 TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphs(
                         std::vector<tflite::Subgraph*> new_subgraphs,
-                        tflite::Job* new_job,
-                        std::shared_ptr<tflite::Interpreter> interpreter){
+                        tflite::Job* new_job){
   int idx = 0;
-  if(interpreter->AddNewJob(new_job) != kTfLiteOk){
+  if(interpreter_->AddNewJob(new_job) != kTfLiteOk){
     std::cout << "AddNewJob Error" << "\n";
     return kTfLiteError;
   }
@@ -811,11 +808,11 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphs(
       std::cout << "Graph ID MISSMATCH" << "\n";
       return kTfLiteError;
     }
-    if(interpreter->AddNewSubgraph(new_subgraph) != kTfLiteOk){
+    if(interpreter_->AddNewSubgraph(new_subgraph) != kTfLiteOk){
       std::cout << "AddNewSubgraph ERROR" << "\n";
       return kTfLiteError;
     }
-    if(interpreter->RegisterSubgraphSubsets(new_subgraph) != kTfLiteOk){
+    if(interpreter_->RegisterSubgraphSubsets(new_subgraph) != kTfLiteOk){
       std::cout << "Registersubgraph ERROR" << "\n";
       return kTfLiteError;
     }

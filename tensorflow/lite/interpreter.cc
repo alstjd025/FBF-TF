@@ -724,23 +724,24 @@ TfLiteStatus Interpreter::RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph
     subgraph_subsets.push_back(new_subset);
     UnlockJobs();
     return kTfLiteOk;
-  }
-  for(auto subset : subgraph_subsets){
+  }   
+  for(size_t j=0; j < subgraph_subsets.size(); ++j){
     bool register_needed = false;
-    if(subset.first == new_subgraph->GetModelid()){ // if a same model id exists.
-      for(size_t i=0; i<subset.second.size(); ++i){
-        if(subset.second[i] == new_subgraph->GetGraphid()){
+    if(subgraph_subsets[j].first == new_subgraph->GetModelid()){ // if a same model id exists.
+      for(size_t i=0; i<subgraph_subsets[j].second.size(); ++i){
+        if(subgraph_subsets[j].second[i] == new_subgraph->GetGraphid()){
           break; // subgraph already registered.
         }
-        if(i == subset.second.size()-1) // subgraph not registered.
+        if(i == subgraph_subsets[j].second.size()-1){ // subgraph not registered.
           register_needed = true;
+        }
       }
       if(register_needed){
-        subset.second.push_back(new_subgraph->GetGraphid());
+        subgraph_subsets[j].second.push_back(new_subgraph->GetGraphid());
         UnlockJobs();
         return kTfLiteOk;
       }
-    }
+    }   
   }
   // if there is no same model id in subsets, register new one. 
   std::pair<int, std::vector<int>> new_subset;
@@ -766,7 +767,10 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
   for(auto subset : subgraph_subsets){
     for(size_t i=0; i<subset.second.size(); ++i){
       if(subset.second[i] == subgraph_id){
+        std::cout << "Erased subgraph " << subgraph_id << " from subset" << "\n";
+        std::cout << "Current subgraph subset number : " << subset.second.size() << "\n";
         subset.second.erase(subset.second.begin()+i);
+        std::cout << "Current subgraph subset number : " << subset.second.size() << "\n";
         break;
       }
     }

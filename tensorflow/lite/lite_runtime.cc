@@ -97,7 +97,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   builder_and_id.insert({model_number, new_builder});
   
   // Now creates an invokable origin subgraph from new model.
-  if(new_builder->CreateSubgraphFromFlatBuffer(interpreter) != kTfLiteOk){
+  if(new_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk){
     std::cout << "CreateSubgraphFromFlatBuffer returned Error" << "\n";
     exit(-1);
   }
