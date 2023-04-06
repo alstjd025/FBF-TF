@@ -692,6 +692,7 @@ TfLiteTensor* Interpreter::input_tensor_of_model(int model_id){
       }
       std::cout << "\n";
       Subgraph* graph = subgraph_id(subgraph_subset.second.at(0));
+      std::cout << "blabla" << "\n";
       std::cout << "input tensor vector" << graph->inputs().size() << "\n";
       int input_tensor_idx = graph->GetInputTensorIndex();
       std::cout << "input tensot idx : " << input_tensor_idx << "\n";
@@ -764,22 +765,19 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
       subgraphs_shared.erase(subgraphs_shared.begin()+i);
     }
   }
-  for(auto subset : subgraph_subsets){
-    for(size_t i=0; i<subset.second.size(); ++i){
-      if(subset.second[i] == subgraph_id){
-        std::cout << "Erased subgraph " << subgraph_id << " from subset" << "\n";
-        std::cout << "Current subgraph subset number : " << subset.second.size() << "\n";
-        subset.second.erase(subset.second.begin()+i);
-        std::cout << "Current subgraph subset number : " << subset.second.size() << "\n";
+  for(size_t i=0; i<subgraph_subsets.size(); ++i){
+    for(size_t j=0; j<subgraph_subsets[i].second.size(); ++j){
+      if(subgraph_subsets[i].second[i] == subgraph_id){
+        subgraph_subsets[i].second.erase(subgraph_subsets[i].second.begin()+i);
         break;
       }
     }
   }
-  for(auto job_ : job_vector){
-    for(size_t i=0; i<job_->subgraphs.size(); ++i){
-      if(job_->subgraphs[i].first == subgraph_id ||
-        job_->subgraphs[i].second == subgraph_id)
-          job_->subgraphs.erase(job_->subgraphs.begin()+i);
+  for(size_t i=0; i<job_vector.size(); ++i){
+    for(size_t j=0; j<job_vector[i]->subgraphs.size(); ++i){
+      if(job_vector[i]->subgraphs[i].first == subgraph_id ||
+        job_vector[i]->subgraphs[i].second == subgraph_id)
+        job_vector[i]->subgraphs.erase(job_vector[i]->subgraphs.begin()+i);
         break;
     }
   }
@@ -789,10 +787,10 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
 
 TfLiteStatus Interpreter::DeleteJob(int job_id){
   LockJobs();
-  for(auto worker : workers){
-    if(worker->have_job && worker->returnState() == WorkerState::WORKING){
-      worker->ChangeStateTo(WorkerState::BLOCKED);
-      worker->DeleteJob(job_id);
+  for(size_t i=0; i<workers.size(); ++i){
+    if(workers[i]->have_job && workers[i]->returnState() == WorkerState::WORKING){
+      workers[i]->ChangeStateTo(WorkerState::BLOCKED);
+      workers[i]->DeleteJob(job_id);
     }
   }
   UnlockJobs();
