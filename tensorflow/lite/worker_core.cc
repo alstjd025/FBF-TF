@@ -30,10 +30,8 @@ namespace tflite{
 
 //legacy
   void Worker::ChangeStateTo(WorkerState new_state){
-    std::cout << " changed worker state1 " << "\n";
     std::unique_lock<std::mutex> lock(worker_lock);
     state = new_state;
-    std::cout << " changed worker state 2" << "\n";
   }
 
   void Worker::DeleteJob(int job_id){
@@ -47,12 +45,9 @@ namespace tflite{
 //legacy
   void Worker::GiveJob(tflite::Job* new_job){
     std::unique_lock<std::mutex> lock(worker_lock);
-    std::cout << "got job1" << "\n";
     if(!have_job)
       have_job = true;
-    std::cout << "got job2" << "\n";
     jobs.push_back(new_job);
-    std::cout << "got job3" << "\n";
   }
 
 //legacy

@@ -342,8 +342,6 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id
   if(subgraph_id(input_subgraph_id)->GetNodeAndRegistration(
         first_execution_plan, &node, &registration) != kTfLiteOk)
     return kTfLiteError;
-  *begin = node->outputs->data[0];
-  std::cout << "begin : " << *begin << "\n";
   // Get last node's input tensor index from final subgraph.
   // Because the node's intput & output tensor(which are intermediate tensors)
   // idices are in ascending order, we can get intermediate tensors range.
@@ -685,17 +683,11 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
 TfLiteTensor* Interpreter::input_tensor_of_model(int model_id){
   for(auto subgraph_subset : subgraph_subsets){
     if(subgraph_subset.first == model_id){
-      std::cout << "found a input subgraph of model : " << model_id << "\n";
-      std::cout << "subgraph subset:" << subgraph_subset.second.size() << "\n";
       for(size_t i=0; i<subgraph_subset.second.size(); ++i){
         std::cout << subgraph_subset.second[i];
       }
-      std::cout << "\n";
       Subgraph* graph = subgraph_id(subgraph_subset.second.at(0));
-      std::cout << "blabla" << "\n";
-      std::cout << "input tensor vector" << graph->inputs().size() << "\n";
       int input_tensor_idx = graph->GetInputTensorIndex();
-      std::cout << "input tensot idx : " << input_tensor_idx << "\n";
       return graph->tensor(input_tensor_idx);
     }
   }

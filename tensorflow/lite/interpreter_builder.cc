@@ -559,7 +559,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
                                                 ++partition_itr){
       /// Make a new subgraph
-      std::cout << "making new subgraph" << "\n";
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // make linked-list structure
@@ -571,7 +570,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
       for(int j=0; j < num_nodes_in_partition; ++j){
-        std::cout << "j and node " << j << " " << num_nodes_in_partition << "\n";
         int working_op = nodes_in_partition[j];
         const auto* op = operators->Get(working_op);
         int op_index = op->opcode_index();
@@ -584,33 +582,17 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         if(j == 0){
           input_tensor = new std::vector<int>;
           input_tensor->push_back(FlatBufferIntArrayToVector(op->inputs())[0]);
-          std::cout << "Cur Subgraph input tensor : ";
-          for(int j=0; j<input_tensor->size(); ++j){
-            std::cout << input_tensor->at(j) << " ";
-          }     
-          std::cout << "\n";
           new_subgraph->SetActualInput(*input_tensor); // set 'actual' input tensors
         }  /// output tensor should be last node's output tensor in partitioning plan
         if(j == num_nodes_in_partition - 1){
           output_tensor = new std::vector<int>;
           output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
-          std::cout << "Cur Subgraph output tensor : ";
-          for(int j=0; j<output_tensor->size(); ++j){
-            std::cout << output_tensor->at(j) << " ";
-          }
-          std::cout << "\n";
           new_subgraph->SetActualOutput(*output_tensor); // set 'actual' output tensors
-          std::cout << "Add tensors to this graph : " << tensors->size() << "\n";
           if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
             return kTfLiteError;
           }
           std::pair<int, std::vector<int>> graph_and_tensors(partition_itr, *tensors_);
           subgraph_and_tensors.push_back(graph_and_tensors);
-          std::cout << "Cur Subgraph tensors : ";
-          for(int m=0; m<tensors_->size(); ++m){
-            std::cout << tensors_->at(m) << " ";
-          }
-          std::cout << "\n";
           new_subgraph->SetInputs(  // set 'all' input tensors
                       std::vector<int>(input_tensor->begin(), input_tensor->end()));
           new_subgraph->SetOutputs(  // set 'all' output tensors
@@ -653,14 +635,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     }
     // Fill shared tensor bucket  
     for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
-      std::cout << "subgraph [" << graph_idx << "] tensors" << "\n";
       for(size_t j=0; j<subgraph_and_tensors[graph_idx].second.size(); ++j){
         int tensor = subgraph_and_tensors[graph_idx].second[j];
         if(shared_tensor_bucket[tensor][graph_idx] != 1)
           shared_tensor_bucket[tensor][graph_idx] = 1; // Tensor shared flag
-        std::cout << tensor << " ";
       }
-      std::cout << "\n";
     }
     // Save shared intermediate tensor info to interpreter's graph_and_shared_tensor.
     // Will used when AllocateTensorsofAllSubgraphs called.
@@ -669,7 +648,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       std::vector<int> sharing_subgraph_id;
       for(size_t g=0; g<subgraph_and_tensors.size(); ++g){
         if(shared_tensor_bucket[t][g]){
-          std::cout << "graph id : " << subgraphs_created[g]->GetGraphid() << " push" << "\n";
           sharing_subgraph_id.push_back(subgraphs_created[g]->GetGraphid());
         }
       }
@@ -903,7 +881,6 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
   //if(op_st == op_end) // If a Layer has single node
   op_end++;
   for (int i = op_st; i < op_end; ++i) {
-    std::cout << "Parse Node op idx : " << i << " \n";
     const auto* op = operators->Get(i);
     int index = op->opcode_index();
     if (index < 0 || index >= flatbuffer_op_index_to_registration_.size()) {
@@ -953,20 +930,6 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
           FlatBufferIntArrayToVector(op->outputs()),
           FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
           builtin_data, registration);
-      std::cout << "Nodes Modifying" << "\n inputs: ";
-      for(int j=0; j<FlatBufferIntArrayToVector(op->inputs()).size(); ++j){
-        std::cout << FlatBufferIntArrayToVector(op->inputs())[j] << " ";
-      }
-      std::cout << "\n outputs: ";
-      for(int j=0; j<FlatBufferIntArrayToVector(op->outputs()).size(); ++j){
-        std::cout << FlatBufferIntArrayToVector(op->outputs())[j] << " ";
-      }
-      std::cout << "\n Intermediates: ";
-      for(int j=0; j<FlatBufferIntArrayToVector(op->intermediates()).size(); ++j){
-        std::cout << FlatBufferIntArrayToVector(op->intermediates())[j] << " ";
-      }
-      std::cout << "\n";
-      std::cout << "Nodes Modifyed" << "\n";
     }
   }
   return status;
@@ -980,7 +943,6 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
     const flatbuffers::Vector<flatbuffers::Offset<Tensor>>* tensors,
     Subgraph* subgraph, std::vector<int> tensor_idx) {
   TfLiteStatus status = kTfLiteOk;
-  std::cout << "ParseTensors" << "\n";
   // A little helper to get the names of inputs and outputs. Note that they
   // must outlive the subgraph.
   auto get_name = [](const tflite::Tensor* t) -> const char* {
@@ -1001,12 +963,6 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
     if (type == kTfLiteFloat32) {
       ++num_fp32_tensors_;
     }
-    std::cout << "Parse tensor : " << tensor_idx[i] << "\n"; 
-    std::cout << "shape : " ;
-    for(int j=0; j<tensor->shape()->size(); ++j){
-      std::cout << tensor->shape()->Get(j) << " ";
-    }
-    std::cout << "\n";
     auto get_readonly_data = [&](const char** buffer_data,
                                  size_t* buffer_size) {
       // TODO(aselle): Check what happens if we have an unspecified size
@@ -1050,7 +1006,6 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
 
     bool is_variable = tensor->is_variable();
     if (buffer_ptr) {
-      std::cout << "buffer_ptr" << "\n";
       if (is_variable) {
         error_reporter_->Report(
             "Tensor %d is a variable tensor with buffer. "
@@ -1075,7 +1030,6 @@ TfLiteStatus InterpreterBuilder::ParseTensors(
         status = kTfLiteError;
       }
     } else {
-      std::cout << "else" << "\n";
       if (subgraph->SetTensorParametersReadWrite(
               tensor_idx[i], type, get_name(tensor), dims, quantization, is_variable,
               dims_signature_rank, dims_signature_data) != kTfLiteOk) {
