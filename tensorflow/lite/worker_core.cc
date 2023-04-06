@@ -70,9 +70,10 @@ void Worker::Work(){
         for(int j=0; j<graphs_to_invoke; ++j){
           std::cout << "working graph id : " << jobs[i]->subgraphs[j].first << "\n";
           working_graph = interpreter_->subgraph_id(jobs[i]->subgraphs[j].first);
+  
           // check if intermediate tensor copy needed here
           CopyIntermediateDataIfNeeded(working_graph);
-          ////
+  
           if(working_graph->Invoke() != kTfLiteOk){
             std::cout << "Invoke returned Error" << "\n";
           }
@@ -116,22 +117,17 @@ void Worker::CopyIntermediateDataIfNeeded(Subgraph* subgraph){
     if(dest_tensor->data.raw == nullptr){
       std::cout << "dest data nullptr!" << "\n";
     }
-    // Save used(filled) output tensor for 
-    // TensorAndIndex* used_output = new TensorAndIndex;
-    // used_output->idx = source_tensor_idx;
-    // used_output->tensor = source_tensor;
-    // used_tensor_and_index.push_back(used_output);
     #ifdef latency_debug
       std::cout << "Tensor connection done" << "\n";
     #endif
     return kTfLiteOk;
   };
   Subgraph* prev_graph = subgraph->GetPrevSubgraph();
-  if(prev_graph != nullptr){
+  if(prev_graph != nullptr){ // Need to copy output from previous graph.
     int source_graph_id = prev_graph->GetGraphid();
     int dest_graph_id = subgraph->GetGraphid();
     if(connect(source_graph_id, dest_graph_id) != kTfLiteOk){
-      std::cout << "Tensor connection failed" << "\n";
+      std::cout << "Subgraph intermediate data copy failed" << "\n";
       return;
     }
   }else{ // if nulltpr returned

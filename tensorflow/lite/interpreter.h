@@ -749,7 +749,8 @@ class Interpreter {
   void UnlockJobs();
 
   // Returns true if job queue is empty
-  bool IsJobEmpty();
+  bool IsJobQueueEmpty();
+  bool IsJobVectorEmpty();
 
   int GetJobNum();
 

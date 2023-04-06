@@ -512,7 +512,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     /// Refactored code for dividing subgraph ///
     /////////////////////////////////////////////
 
-    //TODO: allocate, initialize jobs and subgraphs for scheduling
     dummy_profile_.layer_subsets.push_back(std::vector<int>());
     dummy_profile_.layer_subsets.push_back(std::vector<int>());
     dummy_profile_.layer_subsets[0].push_back(0);
@@ -524,9 +523,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     dummy_profile_.layer_subsets[1].push_back(6);
     dummy_profile_.layer_subsets[1].push_back(7);
     dummy_profile_.layer_subsets[1].push_back(8);
-    // dummy_profile_.layer_subsets[1].push_back(9);
-    // dummy_profile_.layer_subsets[1].push_back(10);
-    // dummy_profile_.layer_subsets[1].push_back(11);
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
       for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;

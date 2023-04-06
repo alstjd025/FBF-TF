@@ -68,9 +68,9 @@ void LiteScheduler::SchedulerSpin(){
     scheduler_cv_.wait(lock, [&] { return stop_scheduler; });    
     std::cout << "scheduler woke up" << "\n";
     if(need_reschedule){
-      if(interpreter_->IsJobEmpty()){
-        std::cout << "Scheduler : scheduler woke up but no jobs in interpreter"
-                  << ". Stops scheduler" <<"\n";
+      if(interpreter_->IsJobQueueEmpty() && !interpreter_->IsJobVectorEmpty()){
+        std::cout << "Scheduler : scheduler needs reschedule but job vector and queue"
+                  << " are not safe. Stops scheduler" <<"\n";
         stop_scheduler = false;
         continue;
       }  
@@ -84,7 +84,7 @@ void LiteScheduler::SchedulerSpin(){
 
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);
-      //interpreter_->CreateWorker(ResourceType::CPU, 2);
+      interpreter_->CreateWorker(ResourceType::CPU, 2);
       interpreter_->GiveJob();          
     }
     // schedule jobs with scheduling algorithm.
@@ -94,6 +94,12 @@ void LiteScheduler::SchedulerSpin(){
   };
 }
 
+
+// Profile logic must be revsied.
+// check if SLO(deadline, fps, whatever,,) violated
+// if violated -> recreate subgraphs
+// if not -> see if there's profiled subgraph but not partitioned into subgraphs.
+// recreate subgraph
 void LiteScheduler::Profile(){
   // Debugging code 
   std::cout << "Scheduler: Profile" << "\n";

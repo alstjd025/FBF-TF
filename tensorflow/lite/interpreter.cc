@@ -773,6 +773,13 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
         break;
     }
   }
+  // Flush job queue and push jobs .
+  while(!jobs->empty()){
+    jobs->pop();
+  }
+
+  // scheduler must reschedule and fill the job queue.
+  scheduler_->NeedReschedule();
   UnlockJobs();
   return kTfLiteOk;
 }
@@ -792,7 +799,7 @@ TfLiteStatus Interpreter::GiveJob(){
   LockJobs();
   while(!jobs->empty() && !workers.empty()){
     std::cout << "Interperter : give job" << "\n";
-    std::cout << "Interpreter : job queue has " << jobs->size() << "jobs\n";
+    std::cout << "Interpreter : job queue has " << jobs->size() << " jobs\n";
     Job* job = jobs->front();
     std::cout << "Interpreter : job state : " << job->state << "\n";
     if(job->state == JobState::DONE){
@@ -851,11 +858,18 @@ tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id){
   return nullptr; // no more profiled original subgraph
 }
 
-bool Interpreter::IsJobEmpty(){
-  std::cout << "isjobempty" << "\n";
+bool Interpreter::IsJobQueueEmpty(){
   bool flag;
   LockJobs();
   flag = jobs->empty();
+  UnlockJobs();
+  return flag;
+}
+
+bool Interpreter::IsJobVectorEmpty(){
+  bool flag;
+  LockJobs();
+  flag = job_vector.empty();
   UnlockJobs();
   return flag;
 }

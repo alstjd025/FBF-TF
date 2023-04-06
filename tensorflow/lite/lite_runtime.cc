@@ -103,13 +103,13 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   }
   scheduler->RegisterInterpreterBuilder(new_builder);
   // And schedule it for latency profiling
-  
 
   return kTfLiteOk;
 };
 
 void TfLiteRuntime::FeedInputToModel(const char* model,
-                                    std::vector<cv::Mat>& input){
+                                    std::vector<cv::Mat>& input,
+                                    INPUT_TYPE input_type){
   TfLiteTensor* input_tensor = nullptr;
   for(auto builder : builder_and_id){
     if(!strcmp(builder.second->GetModelName().c_str(), model)){
@@ -124,20 +124,49 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
     return;
   }
   auto input_pointer = (float*)input_tensor->data.data;
-  // Works on MNIST currently.
-  for (int i=0; i<28; i++){
-      for (int j=0; j<28; j++){
-          input_pointer[i*28 + j] = ((float)input[0].at<uchar>(i, j)/255.0);          
+  switch (input_type)
+  {
+  case INPUT_TYPE::MNIST :
+    for (int i=0; i<28; ++i){
+      for (int j=0; j<28; ++j){
+        input_pointer[i*28 + j] = ((float)input[0].at<uchar>(i, j)/255.0);          
       }
-  } 
-  PrintTensor(*input_tensor);
+    }   
+    break;
+  case INPUT_TYPE::IMAGENET224 :
+    for (int i=0; i < 224; ++i){
+      for(int j=0; j < 224; ++j){
+        input_pointer[i*224 + j*3] = \
+          ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
+        input_pointer[i*224 + j*3 + 1] = \
+          ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+        input_pointer[i*224 + j*3 + 2] = \
+          ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+      }
+    }
+    break;
+  case INPUT_TYPE::IMAGENET300 :
+    for (int i=0; i < 300; ++i){
+      for(int j=0; j < 300; ++j){
+        input_pointer[i*300 + j*3] = \
+          ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
+        input_pointer[i*300 + j*3 + 1] = \
+          ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+        input_pointer[i*300 + j*3 + 2] = \
+          ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+      }
+    }   
+    break;
+  default:
+    break;
+  }
+  //PrintTensor(*input_tensor);
   interpreter->JoinScheduler();
 } 
 
 void TfLiteRuntime::WakeScheduler(){
   interpreter->WakeScheduler();
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  
 }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke(){
