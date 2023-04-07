@@ -63,13 +63,14 @@ void Worker::Work(){
     worker_cv.wait(lock, [&] { return state == WorkerState::WORKING; });
     std::cout << "Worker [" << worker_id << "] woke up" << "\n";
     for(int i=0; i<jobs.size(); ++i){
-      std::this_thread::sleep_for(std::chrono::seconds(5));
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       Subgraph* working_graph; 
       if(jobs[i]->resource_type == type){
         int graphs_to_invoke = jobs[i]->subgraphs.size();
         for(int j=0; j<graphs_to_invoke; ++j){
-          std::cout << "working graph id : " << jobs[i]->subgraphs[j].first << "\n";
-          working_graph = interpreter_->subgraph_id(jobs[i]->subgraphs[j].first);
+          std::cout << "[" << worker_id << "] working graph id : " 
+            << jobs[i]->subgraphs[j].first << "\n";
+            working_graph = interpreter_->subgraph_id(jobs[i]->subgraphs[j].first);
   
           // check if intermediate tensor copy needed here
           CopyIntermediateDataIfNeeded(working_graph);
@@ -78,7 +79,7 @@ void Worker::Work(){
             std::cout << "Invoke returned Error" << "\n";
           }
           std::cout << "Worker " << worker_id << " job "
-                      << jobs[i]->job_id << " done" << "\n";
+            << jobs[i]->job_id << " done" << "\n";
           interpreter_->LockJobs();
           jobs[i]->state == JobState::DONE;
           interpreter_->UnlockJobs();

@@ -80,8 +80,8 @@ void LiteScheduler::SchedulerSpin(){
       // schedule jobs to workers and wake all
       PrintInterpreterStateV2(interpreter_);
       Profile();
-      FlushAndEnqueueJobs();
       PrintInterpreterStateV2(interpreter_);
+      FlushAndEnqueueJobs();
 
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);

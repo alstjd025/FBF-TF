@@ -661,7 +661,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         }
       }
       if(sharing_subgraph_id.size() > 1){
-        
+        std::cout << "shared tensor : " << t << "\n";
         pair_tensor_graph.first = t;        // tensor index
         pair_tensor_graph.second = sharing_subgraph_id; // subgraph id
         shared_info.push_back(pair_tensor_graph);
@@ -674,6 +674,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
    (interpreter_)->shared_tensor_and_graph.push_back(temp);
   }
   // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH AND ALLOCATE TENSORS
+  if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
+      != kTfLiteOk){
+    std::cout << "DeleteSubgraph ERROR" << "\n";
+    return kTfLiteError;
+  }
   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
@@ -684,11 +689,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     return kTfLiteError;
   }
   std::cout << "ReadyJobsofGivenModel" << "\n";
-  if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
-      != kTfLiteOk){
-    std::cout << "DeleteSubgraph ERROR" << "\n";
-    return kTfLiteError;
-  }
   std::cout << "Interpreterbuilder: Subgraphs & job created" << "\n";
   return kTfLiteOk;
 }
@@ -722,15 +722,16 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithJob(
                         std::shared_ptr<tflite::Interpreter> interpreter){
   // Setup model, job, graph id 
   int new_job_id = interpreter->GetAndAddNumJobsCreated(1);
-  for(auto new_subgraph : new_subgraphs){
-    new_subgraph->SetModelid(model_id_);
-    new_subgraph->SetJobid(new_job_id);
-    new_subgraph->SetGraphid(interpreter->GetAndAddSubgraphsCreated(1));
-    graph_subsets.push_back(new_subgraph->GetGraphid());
-    new_job->job_id = new_subgraph->GetJobid();
+  for(size_t i=0; i<new_subgraphs.size(); ++i){
+    new_subgraphs[i]->SetModelid(model_id_);
+    new_subgraphs[i]->SetJobid(new_job_id);
+    new_subgraphs[i]->SetGraphid(interpreter->GetAndAddSubgraphsCreated(1));
+    graph_subsets.push_back(new_subgraphs[i]->GetGraphid());
+    new_job->job_id = new_subgraphs[i]->GetJobid();
     new_job->subgraphs.push_back(
-                    std::pair<int, int>(new_subgraph->GetGraphid(), -1));
-  } 
+                    std::pair<int, int>(new_subgraphs[i]->GetGraphid(), -1));
+    std::cout << "Created new subgraph of id [" << new_subgraphs[i]->GetGraphid() << "]" <<"\n"; 
+  }
   // Make a new job
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
   new_job->model_id = model_id_;
@@ -784,29 +785,30 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphs(
     std::cout << "AddNewJob Error" << "\n";
     return kTfLiteError;
   }
-  for(auto new_subgraph : new_subgraphs){
-    if(new_job->job_id != new_subgraph->GetJobid()){
+  for(size_t i=0; i<new_subgraphs.size(); ++i){
+    if(new_job->job_id != new_subgraphs[i]->GetJobid()){
       std::cout << "Job ID MISSMATCH" << "\n";
       return kTfLiteError;
     }
-    if(new_job->model_id != new_subgraph->GetModelid()){
+    if(new_job->model_id != new_subgraphs[i]->GetModelid()){
       std::cout << "Model ID MISSMATCH" << "\n";
       return kTfLiteError;
     }
-    if(new_job->subgraphs[idx].first != new_subgraph->GetGraphid()){
+    if(new_job->subgraphs[idx].first != new_subgraphs[i]->GetGraphid()){
       std::cout << "Graph ID MISSMATCH" << "\n";
       return kTfLiteError;
     }
-    if(interpreter_->AddNewSubgraph(new_subgraph) != kTfLiteOk){
+    if(interpreter_->AddNewSubgraph(new_subgraphs[i]) != kTfLiteOk){
       std::cout << "AddNewSubgraph ERROR" << "\n";
       return kTfLiteError;
     }
-    if(interpreter_->RegisterSubgraphSubsets(new_subgraph) != kTfLiteOk){
+    if(interpreter_->RegisterSubgraphSubsets(new_subgraphs[i]) != kTfLiteOk){
       std::cout << "Registersubgraph ERROR" << "\n";
       return kTfLiteError;
     }
     idx++;
   }
+
   #ifdef DEBUG
     std::cout "Add new subgraph and job" << "\n";
   #endif

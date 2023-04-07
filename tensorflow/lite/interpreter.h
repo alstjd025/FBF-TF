@@ -684,8 +684,10 @@ class Interpreter {
   int GetNumJobsCreated() { return jobs_created; }
   int AddNumJobsCreated(int add) { jobs_created += add; }
   int GetAndAddNumJobsCreated(int add) {
+    LockJobs();
     int n = jobs_created;
     jobs_created += add;
+    UnlockJobs();
     return n;
   }
 
@@ -694,8 +696,10 @@ class Interpreter {
   int GetNumSubgraphsCreated() {return subgraphs_created; }
   int AddNumSubgraphsCreated(int add) { subgraphs_created += add; }
   int GetAndAddSubgraphsCreated(int add){
+    LockJobs();
     int n = subgraphs_created;
     subgraphs_created += add;
+    UnlockJobs();
     return n;
   }
 

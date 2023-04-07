@@ -113,7 +113,6 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
   TfLiteTensor* input_tensor = nullptr;
   for(auto builder : builder_and_id){
     if(!strcmp(builder.second->GetModelName().c_str(), model)){
-      std::cout << builder.second->GetModelName() << "\n";
       std::cout << "look for input tensor model " << std::string(model) << "\n";
       input_tensor = interpreter->input_tensor_of_model(builder.first);
     }

@@ -265,18 +265,21 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 // Resize intermediate sharing tensors of all subgraph subset.
 // Finally allocate tensors of all subgraph subset.
 TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
-  Subgraph* working_subgraph;
+  Subgraph* primary_working_subgraph;
   for(auto subset : subgraph_subsets){
     if(subset.first == model_id){
       if(subset.second.size() > 0){
-        working_subgraph = subgraph_id(subset.second[0]); // Allocate first subgraph
-        if(working_subgraph->AllocateTensors() != kTfLiteOk){
+        std::cout << "dddd" << "\n";
+        std::cout << "subgraph id : " << subset.second[0] << "\n";
+        primary_working_subgraph = subgraph_id(subset.second[0]); // Allocate first subgraph
+        if(primary_working_subgraph->AllocateTensors() != kTfLiteOk){
           std::cout << "AllocateTensors of graph [" << subset.second[0] << "] "
           << "returned ERROR" << "\n";
           return kTfLiteError;
         }
         // Resize intermediate shared tensors with GetIntermediateTensorRange()
         int input_tensor_begin_idx, input_tensor_end_idx;
+        std::cout << "adsf" << "\n";
         if(GetIntermediateTensorRangeWithGraphSubset(model_id,
                     &input_tensor_begin_idx, &input_tensor_end_idx) != kTfLiteOk){
           std::cout << "GetIntermediateTensorRangeWithGraphSubset ERROR" << "\n";
@@ -293,6 +296,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                 std::vector<int> match_dims;
                 for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
                   int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
+                  std::cout << "resizing subgraph : " << working_subgraph << "\n";
                   if(j == 0){
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
@@ -683,9 +687,6 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
 TfLiteTensor* Interpreter::input_tensor_of_model(int model_id){
   for(auto subgraph_subset : subgraph_subsets){
     if(subgraph_subset.first == model_id){
-      for(size_t i=0; i<subgraph_subset.second.size(); ++i){
-        std::cout << subgraph_subset.second[i];
-      }
       Subgraph* graph = subgraph_id(subgraph_subset.second.at(0));
       int input_tensor_idx = graph->GetInputTensorIndex();
       return graph->tensor(input_tensor_idx);
@@ -759,20 +760,24 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
   }
   for(size_t i=0; i<subgraph_subsets.size(); ++i){
     for(size_t j=0; j<subgraph_subsets[i].second.size(); ++j){
-      if(subgraph_subsets[i].second[i] == subgraph_id){
-        subgraph_subsets[i].second.erase(subgraph_subsets[i].second.begin()+i);
+      if(subgraph_subsets[i].second[j] == subgraph_id){
+        subgraph_subsets[i].second.erase(subgraph_subsets[i].second.begin()+j);
         break;
       }
     }
   }
+  int job_to_delete_id = 0;
   for(size_t i=0; i<job_vector.size(); ++i){
     for(size_t j=0; j<job_vector[i]->subgraphs.size(); ++i){
       if(job_vector[i]->subgraphs[i].first == subgraph_id ||
-        job_vector[i]->subgraphs[i].second == subgraph_id)
-        job_vector[i]->subgraphs.erase(job_vector[i]->subgraphs.begin()+i);
+        job_vector[i]->subgraphs[i].second == subgraph_id){
+        job_to_delete_id = i;
+        i = job_vector.size();
         break;
+      }
     }
   }
+  job_vector.erase(job_vector.begin()+job_to_delete_id);
   UnlockJobs();
   FlushJobs();
   return kTfLiteOk;
@@ -808,9 +813,19 @@ void Interpreter::EnqueueJobs(){
     return;
   }
   for(size_t i=0; i<job_vector.size(); ++i){
-    if(job_vector[i]->state == JobState::READY)
+    if(job_vector[i]->state == JobState::READY){
       jobs->push(job_vector[i]);
+      std::cout << "Interpreter : Enqueued Job " << job_vector[i]->job_id <<
+        " to global job queue" << "\n";
+      std::cout << "Interpreter : Job [" << job_vector[i]->job_id  << "] "
+      << "has subgraphs : ";
+      for(size_t j=0; j<job_vector[i]->subgraphs.size(); ++j){
+        std::cout << job_vector[i]->subgraphs[j].first << " ";
+      }
+      std::cout << "\n";
+    }
   }
+  UnlockJobs();
 }
 
 TfLiteStatus Interpreter::GiveJob(){
@@ -842,9 +857,7 @@ TfLiteStatus Interpreter::GiveJob(){
 }
 
 TfLiteStatus Interpreter::DoInvoke(){
-  std::cout << "adsf" << "\n";
   for(int i=0; i<workers.size(); ++i){
-    std::cout << "asdf " << "\n";
     Worker* worker_ = workers[i];
     if(worker_->HaveJob()){
       std::cout << "Interpreter : wake worker " << i << "\n";
