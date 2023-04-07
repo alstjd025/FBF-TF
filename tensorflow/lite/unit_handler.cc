@@ -146,7 +146,7 @@ TfLiteStatus UnitHandler::CreateAndInvokeCPU(UnitType eType,
 }
 
 TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
-                                         std::vector<cv::Mat> input, int partitioning){
+                                         std::vector<cv::Mat> input, int partitioning, int loop_num){
     std::unique_ptr<tflite::Interpreter>* interpreter;
     if(bUseTwoModel){
         if(GPUBuilder_ ==nullptr){
@@ -185,7 +185,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
         //.inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-        .priority_partition_num = 0, // t is variable TODO. default is "0"
+        .priority_partition_num = loop_num, // TODO. default is "0"
         .experimental_flags = 1,
         .max_delegated_partitions = 1, //1
     };
@@ -219,9 +219,9 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
 
 
 TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
-                                             std::vector<cv::Mat> input){
+                                             std::vector<cv::Mat> input, int loop_num){
     mtx_lock.lock();
-    if (CreateUnitGPU(eType, input, 8) != kTfLiteOk){
+    if (CreateUnitGPU(eType, input, 8, loop_num) != kTfLiteOk){
         PrintMsg("CreateUnitGPUError");
         return kTfLiteError;
     }
@@ -254,7 +254,7 @@ void UnitHandler::PrintInterpreterStatus(){
 }
 
 TfLiteStatus UnitHandler::Invoke(UnitType eType, UnitType eType_,
-                                 std::vector<cv::Mat> input){
+                                 std::vector<cv::Mat> input, int loop_num){
     //eType -> CPU
     //eType_ -> GPU
     PrintMsg("Invoke");
@@ -262,14 +262,14 @@ TfLiteStatus UnitHandler::Invoke(UnitType eType, UnitType eType_,
     std::thread cpu;
     std::thread gpu;
     cpu = std::thread(&UnitHandler::CreateAndInvokeCPU, this, eType, input);
-    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input);
+    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input, loop_num);
     cpu.join();
     gpu.join();
     #endif
     
     #ifdef GPUONLY
     std::thread gpu;
-    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input);
+    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input, loop_num);
     gpu.join();
     #endif
 

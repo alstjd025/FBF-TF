@@ -80,11 +80,11 @@ public:
     UnitHandler(const char* OriginalModel, const char* QuantizedModel);
 
     TfLiteStatus CreateUnitCPU(UnitType eType, std::vector<cv::Mat> input, int partitioning);
-    TfLiteStatus CreateUnitGPU(UnitType eType, std::vector<cv::Mat> input, int partitioning);
-    TfLiteStatus Invoke(UnitType eType, UnitType eType_, std::vector<cv::Mat> input);
+    TfLiteStatus CreateUnitGPU(UnitType eType, std::vector<cv::Mat> input, int partitioning, int loop_num);
+    TfLiteStatus Invoke(UnitType eType, UnitType eType_, std::vector<cv::Mat> input, int loop_num);
 
     TfLiteStatus CreateAndInvokeCPU(UnitType eType, std::vector<cv::Mat> input);
-    TfLiteStatus CreateAndInvokeGPU(UnitType eType, std::vector<cv::Mat> input);
+    TfLiteStatus CreateAndInvokeGPU(UnitType eType, std::vector<cv::Mat> input, int loop_num);
 
     /* Not Impl*/
     void DeleteSharedContext(SharedContext* dataTobeCleared);
