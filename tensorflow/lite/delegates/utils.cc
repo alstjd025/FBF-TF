@@ -74,9 +74,15 @@ TfLiteStatus GraphPartitionHelper::Partition(
 }
 
 
+// HOON : Delegate Optimizing Test  by mnist_12.tflite
+// 1. klargest
+// 2. ksmallest
+// 3. custom method (***)
+// (3) TODO 230403 ~ 
+// --------------------------------------------------------------------------------------------------------------
 std::vector<TfLiteDelegateParams*>
 GraphPartitionHelper::GetFirstNSmallestPartitions(
-    int n, int min_nodes_per_partition) const {
+    int n,  int priority_partition_num, int min_nodes_per_partition) const {
   // In general, the number of partitions in a delegate is never likely to be
   // high enough to cause latency issues. Also considering this is generally a
   // one-time work, we simply unconditionally sort partitions here according to
@@ -94,8 +100,28 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
 
   std::vector<TfLiteDelegateParams*> results;
   auto p_it = sorted_partitions.begin();
-  const int total = sorted_partitions.size();
-  for (int i = 0; i < std::min(total, n); ++i, ++p_it) {
+  const int total = sorted_partitions.size(); // maybe... "n" is max_delegated_option
+  // in mnist_13.tflite
+  // 2*9 / 3*4 / 6*1
+  // 2/2/2/2/2/2/2/2/2/ 3/3/3/3/ 6
+  // add parameter "i" ??  
+
+  // for (int i = 0; i < std::min(total, n); ++i, ++p_it) { 
+    // auto* p = (*p_it);
+    // if (p->nodes_to_replace->size < min_nodes_per_partition) {
+      // break;
+    // }
+    // results.push_back(p);
+  // }
+  // HOON TODO (~230406s)
+  // change below algo using "priority_partition_num" custom parameter  
+
+  // move vector pointer as long as priority_partition_num
+  for (int num=0;num<priority_partition_num;++num){
+    ++p_it;
+  }
+
+  for (int i = 0; i < std::min(total, n); ++i, ++p_it) { 
     auto* p = (*p_it);
     if (p->nodes_to_replace->size < min_nodes_per_partition) {
       break;
@@ -107,7 +133,7 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
 
 std::vector<TfLiteDelegateParams*>
 GraphPartitionHelper::GetFirstNLargestPartitions(
-    int n, int min_nodes_per_partition) const {
+    int n, int priority_partition_num, int min_nodes_per_partition) const {
   // In general, the number of partitions in a delegate is never likely to be
   // high enough to cause latency issues. Also considering this is generally a
   // one-time work, we simply unconditionally sort partitions here according to
@@ -134,17 +160,19 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
   }
   return results;
 }
+// -------------------------------------------------------------------------------------------------------------
+
 
 // same two func .. ???  197
 // this func for default type
 std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
-    int n, int min_nodes_per_partition) {
+    int n, int priority_partition_num, int min_nodes_per_partition) {
   // HOON
   // auto first_n_partitions =
-      // GetFirstNLargestPartitions(n, min_nodes_per_partition);s
+      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
   std::cout << "Original GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNSmallestPartitions(n, min_nodes_per_partition);
+      GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
   for (const auto p : first_n_partitions) {
     auto nodes = p->nodes_to_replace;
@@ -199,13 +227,13 @@ TfLiteStatus GraphPartitionHelper::PrepareSupportedNodes(
 // this func for fp16 type
 std::vector<int>
 FP16GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
-    int n, int min_nodes_per_partition) {
+    int n, int priority_partition_num, int min_nodes_per_partition) {
   // HOON
   // auto first_n_partitions =
-  //     GetFirstNLargestPartitions(n, min_nodes_per_partition);
+      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
   std::cout << "FP16GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNSmallestPartitions(n, min_nodes_per_partition);
+      GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
   if (first_n_partitions.empty()) return ops_to_replace;
 

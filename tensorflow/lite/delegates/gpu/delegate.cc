@@ -93,6 +93,9 @@ class Delegate {
     return options_.experimental_flags &
            TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_QUANT;
   }
+  int PriorityPartitionNum() const {
+    return options_.priority_partition_num;
+  }
   int MaxDelegatedPartitions() const {
     return options_.max_delegated_partitions;
   }
@@ -458,7 +461,7 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   // Legacy Code //
   TfLiteIntArray* ops_to_replace =
       GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
-                      gpu_delegate->MaxDelegatedPartitions());
+                      gpu_delegate->MaxDelegatedPartitions(), gpu_delegate->PriorityPartitionNum());
 
   
   
@@ -551,6 +554,7 @@ TfLiteGpuDelegateOptionsV2 TfLiteGpuDelegateOptionsV2Default() {
       .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
       .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
+      .priority_partition_num = 0,
       .experimental_flags = TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_QUANT,
       .max_delegated_partitions = 1,
   };

@@ -75,21 +75,24 @@ class GraphPartitionHelper {
   // by the TfLite runtime.
   // TODO(b/156707497): remove this and use GetNodesOfFirstNLargestPartitions
   std::vector<TfLiteDelegateParams*> GetFirstNLargestPartitions(
-      int n = std::numeric_limits<int>::max(),
+      int n = std::numeric_limits<int>::max(), int priority_partition_num=0,
       int min_nodes_per_partition = 0) const;
 // HOON
 std::vector<TfLiteDelegateParams*> GetFirstNSmallestPartitions(
-      int n = std::numeric_limits<int>::max(),
+      int n = std::numeric_limits<int>::max(), int priority_partition_num=0,
       int min_nodes_per_partition = 0) const;
 
   // Returns a list of node indices of all nodes from the first n largest
   // partitions. If there are fewer paritions than n, all nodes will be
   // returned. The partition is ranked according to the number of nodes.
   std::vector<int> GetNodesOfFirstNLargestPartitions(
-      int n = std::numeric_limits<int>::max(),
+      int n = std::numeric_limits<int>::max(), int priority_partition_num=0,
       int min_nodes_per_partition = 0) {
     // Separated implementation that can be overrided, to preserve default value
-    return GetNodesOfFirstNLargestPartitionsImpl(n, min_nodes_per_partition);
+
+    // HOON : default n == max_deleated_options
+    //        defulat is "1", UnKnown is unlimited, but there is not usecase.
+    return GetNodesOfFirstNLargestPartitionsImpl(n, priority_partition_num, min_nodes_per_partition);
   }
 
   int num_total_nodes() const { return num_total_nodes_; }
@@ -103,7 +106,7 @@ std::vector<TfLiteDelegateParams*> GetFirstNSmallestPartitions(
                                  unsupported_details);
   }
   virtual std::vector<int> GetNodesOfFirstNLargestPartitionsImpl(
-      int n, int min_nodes_per_partition);
+      int n, int priority_partition_num, int min_nodes_per_partition);
 
   TfLiteContext* const context_ = nullptr;
 
@@ -155,7 +158,7 @@ class FP16GraphPartitionHelper : public GraphPartitionHelper {
 
   // This will remap input tensors by removing FP16 to FP32 dequantized tensors.
   std::vector<int> GetNodesOfFirstNLargestPartitionsImpl(
-      int n, int min_nodes_per_partition) override;
+      int n, int priority_partition_num, int min_nodes_per_partition) override;
  private:
   // This remaps fp32 inputs of the given node to their corresponding fp16
   // version, if applicable. Can be summarized as:

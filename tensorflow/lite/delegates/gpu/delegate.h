@@ -93,6 +93,7 @@ typedef struct {
   int32_t inference_priority1;
   int32_t inference_priority2;
   int32_t inference_priority3;
+  int32_t priority_partition_num; // HOON : add extra  parameter for testing delegation optimizing
 
   // Bitmask flags. See the comments in TfLiteGpuExperimentalFlags.
   int64_t experimental_flags;

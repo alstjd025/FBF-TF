@@ -315,6 +315,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             #endif
             // Run inference
             clock_gettime(CLOCK_MONOTONIC, &begin);
+            // HOON : add extra parameter to test delegation optimizing? TODO
             if(interpreterGPU->get()->Invoke(eType, mtx_lock, mtx_lock_, mtx_lock_debug,
                                                 Ucontroller, qSharedData) 
                                             != kTfLiteOk){

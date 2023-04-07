@@ -33,7 +33,7 @@ namespace gpu {
 // consists of a subset of ops) to be replaced.
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context,
                                 bool allow_quant_ops = false,
-                                int max_delegated_partitions = 1);
+                                int max_delegated_partitions = 1, int priority_partition_num=0);
 
 // Extracts TFLite delegate execution plan from the input TFLite context and
 // converts it into generic graph format.

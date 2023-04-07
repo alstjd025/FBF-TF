@@ -3017,8 +3017,9 @@ bool IsAllAllowedTensors(TfLiteContext* context,
 // TODO(impjdi): Check number of input/output tensors and their dimensions.
 // TODO(impjdi): Check ops' parameters.
 // HOON : Test GetOpsToReplace  ~ TODO
+// 230405 add parameter "priority_partition_num"
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
-                                int max_delegated_partitions) {
+                                int max_delegated_partitions, int priority_partition_num) {
   printf("(1) : Start GetOpsToReplace logic\n");
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
@@ -3031,11 +3032,18 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   context->use_distribute_strategy_context = true;
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning 
   {
-    if(registration->builtin_code == 9){ // Hoon s
+    if(registration->builtin_code == 49){ // Hoon  --------> SPLIT FALLBACK
     // HOON  : 111->ELU  98->LeakyRELU
     // HOON  :  3->CONV  9-> FullyCOnnected
     // builtin_ops.h  . 2 or 0 
-        printf("FOUND A FALLBACK LAYER... MAKE GPU DEL NODE \n");
+        printf("FOUND A FALLBACK LAYER [split].. MAKE GPU DEL NODE \n");
+        return false;
+    }
+    if(registration->builtin_code == 2){ // Hoon --------> CONCATENATE FALLBACK
+    // HOON  : 111->ELU  98->LeakyRELU
+    // HOON  :  3->CONV  9-> FullyCOnnected
+    // builtin_ops.h  . 2 or 0 
+        printf("FOUND A FALLBACK LAYER [cocatenate]... MAKE GPU DEL NODE \n");
         return false;
     }
     else {
@@ -3074,9 +3082,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
 
   // By default, we simply get 1st largest partition as 'max_delegate_partions'
   // is set to 1 by default.
+  // HOON 230404.........................
+  // TODO --> connect to partition_helper class implement!!!!!!!!!!!!!!!
   std::vector<int> ops_to_replace =
       partition_helper.GetNodesOfFirstNLargestPartitions(
-          max_delegated_partitions); //make ops_to_replace (Tfliteintarray*)
+          max_delegated_partitions, priority_partition_num); //make ops_to_replace (Tfliteintarray*)
           // N  == AND. maybe ..... TEST
 
   if (!unsupported_nodes_info.empty()) {
@@ -3098,7 +3108,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
 
-  std::cout << ">>>>>>>>>>>>>>>>>>>>>>>ops_to replace vector is : ";
+  std::cout << ">>>>>>>>>>ops_to replace vector(nodes number for gpu delegation) is : ";
   //HOON : print vector ops_to_replace  // max patition option 3 -> 5 
   for (int i = 0; i < ops_to_replace.size(); i++) {
         std::cout << ops_to_replace.at(i) << ' ';
