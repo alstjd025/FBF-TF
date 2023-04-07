@@ -30,6 +30,16 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/util.h"
 
+#define C_NRML "\033[0m"
+#define C_BLCK "\033[30m"
+#define C_RED  "\033[31m"
+#define C_GREN "\033[32m"
+#define C_YLLW "\033[33m"
+#define C_BLUE "\033[34m"
+#define C_PRPL "\033[35m"
+#define C_AQUA "\033[36m"
+
+
 namespace tflite {
 
 // Forward declare since NNAPIDelegate uses Interpreter.
@@ -191,6 +201,26 @@ class Subgraph {
   // Minsung
   // Access to an input tensor (for multiple subgraphs and GPUdelegate)
   int GetInputTensorIndex() { return inputs()[inputs().size()-1]; }
+
+  //Minsung 
+  //Returns Output Tensor index of given node
+  int GetOutputTensorIndex(TfLiteNode& node){
+    return node.outputs->data[node.outputs->size-1];
+  }
+
+  // Minsung
+  // Returns the output tensor of given node
+  // Return tensor is the last tensor of given node's tensor index.
+  // The node must have only one output tensor
+  TfLiteTensor* GetOutputTensor(TfLiteNode& node){
+    if(node.outputs->size <= 0)
+      return nullptr;
+    return tensor(node.outputs->data[node.outputs->size-1]);
+  }
+
+  void PrintOutputTensor(TfLiteNode& node);
+
+  void PrintTensor(TfLiteTensor& tensor);
 
   // Read only access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }

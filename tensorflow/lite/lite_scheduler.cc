@@ -67,6 +67,7 @@ void LiteScheduler::SchedulerSpin(){
     std::cout << "scheduler sleeps" << "\n";
     scheduler_cv_.wait(lock, [&] { return stop_scheduler; });    
     std::cout << "scheduler woke up" << "\n";
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     if(need_reschedule){
       if(interpreter_->IsJobQueueEmpty() && !interpreter_->IsJobVectorEmpty()){
         std::cout << "Scheduler : scheduler needs reschedule but job vector and queue"
@@ -85,7 +86,7 @@ void LiteScheduler::SchedulerSpin(){
 
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);
-      interpreter_->CreateWorker(ResourceType::CPU, 2);
+      //interpreter_->CreateWorker(ResourceType::CPU, 2);
       interpreter_->GiveJob();          
     }
     // schedule jobs with scheduling algorithm.
@@ -105,9 +106,10 @@ void LiteScheduler::Profile(){
   // Debugging code 
   std::cout << "Scheduler: Profile" << "\n";
   for(auto builder : builders){
-    if(builder->GetModelid() == 0){
+    // HARDCODING
+    if(builder->GetModelid() == 1){ 
       Subgraph* original_graph_profiled = 
-            interpreter_->returnProfiledOriginalSubgraph(0);
+            interpreter_->returnProfiledOriginalSubgraph(1);
       if(original_graph_profiled == nullptr){
         std::cout << "Model id " << builder->GetModelid() << " no subgraph. \n"; 
         continue;
@@ -117,9 +119,9 @@ void LiteScheduler::Profile(){
         std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
       }
     }
-    else if(builder->GetModelid() == 1){
+    else if(builder->GetModelid() == 0){
       Subgraph* original_graph_profiled = 
-            interpreter_->returnProfiledOriginalSubgraph(1);
+            interpreter_->returnProfiledOriginalSubgraph(0);
       if(original_graph_profiled == nullptr){
         std::cout << "Model id " << builder->GetModelid() << " no subgraph. \n"; 
         continue;

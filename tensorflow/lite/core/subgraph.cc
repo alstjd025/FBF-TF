@@ -1017,6 +1017,7 @@ TfLiteStatus Subgraph::Invoke() {
   // called.
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
+    std::cout << "Invoke inside" << "\n";
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
       TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
@@ -1072,7 +1073,7 @@ TfLiteStatus Subgraph::Invoke() {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-
+    //OutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1637,5 +1638,106 @@ std::vector<int> Subgraph::GetTensorShape(int tensor_index){
   }
   return dims;  
 }
+
+void Subgraph::PrintOutputTensor(TfLiteNode& node){
+  std::cout << "[Print OutPut Tensor] \n";
+  TfLiteTensor* temp = GetOutputTensor(node);
+  int tensor_index = GetOutputTensorIndex(node);
+  int tensor_data_dims_size = temp->dims->size-1;
+  int tensor_data_ch_size = temp->dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< temp->dims->size; i++){
+    if(i == 1){
+      tensor_axis = temp->dims->data[i];
+    }
+    tensor_data_size *= temp->dims->data[i]; 
+  }
+  std::cout << "\n";
+  std::cout << "[" << tensor_index << "] Nunber of Tensors : "\
+                                           << tensor_data_size << "\n";
+  std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
+
+  PrintTensor(*temp);  
+}
+
+
+void Subgraph::PrintTensor(TfLiteTensor& tensor){
+  std::cout << "[Print Tensor]" << "\n";
+  
+  int tensor_data_dims_size = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< tensor.dims->size; i++){
+    if(i == 1){
+      tensor_axis = tensor.dims->data[i];
+    }
+    tensor_data_size *= tensor.dims->data[i]; 
+  }
+  std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Tensor DATA " << "\n";
+  if(tensor.type == TfLiteType::kTfLiteFloat32){
+    std::cout << "[FLOAT32 TENSOR]" << "\n";
+    auto data_st = (float*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        float data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%0.6f ", data);
+        }
+        else if (data != 0) {
+            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+      std::cout << "\n";
+    }
+  }
+  else if(tensor.type == TfLiteType::kTfLiteInt8){
+    std::cout << "[INT8 TENSOR]" << "\n";
+    auto data_st = (int8_t*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        int8_t data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%d ", data);
+        }
+        else if (data != 0) {
+          printf("%s%d%s ", C_GREN, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+    }
+    std::cout << "\n";
+  }
+  else if(tensor.type == TfLiteType::kTfLiteInt32){
+    std::cout << "[INT32 TENSOR]" << "\n";
+    auto data_st = (int*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        int data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%d ", data);
+        }
+        else if (data != 0) {
+          printf("%s%d%s ", C_GREN, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+      std::cout << "\n";
+    }
+  }
+}
+
 
 }  // namespace tflite

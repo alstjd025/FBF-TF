@@ -133,26 +133,24 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
     }   
     break;
   case INPUT_TYPE::IMAGENET224 :
-    for (int i=0; i < 224; ++i){
-      for(int j=0; j < 224; ++j){
-        input_pointer[i*224 + j*3] = \
-          ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
-        input_pointer[i*224 + j*3 + 1] = \
-          ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
-        input_pointer[i*224 + j*3 + 2] = \
-          ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
-      }
-    }
+    memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+    // for (int i=0; i < 224; ++i){
+    //   for(int j=0; j < 224; ++j){
+    //     input_pointer[i*224 + j*3] = (float)input[0].at<cv::Vec3b>(i, j)[0] /255.0;    
+    //     input_pointer[i*224 + j*3 + 1] = (float)input[0].at<cv::Vec3b>(i, j)[1] /255.0;
+    //     input_pointer[i*224 + j*3 + 2] = (float)input[0].at<cv::Vec3b>(i, j)[2] /255.0;
+    //   }
+    // }
     break;
   case INPUT_TYPE::IMAGENET300 :
     for (int i=0; i < 300; ++i){
       for(int j=0; j < 300; ++j){
         input_pointer[i*300 + j*3] = \
-          ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
+          ((float)input[0].at<cv::Vec3b>(i, j)[0]);    
         input_pointer[i*300 + j*3 + 1] = \
-          ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+          ((float)input[0].at<cv::Vec3b>(i, j)[1]);
         input_pointer[i*300 + j*3 + 2] = \
-          ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+          ((float)input[0].at<cv::Vec3b>(i, j)[2]);
       }
     }   
     break;
@@ -160,7 +158,6 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
     break;
   }
   //PrintTensor(*input_tensor);
-  
 } 
 
 void TfLiteRuntime::WakeScheduler(){

@@ -79,7 +79,7 @@ void Worker::Work(){
             std::cout << "Invoke returned Error" << "\n";
           }
           std::cout << "Worker " << worker_id << " job "
-            << jobs[i]->job_id << " done" << "\n";
+            << jobs[i]->job_id << " done ,GID "<< working_graph->GetGraphid() << "\n";
           interpreter_->LockJobs();
           jobs[i]->state == JobState::DONE;
           interpreter_->UnlockJobs();

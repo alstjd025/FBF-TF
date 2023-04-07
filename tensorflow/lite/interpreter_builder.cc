@@ -511,6 +511,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     /////////////////////////////////////////////
     /// Refactored code for dividing subgraph ///
     /////////////////////////////////////////////
+    // HARDCODING
     if(model_id_ == 0){ // mnist case
       dummy_profile_.layer_subsets.push_back(std::vector<int>());
       dummy_profile_.layer_subsets.push_back(std::vector<int>());
@@ -527,10 +528,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     else if(model_id_ == 1){ // mobilenet case
       dummy_profile_.layer_subsets.push_back(std::vector<int>());
       dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      for(size_t i=0; i<68; ++i){
+      for(size_t i=0; i<1; ++i){ // 9 10 200 201?
         dummy_profile_.layer_subsets[0].push_back(i);
       }
-      for(size_t i=68; i<124; ++i){
+      for(size_t i=1; i<124; ++i){
         dummy_profile_.layer_subsets[1].push_back(i);
       }
     }

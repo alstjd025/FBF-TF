@@ -269,8 +269,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
   for(auto subset : subgraph_subsets){
     if(subset.first == model_id){
       if(subset.second.size() > 0){
-        std::cout << "dddd" << "\n";
-        std::cout << "subgraph id : " << subset.second[0] << "\n";
         primary_working_subgraph = subgraph_id(subset.second[0]); // Allocate first subgraph
         if(primary_working_subgraph->AllocateTensors() != kTfLiteOk){
           std::cout << "AllocateTensors of graph [" << subset.second[0] << "] "
@@ -279,7 +277,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
         }
         // Resize intermediate shared tensors with GetIntermediateTensorRange()
         int input_tensor_begin_idx, input_tensor_end_idx;
-        std::cout << "adsf" << "\n";
         if(GetIntermediateTensorRangeWithGraphSubset(model_id,
                     &input_tensor_begin_idx, &input_tensor_end_idx) != kTfLiteOk){
           std::cout << "GetIntermediateTensorRangeWithGraphSubset ERROR" << "\n";
@@ -288,15 +285,12 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
         for(auto shared_tensor_and_graph_ : shared_tensor_and_graph){
           if(shared_tensor_and_graph_->model_id == model_id){
             for(int i=0; i<shared_tensor_and_graph_->pair_tensor_graph.size(); ++i){
-              std::cout << "shared tensor [" 
-                    << shared_tensor_and_graph_->pair_tensor_graph[i].first << "] \n";
               int base_tensor = shared_tensor_and_graph_->pair_tensor_graph[i].first;
               if(base_tensor >= input_tensor_begin_idx && base_tensor <= input_tensor_end_idx){
                 TfLiteTensor* working_tensor;
                 std::vector<int> match_dims;
                 for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
                   int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
-                  std::cout << "resizing subgraph : " << working_subgraph << "\n";
                   if(j == 0){
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
@@ -346,6 +340,7 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id
   if(subgraph_id(input_subgraph_id)->GetNodeAndRegistration(
         first_execution_plan, &node, &registration) != kTfLiteOk)
     return kTfLiteError;
+  *begin = node->outputs->data[0];  
   // Get last node's input tensor index from final subgraph.
   // Because the node's intput & output tensor(which are intermediate tensors)
   // idices are in ascending order, we can get intermediate tensors range.
@@ -830,6 +825,7 @@ void Interpreter::EnqueueJobs(){
 
 TfLiteStatus Interpreter::GiveJob(){
   LockJobs();
+  int worker_idx = 0;
   while(!jobs->empty() && !workers.empty()){
     std::cout << "Interperter : give job" << "\n";
     std::cout << "Interpreter : job queue has " << jobs->size() << " jobs\n";
@@ -839,17 +835,12 @@ TfLiteStatus Interpreter::GiveJob(){
       jobs->pop();
       continue;
     }else if(job->state == JobState::READY){
-      // Lockup the job lock of worker.
-      // !!currently one job for one worker.
-      int worker_idx = 0;
-      while(worker_idx < workers.size()){
-        std::cout << "Interpreter : give job to worker " 
-                                        << worker_idx << "\n";
-        workers[worker_idx]->GiveJob(job); 
-        std::cout << "give job" << "\n";
-        worker_idx++;
-        jobs->pop();
-      }
+      std::cout << "Interpreter : give job "<< job->job_id <<" to worker " 
+                                      << worker_idx << "\n";
+      workers[worker_idx]->GiveJob(job); 
+      std::cout << "give job" << "\n";
+      worker_idx++;
+      jobs->pop();
     }
   }
   UnlockJobs();
