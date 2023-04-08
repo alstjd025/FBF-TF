@@ -359,14 +359,15 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 //printf("label : %d, pre : %0.5f \n", i, value);  ///HOON
             }
             sum_average += max;
-            if(!(*G_Counter % 1000))
-                std::cout << "Progress " << int(*G_Counter/1000) << "% \n";
+            if(!(*G_Counter % 10000))
+                // std::cout << "Progress " << int(*G_Counter/10000) << "% \n";
+                std::cout << "Progressing... \n";
         }
     }
     std::cout << "All invoke time : " << time << "s" << "\n"; // HOON : This is all-invoke time , not ACCURACY ,,,,, 
     time = time / (SEQ * OUT_SEQ);
     sum_average = sum_average / (SEQ * OUT_SEQ);
-    printf("Average invoke time : %.6f ms \n", time*1000);
+    printf("Average invoke time : \033[0;31m%0.6f\033[0m ms \n", time*1000);
     printf("Average accuracy : %.6f % \n", sum_average*100);
     std::cout << "\n";
     std::cout << "GPU All Jobs done" << "\n";

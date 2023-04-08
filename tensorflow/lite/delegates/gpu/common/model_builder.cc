@@ -3028,7 +3028,10 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
   // get op_name by registration->buitin_code
-  printf("CHECKING LAYER %s \n", GetNodeName_ByBuiltin(registration).c_str()); 
+  if(priority_partition_num ==0)
+  {
+      printf("CHECKING LAYER %s \n", GetNodeName_ByBuiltin(registration).c_str());     
+  }
   context->use_distribute_strategy_context = true;
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning 
   {
@@ -3036,14 +3039,16 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     // HOON  : 111->ELU  98->LeakyRELU
     // HOON  :  3->CONV  9-> FullyCOnnected
     // builtin_ops.h  . 2 or 0 
-        printf("FOUND A FALLBACK LAYER [split].. MAKE GPU DEL NODE \n");
+        if(priority_partition_num ==0)
+          printf("FOUND A FALLBACK LAYER [split].. MAKE GPU DEL NODE \n");
         return false;
     }
     if(registration->builtin_code == 2){ // Hoon --------> CONCATENATE FALLBACK
     // HOON  : 111->ELU  98->LeakyRELU
     // HOON  :  3->CONV  9-> FullyCOnnected
-    // builtin_ops.h  . 2 or 0 
-        printf("FOUND A FALLBACK LAYER [cocatenate]... MAKE GPU DEL NODE \n");
+    // builtin_ops.h  . 2 or 0
+        if(priority_partition_num ==0)
+          printf("FOUND A FALLBACK LAYER [cocatenate]... MAKE GPU DEL NODE \n");
         return false;
     }
     else {
@@ -3052,6 +3057,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           *unsupported_details = std::string(status.message());
         }
         return false;  
+
       }
     }
   }
@@ -3111,10 +3117,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   std::cout << ">>>>>>>>>>ops_to replace vector(nodes number for gpu delegation) is : ";
   //HOON : print vector ops_to_replace  // max patition option 3 -> 5 
   for (int i = 0; i < ops_to_replace.size(); i++) {
-        std::cout << ops_to_replace.at(i) << ' ';
+        // std::cout << ops_to_replace.at(i) << ' ';
+        printf("\033[0;31m%d\033[0m ", ops_to_replace.at(i));
     }
-  printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
-  printf("(1) : End GetOpsToReplace logic\n");
+  // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+  printf("\n(1) : End GetOpsToReplace logic\n");
   return ConvertVectorToTfLiteIntArray(ops_to_replace); // return tfliteintarray*
 }
 

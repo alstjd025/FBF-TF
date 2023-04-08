@@ -636,15 +636,16 @@ bool Interpreter::IsCancelled() { return primary_subgraph().IsCancelled(); }
 
 TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   TfLiteStatus status = kTfLiteOk;
-  std::cout << "subgraph size : " << subgraphs_.size() << " \n";
-  for(int i=0; i<subgraphs_.size(); ++i){
-    if(subgraphs_[i]->CheckConv2dNodes() == kTfLiteOk)
-      std::cout <<"sungraph " << i << " got conv2d" << "\n";
-    else
-      std::cout <<"sungraph " << i << " no conv2d" << "\n";
-  }
+  // std::cout << "subgraph size : " << subgraphs_.size() << " \n";
+  // for(int i=0; i<subgraphs_.size(); ++i){
+    // if(subgraphs_[i]->CheckConv2dNodes() == kTfLiteOk)
+      // std::cout <<"sungraph " << i << " got conv2d" << "\n";
+    // else
+
+      // std::cout <<"sungraph " << i << " no conv2d" << "\n";
+  // }
   for (auto& subgraph : subgraphs_) {
-    std::cout << "Modify Subgraph with GPU delegate \n";
+    // std::cout << "Modify Subgraph with GPU delegate \n";
     status = subgraph->ModifyGraphWithDelegate(delegate);
     if (status != kTfLiteOk) {
       break;

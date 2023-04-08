@@ -79,6 +79,8 @@ TfLiteStatus GraphPartitionHelper::Partition(
 // 2. ksmallest
 // 3. custom method (***)
 // (3) TODO 230403 ~ 
+/// 230408 TODO
+// update algo for choosing more than "1" delegation node
 // --------------------------------------------------------------------------------------------------------------
 std::vector<TfLiteDelegateParams*>
 GraphPartitionHelper::GetFirstNSmallestPartitions(
@@ -89,7 +91,7 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
   // the size.
 
   // HOON : maybe TODO
-  std::cout << "HOON : Smallest Partitions logic " << std::endl;
+  // std::cout << "HOON : Smallest Partitions logic " << std::endl;
   std::vector<TfLiteDelegateParams*> sorted_partitions(partitions_);
   std::sort(sorted_partitions.begin(), sorted_partitions.end(),
             [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
@@ -170,7 +172,7 @@ std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
   // HOON
   // auto first_n_partitions =
       // GetFirstNLargestPartitions(n, min_nodes_per_partition);
-  std::cout << "Original GraphPartitionHelper" << std::endl;
+  // std::cout << "Original GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
       GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
@@ -231,7 +233,7 @@ FP16GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
   // HOON
   // auto first_n_partitions =
       // GetFirstNLargestPartitions(n, min_nodes_per_partition);
-  std::cout << "FP16GraphPartitionHelper" << std::endl;
+  // std::cout << "FP16GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
       GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
   std::vector<int> ops_to_replace;

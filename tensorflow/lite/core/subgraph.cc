@@ -1830,12 +1830,12 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   };
   // std::cout << "prepare_2" << "\n";
   printf("HOON : delegate prepare start\n");
-  printf("<<------------------------------------------------------------------------------------>>\n");
+  // printf("<<------------------------------------------------------------------------------------>>\n");
   TfLiteStatus status = delegate->Prepare(&context_, delegate); // HOON  : DELEGATE prepare logic  
   // Remove additional context info.
-  printf("<<------------------------------------------------------------------------------------>>\n");
+  // printf("<<------------------------------------------------------------------------------------>>\n");
   printf("HOON : delegate prepare end \n");
-  printf("HOON : Start to switch to kernel context\n");
+  // printf("HOON : Start to switch to kernel context\n");
   SwitchToKernelContext();
   TF_LITE_ENSURE_STATUS(reset_delegation_if_not_ok(status));
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
