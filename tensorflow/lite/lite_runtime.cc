@@ -41,7 +41,7 @@ void PrintTensor(TfLiteTensor& tensor){
 namespace tflite{
 
 TfLiteRuntime::TfLiteRuntime(){
-  interpreter = std::make_shared<tflite::Interpreter>();
+  interpreter = new tflite::Interpreter;
 
   TfLiteDelegate *MyDelegate = NULL;
   const TfLiteGpuDelegateOptionsV2 options = {

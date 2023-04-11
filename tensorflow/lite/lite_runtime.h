@@ -56,7 +56,7 @@ class TfLiteRuntime{
     void JoinScheduler();
 
   private:
-    std::shared_ptr<tflite::Interpreter> interpreter;
+    tflite::Interpreter* interpreter;
     LiteScheduler* scheduler;
 
     // Map container for interpreterBuilders and model_id

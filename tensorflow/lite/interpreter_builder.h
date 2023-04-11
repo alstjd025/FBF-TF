@@ -76,7 +76,7 @@ class InterpreterBuilder {
   // Use this constructor for dummy profile
   InterpreterBuilder(const FlatBufferModel& model,
                     const OpResolver& op_resolver,
-                    std::shared_ptr<tflite::Interpreter> interpreter,
+                    Interpreter* interpreter,
                     const char* model_name,
                     int model_id, bool use_dummy_plan,
                     const ProfileData& dummy_profile);
@@ -105,16 +105,16 @@ class InterpreterBuilder {
   // that the scheduler can handle them.
   TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph);
 
+  TfLiteStatus DelegateCreatedSubgraphs(std::vector<tflite::Subgraph*>& new_subgraphs);
+
   // Minsung
   // Bind subgraph to a default(pre-proflied) job
   TfLiteStatus BindSubgraphWithDefaultJob(tflite::Subgraph* new_subgraph,
-                                            tflite::Job* new_job,
-                                std::shared_ptr<tflite::Interpreter> interpreter);
+                                            tflite::Job* new_job);
 
   // Minsung
   TfLiteStatus BindSubgraphWithJob(std::vector<tflite::Subgraph*>& new_subgraphs,
-                                            tflite::Job* new_job,
-                                std::shared_ptr<tflite::Interpreter> interpreter);
+                                            tflite::Job* new_job);
 
   TfLiteStatus RegisterJobAndSubgraphDefault(tflite::Subgraph* new_subgraph,
                                       tflite::Job* new_job);
@@ -191,7 +191,7 @@ class InterpreterBuilder {
   bool use_dummy_plan_ = false;
   ProfileData dummy_profile_;
 
-  std::shared_ptr<tflite::Interpreter> interpreter_;
+  tflite::Interpreter* interpreter_;
 };
 
 }  // namespace tflite

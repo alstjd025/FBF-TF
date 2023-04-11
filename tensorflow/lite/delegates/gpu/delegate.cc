@@ -205,7 +205,7 @@ class DelegateKernel {
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
-      if (enforce_same_thread_) {
+      if (true) { // MINSUNG_THREAD
         return absl::FailedPreconditionError(
             "GpuDelegate must run on the same thread where it was "
             "initialized.");

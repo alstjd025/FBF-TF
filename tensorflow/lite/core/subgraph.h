@@ -29,6 +29,7 @@ limitations under the License.
 #include "tensorflow/lite/experimental/resource/resource_base.h"
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/util.h"
+#include <mutex>
 
 #define C_NRML "\033[0m"
 #define C_BLCK "\033[30m"
@@ -198,6 +199,9 @@ class Subgraph {
   void SetOriginalSubgraph() { is_original = true; }
   bool IsOriginalSubgraph() { return is_original; }
 
+  ResourceType GetResourceType() { return resource_type; }
+  void SetResourceType(ResourceType type) { resource_type = type; }
+
   // Minsung
   // Access to an input tensor (for multiple subgraphs and GPUdelegate)
   int GetInputTensorIndex() { return inputs()[inputs().size()-1]; }
@@ -221,6 +225,11 @@ class Subgraph {
   void PrintOutputTensor(TfLiteNode& node);
 
   void PrintTensor(TfLiteTensor& tensor);
+
+  // Minsung
+  // Lock functions
+  void Lock();
+  void Unlock();
 
   // Read only access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }
@@ -833,6 +842,10 @@ class Subgraph {
   bool is_allocated = false;
 
   // Minsung
+  // Lock for subgraph
+  std::mutex subgraph_lock;
+
+  // Minsung
   // Experimental api 
   // Using subgraph like linked-list?
   tflite::Subgraph* next_subgraph = nullptr;
@@ -861,6 +874,9 @@ class Subgraph {
 
   // Stores unique id of job which current subgraph belongs.
   int job_id_ = -1;
+
+  bool input_refreshed = false;
+  ResourceType resource_type = ResourceType::CPU;
 
 };
 

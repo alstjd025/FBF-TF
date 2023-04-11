@@ -473,9 +473,12 @@ class Interpreter {
   TfLiteStatus ModifyGraphWithDelegate(TfLiteDelegate* delegate);
 
   // Minsung
+  // Delegates subset of subgraphs
+  TfLiteStatus DelegateSubsetofSubgraphs();
+
+  // Minsung
   // Modifies specific subgraphs with given ids with given delegate.
-  TfLiteStatus ModifyGraphWithDelegateImpl(std::vector<int>& graph_subset,
-                                        TfLiteDelegate* delegate);
+  TfLiteStatus ModifyGraphWithDelegateImpl(int graph_id);
 
   // Minsung
   // Register given delegate object to this interpreter.
@@ -865,6 +868,7 @@ class Interpreter {
 
   // Misnung
   // Workers
+  tflite::GPUWorker* gpu_worker;
   std::vector<tflite::Worker*> workers;
   std::vector<std::thread> worker_threads;
   std::vector<int> worker_ids;

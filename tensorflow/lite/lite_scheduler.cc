@@ -119,6 +119,7 @@ void LiteScheduler::Profile(){
       }
     }
     else if(builder->GetModelid() == 0){
+      std::cout << "model 0 rebuild" << "\n";
       Subgraph* original_graph_profiled = 
             interpreter_->returnProfiledOriginalSubgraph(0);
       if(original_graph_profiled == nullptr){

@@ -95,6 +95,11 @@ class Worker
 
 };
 
+class GPUWorker : public Worker{
+  public:
+    TfLiteStatus DelegateSubgraphWithGPU(tflite::Subgraph* subgraph);
+};
+
 // Worker class for CPU-GPU co-execution
 class CoWorker : public Worker
 {

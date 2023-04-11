@@ -189,7 +189,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
 
 InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
-                      std::shared_ptr<tflite::Interpreter> interpreter,
+                                      Interpreter* interpreter,
                                       const char* model_name,
                                       int model_id, bool use_dummy_plan,
                                       const ProfileData& dummy_profile)
@@ -429,7 +429,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
 
   // Minsung
   // Needs check if neccesary
-  if (ApplyDelegates(interpreter_.get(), default_thread) != kTfLiteOk)
+  if (ApplyDelegates(interpreter_, default_thread) != kTfLiteOk)
     return kTfLiteError;
 
   // Minsung
@@ -442,7 +442,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   // Minsung
   // Create a new job from subgraph.
   Job* new_job = new Job;
-  if(BindSubgraphWithDefaultJob(modified_subgraph, new_job, interpreter_)
+  if(BindSubgraphWithDefaultJob(modified_subgraph, new_job)
       != kTfLiteOk){
     std::cout << "BindSubgraphWithDefaultJob ERROR" << "\n";
     return kTfLiteError; 
@@ -456,6 +456,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
     return kTfLiteError;
   }
   std::cout << "Interpreterbuilder : Registered default job and subgraph" << "\n";
+  std::cout << "New Graph id : " << modified_subgraph->GetGraphid() << "\n";
   return kTfLiteOk;
 }
 
@@ -484,7 +485,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     TF_LITE_REPORT_ERROR(error_reporter_, "No buffers in the model.\n");
     return kTfLiteError;
   }
-
+  std::cout << "Asdf" << "\n";
   int new_subgraph_index = 0;
   int count_node_per_subgraph = 0;
   int total_count_node_per_subgraph = 0; 
@@ -496,10 +497,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   for (int subgraph_index = 0; subgraph_index < subgraphs->size();
       ++subgraph_index) {
         // Note : Assume that we have only one subgraph before.
+    std::cout << "sdafas" << "\n";
     const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
     const auto profile_ = profiled_subgraph->GetProfileData();
     auto operators = subgraph->operators();
     auto tensors = subgraph->tensors();
+      std::cout << "ssss" << "\n";
     // Look for Conv2d OPs and save tensor index
     std::vector<int> conv_idx;
     int i = 0;
@@ -547,6 +550,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       return;
     };
+    std::cout << "Asdf" << "\n";
     if(use_dummy_plan_){
       std::cout << "Using dummy partitioning plan" << "\n";
       CreatePartitioningPlanFromProfile(dummy_profile_);
@@ -568,6 +572,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
                                                 ++partition_itr){
       /// Make a new subgraph
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
+
+      // TEST CODE //
+      new_subgraph->SetResourceType(ResourceType::GPU);
+      ///////////////
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // make linked-list structure
         prev_queue.front()->SetNextSubgraph(new_subgraph);
@@ -631,7 +639,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       output_tensor = new std::vector<int>;
     } 
     tflite::Job* new_job = new tflite::Job;
-    if(BindSubgraphWithJob(subgraphs_created, new_job, interpreter_) !=
+    if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "BindSubgraphWithJob ERROR" << "\n";
       return kTfLiteError;
@@ -685,6 +693,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     return kTfLiteError;
   }
   std::cout << "allocated tensors" << "\n";
+  if(DelegateCreatedSubgraphs(subgraphs_created) != kTfLiteOk){
+    std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
+    return kTfLiteError;
+  }
+  std::cout << "delegate tensors" << "\n";
   if(interpreter_->ReadyJobsofGivenModel(model_id_) != kTfLiteOk){
     std::cout << "ReadyJobsofGivenModel ERROR" << "\n";
     return kTfLiteError;
@@ -694,14 +707,26 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   return kTfLiteOk;
 }
 
+TfLiteStatus InterpreterBuilder::DelegateCreatedSubgraphs(
+                    std::vector<tflite::Subgraph*>& new_subgraphs){
+  for(auto new_subgraph : new_subgraphs){
+    if(new_subgraph->GetResourceType() == ResourceType::GPU){
+      if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
+        != kTfLiteOk){
+          std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
+                   << " Delegate" << "\n";
+      }
+    }
+  }
+}
+
 TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(
                                       tflite::Subgraph* new_subgraph,
-                                      tflite::Job* new_job,
-                    std::shared_ptr<tflite::Interpreter> interpreter){
+                                      tflite::Job* new_job){
   // Setup model, job, graph id 
   new_subgraph->SetModelid(model_id_);
-  new_subgraph->SetJobid(interpreter->GetAndAddNumJobsCreated(1));
-  new_subgraph->SetGraphid(interpreter->GetAndAddSubgraphsCreated(1));
+  new_subgraph->SetJobid(interpreter_->GetAndAddNumJobsCreated(1));
+  new_subgraph->SetGraphid(interpreter_->GetAndAddSubgraphsCreated(1));
   graph_subsets.push_back(new_subgraph->GetGraphid());
   // Make a new job
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
@@ -719,14 +744,13 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(
 // This function binds a subset of subgraphs to a single job.
 TfLiteStatus InterpreterBuilder::BindSubgraphWithJob(
                             std::vector<tflite::Subgraph*>& new_subgraphs,
-                                                     tflite::Job* new_job,
-                        std::shared_ptr<tflite::Interpreter> interpreter){
+                                                     tflite::Job* new_job){
   // Setup model, job, graph id 
-  int new_job_id = interpreter->GetAndAddNumJobsCreated(1);
+  int new_job_id = interpreter_->GetAndAddNumJobsCreated(1);
   for(size_t i=0; i<new_subgraphs.size(); ++i){
     new_subgraphs[i]->SetModelid(model_id_);
     new_subgraphs[i]->SetJobid(new_job_id);
-    new_subgraphs[i]->SetGraphid(interpreter->GetAndAddSubgraphsCreated(1));
+    new_subgraphs[i]->SetGraphid(interpreter_->GetAndAddSubgraphsCreated(1));
     graph_subsets.push_back(new_subgraphs[i]->GetGraphid());
     new_job->job_id = new_subgraphs[i]->GetJobid();
     new_job->subgraphs.push_back(
@@ -1429,7 +1453,7 @@ TfLiteStatus InterpreterBuilder::operator()(
         op_resolver_.GetDelegates(num_threads);
   }
 
-  if (ApplyDelegates(interpreter->get(), num_threads) != kTfLiteOk)
+  if (ApplyDelegates(interpreter_, num_threads) != kTfLiteOk)
     return cleanup_and_error();
 
   return kTfLiteOk;

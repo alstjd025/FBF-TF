@@ -544,6 +544,9 @@ void Interpreter::SetCancellationFunction(void* data,
 
 bool Interpreter::IsCancelled() { return primary_subgraph().IsCancelled(); }
 
+
+
+
 TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   TfLiteStatus status = kTfLiteOk;
   for (auto& subgraph : subgraphs_) {
@@ -560,19 +563,16 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   return status;
 }
 
-TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(std::vector<int>& graph_subset,
-                                                    TfLiteDelegate* delegate){
+TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id){
   TfLiteStatus status = kTfLiteOk;
-  for(auto graph_id : graph_subset){
-    if(delegate_provided_ != nullptr)
-      status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_);
-    else{
-      std::cout << "No delegate exists in this interpreter" << "\n";
-      return kTfLiteError;
-    }
-    if(status != kTfLiteOk)
-      break;
+  if(delegate_provided_ != nullptr)
+    status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_);
+  else{
+    std::cout << "No delegate exists in this interpreter" << "\n";
+    return kTfLiteError;
   }
+  if(status != kTfLiteOk)
+    return status;
   return status;
 }
 
