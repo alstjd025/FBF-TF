@@ -67,7 +67,6 @@ void LiteScheduler::SchedulerSpin(){
     std::cout << "scheduler sleeps" << "\n";
     scheduler_cv_.wait(lock, [&] { return stop_scheduler; });    
     std::cout << "scheduler woke up" << "\n";
-    std::this_thread::sleep_for(std::chrono::seconds(3));
     if(need_reschedule){
       if(interpreter_->IsJobQueueEmpty() && !interpreter_->IsJobVectorEmpty()){
         std::cout << "Scheduler : scheduler needs reschedule but job vector and queue"

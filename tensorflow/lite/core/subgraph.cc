@@ -1073,7 +1073,7 @@ TfLiteStatus Subgraph::Invoke() {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    //OutputTensor(node);
+    PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
