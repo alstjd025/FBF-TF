@@ -701,7 +701,7 @@ void TfLiteTensorRealloc(size_t num_bytes, TfLiteTensor* tensor);
 // See also the `CreateDelegateParams` function in `interpreter.cc` details.
 typedef struct TfLiteDelegateParams {
   struct TfLiteDelegate* delegate;
-  TfLiteIntArray* nodes_to_replace;
+  TfLiteIntArray* nodes_to_replace; //HOON : Just node Num in each NodeSubset
   TfLiteIntArray* input_tensors;
   TfLiteIntArray* output_tensors;
 } TfLiteDelegateParams;

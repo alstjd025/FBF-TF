@@ -32,6 +32,8 @@ limitations under the License.
 namespace tflite {
 namespace delegates {
 
+extern std::vector<std::vector<int>> big_v; // HOON
+
 // Creates a new Read/Write tensor having the same shape as the original, but
 // with a different type. Note that this might void existing references to
 // tensors.
@@ -77,10 +79,16 @@ class GraphPartitionHelper {
   std::vector<TfLiteDelegateParams*> GetFirstNLargestPartitions(
       int n = std::numeric_limits<int>::max(), int priority_partition_num=0,
       int min_nodes_per_partition = 0) const;
-// HOON
-std::vector<TfLiteDelegateParams*> GetFirstNSmallestPartitions(
+  // HOON
+  std::vector<TfLiteDelegateParams*> GetFirstNSmallestPartitions(
       int n = std::numeric_limits<int>::max(), int priority_partition_num=0,
       int min_nodes_per_partition = 0) const;
+
+  // HOON
+  std::vector<std::vector<int>> delegation_node_accepter(int start , std::vector<int> b, int n, int total) const;
+
+  //static std::vector<std::vector<int>> big_v;
+
 
   // Returns a list of node indices of all nodes from the first n largest
   // partitions. If there are fewer paritions than n, all nodes will be

@@ -180,14 +180,12 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     const TfLiteGpuDelegateOptionsV2 options = {
         .is_precision_loss_allowed = 0, 
         .inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
-        //.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED,
         .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
-        //.inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-        .priority_partition_num = loop_num, // TODO. default is "0"
+        .priority_partition_num = loop_num, // added. default is "0"
         .experimental_flags = 1,
-        .max_delegated_partitions = 1, //1
+        .max_delegated_partitions = 2, // default is "1"
     };
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
     #ifdef MULTITHREAD

@@ -79,9 +79,11 @@ TfLiteStatus GraphPartitionHelper::Partition(
 // 2. ksmallest
 // 3. custom method (***)
 // (3) TODO 230403 ~ 
-/// 230408 TODO
+///
 // update algo for choosing more than "1" delegation node
 // --------------------------------------------------------------------------------------------------------------
+
+
 std::vector<TfLiteDelegateParams*>
 GraphPartitionHelper::GetFirstNSmallestPartitions(
     int n,  int priority_partition_num, int min_nodes_per_partition) const {
@@ -105,7 +107,7 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
   const int total = sorted_partitions.size(); // maybe... "n" is max_delegated_option
   // in mnist_13.tflite
   // 2*9 / 3*4 / 6*1
-  // 2/2/2/2/2/2/2/2/2/ 3/3/3/3/ 6
+  // 2/2/2/2/2/2/2/2/2/ 3/3/3/3/ 6   ===> 14 num
   // add parameter "i" ??  
 
   // for (int i = 0; i < std::min(total, n); ++i, ++p_it) { 
@@ -117,21 +119,78 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
   // }
   // HOON TODO (~230406s)
   // change below algo using "priority_partition_num" custom parameter  
-
-  // move vector pointer as long as priority_partition_num
-  for (int num=0;num<priority_partition_num;++num){
-    ++p_it;
-  }
-
-  for (int i = 0; i < std::min(total, n); ++i, ++p_it) { 
-    auto* p = (*p_it);
-    if (p->nodes_to_replace->size < min_nodes_per_partition) {
-      break;
+//CHOOSE "1" delegation node algo
+//-------------------------------------------------------------------------------------------
+  if(n==1){
+   // move vector pointer as long as priority_partition_num
+    for (int num=0;num<priority_partition_num;++num){
+      ++p_it;
     }
-    results.push_back(p);
+
+    for (int i = 0; i < std::min(total, n); ++i, ++p_it) { 
+      auto* p = (*p_it);
+      if (p->nodes_to_replace->size < min_nodes_per_partition) {
+        break;
+      }
+      results.push_back(p);
+    }
+    return results;
   }
-  return results;
+// -----------------------------------------------------------------------------------------
+//CHOSSE "N" delegation node algo
+
+// TODO ( 2 STEP)
+// 1 STEP : make whole vector which containes all of cases ... ex) [ (1,2,3), (1,2,4), (1,2,5) ...] 
+// 2 STEP : use prority_parttion num for index in whole_vector ... and just make it for ops_to_replace
+
+  // 230411 ~~~ TODO
+  //    1/1/1/1/1/1/1/1/1/2/2/2/2/3
+  else
+  {
+    // STEP 1
+    std::vector<int> b; // get b by sorted_partitions ---> ex) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
+    big_v = delegation_node_accepter(-1, b, n, total); // ---> ex) [ (0,2,13), (1,2,4), (1,2,5) ...] 
+    // STEP 2
+    std::vector<int> target_v = big_v[priority_partition_num]; // [0,3]
+    for (int i = 0; i < std::min(total, n); ++i) { 
+      for (int num=0;num < target_v[i];++num){
+      ++p_it;
+      }
+      auto* p = (*p_it);
+      if (p->nodes_to_replace->size < min_nodes_per_partition) {
+        break;
+      }
+      results.push_back(p);
+      auto p_it = sorted_partitions.begin();
+    }
+    return results;
+  }
+  }
+  
+std::vector<std::vector<int>> big_v;
+// --------------------------------------------------------------------------------------------
+std::vector<std::vector<int>>GraphPartitionHelper::delegation_node_accepter(int start , std::vector<int> b, int n, int total) const{
+    if (b.size() == n) {
+    		big_v.push_back(b);
+        // for (int i :b) std::cout << i << " "; 
+        // std::cout << "good" << std::endl;
+        // for(int i=0 ; i < big_v.size(); i++){
+          // std::cout << "vector " << i << std::endl;
+        // }
+        // printf("\nHOONING\n"); // good
+    		return big_v;
+    	}
+    	for (int i = start + 1; i < total; i++) 
+    	{
+    		b.push_back(i);
+    		delegation_node_accepter(i, b, n, total);
+    		b.pop_back();
+    	}
+    	return big_v; 
 }
+
+
+
 
 std::vector<TfLiteDelegateParams*>
 GraphPartitionHelper::GetFirstNLargestPartitions(
@@ -179,7 +238,11 @@ std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
   for (const auto p : first_n_partitions) {
     auto nodes = p->nodes_to_replace;
     ops_to_replace.insert(ops_to_replace.end(), nodes->data,
-                          nodes->data + nodes->size);
+                          nodes->data + nodes->size); // push back to ops_to_repace (std::<int> vector) 
+                                                      // nodes'num (nodes->data.) add backoff by + @ (nodes->size)
+                                                      // add specific data which is in range of  
+                                                      // nodes->data ~~ nodes->data + nodes->size 
+                                                      // maybe this refers to specific node num
   }
   return ops_to_replace;
 }
