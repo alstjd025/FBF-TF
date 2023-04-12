@@ -85,7 +85,8 @@ void LiteScheduler::SchedulerSpin(){
 
       std::cout << "Scheduler: Creates worker" << "\n";
       interpreter_->CreateWorker(ResourceType::CPU, 1);
-      //interpreter_->CreateWorker(ResourceType::CPU, 2);
+      interpreter_->CreateWorker(ResourceType::CPU, 2);
+      interpreter_->FeedInputToWorkerI();
       interpreter_->GiveJob();          
     }
     // schedule jobs with scheduling algorithm.

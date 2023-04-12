@@ -643,7 +643,8 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
                        TfLiteFullyConnectedParams* params, OpData* data,
                        const TfLiteTensor* input, const TfLiteTensor* filter,
                        const TfLiteTensor* bias, TfLiteTensor* output) {
-  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalFloat()\n";
+  // Minsung debug
+  //std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalFloat()\n";
   float output_activation_min, output_activation_max;
   CalculateActivationRange(params->activation, &output_activation_min,
                            &output_activation_max);
@@ -721,7 +722,8 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
 
 template <KernelType kernel_type>
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
-  std::cout << "tensorflow/lite/kernels/fully_connected.cc/Eval()\n";
+  // Minsung Debug
+  //std::cout << "tensorflow/lite/kernels/fully_connected.cc/Eval()\n";
   auto* params =
       reinterpret_cast<TfLiteFullyConnectedParams*>(node->builtin_data);
   OpData* data = reinterpret_cast<OpData*>(node->user_data);

@@ -44,10 +44,12 @@ class Worker
 
     void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
 
+    void FeedInput(INPUT_TYPE input_type, Subgraph* subgraph);
+
     // Prints the output tensor of subgraph
     void PrintOutput(Subgraph* subgraph);
 
-    void PrintTensor(TfLiteTensor& tensor);
+    void PrintTensor(TfLiteTensor& tensor, bool is_output);
 
     WorkerState returnState() { return state; }
 
@@ -92,6 +94,14 @@ class Worker
     // CAREFULLY USE
     // NEEDS BETTER IMPLEMENTATION
     Interpreter* interpreter_;
+
+    // For debugging
+    // input container
+    std::vector<cv::Mat> inputs;
+
+    int invoke_counter = 0;
+
+    bool output_correct = false;
 
 };
 

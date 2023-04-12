@@ -1017,7 +1017,7 @@ TfLiteStatus Subgraph::Invoke() {
   // called.
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
-    std::cout << "Invoke inside" << "\n";
+    //std::cout << "Invoke inside" << "\n";
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
       TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
@@ -1073,7 +1073,7 @@ TfLiteStatus Subgraph::Invoke() {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    PrintOutputTensor(node);
+    //PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&

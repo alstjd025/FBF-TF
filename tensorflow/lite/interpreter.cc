@@ -655,7 +655,6 @@ tflite::Subgraph* Interpreter::CreateSubgraph(){
                       &subgraphs_, &resources_);
 }
 
-
 TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
   // Creates a worker of given workerType.
   // A default worker uses single CPU.
@@ -676,6 +675,15 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
     worker_ids.push_back(new_id);
     workers.push_back(new_worker);
     std::cout << "Interpreter : Created 1 CPU worker" << "\n";
+  }
+}
+
+void Interpreter::FeedInputToWorkerI(){
+  if(!mnist_input.empty()){
+    workers[0]->inputs = mnist_input;
+  }
+  if(!mnist_input.empty()){
+    workers[1]->inputs = mnist_input;
   }
 }
 

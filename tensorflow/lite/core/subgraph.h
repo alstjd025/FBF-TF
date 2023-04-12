@@ -226,11 +226,6 @@ class Subgraph {
 
   void PrintTensor(TfLiteTensor& tensor);
 
-  // Minsung
-  // Lock functions
-  void Lock();
-  void Unlock();
-
   // Read only access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }
 
@@ -433,6 +428,8 @@ class Subgraph {
   // WARNING: This is an experimental interface that is subject to change.
   TfLiteStatus SetCustomAllocationForTensor(
       int tensor_index, const TfLiteCustomAllocation& allocation);
+
+  bool input_refreshed = false;
 
  private:
   // SubgraphAwareProfiler wraps an actual TFLite profiler, such as a
@@ -875,7 +872,6 @@ class Subgraph {
   // Stores unique id of job which current subgraph belongs.
   int job_id_ = -1;
 
-  bool input_refreshed = false;
   ResourceType resource_type = ResourceType::CPU;
 
 };

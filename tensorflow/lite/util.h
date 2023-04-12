@@ -145,6 +145,7 @@ typedef struct Job{
   float dead_line;      //ms
   time_t start;
   time_t end;
+  bool input_refreshed;
   JobState state = JobState::INIT_JOB;
   InvokeType invoke_type = InvokeType::PROFILING;
   ResourceType resource_type = ResourceType::CPU;
@@ -158,6 +159,13 @@ typedef struct ProfileData{
   std::vector<std::vector<int>> layer_subsets;
   bool is_valid;
 } ProfileData;
+
+typedef enum INPUT_TYPE{
+  MNIST,
+  IMAGENET224,
+  IMAGENET300,
+  USER
+}INPUT_TYPE;
 
 }  // namespace tflite
 

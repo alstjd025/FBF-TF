@@ -743,6 +743,8 @@ class Interpreter {
   // Creates a new worker of given type
   TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);
 
+  void FeedInputToWorkerI();
+
   // Do invoke
   TfLiteStatus DoInvoke();
 
@@ -765,6 +767,9 @@ class Interpreter {
   int GetJobNum();
 
   Job* GetJob();
+
+  std::vector<cv::Mat> mnist_input;
+  std::vector<cv::Mat> imagenet_input;
   
 #endif  // DOXYGEN_SKIP
 

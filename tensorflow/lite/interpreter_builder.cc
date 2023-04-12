@@ -527,16 +527,27 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       dummy_profile_.layer_subsets[1].push_back(6);
       dummy_profile_.layer_subsets[1].push_back(7);
       dummy_profile_.layer_subsets[1].push_back(8);
+      // dummy_profile_.layer_subsets.push_back(std::vector<int>());
+      // dummy_profile_.layer_subsets.push_back(std::vector<int>());
+      // for(size_t i=0; i<3; ++i){ // 9 10 200 201?
+      //   dummy_profile_.layer_subsets[0].push_back(i);
+      // }
+      // for(size_t i=3; i<124; ++i){
+      //   dummy_profile_.layer_subsets[1].push_back(i);
+      // }
     }
     else if(model_id_ == 1){ // mobilenet case
       dummy_profile_.layer_subsets.push_back(std::vector<int>());
       dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      for(size_t i=0; i<3; ++i){ // 9 10 200 201?
-        dummy_profile_.layer_subsets[0].push_back(i);
-      }
-      for(size_t i=3; i<124; ++i){
-        dummy_profile_.layer_subsets[1].push_back(i);
-      }
+      dummy_profile_.layer_subsets[0].push_back(0);
+      dummy_profile_.layer_subsets[0].push_back(1);
+      dummy_profile_.layer_subsets[0].push_back(2);
+      dummy_profile_.layer_subsets[1].push_back(3);
+      dummy_profile_.layer_subsets[1].push_back(4);
+      dummy_profile_.layer_subsets[1].push_back(5);
+      dummy_profile_.layer_subsets[1].push_back(6);
+      dummy_profile_.layer_subsets[1].push_back(7);
+      dummy_profile_.layer_subsets[1].push_back(8);
     }
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
       for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
@@ -574,7 +585,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
 
       // TEST CODE //
-      new_subgraph->SetResourceType(ResourceType::GPU);
+      // new_subgraph->SetResourceType(ResourceType::GPU);
       ///////////////
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // make linked-list structure
@@ -693,11 +704,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     return kTfLiteError;
   }
   std::cout << "allocated tensors" << "\n";
-  if(DelegateCreatedSubgraphs(subgraphs_created) != kTfLiteOk){
-    std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
-    return kTfLiteError;
-  }
-  std::cout << "delegate tensors" << "\n";
+  // if(DelegateCreatedSubgraphs(subgraphs_created) != kTfLiteOk){
+  //   std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
+  //   return kTfLiteError;
+  // }
+  // std::cout << "delegate tensors" << "\n";
   if(interpreter_->ReadyJobsofGivenModel(model_id_) != kTfLiteOk){
     std::cout << "ReadyJobsofGivenModel ERROR" << "\n";
     return kTfLiteError;

@@ -25,13 +25,6 @@ Author : Minsung Kim
 
 */
 
-typedef enum INPUT_TYPE{
-  MNIST,
-  IMAGENET224,
-  IMAGENET300,
-  USER
-}INPUT_TYPE;
-
 
 namespace tflite{
 
@@ -51,6 +44,10 @@ class TfLiteRuntime{
 
     void FeedInputToModel(const char* model, std::vector<cv::Mat>& input,
                           INPUT_TYPE input_type);
+    
+    // For debugging only
+    void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
+                                  std::vector<cv::Mat>& imagetnet);
 
     void WakeScheduler();
     void JoinScheduler();

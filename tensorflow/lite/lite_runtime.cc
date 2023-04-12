@@ -107,6 +107,12 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   return kTfLiteOk;
 };
 
+void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
+                                          std::vector<cv::Mat>& imagenet){
+  interpreter->mnist_input = mnist;
+  interpreter->imagenet_input = imagenet;
+}
+
 void TfLiteRuntime::FeedInputToModel(const char* model,
                                     std::vector<cv::Mat>& input,
                                     INPUT_TYPE input_type){
