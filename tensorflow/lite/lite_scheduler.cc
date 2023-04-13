@@ -69,8 +69,6 @@ void LiteScheduler::SchedulerSpin(){
     std::cout << "scheduler woke up" << "\n";
     if(need_reschedule){
       if(interpreter_->IsJobQueueEmpty() && !interpreter_->IsJobVectorEmpty()){
-        std::cout << "Scheduler : scheduler needs reschedule but job vector and queue"
-                  << " are not safe. Stops scheduler" <<"\n";
         stop_scheduler = false;
         continue;
       }  

@@ -1,6 +1,9 @@
 #include "tensorflow/lite/worker_core.h"
 #include "tensorflow/lite/interpreter.h"
 
+
+
+
 #define TFLITE_WORKER_CHECK(x)                              \
   if (!(x)) {                                                \
     fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
@@ -105,16 +108,17 @@ void Worker::Work(){
       //if(jobs[i]->resource_type == type){
       int graphs_to_invoke = jobs[i]->subgraphs.size();
       for(int j=0; j<graphs_to_invoke; ++j){
-        // std::cout << "[" << worker_id << "] working graph id : " 
-        //   << jobs[i]->subgraphs[j].first << "\n";
+        std::cout << "[" << worker_id << "] working graph id : " 
+          << jobs[i]->subgraphs[j].first << "\n";
         working_graph = interpreter_->subgraph_id(jobs[i]->subgraphs[j].first);
 
-        // check if working_graph is an input subgraph
+        // check working_graph is an input subgraph
         if(working_graph->GetPrevSubgraph() == nullptr){
+          // thread_safety
           if(working_graph->GetModelid() == 0){
-            FeedInput(INPUT_TYPE::MNIST, working_graph);
+            FeedInput(INPUT_TYPE::IMAGENET224, working_graph);
           }else if(working_graph->GetModelid() == 1){
-            FeedInput(INPUT_TYPE::MNIST, working_graph);
+            FeedInput(INPUT_TYPE::IMAGENET224, working_graph);
           }
         }
         output_correct = false;
@@ -276,7 +280,7 @@ void Worker::PrintTensor(TfLiteTensor& tensor, bool is_output){
               output_correct = true;
             }
           }else{
-            if(data > 0.8){
+            if(data > 9.0){
               std::cout << "CH [" << i << "] ";
               printf("%s%0.6f%s \n", C_AQUA, data, C_NRML);
               output_correct = true;

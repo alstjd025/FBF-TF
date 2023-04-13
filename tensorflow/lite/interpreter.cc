@@ -678,12 +678,13 @@ TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
   }
 }
 
+// thread_safety
 void Interpreter::FeedInputToWorkerI(){
   if(!mnist_input.empty()){
-    workers[0]->inputs = mnist_input;
+    workers[0]->inputs = imagenet_input;
   }
   if(!mnist_input.empty()){
-    workers[1]->inputs = mnist_input;
+    workers[1]->inputs = imagenet_input;
   }
 }
 
@@ -858,7 +859,7 @@ TfLiteStatus Interpreter::GiveJob(){
 TfLiteStatus Interpreter::DoInvoke(){
   for(int i=0; i<workers.size(); ++i){
     Worker* worker_ = workers[i];
-    if(worker_->HaveJob()){
+    if(worker_->HaveJob() && worker_->state != WorkerState::WORKING){
       std::cout << "Interpreter : wake worker " << i << "\n";
       worker_->ChangeStateTo(WorkerState::WORKING);
       worker_->WakeWorker();
