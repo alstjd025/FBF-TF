@@ -177,15 +177,45 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     std::cout << "#####################################" << "\n";
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TfLiteDelegate *MyDelegate = NULL;
+    int max_delegated_partitions_num = 1;
+    if (loop_num >= 14)  max_delegated_partitions_num =2;
+    if (loop_num >= 105) max_delegated_partitions_num =3;
+    if (loop_num >= 469) max_delegated_partitions_num =4;
+    if (loop_num >= 1470) max_delegated_partitions_num =5;
+    if (loop_num >= 3472) max_delegated_partitions_num =6;
+    if (loop_num >= 6475) max_delegated_partitions_num =7;
+    if (loop_num >= 9907) max_delegated_partitions_num =8;
+    if (loop_num >= 12910) max_delegated_partitions_num =9;
+    if (loop_num >= 14912)  max_delegated_partitions_num =10;
+    if (loop_num >= 15913)  max_delegated_partitions_num =11;
+    if (loop_num >= 16277) max_delegated_partitions_num =12;
+    if (loop_num >= 16368)  max_delegated_partitions_num =13;
+    if (loop_num >= 16382)  max_delegated_partitions_num =14;
+    
+    int priority_partition_num = loop_num;
+    if (loop_num >= 16382)  priority_partition_num -=16382;
+    else if (loop_num >= 16368)  priority_partition_num -=16368;
+    else if (loop_num >= 16277) priority_partition_num -= 16277;
+    else if (loop_num >= 15913)  priority_partition_num -=15913;
+    else if (loop_num >= 14912)  priority_partition_num -= 14912;
+    else if (loop_num >= 12910) priority_partition_num -=12910;
+    else if (loop_num >= 9907) priority_partition_num -= 9907;
+    else if (loop_num >= 6475) priority_partition_num -= 6475;
+    else if (loop_num >= 3472) priority_partition_num -=3472;
+    else if (loop_num >= 1470) priority_partition_num -= 1470;
+    else if (loop_num >= 469) priority_partition_num -= 469;
+    else if (loop_num >= 105) priority_partition_num -= 105;
+    else if (loop_num >= 14)  priority_partition_num -= 14;
+    
     const TfLiteGpuDelegateOptionsV2 options = {
         .is_precision_loss_allowed = 0, 
         .inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
         .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-        .priority_partition_num = loop_num, // added. default is "0"
+        .priority_partition_num = priority_partition_num, // default is "0"
         .experimental_flags = 1,
-        .max_delegated_partitions = 2, // default is "1"
+        .max_delegated_partitions = max_delegated_partitions_num, // default is "1"
     };
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
     #ifdef MULTITHREAD

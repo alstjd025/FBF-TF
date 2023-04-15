@@ -95,12 +95,12 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
   // HOON : maybe TODO
   // std::cout << "HOON : Smallest Partitions logic " << std::endl;
   std::vector<TfLiteDelegateParams*> sorted_partitions(partitions_);
-  std::sort(sorted_partitions.begin(), sorted_partitions.end(),
-            [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
-              // Reverse sort
-              return left->nodes_to_replace->size <
-                     right->nodes_to_replace->size;
-            });
+  // std::sort(sorted_partitions.begin(), sorted_partitions.end(),
+  //           [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
+  //             // Reverse sort
+  //             return left->nodes_to_replace->size <
+  //                    right->nodes_to_replace->size;
+  //           });
 
   std::vector<TfLiteDelegateParams*> results;
   auto p_it = sorted_partitions.begin();
@@ -151,9 +151,15 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
     std::vector<int> b; // get b by sorted_partitions ---> ex) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
     big_v = delegation_node_accepter(-1, b, n, total); // ---> ex) [ (0,2,13), (1,2,4), (1,2,5) ...] 
     // STEP 2
+    // printf("%d\n",priority_partition_num);
     std::vector<int> target_v = big_v[priority_partition_num]; // [0,3]
+    std:: cout << "Combination Case (by delegation_node_accepter) is : ";
+    for (int i :target_v) printf("\033[0;31m%d\033[0m  , ",  i);
+    std::cout << std::endl;
+    // ex ==> target_v[3] == "1 13 " ................HOONING
     for (int i = 0; i < std::min(total, n); ++i) { 
-      for (int num=0;num < target_v[i];++num){
+      auto p_it = sorted_partitions.begin();  // SOLVED :  move "pointer initial" code to here
+      for (int num=0;num < target_v[i];++num){ //HOONING : target_v [ ?? ]
       ++p_it;
       }
       auto* p = (*p_it);
@@ -161,8 +167,10 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
         break;
       }
       results.push_back(p);
-      auto p_it = sorted_partitions.begin();
+      //auto p_it = sorted_partitions.begin();
     }
+    big_v.clear(); //HOONING 230413
+    b.clear();
     return results;
   }
   }
@@ -173,7 +181,7 @@ std::vector<std::vector<int>>GraphPartitionHelper::delegation_node_accepter(int 
     if (b.size() == n) {
     		big_v.push_back(b);
         // for (int i :b) std::cout << i << " "; 
-        // std::cout << "good" << std::endl;
+        // std::cout << "good" << big_v.size() << std::endl;
         // for(int i=0 ; i < big_v.size(); i++){
           // std::cout << "vector " << i << std::endl;
         // }

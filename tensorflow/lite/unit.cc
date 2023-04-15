@@ -1,5 +1,5 @@
 #include "unit.h"
-#define SEQ 60000
+#define SEQ 6 //60000
 #define OUT_SEQ 1
 #define GPUONLY
 //#define MULTITHREAD

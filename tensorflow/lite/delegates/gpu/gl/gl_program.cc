@@ -35,7 +35,7 @@ namespace {
 
 absl::Status CreateNewProgramId(GLuint* program_id) {
   //Minsung
-  std::cout << "Gl Create Program" << "\n";
+  // std::cout << "Gl Create Program" << "\n";
   RETURN_IF_ERROR(TFLITE_GPU_CALL_GL(glCreateProgram, program_id));
   if (!*program_id) {
     return absl::UnknownError("Can't create opengl program: 0 program_id");

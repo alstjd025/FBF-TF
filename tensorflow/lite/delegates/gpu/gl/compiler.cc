@@ -112,7 +112,7 @@ class CompilerImpl : public Compiler {
 	#ifdef DEBUG
   SFLAG();
   #endif
-  std::cout << "gl::compiler::Compile" << "\n";
+  // std::cout << "gl::compiler::Compile" << "\n";
 	//std::cout << "tensorflow/delegates/gpu/gl/compiler.cc/CompilerImpl::Compile()\n";
     // It is important to have ids in a compiled graph identical to the given
     // graph.
