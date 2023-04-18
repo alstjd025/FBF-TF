@@ -78,13 +78,6 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
   tflite::ops::builtin::BuiltinOpResolver* resolver;
   resolver = new tflite::ops::builtin::BuiltinOpResolver;
   
-  // Experimental API
-  // Giving a model number from recieved model size?
-  int model_number = builders_created;
-  builders_created++;
-  
-  std::cout << "RUNTIME: Currently have " << model_number << " on runtime" << "\n";
-
   ProfileData dummy_profile;
   // fill dummy profile here //
   
@@ -92,15 +85,14 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model){
 
   tflite::InterpreterBuilder* new_builder = \
             new tflite::InterpreterBuilder(**model_, *resolver, interpreter, model, \
-                                                  model_number, true, dummy_profile);
-
-  builder_and_id.insert({model_number, new_builder});
+                                                  0, true, dummy_profile);
   
   // Now creates an invokable origin subgraph from new model.
   if(new_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk){
     std::cout << "CreateSubgraphFromFlatBuffer returned Error" << "\n";
     exit(-1);
   }
+  
   scheduler->RegisterInterpreterBuilder(new_builder);
   // And schedule it for latency profiling
 
@@ -117,12 +109,8 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
                                     std::vector<cv::Mat>& input,
                                     INPUT_TYPE input_type){
   TfLiteTensor* input_tensor = nullptr;
-  for(auto builder : builder_and_id){
-    if(!strcmp(builder.second->GetModelName().c_str(), model)){
-      std::cout << "look for input tensor model " << std::string(model) << "\n";
-      input_tensor = interpreter->input_tensor_of_model(builder.first);
-    }
-  }
+  input_tensor = interpreter->input_tensor_of_model(0);
+
   if(input_tensor == nullptr){
     std::cout << "TfLiteRuntime : cannont get pointer to input tensor, model["
               << model << "]" << "\n";

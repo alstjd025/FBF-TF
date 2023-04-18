@@ -19,7 +19,9 @@
 /*
 Author : Minsung Kim
 Contact : alstjd025@gmail.com
-
+WARNING! This class is deprecatied.
+WARNING! This class is deprecatied.
+WARNING! This class is deprecatied.
 This is a worker core source for tensorflow lite.
 */
 

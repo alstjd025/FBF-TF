@@ -16,6 +16,10 @@
 #include "thread"
 #include "future"
 
+// WARNING! This class is deprecatied.
+// WARNING! This class is deprecatied.
+// WARNING! This class is deprecatied.
+
 namespace tflite{
 
 class Interpreter; // forward declaire

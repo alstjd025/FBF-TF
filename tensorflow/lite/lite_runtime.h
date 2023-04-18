@@ -7,6 +7,13 @@
 #include <vector>
 #include <utility>
 #include <queue>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <pack.h>
+#include <unistd.h>
+#include <functional>
+
 #include "condition_variable"
 #include "opencv2/opencv.hpp"
 #include "tensorflow/lite/interpreter.h"
@@ -16,13 +23,13 @@
 #include "tensorflow/lite/optional_debug_tools.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 #include "tensorflow/lite/c/common.h"
-#include <functional>
 #include "thread"
 #include "future"
 
-
 /*
 Author : Minsung Kim
+This class is re-writed for IPC with scheduler and 1:1 relationship for interpreter
+and interpreterbuilder. (commit b56faa4981)
 
 */
 
@@ -55,13 +62,8 @@ class TfLiteRuntime{
 
   private:
     tflite::Interpreter* interpreter;
+    tflite::InterpreterBuilder* interpreter_builder;
     LiteScheduler* scheduler;
-
-    // Map container for interpreterBuilders and model_id
-    // key : model_id, value : interpreterbuilder
-    std::map<int, tflite::InterpreterBuilder*> builder_and_id;
-    int builders_created = 0;
-
 };
 
 } // namespace tflite

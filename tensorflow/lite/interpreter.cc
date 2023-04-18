@@ -119,9 +119,10 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
   
   // Minsung
   // Add job queue
-  jobs = new std::queue<tflite::Job*>;
-  scheduler_ = new LiteScheduler(this); //create scheduler thread here
-  std::cout << "Interperter Created with new job queue and scheduler" << "\n";
+  // THIS CODE IS DEPRECATED
+  // jobs = new std::queue<tflite::Job*>;
+  // scheduler_ = new LiteScheduler(this); //create scheduler thread here
+  // std::cout << "Interperter Created with new job queue and scheduler" << "\n";
   
   
 }
