@@ -113,6 +113,7 @@ typedef enum SchedulerState{
   STOP
 } SchedulerStatus;
 
+//WARNING! This struct is deprecatied.
 typedef enum JobState{
   INIT_JOB,       // Initial phase. 
   READY,        // Job is ready to be scheduled.(allocation & op mapping done)
@@ -121,11 +122,13 @@ typedef enum JobState{
   DONE        // Job done and can be erased from mememory.
 } JobState;
 
+//WARNING! This struct is deprecatied.
 typedef enum WorkerState{
   INIT_WORK,
   WORKING,
   BLOCKED
 } WorkerState;
+
 
 typedef enum ResourceType{
   CPU,
@@ -133,11 +136,20 @@ typedef enum ResourceType{
   CPUGPU
 } ResourceType;
 
+typedef enum RuntimeState{
+  INITIALIZE,
+  NEED_PROFILE,
+  SUBGRAPH_CREATE,
+  INVOKE
+} RuntimeState;
+
+//WARNING! This struct is deprecatied.
 typedef enum InvokeType{ // An invoke type of job
   CONTINOUS,          
   PROFILING
 } InvokeType;
 
+//WARNING! This struct is deprecatied.
 typedef struct Job{
   int model_id = -1;      // 
   int job_id = -1;        //
@@ -166,6 +178,14 @@ typedef enum INPUT_TYPE{
   IMAGENET300,
   USER
 }INPUT_TYPE;
+
+typedef struct tf_packet{
+  short runtime_id;
+  short runtime_current_state;
+  short runtime_next_state;
+  int partitioning_plan[1000][3];
+  float latency[1000];
+}tf_packet;
 
 }  // namespace tflite
 

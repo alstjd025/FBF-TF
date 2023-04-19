@@ -40,7 +40,8 @@ class LiteScheduler;
 
 class TfLiteRuntime{
   public:
-    TfLiteRuntime();
+    TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
+                                        const char* model);
     ~TfLiteRuntime();
 
     // Creates Interpreter
@@ -60,10 +61,27 @@ class TfLiteRuntime{
     void WakeScheduler();
     void JoinScheduler();
 
+    TfLiteStatus Invoke();
+    void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
+    void PrintOutput(Subgraph* subgraph);
+    void PrintTensor(TfLiteTensor& tensor, bool is_output);
+
+    //// IPC
+    // Initialize UDS and check communication with scheduler.
+    TfLiteStatus InitializeUDS();
+
   private:
+    RuntimeState state;
     tflite::Interpreter* interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
-    LiteScheduler* scheduler;
+
+    // IPC
+    char* uds_runtime_filename;
+    char* uds_scheduler_filename;
+    int runtime_sock;
+    size_t addr_size;
+    struct sockaddr_un runtime_addr;
+    struct sockaddr_un scheduler_addr;
 };
 
 } // namespace tflite
