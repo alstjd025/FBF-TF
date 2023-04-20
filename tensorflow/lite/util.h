@@ -140,7 +140,7 @@ typedef enum RuntimeState{
   INITIALIZE,
   NEED_PROFILE,
   SUBGRAPH_CREATE,
-  INVOKE
+  INVOKE_
 } RuntimeState;
 
 //WARNING! This struct is deprecatied.
@@ -183,6 +183,7 @@ typedef struct tf_packet{
   short runtime_id;
   short runtime_current_state;
   short runtime_next_state;
+  int cur_subgraph;
   int partitioning_plan[1000][3];
   float latency[1000];
 }tf_packet;

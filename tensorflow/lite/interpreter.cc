@@ -119,8 +119,9 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
   
   // Minsung
   // Add job queue
+  jobs = new std::queue<tflite::Job*>;
+
   // THIS CODE IS DEPRECATED
-  // jobs = new std::queue<tflite::Job*>;
   // scheduler_ = new LiteScheduler(this); //create scheduler thread here
   // std::cout << "Interperter Created with new job queue and scheduler" << "\n";
   
@@ -715,13 +716,11 @@ TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
 }
 
 TfLiteStatus Interpreter::RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph){
-  LockJobs();
   if(subgraph_subsets.empty()){ // if subgraph subset is empty, create new one
     std::pair<int, std::vector<int>> new_subset;
     new_subset.first = new_subgraph->GetModelid();
     new_subset.second.push_back(new_subgraph->GetGraphid());
     subgraph_subsets.push_back(new_subset);
-    UnlockJobs();
     return kTfLiteOk;
   }   
   for(size_t j=0; j < subgraph_subsets.size(); ++j){
@@ -737,7 +736,6 @@ TfLiteStatus Interpreter::RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph
       }
       if(register_needed){
         subgraph_subsets[j].second.push_back(new_subgraph->GetGraphid());
-        UnlockJobs();
         return kTfLiteOk;
       }
     }   
@@ -747,7 +745,6 @@ TfLiteStatus Interpreter::RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph
   new_subset.first = new_subgraph->GetModelid();
   new_subset.second.push_back(new_subgraph->GetGraphid());
   subgraph_subsets.push_back(new_subset);
-  UnlockJobs();
   return kTfLiteOk;
 }
 

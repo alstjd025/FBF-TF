@@ -10,7 +10,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
-#include <pack.h>
 #include <unistd.h>
 #include <functional>
 

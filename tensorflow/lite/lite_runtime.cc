@@ -117,6 +117,7 @@ TfLiteStatus TfLiteRuntime::InitializeUDS(){
     std::cout << "Sending Hello to scheduler FAILED" << "\n";
     return kTfLiteError;
   }
+  std::cout << "Send runtime register request to scheduler" << "\n";
 
   tf_packet recv_packet;
   if(recvfrom(runtime_sock, &recv_packet, sizeof(tf_packet), 0 , NULL, 0) == -1){
@@ -125,7 +126,8 @@ TfLiteStatus TfLiteRuntime::InitializeUDS(){
   }
   runtime_id = recv_packet.runtime_id;
   std::cout << "Got runtime ID " << runtime_id << " from scheduler" << "\n";
-  
+
+  return kTfLiteOk;
 }
 
 TfLiteStatus TfLiteRuntime::CreateTfLiteRuntime() { return kTfLiteOk; };
