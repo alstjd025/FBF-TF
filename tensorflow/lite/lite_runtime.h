@@ -72,6 +72,7 @@ class TfLiteRuntime{
 
   private:
     RuntimeState state;
+    int runtime_id = -1;
     tflite::Interpreter* interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
 

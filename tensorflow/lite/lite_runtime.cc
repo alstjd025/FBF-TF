@@ -106,9 +106,26 @@ TfLiteStatus TfLiteRuntime::InitializeUDS(){
     std::cout << "Socket bind ERROR" << "\n";
     return kTfLiteError;
   }
+  tf_packet new_packet;
+  memset(&new_packet, 0, sizeof(tf_packet));
+  new_packet.runtime_current_state = 0;
+  new_packet.runtime_id = -1;
 
+
+  if(sendto(runtime_sock, (void *)&new_packet, sizeof(tf_packet), 0,
+            (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1){
+    std::cout << "Sending Hello to scheduler FAILED" << "\n";
+    return kTfLiteError;
+  }
+
+  tf_packet recv_packet;
+  if(recvfrom(runtime_sock, &recv_packet, sizeof(tf_packet), 0 , NULL, 0) == -1){
+    std::cout << "Receiving packet from scheduler FAILED" << "\n";
+    return kTfLiteError;
+  }
+  runtime_id = recv_packet.runtime_id;
+  std::cout << "Got runtime ID " << runtime_id << " from scheduler" << "\n";
   
-
 }
 
 TfLiteStatus TfLiteRuntime::CreateTfLiteRuntime() { return kTfLiteOk; };
