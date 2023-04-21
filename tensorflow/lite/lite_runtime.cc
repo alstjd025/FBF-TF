@@ -68,9 +68,14 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     exit(-1);
   }
   if(AddModelToRuntime(model) != kTfLiteOk){
-    std::cout << "Model registration ERROR" << "\n";
+    std::cout << "Model registration to runtime ERROR" << "\n";
     exit(-1);
   }
+  if(RegisterModeltoScheduler() != kTfLiteOk){
+    std::cout << "Model registration to scheduler ERROR" << "\n";
+    exit(-1);
+  }
+  
     
 };
 
@@ -112,21 +117,41 @@ TfLiteStatus TfLiteRuntime::InitializeUDS(){
   new_packet.runtime_id = -1;
 
 
-  if(sendto(runtime_sock, (void *)&new_packet, sizeof(tf_packet), 0,
-            (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1){
+  if(SendPacketToScheduler(new_packet) != kTfLiteOk){
     std::cout << "Sending Hello to scheduler FAILED" << "\n";
     return kTfLiteError;
   }
   std::cout << "Send runtime register request to scheduler" << "\n";
 
   tf_packet recv_packet;
-  if(recvfrom(runtime_sock, &recv_packet, sizeof(tf_packet), 0 , NULL, 0) == -1){
+  if(ReceivePacketFromScheduler(recv_packet) != kTfLiteOk){
     std::cout << "Receiving packet from scheduler FAILED" << "\n";
     return kTfLiteError;
   }
+
   runtime_id = recv_packet.runtime_id;
   std::cout << "Got runtime ID " << runtime_id << " from scheduler" << "\n";
+  
+  if(ChangeStatewithPacket(recv_packet) != kTfLiteOk){
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
 
+TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_packet& tx_p){
+  if(sendto(runtime_sock, (void *)&tx_p, sizeof(tf_packet), 0,
+            (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1){
+    std::cout << "Sending packet to scheduler FAILED" << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk; 
+}
+
+TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p){
+  if(recvfrom(runtime_sock, &rx_p, sizeof(tf_packet), 0 , NULL, 0) == -1){
+    std::cout << "Receiving packet from scheduler FAILED" << "\n";
+    return kTfLiteError;
+  }
   return kTfLiteOk;
 }
 
@@ -157,6 +182,46 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
 
   return kTfLiteOk;
 };
+
+TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
+  if(state != RuntimeState::NEED_PROFILE){
+    std::cout << "State is " << state << ". RegisterModeltoScheduler must called in "
+             << RuntimeState::NEED_PROFILE << "\n";
+    return kTfLiteError;
+  }
+  tf_packet tx_packet;
+  memset(&tx_packet, 0, sizeof(tf_packet));
+  tx_packet.runtime_current_state = state;
+  tx_packet.runtime_id = runtime_id;
+
+  //////////////////////////////////////
+  // Some profiling code here. later. //
+  //////////////////////////////////////
+
+  tx_packet.latency[0] = -1.0; // means this is dummy latency
+  if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
+    std::cout << "Sending profile packet to scheduler failed" << "\n";
+    return kTfLiteError;
+  }
+
+  tf_packet rx_packet;
+  if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
+    std::cout << "Receiving partitioning plan packet from scheduler Failed" << "\n";
+    return kTfLiteError;
+  }
+
+}
+
+TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p){
+  if(rx_p.runtime_next_state != state){
+    state = static_cast<RuntimeState>(rx_p.runtime_next_state);
+    std::cout << "Runtime " << runtime_id << " state changed to " << state << "\n";
+    return kTfLiteOk;
+  }else{
+    std::cout << "Runtime " << runtime_id << " state change failed" << "\n";
+    return kTfLiteError;
+  }
+}
 
 void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
                                            std::vector<cv::Mat>& imagenet) {

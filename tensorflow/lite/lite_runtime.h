@@ -32,7 +32,6 @@ and interpreterbuilder. (commit b56faa4981)
 
 */
 
-
 namespace tflite{
 
 class LiteScheduler;
@@ -47,6 +46,7 @@ class TfLiteRuntime{
     TfLiteStatus CreateTfLiteRuntime();
 
     TfLiteStatus AddModelToRuntime(const char* new_model);
+    TfLiteStatus RegisterModeltoScheduler();
 
     TfLiteStatus DebugInvoke();
 
@@ -68,6 +68,9 @@ class TfLiteRuntime{
     //// IPC
     // Initialize UDS and check communication with scheduler.
     TfLiteStatus InitializeUDS();
+    TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
+    TfLiteStatus SendPacketToScheduler(tf_packet& tx_p);
+    TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
 
   private:
     RuntimeState state;

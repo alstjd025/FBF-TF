@@ -143,6 +143,20 @@ typedef enum RuntimeState{
   INVOKE_
 } RuntimeState;
 
+// cascade operator overloading for debug message.
+std::ostream& operator<<(std::ostream& out, const RuntimeState value){
+  const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+  switch(value){
+    PROCESS_VAL(INITIALIZE);     
+    PROCESS_VAL(NEED_PROFILE);     
+    PROCESS_VAL(SUBGRAPH_CREATE);
+    PROCESS_VAL(INVOKE_);
+  }
+#undef PROCESS_VAL
+  return out << s;
+}
+
 //WARNING! This struct is deprecatied.
 typedef enum InvokeType{ // An invoke type of job
   CONTINOUS,          
