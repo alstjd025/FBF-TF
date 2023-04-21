@@ -42,11 +42,9 @@ class TfLiteRuntime{
                                         const char* model);
     ~TfLiteRuntime();
 
-    // Creates Interpreter
-    TfLiteStatus CreateTfLiteRuntime();
-
     TfLiteStatus AddModelToRuntime(const char* new_model);
     TfLiteStatus RegisterModeltoScheduler();
+    TfLiteStatus PartitionSubgraphs();
 
     TfLiteStatus DebugInvoke();
 
@@ -65,7 +63,7 @@ class TfLiteRuntime{
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
 
-    //// IPC
+    //// IPC functions
     // Initialize UDS and check communication with scheduler.
     TfLiteStatus InitializeUDS();
     TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
@@ -78,6 +76,9 @@ class TfLiteRuntime{
     tflite::Interpreter* interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
 
+    // Subgraph partitioning
+    int partitioning_plan[1000][3];
+
     // IPC
     char* uds_runtime_filename;
     char* uds_scheduler_filename;
@@ -85,6 +86,7 @@ class TfLiteRuntime{
     size_t addr_size;
     struct sockaddr_un runtime_addr;
     struct sockaddr_un scheduler_addr;
+
 };
 
 } // namespace tflite

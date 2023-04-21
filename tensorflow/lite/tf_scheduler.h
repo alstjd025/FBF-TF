@@ -32,13 +32,15 @@ namespace tflite{
       TfScheduler(const char* uds_file_name);
       void Work();
 
+      int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
+
       ~TfScheduler();
     
     private:
     int scheduler_fd;
     size_t addr_size;
     struct sockaddr_un scheduler_addr;
-    struct sockaddr_un runtime_addr;
 
     std::vector<runtime_*> runtimes;
     int runtimes_created = 0;

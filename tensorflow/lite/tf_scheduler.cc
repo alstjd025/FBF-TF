@@ -14,7 +14,7 @@ TfScheduler::TfScheduler(const char* uds_file_name) {
     std::cout << "Socker create ERROR" << "\n";
     exit(-1);
   }
-  addr_size = sizeof(runtime_addr);
+  addr_size = sizeof(scheduler_addr);
 
   memset(&scheduler_addr, 0, sizeof(scheduler_addr));
   scheduler_addr.sun_family = AF_UNIX;
@@ -28,12 +28,28 @@ TfScheduler::TfScheduler(const char* uds_file_name) {
   std::cout << "Scheduler initializaing done" << "\n";
 };
 
+int TfScheduler::SendPacketToRuntime(tf_packet& tx_p,
+                                      struct sockaddr_un& runtime_addr){
+  int v;
+  v = sendto(scheduler_fd, (void*)&tx_p, sizeof(tf_packet), 0,
+               (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
+int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
+                                      struct sockaddr_un& runtime_addr){
+   int v;
+   v = recvfrom(scheduler_fd, &rx_p, sizeof(tf_packet), 0,
+                (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  return v;
+}
+
 void TfScheduler::Work(){
   while(1){
     tf_packet recv_packet;
+    struct sockaddr_un runtime_addr;
     memset(&recv_packet, 0, sizeof(tf_packet));
-    if(recvfrom(scheduler_fd, &recv_packet, sizeof(tf_packet), 0,
-                (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size) == -1){
+    if(ReceivePacketFromRuntime(recv_packet, runtime_addr) == -1){
       std::cout << "Receive failed" << "\n";
       return;
     }
@@ -55,13 +71,12 @@ void TfScheduler::Work(){
       new_runtime->addr.sun_family = runtime_addr.sun_family;
       strcpy(new_runtime->addr.sun_path, runtime_addr.sun_path);
       
-      tf_packet new_packet;
-      memset(&new_packet, 0, sizeof(tf_packet));
-      new_packet.runtime_id = new_runtime->id;
-      new_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
+      tf_packet tx_packet;
+      memset(&tx_packet, 0, sizeof(tf_packet));
+      tx_packet.runtime_id = new_runtime->id;
+      tx_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
 
-      if(sendto(scheduler_fd, (void*)&new_packet, sizeof(tf_packet), 0,
-               (struct sockaddr*)&runtime_addr, sizeof(runtime_addr)) == -1){
+      if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "Sending packet to " << new_runtime->id << " Failed" << "\n";
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
         printf("errno : %d \n", errno);
@@ -73,7 +88,7 @@ void TfScheduler::Work(){
       continue;
     }
     case RuntimeState::NEED_PROFILE :
-      /* code */
+      
       break;
     case RuntimeState::SUBGRAPH_CREATE :
       /* code */

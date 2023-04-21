@@ -75,7 +75,10 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model registration to scheduler ERROR" << "\n";
     exit(-1);
   }
-  
+  if(PartitionSubgraphs() != kTfLiteOk){
+    std::cout << "Model partitioning ERROR" << "\n";
+    exit(-1);
+  }
     
 };
 
@@ -155,7 +158,16 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p){
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::CreateTfLiteRuntime() { return kTfLiteOk; };
+TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p){
+  if(rx_p.runtime_next_state != state){
+    state = static_cast<RuntimeState>(rx_p.runtime_next_state);
+    std::cout << "Runtime " << runtime_id << " state changed to " << state << "\n";
+    return kTfLiteOk;
+  }else{
+    std::cout << "Runtime " << runtime_id << " state change failed" << "\n";
+    return kTfLiteError;
+  }
+}
 
 TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
   std::unique_ptr<tflite::FlatBufferModel>* model_;
@@ -198,7 +210,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
   // Some profiling code here. later. //
   //////////////////////////////////////
 
-  tx_packet.latency[0] = -1.0; // means this is dummy latency
+  tx_packet.latency[0] = -1.0; // means that this is a dummy latency profile.
   if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
     std::cout << "Sending profile packet to scheduler failed" << "\n";
     return kTfLiteError;
@@ -210,17 +222,55 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
     return kTfLiteError;
   }
 
-}
+  // copy the partitioning plan from scheduler.
+  memcpy(partitioning_plan, rx_packet.partitioning_plan, sizeof(int)*1000*3);
 
-TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p){
-  if(rx_p.runtime_next_state != state){
-    state = static_cast<RuntimeState>(rx_p.runtime_next_state);
-    std::cout << "Runtime " << runtime_id << " state changed to " << state << "\n";
-    return kTfLiteOk;
-  }else{
-    std::cout << "Runtime " << runtime_id << " state change failed" << "\n";
+  if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
+  std::vector<std::vector<int>> raw_plan;
+  for(int i=0; i<1000; ++i){
+    raw_plan.push_back(std::vector<int>());
+    if(partitioning_plan[i][0] == -1){
+      raw_plan[i].push_back(-1);
+      break;
+    }
+    for(int j=0; j<2; ++j){ // third idx means processor.
+      raw_plan[i].push_back(partitioning_plan[i][j]);
+    }
+  } 
+  interpreter_builder->CopyRawPartitioningPlan(raw_plan);
+  Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
+  if(origin_subgraph == nullptr){
+    std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 
+    return kTfLiteError;
+  }
+  if(interpreter_builder->CreateSubgraphsFromProfiling(origin_subgraph)
+      != kTfLiteOk){
+    std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+    return kTfLiteError;
+  }
+
+  tf_packet tx_packet;
+  tx_packet.runtime_id = runtime_id;
+  tx_packet.cur_subgraph = state;
+  if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
+    return kTfLiteError;
+  }
+
+  tf_packet rx_packet;
+  if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
+    return kTfLiteError;
+  }
+  if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
+    return kTfLiteError;
+  }
+  std::cout << "Successfully partitioned subgraph" << "\n";
+  return kTfLiteOk;
 }
 
 void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,

@@ -122,6 +122,8 @@ class InterpreterBuilder {
   
   TfLiteStatus RegisterJobAndSubgraphs(std::vector<tflite::Subgraph*> new_subgraphs,
                                       tflite::Job* new_job);
+
+  void CopyRawPartitioningPlan(std::vector<std::vector<int>> raw_plan);
   
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();

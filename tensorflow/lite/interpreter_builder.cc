@@ -335,6 +335,18 @@ class MallocDataAllocator : public BuiltinDataAllocator {
 
 }  // namespace
 
+void InterpreterBuilder::CopyRawPartitioningPlan(
+                                    std::vector<std::vector<int>> raw_plan){
+  for(int i=0; i<raw_plan.size(); ++i){
+    dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    if(raw_plan[i][0] != -1){
+      for(int j=raw_plan[i][0]; j<raw_plan[i][1]; ++j){
+        dummy_profile_.layer_subsets[i].push_back(j);
+      }
+    }
+  }
+}
+
 
 TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   // Creates an acient subgraph from a raw flatbuffer model.
@@ -485,7 +497,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     TF_LITE_REPORT_ERROR(error_reporter_, "No buffers in the model.\n");
     return kTfLiteError;
   }
-  std::cout << "Asdf" << "\n";
   int new_subgraph_index = 0;
   int count_node_per_subgraph = 0;
   int total_count_node_per_subgraph = 0; 
@@ -497,12 +508,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   for (int subgraph_index = 0; subgraph_index < subgraphs->size();
       ++subgraph_index) {
         // Note : Assume that we have only one subgraph before.
-    std::cout << "sdafas" << "\n";
     const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
     const auto profile_ = profiled_subgraph->GetProfileData();
     auto operators = subgraph->operators();
     auto tensors = subgraph->tensors();
-      std::cout << "ssss" << "\n";
     // Look for Conv2d OPs and save tensor index
     std::vector<int> conv_idx;
     int i = 0;
@@ -516,38 +525,38 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     /////////////////////////////////////////////
     // HARDCODING
     // thread_safety
-    if(model_id_ == 0){ // mnist case
-      dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      for(size_t i=0; i<3; ++i){ // 9 10 200 201?
-        dummy_profile_.layer_subsets[0].push_back(i);
-      }
-      for(size_t i=3; i<124; ++i){
-        dummy_profile_.layer_subsets[1].push_back(i);
-      }
-      // dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      // dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      // dummy_profile_.layer_subsets[0].push_back(0);
-      // dummy_profile_.layer_subsets[0].push_back(1);
-      // dummy_profile_.layer_subsets[0].push_back(2);
-      // dummy_profile_.layer_subsets[0].push_back(3);
-      // dummy_profile_.layer_subsets[0].push_back(4);
-      // dummy_profile_.layer_subsets[1].push_back(5);
-      // dummy_profile_.layer_subsets[1].push_back(6);
-      // dummy_profile_.layer_subsets[1].push_back(7);
-      // dummy_profile_.layer_subsets[1].push_back(8);
-    }
-    else if(model_id_ == 1){ // mobilenet case
-      dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      dummy_profile_.layer_subsets.push_back(std::vector<int>());
-      for(size_t i=0; i<3; ++i){ // 9 10 200 201?
-        dummy_profile_.layer_subsets[0].push_back(i);
-      }
-      for(size_t i=3; i<124; ++i){
-        dummy_profile_.layer_subsets[1].push_back(i);
-      }
-
-    }
+    // if(model_id_ == 0){ // mnist case
+    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    //   for(size_t i=0; i<3; ++i){ // 9 10 200 201?
+    //     dummy_profile_.layer_subsets[0].push_back(i);
+    //   }
+    //   for(size_t i=3; i<124; ++i){
+    //     dummy_profile_.layer_subsets[1].push_back(i);
+    //   }
+    //   // dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    //   // dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    //   // dummy_profile_.layer_subsets[0].push_back(0);
+    //   // dummy_profile_.layer_subsets[0].push_back(1);
+    //   // dummy_profile_.layer_subsets[0].push_back(2);
+    //   // dummy_profile_.layer_subsets[0].push_back(3);
+    //   // dummy_profile_.layer_subsets[0].push_back(4);
+    //   // dummy_profile_.layer_subsets[1].push_back(5);
+    //   // dummy_profile_.layer_subsets[1].push_back(6);
+    //   // dummy_profile_.layer_subsets[1].push_back(7);
+    //   // dummy_profile_.layer_subsets[1].push_back(8);
+    // }
+    // else if(model_id_ == 1){ // mobilenet case
+    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
+    //   for(size_t i=0; i<3; ++i){ // 9 10 200 201?
+    //     dummy_profile_.layer_subsets[0].push_back(i);
+    //   }
+    //   for(size_t i=3; i<124; ++i){
+    //     dummy_profile_.layer_subsets[1].push_back(i);
+    //   }
+    // }
+    
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
       for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
@@ -560,7 +569,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       return;
     };
-    std::cout << "Asdf" << "\n";
     if(use_dummy_plan_){
       std::cout << "Using dummy partitioning plan" << "\n";
       CreatePartitioningPlanFromProfile(dummy_profile_);
