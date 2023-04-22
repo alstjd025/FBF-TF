@@ -91,6 +91,7 @@ public:
 
     void PrintInterpreterStatus();
     void PrintMsg(const char* msg);
+    void PrintTest(std::vector<double> b_delegation_optimizer);
 
     ~UnitHandler() {};
     //tflite::Interpreter* GetInterpreter();

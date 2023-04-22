@@ -1,5 +1,5 @@
 #include "unit.h"
-#define SEQ 6 //60000
+#define SEQ 10000 //60000
 #define OUT_SEQ 1
 #define GPUONLY
 //#define MULTITHREAD
@@ -84,7 +84,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::condition_variable& Ucontroller,
                             std::condition_variable& Outcontroller,
                             std::queue<SharedContext*>* qSharedData,
-                            int* C_Counter, int* G_Counter) { 
+                            int* C_Counter, int* G_Counter ) { 
     double time = 0;
     struct timespec begin, end;
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
@@ -269,6 +269,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
 }
 #endif
 
+extern std::vector<double> b_delegation_optimizer; // HOON : vector for delegation optimizing test
+
 #ifndef MULTITHREAD
 TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock, 
                             std::mutex& mtx_lock_,
@@ -313,6 +315,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                 }
             } 
             #endif
+
             // Run inference
             clock_gettime(CLOCK_MONOTONIC, &begin);
             // HOON : add extra parameter to test delegation optimizing? TODO
@@ -371,9 +374,20 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     printf("Average accuracy : %.6f % \n", sum_average*100);
     std::cout << "\n";
     std::cout << "GPU All Jobs done" << "\n";
+    b_delegation_optimizer.push_back(time*1000);
+    std::cout << "delegation_optimizer vector size : " << b_delegation_optimizer.size() << std::endl;
+    //
+    // Delegation_Optimizer(time*1000, sum_average*100);
     return kTfLiteOk;
 }
 #endif
+
+// void UnitGPU::Delegation_Optimizer(double time, double average){
+//     // TODO
+//     // 1. save each time & average in specific vector
+//     // 2. make that vector to live forever
+//     return;
+// }
 
 Interpreter* UnitGPU::GetInterpreter(){return interpreterGPU->get();}
 

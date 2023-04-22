@@ -248,6 +248,15 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     return kTfLiteOk;
 }
 
+std::vector<double> b_delegation_optimizer;  // <-> ?? 
+
+void UnitHandler::PrintTest(std::vector<double> b_delegation_optimizer){
+    std::cout << "\033[0;31mLatency for each of cases in delegation optimizing\033[0m : " ;
+    for (int i=0;i< b_delegation_optimizer.size(); i++){
+        std::cout << b_delegation_optimizer.at(i) << 'ms ';
+    }
+    std::cout << std::endl;
+}
 
 TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
                                              std::vector<cv::Mat> input, int loop_num){
@@ -257,6 +266,8 @@ TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
         return kTfLiteError;
     }
     mtx_lock.unlock();
+    // std::cout << "-----------------------------------TODO: " <<  b_delegation_optimizer.size() << std::endl;
+    if (loop_num % 2 == 0) PrintTest(b_delegation_optimizer);
     std::vector<Unit*>::iterator iter;
     for(iter = vUnitContainer.begin(); iter != vUnitContainer.end(); ++iter){
         if((*iter)->GetUnitType() == eType){
