@@ -1,5 +1,6 @@
 #include "unit.h"
-#define SEQ 10000 //60000
+#include "algorithm"
+#define SEQ 1 //60000
 #define OUT_SEQ 1
 #define GPUONLY
 //#define MULTITHREAD
@@ -269,7 +270,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
 }
 #endif
 
-extern std::vector<double> b_delegation_optimizer; // HOON : vector for delegation optimizing test
+std::vector<double> b_delegation_optimizer; // HOON : vector for delegation optimizing test
+extern bool print_flag; // slave 
 
 #ifndef MULTITHREAD
 TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock, 
@@ -375,19 +377,30 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     std::cout << "\n";
     std::cout << "GPU All Jobs done" << "\n";
     b_delegation_optimizer.push_back(time*1000);
-    std::cout << "delegation_optimizer vector size : " << b_delegation_optimizer.size() << std::endl;
+    // std::cout << "delegation_optimizer vector size : " << b_delegation_optimizer.size() << std::endl;
     //
-    // Delegation_Optimizer(time*1000, sum_average*100);
+    if(print_flag) PrintTest(b_delegation_optimizer);
     return kTfLiteOk;
 }
 #endif
 
-// void UnitGPU::Delegation_Optimizer(double time, double average){
-//     // TODO
-//     // 1. save each time & average in specific vector
-//     // 2. make that vector to live forever
-//     return;
-// }
+// bool print_flag;
+
+void UnitGPU::PrintTest(std::vector<double> b_delegation_optimizer){
+    std::cout << "\033[0;31mLatency for each of cases in delegation optimizing\033[0m : " <<std::endl;
+    double min = *min_element(b_delegation_optimizer.begin(), b_delegation_optimizer.end());
+    for (int i=0;i< b_delegation_optimizer.size(); i++){
+        if(b_delegation_optimizer.at(i) < min + 0.3)   // 0.3 is bias
+        {
+            printf("\033[0;31m%d case's latency is %0.6fms\033[0m\n",i,b_delegation_optimizer.at(i));
+            // std::cout << i << " \033[0;31mcase's latency is :\033[0m " << b_delegation_optimizer.at(i) << "ms" << std::endl;   
+        }
+        else{
+            std::cout << i << " case's latency is : " << b_delegation_optimizer.at(i) << "ms" << std::endl;
+        }
+    }    // int min_index = min_element(b_delegation_optimizer.begin(), b_delegation_optimizer.end()) - b_delegation_optimizer.begin();
+
+}
 
 Interpreter* UnitGPU::GetInterpreter(){return interpreterGPU->get();}
 

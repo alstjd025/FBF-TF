@@ -80,11 +80,11 @@ public:
     UnitHandler(const char* OriginalModel, const char* QuantizedModel);
 
     TfLiteStatus CreateUnitCPU(UnitType eType, std::vector<cv::Mat> input, int partitioning);
-    TfLiteStatus CreateUnitGPU(UnitType eType, std::vector<cv::Mat> input, int partitioning, int loop_num);
-    TfLiteStatus Invoke(UnitType eType, UnitType eType_, std::vector<cv::Mat> input, int loop_num);
+    TfLiteStatus CreateUnitGPU(UnitType eType, std::vector<cv::Mat> input, int partitioning, int loop_num, int max_delegated_partition_num); // ignore partitoning
+    TfLiteStatus Invoke(UnitType eType, UnitType eType_, std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num);
 
     TfLiteStatus CreateAndInvokeCPU(UnitType eType, std::vector<cv::Mat> input);
-    TfLiteStatus CreateAndInvokeGPU(UnitType eType, std::vector<cv::Mat> input, int loop_num);
+    TfLiteStatus CreateAndInvokeGPU(UnitType eType, std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num);
 
     /* Not Impl*/
     void DeleteSharedContext(SharedContext* dataTobeCleared);
@@ -92,6 +92,7 @@ public:
     void PrintInterpreterStatus();
     void PrintMsg(const char* msg);
     void PrintTest(std::vector<double> b_delegation_optimizer);
+    int combination(int n, int r);
 
     ~UnitHandler() {};
     //tflite::Interpreter* GetInterpreter();

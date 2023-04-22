@@ -3,7 +3,11 @@
 #include <typeinfo>
 //#define MULTITHREAD
 #define GPUONLY
+#define Partition_Num 14
 //#define QUANTIZE
+
+
+
 
 extern std::mutex mtx_lock;
 
@@ -146,7 +150,7 @@ TfLiteStatus UnitHandler::CreateAndInvokeCPU(UnitType eType,
 }
 
 TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
-                                         std::vector<cv::Mat> input, int partitioning, int loop_num){
+                                         std::vector<cv::Mat> input, int partitioning, int loop_num, int max_delegated_partition_num){
     std::unique_ptr<tflite::Interpreter>* interpreter;
     if(bUseTwoModel){
         if(GPUBuilder_ ==nullptr){
@@ -177,45 +181,49 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     std::cout << "#####################################" << "\n";
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
     TfLiteDelegate *MyDelegate = NULL;
-    int max_delegated_partitions_num = 1;
-    if (loop_num >= 14)  max_delegated_partitions_num =2;
-    if (loop_num >= 105) max_delegated_partitions_num =3;
-    if (loop_num >= 469) max_delegated_partitions_num =4;
-    if (loop_num >= 1470) max_delegated_partitions_num =5;
-    if (loop_num >= 3472) max_delegated_partitions_num =6;
-    if (loop_num >= 6475) max_delegated_partitions_num =7;
-    if (loop_num >= 9907) max_delegated_partitions_num =8;
-    if (loop_num >= 12910) max_delegated_partitions_num =9;
-    if (loop_num >= 14912)  max_delegated_partitions_num =10;
-    if (loop_num >= 15913)  max_delegated_partitions_num =11;
-    if (loop_num >= 16277) max_delegated_partitions_num =12;
-    if (loop_num >= 16368)  max_delegated_partitions_num =13;
-    if (loop_num >= 16382)  max_delegated_partitions_num =14;
-    
-    int priority_partition_num = loop_num;
-    if (loop_num >= 16382)  priority_partition_num -=16382;
-    else if (loop_num >= 16368)  priority_partition_num -=16368;
-    else if (loop_num >= 16277) priority_partition_num -= 16277;
-    else if (loop_num >= 15913)  priority_partition_num -=15913;
-    else if (loop_num >= 14912)  priority_partition_num -= 14912;
-    else if (loop_num >= 12910) priority_partition_num -=12910;
-    else if (loop_num >= 9907) priority_partition_num -= 9907;
-    else if (loop_num >= 6475) priority_partition_num -= 6475;
-    else if (loop_num >= 3472) priority_partition_num -=3472;
-    else if (loop_num >= 1470) priority_partition_num -= 1470;
-    else if (loop_num >= 469) priority_partition_num -= 469;
-    else if (loop_num >= 105) priority_partition_num -= 105;
-    else if (loop_num >= 14)  priority_partition_num -= 14;
-    
+
+    // int max_delegated_partitions_num = 1;
+    // int max_delegated_partitions_num = 1;
+    // if (loop_num >= 14)  max_delegated_partitions_num =2;
+    // if (loop_num >= 105) max_delegated_partitions_num =3;
+    // if (loop_num >= 469) max_delegated_partitions_num =4;
+    // if (loop_num >= 1470) max_delegated_partitions_num =5;
+    // if (loop_num >= 3472) max_delegated_partitions_num =6;
+    // if (loop_num >= 6475) max_delegated_partitions_num =7;
+    // if (loop_num >= 9907) max_delegated_partitions_num =8;
+    // if (loop_num >= 12910) max_delegated_partitions_num =9;
+    // if (loop_num >= 14912)  max_delegated_partitions_num =10;
+    // if (loop_num >= 15913)  max_delegated_partitions_num =11;
+    // if (loop_num >= 16277) max_delegated_partitions_num =12;
+    // if (loop_num >= 16368)  max_delegated_partitions_num =13;
+    // if (loop_num >= 16382)  max_delegated_partitions_num =14;
+
+    // int priority_partition_num = loop_num;
+    // int priority_partition_num = loop_num;
+    // if (loop_num >= 16382)  priority_partition_num -=16382;
+    // else if (loop_num >= 16368)  priority_partition_num -=16368;
+    // else if (loop_num >= 16277) priority_partition_num -= 16277;
+    // else if (loop_num >= 15913)  priority_partition_num -=15913;
+    // else if (loop_num >= 14912)  priority_partition_num -= 14912;
+    // else if (loop_num >= 12910) priority_partition_num -=12910;
+    // else if (loop_num >= 9907) priority_partition_num -= 9907;
+    // else if (loop_num >= 6475) priority_partition_num -= 6475;
+    // else if (loop_num >= 3472) priority_partition_num -=3472;
+    // else if (loop_num >= 1470) priority_partition_num -= 1470;
+    // else if (loop_num >= 469) priority_partition_num -= 469;
+    // else if (loop_num >= 105) priority_partition_num -= 105;
+    // else if (loop_num >= 14)  priority_partition_num -= 14;
+    // int priority_partition_num = loop_num;
+
     const TfLiteGpuDelegateOptionsV2 options = {
         .is_precision_loss_allowed = 0, 
         .inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
         .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
         .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
         .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-        .priority_partition_num = priority_partition_num, // default is "0"
+        .priority_partition_num = loop_num, // default is "0"
         .experimental_flags = 1,
-        .max_delegated_partitions = max_delegated_partitions_num, // default is "1"
+        .max_delegated_partitions = max_delegated_partition_num, // default is "1"
     };
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphsAndFixShape() == kTfLiteOk)
     #ifdef MULTITHREAD
@@ -248,26 +256,33 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     return kTfLiteOk;
 }
 
-std::vector<double> b_delegation_optimizer;  // <-> ?? 
+// std::vector<double> b_delegation_optimizer;  // <-> ?? 
 
-void UnitHandler::PrintTest(std::vector<double> b_delegation_optimizer){
-    std::cout << "\033[0;31mLatency for each of cases in delegation optimizing\033[0m : " ;
-    for (int i=0;i< b_delegation_optimizer.size(); i++){
-        std::cout << b_delegation_optimizer.at(i) << 'ms ';
-    }
-    std::cout << std::endl;
+// void UnitHandler::PrintTest(std::vector<double> b_delegation_optimizer){
+    // std::cout << "\033[0;31mLatency for each of cases in delegation optimizing\033[0m : " <<std::endl;
+    // for (int i=0;i< b_delegation_optimizer.size(); i++){
+        // std::cout << i << " case's latency is : " << b_delegation_optimizer.at(i) << "ms" << std::endl;
+    // }
+    // std::cout << "AND below last case "<<std::endl;
+// }
+
+int UnitHandler::combination(int n, int r) {
+    	if(n == r || r == 0) return 1; 
+    	else return combination(n - 1, r - 1) + combination(n - 1, r);
 }
 
+bool print_flag = false; //master
+
 TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
-                                             std::vector<cv::Mat> input, int loop_num){
+                                             std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num){
     mtx_lock.lock();
-    if (CreateUnitGPU(eType, input, 8, loop_num) != kTfLiteOk){
+    if (CreateUnitGPU(eType, input, 8, loop_num, max_delegated_partition_num) != kTfLiteOk){
         PrintMsg("CreateUnitGPUError");
         return kTfLiteError;
     }
     mtx_lock.unlock();
-    // std::cout << "-----------------------------------TODO: " <<  b_delegation_optimizer.size() << std::endl;
-    if (loop_num % 2 == 0) PrintTest(b_delegation_optimizer);
+    // TODO: when to print test func;
+    if (loop_num  == combination(Partition_Num, max_delegated_partition_num)-1) print_flag=true;
     std::vector<Unit*>::iterator iter;
     for(iter = vUnitContainer.begin(); iter != vUnitContainer.end(); ++iter){
         if((*iter)->GetUnitType() == eType){
@@ -296,7 +311,7 @@ void UnitHandler::PrintInterpreterStatus(){
 }
 
 TfLiteStatus UnitHandler::Invoke(UnitType eType, UnitType eType_,
-                                 std::vector<cv::Mat> input, int loop_num){
+                                 std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num){
     //eType -> CPU
     //eType_ -> GPU
     PrintMsg("Invoke");
@@ -311,7 +326,7 @@ TfLiteStatus UnitHandler::Invoke(UnitType eType, UnitType eType_,
     
     #ifdef GPUONLY
     std::thread gpu;
-    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input, loop_num);
+    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input, loop_num, max_delegated_partition_num);
     gpu.join();
     #endif
 
