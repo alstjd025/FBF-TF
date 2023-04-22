@@ -40,6 +40,20 @@ void PrintTensor(TfLiteTensor& tensor) {
   }
 }
 
+// cascade operator overloading for debug message.
+std::ostream& operator<<(std::ostream& out, const tflite::RuntimeState value){
+  const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+  switch(value){
+    PROCESS_VAL(tflite::INITIALIZE);     
+    PROCESS_VAL(tflite::NEED_PROFILE);     
+    PROCESS_VAL(tflite::SUBGRAPH_CREATE);
+    PROCESS_VAL(tflite::INVOKE_);
+  }
+#undef PROCESS_VAL
+  return out << s;
+}
+
 namespace tflite {
 
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
@@ -75,6 +89,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model registration to scheduler ERROR" << "\n";
     exit(-1);
   }
+  PrintInterpreterStateV2(interpreter);
   if(PartitionSubgraphs() != kTfLiteOk){
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
@@ -170,21 +185,17 @@ TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p){
 }
 
 TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
-  std::unique_ptr<tflite::FlatBufferModel>* model_;
-
   model_ = new std::unique_ptr<tflite::FlatBufferModel>(
       tflite::FlatBufferModel::BuildFromFile(model));
 
   // Build the interpreter with the InterpreterBuilder.
-  tflite::ops::builtin::BuiltinOpResolver* resolver;
   resolver = new tflite::ops::builtin::BuiltinOpResolver;
 
-  ProfileData dummy_profile;
-  tflite::InterpreterBuilder* new_builder = new tflite::InterpreterBuilder(
-      **model_, *resolver, interpreter, model, 0, true, dummy_profile);
+  interpreter_builder = new tflite::InterpreterBuilder(
+      **model_, *resolver, interpreter, model, 0, true);
 
   // Now creates an invokable origin subgraph from new model.
-  if (new_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
+  if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
     std::cout << "CreateSubgraphFromFlatBuffer returned Error"
               << "\n";
     exit(-1);
@@ -210,7 +221,10 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
   // Some profiling code here. later. //
   //////////////////////////////////////
 
-  tx_packet.latency[0] = -1.0; // means that this is a dummy latency profile.
+  int layers = interpreter->nodes_size(0);
+  for(int i=0; i<layers; ++i){
+    tx_packet.latency[i] = -1.0; // means that this is a dummy latency profile.
+  }
   if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
     std::cout << "Sending profile packet to scheduler failed" << "\n";
     return kTfLiteError;
@@ -228,6 +242,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
   if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
+  std::cout << "Successfully registered model to scheduler" << "\n";
   return kTfLiteOk;
 }
 
@@ -254,7 +269,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
     std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
     return kTfLiteError;
   }
-
+  
   tf_packet tx_packet;
   tx_packet.runtime_id = runtime_id;
   tx_packet.cur_subgraph = state;

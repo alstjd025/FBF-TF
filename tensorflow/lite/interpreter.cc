@@ -709,9 +709,7 @@ TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
 }
 
 TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
-  LockJobs();
   subgraphs_.emplace_back(new_subgraph);
-  UnlockJobs();
   return kTfLiteOk;
 }
 

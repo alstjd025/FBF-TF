@@ -78,8 +78,7 @@ class InterpreterBuilder {
                     const OpResolver& op_resolver,
                     Interpreter* interpreter,
                     const char* model_name,
-                    int model_id, bool use_dummy_plan,
-                    const ProfileData& dummy_profile);
+                    int model_id, bool use_dummy_plan);
 
   ~InterpreterBuilder();
   InterpreterBuilder(const InterpreterBuilder&) = delete;
@@ -123,7 +122,7 @@ class InterpreterBuilder {
   TfLiteStatus RegisterJobAndSubgraphs(std::vector<tflite::Subgraph*> new_subgraphs,
                                       tflite::Job* new_job);
 
-  void CopyRawPartitioningPlan(std::vector<std::vector<int>> raw_plan);
+  void CopyRawPartitioningPlan(std::vector<std::vector<int>>& raw_plan);
   
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();
@@ -191,7 +190,7 @@ class InterpreterBuilder {
 
   // flag for dummy using dummy plan on subgraph partitioning
   bool use_dummy_plan_ = false;
-  ProfileData dummy_profile_;
+  ProfileData* dummy_profile_;
 
   tflite::Interpreter* interpreter_;
 };

@@ -394,8 +394,8 @@ class Subgraph {
   Profiler* GetProfiler() { return profiler_.get(); }
 
   // Minsung
-  const ProfileData& GetProfileData() { return profile_data; }
-  ProfileData& GetProfileDataUnsafe() { return profile_data; }
+  const ProfileData* GetProfileData() { return profile_data; }
+  ProfileData* GetProfileDataUnsafe() { return profile_data; }
 
   // Returns a pointer to vector of subgraphs.
   // WARNING: This is an experimental API and subject to change.
@@ -860,7 +860,7 @@ class Subgraph {
   bool is_profiled = false;
   
   bool is_original = false;
-  ProfileData profile_data;
+  ProfileData* profile_data;
 
   // Minsung
   // Stores mother model number

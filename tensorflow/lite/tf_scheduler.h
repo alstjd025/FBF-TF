@@ -24,6 +24,8 @@ namespace tflite{
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
+    float latency[1000];
+    int partitioning_plan[1000][3];
   }runtime_;
 
   class TfScheduler{
@@ -33,7 +35,13 @@ namespace tflite{
       void Work();
 
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
+      
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
+      
+      // refresh runtime state in scheduler.
+      void RefreshRuntimeState(tf_packet& rx_p);
+
+      void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
 
       ~TfScheduler();
     

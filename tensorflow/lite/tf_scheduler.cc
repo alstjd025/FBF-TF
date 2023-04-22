@@ -46,19 +46,21 @@ int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
 
 void TfScheduler::Work(){
   while(1){
-    tf_packet recv_packet;
+    tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
-    memset(&recv_packet, 0, sizeof(tf_packet));
-    if(ReceivePacketFromRuntime(recv_packet, runtime_addr) == -1){
+    memset(&rx_packet, 0, sizeof(tf_packet));
+    if(ReceivePacketFromRuntime(rx_packet, runtime_addr) == -1){
       std::cout << "Receive failed" << "\n";
       return;
     }
-    std::cout << "Recieved packet from runtime " << recv_packet.runtime_id << "\n";
-    switch (recv_packet.runtime_current_state)
+    std::cout << "Recieved packet from runtime " << rx_packet.runtime_id << "\n";
+
+    // do next work by received runtime state.
+    switch (rx_packet.runtime_current_state)
     {
-    case RuntimeState::INITIALIZE :{
+    case RuntimeState::INITIALIZE :{ 
       for(auto runtime : runtimes){
-        if(runtime->id == recv_packet.runtime_id){
+        if(runtime->id == rx_packet.runtime_id){
           std::cout << "Runtime " << runtime->id << " already registered." << "\n"; 
           break;
         }
@@ -82,14 +84,25 @@ void TfScheduler::Work(){
         printf("errno : %d \n", errno);
         return;
       }
-
       runtimes.push_back(new_runtime);
       std::cout << "Registered new runtime " << new_runtime->id << " \n";
       continue;
     }
-    case RuntimeState::NEED_PROFILE :
+    case RuntimeState::NEED_PROFILE :{
+      tf_packet tx_packet;
+      RefreshRuntimeState(rx_packet);
+      CreatePartitioningPlan(rx_packet, tx_packet);
       
+      tx_packet.runtime_id = rx_packet.runtime_id;
+      tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
+      
+      if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
+        std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
+        printf("errno : %d \n", errno);
+        return;
+      }
       break;
+    }
     case RuntimeState::SUBGRAPH_CREATE :
       /* code */
       break;
@@ -101,6 +114,37 @@ void TfScheduler::Work(){
       break;
     }
   }
+}
+
+void TfScheduler::RefreshRuntimeState(tf_packet& rx_p){
+  for(int i=0; i<runtimes.size(); ++i){
+    if(rx_p.runtime_id == runtimes[i]->id){
+      runtimes[i]->state = static_cast<RuntimeState>(rx_p.runtime_current_state);
+    }
+  }
+}
+
+void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
+  int layers = 0;
+  for(int i=0; i<1000; ++i){
+    if(rx_p.latency[i] == -1)
+      layers++;
+    else
+      break;
+  }
+  std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers << 
+    " layers in model" << "\n";
+  if(layers == 9){ // MNIST
+    tx_p.partitioning_plan[0][0] = 0;
+    tx_p.partitioning_plan[0][1] = 4;
+    tx_p.partitioning_plan[0][2] = 0;
+    tx_p.partitioning_plan[1][0] = 4;
+    tx_p.partitioning_plan[1][1] = 8;
+    tx_p.partitioning_plan[1][2] = 0;
+    tx_p.partitioning_plan[2][0] = -1;
+  } // MNIST
+
+  
 }
 
 TfScheduler::~TfScheduler() {};

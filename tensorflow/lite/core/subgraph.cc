@@ -204,6 +204,7 @@ Subgraph::Subgraph(ErrorReporter* error_reporter,
       subgraphs_(subgraphs),
       resources_(resources) {
   // TODO(b/161272052): Consider a better TfLiteContext initialization pattern:
+  std::cout << "Subgraph constructor" << "\n";
   context_.impl_ = static_cast<void*>(this);
   context_.ResizeTensor = ResizeTensor;
   context_.ReportError = ReportErrorC;
@@ -223,6 +224,7 @@ Subgraph::Subgraph(ErrorReporter* error_reporter,
   nodes_and_registration().reserve(kTensorsReservedCapacity);
   // Invalid to call these these except from TfLiteDelegate
   SwitchToKernelContext();
+  std::cout << "Subgraph constructor end" << "\n";
 }
 
 Subgraph::~Subgraph() {

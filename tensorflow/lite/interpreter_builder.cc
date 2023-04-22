@@ -191,22 +191,36 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
                                       Interpreter* interpreter,
                                       const char* model_name,
-                                      int model_id, bool use_dummy_plan,
-                                      const ProfileData& dummy_profile)
+                                      int model_id, bool use_dummy_plan)
     : model_(model.GetModel()),
       op_resolver_(op_resolver),
       error_reporter_(DefaultErrorReporter()),
-      //allocation_(model->allocation()), check how allocation initialized.
+      allocation_(model.allocation()), 
       interpreter_(interpreter),
       model_id_(model_id),
       model_name_(model_name),
-      use_dummy_plan_(use_dummy_plan),
-      dummy_profile_(dummy_profile)    {}
+      use_dummy_plan_(use_dummy_plan){
+        dummy_profile_ = new ProfileData;
+      }
 
 
 
 InterpreterBuilder::~InterpreterBuilder() {}
 
+void InterpreterBuilder::CopyRawPartitioningPlan(
+                                    std::vector<std::vector<int>>& raw_plan){
+  for(int i=0; i<raw_plan.size(); ++i){
+    dummy_profile_->is_valid = true;
+    dummy_profile_->layer_subsets.push_back(std::vector<int>());
+    if(raw_plan[i][0] != -1){
+      for(int j=raw_plan[i][0]; j<raw_plan[i][1]; ++j){
+        dummy_profile_->layer_subsets[i].push_back(j);
+      }
+    }else{
+      break;
+    }
+  }
+}
 
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping(
                                     const ::tflite::Model* model,
@@ -335,19 +349,6 @@ class MallocDataAllocator : public BuiltinDataAllocator {
 
 }  // namespace
 
-void InterpreterBuilder::CopyRawPartitioningPlan(
-                                    std::vector<std::vector<int>> raw_plan){
-  for(int i=0; i<raw_plan.size(); ++i){
-    dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    if(raw_plan[i][0] != -1){
-      for(int j=raw_plan[i][0]; j<raw_plan[i][1]; ++j){
-        dummy_profile_.layer_subsets[i].push_back(j);
-      }
-    }
-  }
-}
-
-
 TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   // Creates an acient subgraph from a raw flatbuffer model.
   // This function follows the instructions below.
@@ -393,8 +394,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
     return kTfLiteError;
   }
 
+  std::cout << "hello" << "\n";
   const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
+  std::cout << "hello" << "\n";
   tflite::Subgraph* modified_subgraph = interpreter_->CreateSubgraph();
+  std::cout << "hello" << "\n";
 
   auto operators = subgraph->operators();
   auto tensors = subgraph->tensors();
@@ -469,6 +473,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   }
   std::cout << "Interpreterbuilder : Registered default job and subgraph" << "\n";
   std::cout << "New Graph id : " << modified_subgraph->GetGraphid() << "\n";
+  std::cout << "New Graph model id : " << modified_subgraph->GetModelid() << "\n";
   return kTfLiteOk;
 }
 
@@ -557,13 +562,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     //   }
     // }
     
-    auto CreatePartitioningPlanFromProfile = [&](const ProfileData& profile){
-      for(int i=0; i<profile.layer_subsets.size(); ++i){ //graphs
+    auto CreatePartitioningPlanFromProfile = [&](const ProfileData* profile){
+      for(int i=0; i<profile->layer_subsets.size(); ++i){ //graphs
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
-        new_plan->size = profile.layer_subsets[i].size();
+        new_plan->size = profile->layer_subsets[i].size();
         new_plan->nodes = new int[new_plan->size];
-        for(int j=0; j<profile.layer_subsets[i].size(); ++j){ //layers
-          new_plan->nodes[j] = profile.layer_subsets[i][j];
+        for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers
+          new_plan->nodes[j] = profile->layer_subsets[i][j];
         }
         master_partitioning_plan.push_back(new_plan);
       }
