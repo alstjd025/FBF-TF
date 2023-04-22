@@ -89,7 +89,7 @@ class InterpreterBuilder {
 
   int GetModelid() { return model_id_; }
   const std::string GetModelName() { return model_name_; }
-
+  Interpreter* GetInterpreter() { return interpreter_; }
   // Minsung
   // Creates a subgraph.
   // This funciton is an initial phase of creating a model into invokable subgraph and

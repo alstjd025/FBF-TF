@@ -210,9 +210,8 @@ InterpreterBuilder::~InterpreterBuilder() {}
 void InterpreterBuilder::CopyRawPartitioningPlan(
                                     std::vector<std::vector<int>>& raw_plan){
   for(int i=0; i<raw_plan.size(); ++i){
-    dummy_profile_->is_valid = true;
-    dummy_profile_->layer_subsets.push_back(std::vector<int>());
     if(raw_plan[i][0] != -1){
+      dummy_profile_->layer_subsets.push_back(std::vector<int>());
       for(int j=raw_plan[i][0]; j<raw_plan[i][1]; ++j){
         dummy_profile_->layer_subsets[i].push_back(j);
       }
@@ -652,6 +651,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           std::cout << "Interpreterbuilder : created new subgraph" << "\n";
         }
       }
+      interpreter_->PrintSubgraphInfo(); 
       input_tensor->clear();
       delete input_tensor;
       tensors_->clear();
@@ -660,7 +660,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       delete output_tensor;
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
-    } 
+    }
     tflite::Job* new_job = new tflite::Job;
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){

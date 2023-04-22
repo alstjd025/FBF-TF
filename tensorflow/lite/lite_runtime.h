@@ -75,8 +75,8 @@ class TfLiteRuntime{
     int runtime_id = -1;
     tflite::Interpreter* interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
-    std::unique_ptr<tflite::FlatBufferModel>* model_;
-    tflite::ops::builtin::BuiltinOpResolver* resolver;
+    //std::unique_ptr<tflite::FlatBufferModel>* model_;
+    //tflite::ops::builtin::BuiltinOpResolver* resolver;
 
     // Subgraph partitioning
     int partitioning_plan[1000][3];

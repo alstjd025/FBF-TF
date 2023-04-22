@@ -700,6 +700,15 @@ TfLiteTensor* Interpreter::input_tensor_of_model(int model_id){
   }
 }
 
+void Interpreter::PrintSubgraphInfo(){
+  std::cout << "Interpreter: subgraph size:" << subgraphs_.size() << "\n";
+  for(int i=0; i<subgraphs_.size(); ++i){
+    std::cout << "id : " << subgraphs_[i]->GetGraphid() << " model : " <<
+      subgraphs_[i]->GetModelid();
+  }
+  std::cout << "\n";
+}
+
 TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
   LockJobs();
   jobs->push(new_job);
@@ -710,6 +719,11 @@ TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
 
 TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   subgraphs_.emplace_back(new_subgraph);
+  std::cout << "Interpreter: New subgraph, now size:" << subgraphs_.size() << "\n";
+  for(int i=0; i<subgraphs_.size(); ++i){
+    std::cout << "id : " << subgraphs_[i]->GetGraphid();
+  }
+  std::cout << "\n";
   return kTfLiteOk;
 }
 

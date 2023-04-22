@@ -639,6 +639,8 @@ class Interpreter {
   /// WARNING: This is an experimental API and subject to change.
   size_t subgraphs_size() const { return subgraphs_.size(); }
 
+  // Minsung
+  // CAN BE A PROBLEM?
   /// Get a pointer to a subgraph if in bounds.
   /// WARNING: This is an experimental API and subject to change.
   Subgraph* subgraph(int subgraph_index) {
@@ -750,6 +752,8 @@ class Interpreter {
 
   // Invoke test
   TfLiteStatus DebugInvoke();
+
+  void PrintSubgraphInfo();
 
   // lock jobs
   void LockJobs();

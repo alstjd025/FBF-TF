@@ -185,11 +185,13 @@ TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p){
 }
 
 TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
-  model_ = new std::unique_ptr<tflite::FlatBufferModel>(
-      tflite::FlatBufferModel::BuildFromFile(model));
+  std::unique_ptr<tflite::FlatBufferModel>* model_ = 
+        new std::unique_ptr<tflite::FlatBufferModel>(
+            tflite::FlatBufferModel::BuildFromFile(model));
 
   // Build the interpreter with the InterpreterBuilder.
-  resolver = new tflite::ops::builtin::BuiltinOpResolver;
+  tflite::ops::builtin::BuiltinOpResolver* resolver =
+           new tflite::ops::builtin::BuiltinOpResolver;
 
   interpreter_builder = new tflite::InterpreterBuilder(
       **model_, *resolver, interpreter, model, 0, true);
@@ -200,7 +202,8 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
               << "\n";
     exit(-1);
   }
-
+  interpreter->PrintSubgraphInfo();
+  PrintInterpreterStateV2(interpreter_builder->GetInterpreter());
   // scheduler->RegisterInterpreterBuilder(new_builder);
 
   return kTfLiteOk;
