@@ -32,6 +32,9 @@ namespace tflite{
     public:
       TfScheduler();
       TfScheduler(const char* uds_file_name);
+
+      void PrintRuntimeStates();
+
       void Work();
 
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);

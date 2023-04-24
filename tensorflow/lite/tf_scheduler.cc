@@ -104,6 +104,8 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::SUBGRAPH_CREATE :
+      tf_packet tx_packet;
+      RefreshRuntimeState(rx_packet);
       /* code */
       break;
     case RuntimeState::INVOKE_ :
@@ -121,6 +123,17 @@ void TfScheduler::RefreshRuntimeState(tf_packet& rx_p){
     if(rx_p.runtime_id == runtimes[i]->id){
       runtimes[i]->state = static_cast<RuntimeState>(rx_p.runtime_current_state);
     }
+  }
+}
+
+void TfScheduler::PrintRuntimeStates(){
+  std::cout << "===================================";
+  std::cout << "TfScheduler has " << runtimes.size() << " runtimes" << "\n";
+  for(int i=0; i<runtimes.size(); ++i){
+  std::cout << "===================================";
+    std::cout << "Runtime ID : " << runtimes[i]->id << "\n";
+    std::cout << "Runtime State : " << runtimes[i]->state << "\n";
+    std::cout << "Socket path :" << runtimes[i]->addr.sun_path << "\n";
   }
 }
 

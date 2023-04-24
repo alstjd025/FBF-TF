@@ -651,7 +651,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           std::cout << "Interpreterbuilder : created new subgraph" << "\n";
         }
       }
-      interpreter_->PrintSubgraphInfo(); 
       input_tensor->clear();
       delete input_tensor;
       tensors_->clear();
@@ -673,6 +672,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
       return kTfLiteError;
     }
+    interpreter_->PrintSubgraphInfo(); 
     std::cout << "RegisterJobAndSubgraphs" << "\n";
     // Fill shared tensor bucket  
     for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){

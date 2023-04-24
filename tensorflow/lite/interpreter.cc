@@ -704,9 +704,10 @@ void Interpreter::PrintSubgraphInfo(){
   std::cout << "Interpreter: subgraph size:" << subgraphs_.size() << "\n";
   for(int i=0; i<subgraphs_.size(); ++i){
     std::cout << "id : " << subgraphs_[i]->GetGraphid() << " model : " <<
-      subgraphs_[i]->GetModelid();
+      subgraphs_[i]->GetModelid() << "\n";
+    // std::cout << "id : " << subgraph(i)->GetGraphid() << " model : " <<
+    //   subgraph(i)->GetModelid() << "\n";
   }
-  std::cout << "\n";
 }
 
 TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
@@ -720,10 +721,10 @@ TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
 TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   subgraphs_.emplace_back(new_subgraph);
   std::cout << "Interpreter: New subgraph, now size:" << subgraphs_.size() << "\n";
-  for(int i=0; i<subgraphs_.size(); ++i){
-    std::cout << "id : " << subgraphs_[i]->GetGraphid();
-  }
-  std::cout << "\n";
+  // for(int i=0; i<subgraphs_.size(); ++i){
+  //   std::cout << "id : " << subgraphs_[i]->GetGraphid();
+  // }
+  // std::cout << "\n";
   return kTfLiteOk;
 }
 
@@ -809,14 +810,11 @@ TfLiteStatus Interpreter::DeleteJob(int job_id){
 }
 
 void Interpreter::FlushJobs(){
-  LockJobs();
   // Flush job queue and push jobs .
   while(!jobs->empty()){
     jobs->pop();
   }
   // scheduler must reschedule and fill the job queue.
-  scheduler_->NeedReschedule();
-  UnlockJobs();
 }
 
 void Interpreter::EnqueueJobs(){

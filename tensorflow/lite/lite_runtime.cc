@@ -203,7 +203,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
     exit(-1);
   }
   interpreter->PrintSubgraphInfo();
-  PrintInterpreterStateV2(interpreter_builder->GetInterpreter());
+  PrintInterpreterStateV2(interpreter);
   // scheduler->RegisterInterpreterBuilder(new_builder);
 
   return kTfLiteOk;
@@ -287,6 +287,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
+  PrintInterpreterStateV2(interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   return kTfLiteOk;
 }
@@ -364,8 +365,21 @@ TfLiteStatus TfLiteRuntime::DebugInvoke() {
 
 // working function
 TfLiteStatus TfLiteRuntime::Invoke() {
+  if(state != RuntimeState::INVOKE_){
+    std::cout << "ERROR cannot invoke runtime [" << runtime_id << "]\n";
+    std::cout << "State is not INVOKE. cur state is " << state << "\n";
+    return kTfLiteError;
+  }
   Subgraph* subgraph;
-  
+  for(int i=0; i<interpreter->subgraphs_size(); ++i){
+    subgraph = interpreter->subgraph(i);
+    if(subgraph->GetPrevSubgraph() != nullptr){
+      CopyIntermediateDataIfNeeded(subgraph);
+    }
+    if(subgraph->Invoke() != kTfLiteOk){
+      
+    }
+  }
   // int graphs_to_invoke = interpreter->Get
 }
 
