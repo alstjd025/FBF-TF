@@ -103,12 +103,23 @@ void TfScheduler::Work(){
       }
       break;
     }
-    case RuntimeState::SUBGRAPH_CREATE :
+    case RuntimeState::SUBGRAPH_CREATE :{
       tf_packet tx_packet;
       RefreshRuntimeState(rx_packet);
-      /* code */
+      // What to do here???
+      // maybe schedulability check?
+      tx_packet.runtime_id = rx_packet.runtime_id;
+      tx_packet.runtime_next_state = RuntimeState::INVOKE_;
+      
+      if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
+        std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
+        printf("errno : %d \n", errno);
+        return;
+      }
       break;
+    }
     case RuntimeState::INVOKE_ :
+      
       /* code */
       break;
     
@@ -124,6 +135,50 @@ void TfScheduler::RefreshRuntimeState(tf_packet& rx_p){
       runtimes[i]->state = static_cast<RuntimeState>(rx_p.runtime_current_state);
     }
   }
+}
+
+bool TfScheduler::RoundRobin(ResourceType type){
+  switch (type)
+  {
+  case ResourceType::CPU:
+    if(cpu_usage_flag)
+      return false;
+    else
+      cpu_usage_flag = true;
+    return true;
+  case ResourceType::GPU:
+    if(gpu_usage_flag)
+      return false;
+    else
+      gpu_usage_flag = true;
+    return true;
+  case ResourceType::CPUGPU:
+    /* Not implemented */
+    break;
+  default:
+    break;
+  }
+}
+
+void TfScheduler::ReleaseResource(ResourceType type){
+  switch (type)
+  {
+  case ResourceType::CPU :
+    cpu_usage_flag = false;
+    break;
+  
+  case ResourceType::GPU :
+    gpu_usage_flag = false;
+    break;
+
+  case ResourceType::CPUGPU :
+    cpgpu_usage_flag = false;
+    break;
+
+  default:
+    break;
+  }
+  return;
 }
 
 void TfScheduler::PrintRuntimeStates(){

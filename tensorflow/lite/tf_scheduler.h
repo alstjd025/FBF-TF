@@ -46,6 +46,9 @@ namespace tflite{
 
       void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
 
+      bool RoundRobin(ResourceType type);
+      void ReleaseResource(ResourceType type);
+
       ~TfScheduler();
     
     private:
@@ -55,6 +58,13 @@ namespace tflite{
 
     std::vector<runtime_*> runtimes;
     int runtimes_created = 0;
+
+    bool reschedule_needed = false;
+
+    // For RR scheduler
+    bool cpu_usage_flag = false;
+    bool gpu_usage_flag = false;
+    bool cpgpu_usage_flag = false;
   };
 
 }

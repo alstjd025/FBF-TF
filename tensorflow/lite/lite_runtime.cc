@@ -179,8 +179,8 @@ TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p){
     std::cout << "Runtime " << runtime_id << " state changed to " << state << "\n";
     return kTfLiteOk;
   }else{
-    std::cout << "Runtime " << runtime_id << " state change failed" << "\n";
-    return kTfLiteError;
+    std::cout << "Runtime " << runtime_id << " state no change." << "\n";
+    return kTfLiteOk;
   }
 }
 
@@ -274,6 +274,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   }
   
   tf_packet tx_packet;
+  memset(&tx_packet, 0, sizeof(tf_packet));
   tx_packet.runtime_id = runtime_id;
   tx_packet.cur_subgraph = state;
   if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
@@ -284,11 +285,13 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
+  // At this point, scheduler will send INVOKE state.
   if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
   PrintInterpreterStateV2(interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
+  std::cout << "Ready to invoke" << "\n";
   return kTfLiteOk;
 }
 
@@ -371,15 +374,61 @@ TfLiteStatus TfLiteRuntime::Invoke() {
     return kTfLiteError;
   }
   Subgraph* subgraph;
-  for(int i=0; i<interpreter->subgraphs_size(); ++i){
-    subgraph = interpreter->subgraph(i);
-    if(subgraph->GetPrevSubgraph() != nullptr){
-      CopyIntermediateDataIfNeeded(subgraph);
+  for(int i=0; i<interpreter->subgraphs_size(); ++i){ // subgraph iteration
+    tf_packet tx_packet;
+    memset(&tx_packet, 0, sizeof(tf_packet));
+    tx_packet.runtime_id = runtime_id;
+    tx_packet.cur_subgraph = state;
+    if(SendPacketToScheduler(tx_packet) != kTfLiteOk){ // Request invoke permission to scheduler
+      return kTfLiteError;
     }
-    if(subgraph->Invoke() != kTfLiteOk){
-      
+    tf_packet rx_packet;
+    if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
+      return kTfLiteError;
     }
-  }
+    switch (rx_packet.runtime_next_state)
+    {
+    case RuntimeState::INVOKE_ :{
+      // Invoke next subgraph in subgraph order.
+      subgraph = interpreter->subgraph(i);
+      if(subgraph->GetPrevSubgraph() != nullptr){
+        CopyIntermediateDataIfNeeded(subgraph);
+      }
+      if(subgraph->Invoke() != kTfLiteOk){
+        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        return kTfLiteError;
+      }
+      if(subgraph->GetNextSubgraph() == nullptr){
+        PrintOutput(subgraph);
+      }
+      if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
+        std::cout << "ChangeStatewithPacket ERROR" << "\n";
+        return kTfLiteError;
+      }
+      break;
+    }
+    case RuntimeState::NEED_PROFILE :{
+      // Need profile.
+      if(RegisterModeltoScheduler() != kTfLiteOk){
+        std::cout << "RegisterModeltoScheduler ERROR" << "\n";
+        return kTfLiteError;
+      }
+      break;
+    }
+    case RuntimeState::SUBGRAPH_CREATE :{
+      // Need subgraph partitioning.
+      // this will delete the existing subgraphs and partition from original model.
+      if(PartitionSubgraphs() != kTfLiteOk){
+        std::cout << "PartitionSubgraphs ERROR" << "\n";
+        return kTfLiteError;
+      }
+      break;
+    }
+    default:
+      break;
+    }
+  } // end of subgraph interation
+  return kTfLiteOk;
   // int graphs_to_invoke = interpreter->Get
 }
 
