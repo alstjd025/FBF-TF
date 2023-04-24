@@ -53,7 +53,7 @@ void TfScheduler::Work(){
       std::cout << "Receive failed" << "\n";
       return;
     }
-    std::cout << "Recieved packet from runtime " << rx_packet.runtime_id << "\n";
+    //std::cout << "Recieved packet from runtime " << rx_packet.runtime_id << "\n";
 
     // do next work by received runtime state.
     switch (rx_packet.runtime_current_state)

@@ -429,7 +429,6 @@ TfLiteStatus TfLiteRuntime::Invoke() {
   Subgraph* subgraph;
   int subgraph_idx = 0;
   while(subgraph_idx < interpreter->subgraphs_size()){ // subgraph iteration
-    std::cout << "Invoke subgraph : " << subgraph_idx << "\n";
     subgraph = interpreter->subgraph(subgraph_idx);
     tf_packet tx_packet;
     memset(&tx_packet, 0, sizeof(tf_packet));
@@ -464,18 +463,18 @@ TfLiteStatus TfLiteRuntime::Invoke() {
         return kTfLiteError;
       }
       if(subgraph->GetNextSubgraph() == nullptr){
-        PrintOutput(subgraph);
-        if(!output_correct){
-          std::cout << "OUTPUT WRONG!" << "\n";
-          exit(-1);
-        }
+        // PrintOutput(subgraph);
+        // if(!output_correct){
+        //   std::cout << "OUTPUT WRONG!" << "\n";
+        //   exit(-1);
+        // }
       }
       subgraph_idx++;
       output_correct = false;
       break;
     }
     case RuntimeState::BLOCKED_ : {
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
       break;
     }
     case RuntimeState::NEED_PROFILE :{
