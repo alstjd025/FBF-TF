@@ -392,12 +392,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
     TF_LITE_REPORT_ERROR(error_reporter_, "No buffers in the model.\n");
     return kTfLiteError;
   }
-
-  std::cout << "hello" << "\n";
   const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
-  std::cout << "hello" << "\n";
   tflite::Subgraph* modified_subgraph = interpreter_->CreateSubgraph();
-  std::cout << "hello" << "\n";
 
   auto operators = subgraph->operators();
   auto tensors = subgraph->tensors();
@@ -596,7 +592,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
 
       // TEST CODE //
-      // new_subgraph->SetResourceType(ResourceType::GPU);
+      new_subgraph->SetResourceType(ResourceType::GPU);
       ///////////////
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // make linked-list structure
@@ -715,12 +711,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
   }
-  std::cout << "allocated tensors" << "\n";
-  // if(DelegateCreatedSubgraphs(subgraphs_created) != kTfLiteOk){
-  //   std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
-  //   return kTfLiteError;
-  // }
-  // std::cout << "delegate tensors" << "\n";
+  std::cout << "Allocated tensors" << "\n";
+  if(DelegateCreatedSubgraphs(subgraphs_created) != kTfLiteOk){
+    std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
+    return kTfLiteError;
+  }
+  std::cout << "Delegate tensors" << "\n";
   if(interpreter_->ReadyJobsofGivenModel(model_id_) != kTfLiteOk){
     std::cout << "ReadyJobsofGivenModel ERROR" << "\n";
     return kTfLiteError;
@@ -741,6 +737,7 @@ TfLiteStatus InterpreterBuilder::DelegateCreatedSubgraphs(
       }
     }
   }
+  return kTfLiteOk;
 }
 
 TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(

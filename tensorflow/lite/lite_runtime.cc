@@ -89,7 +89,6 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model registration to scheduler ERROR" << "\n";
     exit(-1);
   }
-  PrintInterpreterStateV2(interpreter);
   if(PartitionSubgraphs() != kTfLiteOk){
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
@@ -174,12 +173,16 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p){
 }
 
 TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p){
+  std::cout << "================================================" << "\n";
   if(rx_p.runtime_next_state != state){
+    std::cout << "runtime_next_state : " << rx_p.runtime_next_state << "\n";
     state = static_cast<RuntimeState>(rx_p.runtime_next_state);
     std::cout << "Runtime " << runtime_id << " state changed to " << state << "\n";
+    std::cout << "================================================" << "\n";
     return kTfLiteOk;
   }else{
     std::cout << "Runtime " << runtime_id << " state no change." << "\n";
+    std::cout << "================================================" << "\n";
     return kTfLiteOk;
   }
 }
@@ -203,7 +206,6 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
     exit(-1);
   }
   interpreter->PrintSubgraphInfo();
-  PrintInterpreterStateV2(interpreter);
   // scheduler->RegisterInterpreterBuilder(new_builder);
 
   return kTfLiteOk;
@@ -276,7 +278,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
   tx_packet.runtime_id = runtime_id;
-  tx_packet.cur_subgraph = state;
+  tx_packet.runtime_current_state = state;
   if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
@@ -289,6 +291,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
+  interpreter->PrintSubgraphInfo();
   PrintInterpreterStateV2(interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
@@ -352,6 +355,57 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
   // PrintTensor(*input_tensor);
 }
 
+void TfLiteRuntime::FeedInputToModel(const char* model,
+                                     cv::Mat& input,
+                                     INPUT_TYPE input_type) {
+  TfLiteTensor* input_tensor = nullptr;
+  input_tensor = interpreter->input_tensor_of_model(0);
+
+  if (input_tensor == nullptr) {
+    std::cout << "TfLiteRuntime : cannont get pointer to input tensor, model["
+              << model << "]"
+              << "\n";
+    return;
+  }
+  auto input_pointer = (float*)input_tensor->data.data;
+  switch (input_type) {
+    case INPUT_TYPE::MNIST:
+      for (int i = 0; i < 28; ++i) {
+        for (int j = 0; j < 28; ++j) {
+          input_pointer[i * 28 + j] = ((float)input.at<uchar>(i, j) / 255.0);
+        }
+      }
+      break;
+    case INPUT_TYPE::IMAGENET224:
+      memcpy(input_pointer, input.data,
+             input.total() * input.elemSize());
+      // for (int i=0; i < 224; ++i){
+      //   for(int j=0; j < 224; ++j){
+      //     input_pointer[i*224 + j*3] = (float)input[0].at<cv::Vec3b>(i, j)[0]
+      //     /255.0; input_pointer[i*224 + j*3 + 1] =
+      //     (float)input[0].at<cv::Vec3b>(i, j)[1] /255.0; input_pointer[i*224
+      //     + j*3 + 2] = (float)input[0].at<cv::Vec3b>(i, j)[2] /255.0;
+      //   }
+      // }
+      break;
+    case INPUT_TYPE::IMAGENET300:
+      for (int i = 0; i < 300; ++i) {
+        for (int j = 0; j < 300; ++j) {
+          input_pointer[i * 300 + j * 3] =
+              ((float)input.at<cv::Vec3b>(i, j)[0]);
+          input_pointer[i * 300 + j * 3 + 1] =
+              ((float)input.at<cv::Vec3b>(i, j)[1]);
+          input_pointer[i * 300 + j * 3 + 2] =
+              ((float)input.at<cv::Vec3b>(i, j)[2]);
+        }
+      }
+      break;
+    default:
+      break;
+  }
+  // PrintTensor(*input_tensor);
+}
+
 void TfLiteRuntime::WakeScheduler() {
   interpreter->WakeScheduler();
   std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -374,11 +428,24 @@ TfLiteStatus TfLiteRuntime::Invoke() {
     return kTfLiteError;
   }
   Subgraph* subgraph;
-  for(int i=0; i<interpreter->subgraphs_size(); ++i){ // subgraph iteration
+  int subgraph_idx = 0;
+  while(subgraph_idx < interpreter->subgraphs_size()){ // subgraph iteration
+    std::cout << "Invoke subgraph : " << subgraph_idx << "\n";
+    subgraph = interpreter->subgraph(subgraph_idx);
     tf_packet tx_packet;
     memset(&tx_packet, 0, sizeof(tf_packet));
     tx_packet.runtime_id = runtime_id;
-    tx_packet.cur_subgraph = state;
+    tx_packet.runtime_current_state = state;
+
+    if(subgraph != nullptr){
+      if(subgraph->GetResourceType() == ResourceType::CPU)
+        tx_packet.cur_graph_resource = 0;
+      else if(subgraph->GetResourceType() == ResourceType::GPU)
+        tx_packet.cur_graph_resource = 1;
+      else // Will change this part later. (impl CPUGPU Co-execution)
+        tx_packet.cur_graph_resource = 0;
+    }
+
     if(SendPacketToScheduler(tx_packet) != kTfLiteOk){ // Request invoke permission to scheduler
       return kTfLiteError;
     }
@@ -390,7 +457,6 @@ TfLiteStatus TfLiteRuntime::Invoke() {
     {
     case RuntimeState::INVOKE_ :{
       // Invoke next subgraph in subgraph order.
-      subgraph = interpreter->subgraph(i);
       if(subgraph->GetPrevSubgraph() != nullptr){
         CopyIntermediateDataIfNeeded(subgraph);
       }
@@ -401,10 +467,11 @@ TfLiteStatus TfLiteRuntime::Invoke() {
       if(subgraph->GetNextSubgraph() == nullptr){
         PrintOutput(subgraph);
       }
-      if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
-        std::cout << "ChangeStatewithPacket ERROR" << "\n";
-        return kTfLiteError;
-      }
+      subgraph_idx++;
+      break;
+    }
+    case RuntimeState::BLOCKED_ : {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
       break;
     }
     case RuntimeState::NEED_PROFILE :{
@@ -422,6 +489,7 @@ TfLiteStatus TfLiteRuntime::Invoke() {
         std::cout << "PartitionSubgraphs ERROR" << "\n";
         return kTfLiteError;
       }
+      subgraph_idx = 0;
       break;
     }
     default:

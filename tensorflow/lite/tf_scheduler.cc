@@ -86,7 +86,7 @@ void TfScheduler::Work(){
       }
       runtimes.push_back(new_runtime);
       std::cout << "Registered new runtime " << new_runtime->id << " \n";
-      continue;
+      break;
     }
     case RuntimeState::NEED_PROFILE :{
       tf_packet tx_packet;
@@ -104,10 +104,10 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::SUBGRAPH_CREATE :{
-      tf_packet tx_packet;
       RefreshRuntimeState(rx_packet);
       // What to do here???
       // maybe schedulability check?
+      tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
       tx_packet.runtime_next_state = RuntimeState::INVOKE_;
       
@@ -118,11 +118,24 @@ void TfScheduler::Work(){
       }
       break;
     }
-    case RuntimeState::INVOKE_ :
-      
-      /* code */
+    case RuntimeState::INVOKE_ :{
+      tf_packet tx_packet;
+      tx_packet.runtime_id = rx_packet.runtime_id;
+      if(RoundRobin(static_cast<ResourceType>(rx_packet.cur_graph_resource), rx_packet.runtime_id)){
+        // resource available
+        tx_packet.runtime_next_state = RuntimeState::INVOKE_;
+        std::cout << "Give resource to runtime " << rx_packet.runtime_id << "\n";
+      }else{ // resource not available
+        tx_packet.runtime_next_state = RuntimeState::BLOCKED_;
+        std::cout << "Block runtime " << rx_packet.runtime_id << "\n";
+      }
+      if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
+        std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
+        printf("errno : %d \n", errno);
+        return;
+      }
       break;
-    
+    }
     default:
       break;
     }
@@ -137,21 +150,40 @@ void TfScheduler::RefreshRuntimeState(tf_packet& rx_p){
   }
 }
 
-bool TfScheduler::RoundRobin(ResourceType type){
+bool TfScheduler::RoundRobin(ResourceType type, int runtime_id){
+  if(runtimes.size() < 2){
+    return true;
+  }
   switch (type)
   {
   case ResourceType::CPU:
-    if(cpu_usage_flag)
+    if(rr_cpu_queue.empty() || rr_cpu_queue.front() != runtime_id){
+      if(cpu_usage_flag) // cpu not available
+        return false;
+      else{ // Allocate resource to given runtime.
+        rr_cpu_queue.pop();
+        rr_cpu_queue.push(runtime_id);
+        cpu_usage_flag = true;
+        return true;
+      }
+    }else{
       return false;
-    else
-      cpu_usage_flag = true;
-    return true;
+    }
+    break;
   case ResourceType::GPU:
-    if(gpu_usage_flag)
+    if(rr_gpu_queue.empty() || rr_gpu_queue.front() != runtime_id){
+      if(gpu_usage_flag) // gpu not available
+        return false;
+      else{ // Allocate resource to given runtime.
+        rr_gpu_queue.pop();
+        rr_gpu_queue.push(runtime_id);
+        gpu_usage_flag = true;
+        return true;
+      }
+    }else{
       return false;
-    else
-      gpu_usage_flag = true;
-    return true;
+    }
+    break;
   case ResourceType::CPUGPU:
     /* Not implemented */
     break;
@@ -207,7 +239,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[0][1] = 4;
     tx_p.partitioning_plan[0][2] = 0;
     tx_p.partitioning_plan[1][0] = 4;
-    tx_p.partitioning_plan[1][1] = 8;
+    tx_p.partitioning_plan[1][1] = 9;
     tx_p.partitioning_plan[1][2] = 0;
     tx_p.partitioning_plan[2][0] = -1;
   } // MNIST

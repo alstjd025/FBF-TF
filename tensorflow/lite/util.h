@@ -140,7 +140,8 @@ typedef enum RuntimeState{
   INITIALIZE,
   NEED_PROFILE,
   SUBGRAPH_CREATE,
-  INVOKE_
+  INVOKE_,
+  BLOCKED_
 } RuntimeState;
 
 //WARNING! This struct is deprecatied.
@@ -169,6 +170,7 @@ typedef struct Job{
 typedef struct ProfileData{
   std::vector<float> latency_by_layers;
   std::vector<std::vector<int>> layer_subsets;
+  std::vector<int> gpu_layers;
   bool is_valid;
 } ProfileData;
 
@@ -184,6 +186,7 @@ typedef struct tf_packet{
   short runtime_current_state;
   short runtime_next_state;
   int cur_subgraph;
+  int cur_graph_resource; // 0 for cpu, 1 for gpu
   int partitioning_plan[1000][3];
   float latency[1000];
 }tf_packet;

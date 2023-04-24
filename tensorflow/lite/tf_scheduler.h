@@ -26,6 +26,10 @@ namespace tflite{
     struct sockaddr_un addr;
     float latency[1000];
     int partitioning_plan[1000][3];
+    // the partitioning plan's first idx means first subgraph's idx,
+    // second idx means last subgraph's idx in subset.
+    // thierd idx means which processor to be used in invoke.
+    // 0 - cpu, 1 - gpu, 2 - cpgpu
   }runtime_;
 
   class TfScheduler{
@@ -46,7 +50,7 @@ namespace tflite{
 
       void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
 
-      bool RoundRobin(ResourceType type);
+      bool RoundRobin(ResourceType type, int runtime_id);
       void ReleaseResource(ResourceType type);
 
       ~TfScheduler();
@@ -65,6 +69,8 @@ namespace tflite{
     bool cpu_usage_flag = false;
     bool gpu_usage_flag = false;
     bool cpgpu_usage_flag = false;
+    std::queue<int> rr_cpu_queue;
+    std::queue<int> rr_gpu_queue;
   };
 
 }
