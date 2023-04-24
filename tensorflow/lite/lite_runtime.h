@@ -91,6 +91,8 @@ class TfLiteRuntime{
     struct sockaddr_un runtime_addr;
     struct sockaddr_un scheduler_addr;
 
+    bool output_correct = false;
+
 };
 
 } // namespace tflite

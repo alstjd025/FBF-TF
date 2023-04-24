@@ -119,6 +119,7 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::INVOKE_ :{
+      RefreshRuntimeState(rx_packet);
       tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
       if(RoundRobin(static_cast<ResourceType>(rx_packet.cur_graph_resource), rx_packet.runtime_id)){
@@ -142,6 +143,17 @@ void TfScheduler::Work(){
   }
 }
 
+bool TfScheduler::CheckAllRuntimesReady(){
+  if(runtimes.size() != 2){
+    return false;
+  }
+  for(int i=0; i<runtimes.size(); ++i){
+    if(runtimes[i]->state != RuntimeState::INVOKE_)
+      return false;
+  }
+  return true;
+}
+
 void TfScheduler::RefreshRuntimeState(tf_packet& rx_p){
   for(int i=0; i<runtimes.size(); ++i){
     if(rx_p.runtime_id == runtimes[i]->id){
@@ -151,39 +163,46 @@ void TfScheduler::RefreshRuntimeState(tf_packet& rx_p){
 }
 
 bool TfScheduler::RoundRobin(ResourceType type, int runtime_id){
-  if(runtimes.size() < 2){
-    return true;
+  // if(runtimes.size() < 2){
+  //   return true;
+  // }
+  if(!CheckAllRuntimesReady()){ // Every runtime should be in invoke state to start RR scheduling.
+    return false;
   }
   switch (type)
   {
   case ResourceType::CPU:
-    if(rr_cpu_queue.empty() || rr_cpu_queue.front() != runtime_id){
-      if(cpu_usage_flag) // cpu not available
+    if(rr_cpu_queue.empty()){ // initial state. any runtime can take ownership
+      rr_cpu_queue.push(runtime_id);
+      return true;      
+    }
+    else if(rr_cpu_queue.front() != runtime_id){ // if last owner was other runtime
+      if(cpu_usage_flag) // Resource busy.
         return false;
-      else{ // Allocate resource to given runtime.
+      else{ // Resource available
         rr_cpu_queue.pop();
         rr_cpu_queue.push(runtime_id);
         cpu_usage_flag = true;
         return true;
       }
-    }else{
-      return false;
-    }
-    break;
+    }else
+      return false; // if last owner was this runtime
   case ResourceType::GPU:
-    if(rr_gpu_queue.empty() || rr_gpu_queue.front() != runtime_id){
-      if(gpu_usage_flag) // gpu not available
+    if(rr_gpu_queue.empty()){ // initial state. any runtime can take ownership
+      rr_gpu_queue.push(runtime_id);
+      return true;      
+    }
+    else if(rr_gpu_queue.front() != runtime_id){ // if last owner was other runtime
+      if(gpu_usage_flag) // Resource busy.
         return false;
-      else{ // Allocate resource to given runtime.
+      else{ // Resource available
         rr_gpu_queue.pop();
         rr_gpu_queue.push(runtime_id);
-        gpu_usage_flag = true;
+        cpu_usage_flag = true;
         return true;
       }
-    }else{
-      return false;
-    }
-    break;
+    }else
+      return false; // if last owner was this runtime
   case ResourceType::CPUGPU:
     /* Not implemented */
     break;

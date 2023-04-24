@@ -355,7 +355,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   // 2. Parse operators and tensors from it.
   // 3. Parse nodes and tensors to new subgraph from operators and tensors.
   // 4. Allocate tensors in new subgraph.
-  // 5. Make subgraph with a new Job(default) struct.
+  // 5. Make subgraph with a new Job(default) struct(deprecated, subject to change).
   // 6. Store the Job and subgraph to given interpreter.
 
   if(!interpreter_){
@@ -432,14 +432,14 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   modified_subgraph->SetVariables(std::move(variables));
   std::cout << "Interpreterbuilder : created modified subgraph" << "\n";
   // Minsung
-  // Needs check if neccesary
+  // Is this necessary?
   if (num_fp32_tensors_ > 0) {
     (*interpreter_).lazy_delegate_providers_ =
         op_resolver_.GetDelegates(default_thread);
   }
 
   // Minsung
-  // Needs check if neccesary
+  // Is this necessary?
   if (ApplyDelegates(interpreter_, default_thread) != kTfLiteOk)
     return kTfLiteError;
 
@@ -484,9 +484,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   // 2. make new subgraphs
   // 3. parse nodes and tensors from original nodes_and_registrations
   // 4. 
-  // Jobs to do
-  // 1. Allocate each subgraphs with new subgraphs input outputs??
-  // 2. Data transfer between subgraphs
+
   auto* subgraphs = model_->subgraphs();
   auto* buffers = model_->buffers();
   if (subgraphs->size() == 0) {
@@ -520,42 +518,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::vector<int>* output_tensor = new std::vector<int>;
     std::vector<int>* tensors_ = new std::vector<int>;
     std::vector<SubgraphPartitioningPlan*> master_partitioning_plan;
-    /////////////////////////////////////////////
-    /// Refactored code for dividing subgraph ///
-    /////////////////////////////////////////////
-    // HARDCODING
-    // thread_safety
-    // if(model_id_ == 0){ // mnist case
-    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    //   for(size_t i=0; i<3; ++i){ // 9 10 200 201?
-    //     dummy_profile_.layer_subsets[0].push_back(i);
-    //   }
-    //   for(size_t i=3; i<124; ++i){
-    //     dummy_profile_.layer_subsets[1].push_back(i);
-    //   }
-    //   // dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    //   // dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    //   // dummy_profile_.layer_subsets[0].push_back(0);
-    //   // dummy_profile_.layer_subsets[0].push_back(1);
-    //   // dummy_profile_.layer_subsets[0].push_back(2);
-    //   // dummy_profile_.layer_subsets[0].push_back(3);
-    //   // dummy_profile_.layer_subsets[0].push_back(4);
-    //   // dummy_profile_.layer_subsets[1].push_back(5);
-    //   // dummy_profile_.layer_subsets[1].push_back(6);
-    //   // dummy_profile_.layer_subsets[1].push_back(7);
-    //   // dummy_profile_.layer_subsets[1].push_back(8);
-    // }
-    // else if(model_id_ == 1){ // mobilenet case
-    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    //   dummy_profile_.layer_subsets.push_back(std::vector<int>());
-    //   for(size_t i=0; i<3; ++i){ // 9 10 200 201?
-    //     dummy_profile_.layer_subsets[0].push_back(i);
-    //   }
-    //   for(size_t i=3; i<124; ++i){
-    //     dummy_profile_.layer_subsets[1].push_back(i);
-    //   }
-    // }
     
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData* profile){
       for(int i=0; i<profile->layer_subsets.size(); ++i){ //graphs
@@ -586,12 +548,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       shared_tensor_bucket[i][j] = 0;
 
     std::queue<tflite::Subgraph*> prev_queue;
-    for(int partition_itr=0; partition_itr<master_partitioning_plan.size();
+    // Partitioning iteration begins
+    for(int partition_itr=0; partition_itr<master_partitioning_plan.size(); 
                                                 ++partition_itr){
       /// Make a new subgraph
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
 
-      // TEST CODE //
+      // FOR TEST //
       new_subgraph->SetResourceType(ResourceType::GPU);
       ///////////////
       subgraphs_created.push_back(new_subgraph);
@@ -655,7 +618,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       delete output_tensor;
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
-    }
+    }// Partitioning iteration ends
     tflite::Job* new_job = new tflite::Job;
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){
@@ -678,8 +641,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           shared_tensor_bucket[tensor][graph_idx] = 1; // Tensor shared flag
       }
     }
-    // Save shared intermediate tensor info to interpreter's graph_and_shared_tensor.
+    // Save shared intermediate tensor indices in interpreter's graph_and_shared_tensor.
     // Will used when AllocateTensorsofAllSubgraphs called.
+    // (to propagate tensor shapes)
     for(size_t t=0; t<tensors->size(); ++t){
       std::pair<int, std::vector<int>> pair_tensor_graph;
       std::vector<int> sharing_subgraph_id;

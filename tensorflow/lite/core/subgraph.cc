@@ -992,7 +992,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 }
 
 TfLiteStatus Subgraph::Invoke() {
-  std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
+  //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
     return kTfLiteError;

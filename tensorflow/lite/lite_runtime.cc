@@ -93,7 +93,6 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
   }
-    
 };
 
 TfLiteRuntime::~TfLiteRuntime() {
@@ -223,7 +222,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
   tx_packet.runtime_id = runtime_id;
 
   //////////////////////////////////////
-  // Some profiling code here. later. //
+  // Some profiling logic here. later. //
   //////////////////////////////////////
 
   int layers = interpreter->nodes_size(0);
@@ -442,7 +441,7 @@ TfLiteStatus TfLiteRuntime::Invoke() {
         tx_packet.cur_graph_resource = 0;
       else if(subgraph->GetResourceType() == ResourceType::GPU)
         tx_packet.cur_graph_resource = 1;
-      else // Will change this part later. (impl CPUGPU Co-execution)
+      else // Subject to change. (impl CPUGPU Co-execution)
         tx_packet.cur_graph_resource = 0;
     }
 
@@ -466,8 +465,13 @@ TfLiteStatus TfLiteRuntime::Invoke() {
       }
       if(subgraph->GetNextSubgraph() == nullptr){
         PrintOutput(subgraph);
+        if(!output_correct){
+          std::cout << "OUTPUT WRONG!" << "\n";
+          exit(-1);
+        }
       }
       subgraph_idx++;
+      output_correct = false;
       break;
     }
     case RuntimeState::BLOCKED_ : {
@@ -585,7 +589,7 @@ void TfLiteRuntime::PrintTensor(TfLiteTensor& tensor, bool is_output){
           if(data > 0.8){ // threshhold
             std::cout << "CH [" << i << "] ";
             printf("%s%0.6f%s \n", C_GREN, data, C_NRML);
-            //output_correct = true;
+            output_correct = true;
           }
         }else{
           if (data == 0) {

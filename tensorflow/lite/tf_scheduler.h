@@ -50,6 +50,8 @@ namespace tflite{
 
       void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
 
+      bool CheckAllRuntimesReady();
+
       bool RoundRobin(ResourceType type, int runtime_id);
       void ReleaseResource(ResourceType type);
 
