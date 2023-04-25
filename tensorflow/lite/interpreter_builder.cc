@@ -693,12 +693,14 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
 TfLiteStatus InterpreterBuilder::DelegateCreatedSubgraphs(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
+    std::cout << "delegate "<< new_subgraph->GetGraphid() << "\n";
     if(new_subgraph->GetResourceType() == ResourceType::GPU){
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
                    << " Delegate" << "\n";
       }
+      std::cout << "delegate" << "\n";
     }
   }
   return kTfLiteOk;
@@ -708,10 +710,12 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(
                                       tflite::Subgraph* new_subgraph,
                                       tflite::Job* new_job){
   // Setup model, job, graph id 
+  std::cout << "Bind" << "\n";
   new_subgraph->SetModelid(model_id_);
   new_subgraph->SetJobid(interpreter_->GetAndAddNumJobsCreated(1));
   new_subgraph->SetGraphid(interpreter_->GetAndAddSubgraphsCreated(1));
   graph_subsets.push_back(new_subgraph->GetGraphid());
+  std::cout << "Bind" << "\n";
   // Make a new job
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
   new_job->job_id = new_subgraph->GetJobid();
@@ -721,6 +725,7 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(
   new_job->resource_type = ResourceType::CPU;
   new_job->subgraphs.push_back(
                   std::pair<int, int>(new_subgraph->GetGraphid(), -1));
+  std::cout << "Bind" << "\n";
   return kTfLiteOk;
 }
 

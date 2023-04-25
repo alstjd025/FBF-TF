@@ -91,7 +91,7 @@ Interpreter::Interpreter(ErrorReporter* error_reporter)
   // Prod logging is useful for mobile platforms where scraping console logs is
   // critical for debugging.
 
-std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
+std::cout << "Interpreter : Initializing default tflite interpreter" << "\n";
 #if defined(TFLITE_IS_MOBILE_PLATFORM)
   TFLITE_LOG_PROD_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
 #else
@@ -128,12 +128,12 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
 }
 
 Interpreter::Interpreter(bool use_job) {
-  ErrorReporter* error_reporter = DefaultErrorReporter();
+  error_reporter_ = DefaultErrorReporter();
   // TODO(b/128420794): Include the TFLite runtime version in the log.
   // Prod logging is useful for mobile platforms where scraping console logs is
   // critical for debugging.
 
-std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
+std::cout << "Interpreter : Initializing modified tflite interpreter" << "\n";
 #if defined(TFLITE_IS_MOBILE_PLATFORM)
   TFLITE_LOG_PROD_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
 #else
