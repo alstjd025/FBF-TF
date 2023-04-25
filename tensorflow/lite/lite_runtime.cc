@@ -57,8 +57,9 @@ std::ostream& operator<<(std::ostream& out, const tflite::RuntimeState value){
 namespace tflite {
 
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                                                    const char* model) {
-  interpreter = new tflite::Interpreter;
+                                     const char* model, INPUT_TYPE type) {
+  interpreter = new tflite::Interpreter(true);
+  interpreter->SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;
@@ -463,14 +464,14 @@ TfLiteStatus TfLiteRuntime::Invoke() {
         return kTfLiteError;
       }
       if(subgraph->GetNextSubgraph() == nullptr){
-        // PrintOutput(subgraph);
-        // if(!output_correct){
-        //   std::cout << "OUTPUT WRONG!" << "\n";
-        //   exit(-1);
-        // }
+        PrintOutput(subgraph);
+        if(!output_correct){
+          std::cout << "OUTPUT WRONG!" << "\n";
+          exit(-1);
+          output_correct = false;
+        }
       }
       subgraph_idx++;
-      output_correct = false;
       break;
     }
     case RuntimeState::BLOCKED_ : {
@@ -585,10 +586,33 @@ void TfLiteRuntime::PrintTensor(TfLiteTensor& tensor, bool is_output){
       for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
         float data = *(data_st+(i+j*tensor_data_ch_size));
         if(is_output){
-          if(data > 0.8){ // threshhold
-            std::cout << "CH [" << i << "] ";
-            printf("%s%0.6f%s \n", C_GREN, data, C_NRML);
-            output_correct = true;
+          switch (interpreter->GetInputType())
+          {
+          case INPUT_TYPE::MNIST :
+            if(data > 0.8){ // threshhold
+              std::cout << "CH [" << i << "] ";
+              printf("%s%0.6f%s \n", C_GREN, data, C_NRML);
+              output_correct = true;
+            }
+            break;
+          
+          case INPUT_TYPE::IMAGENET224 :
+            if(data > 8.0){ // threshhold
+              std::cout << "CH [" << i << "] ";
+              printf("%s%0.6f%s \n", C_GREN, data, C_NRML);
+              output_correct = true;
+            }
+            break;
+
+          case INPUT_TYPE::IMAGENET300 :
+            if(data > 8.0){ // threshhold
+              std::cout << "CH [" << i << "] ";
+              printf("%s%0.6f%s \n", C_GREN, data, C_NRML);
+              output_correct = true;
+            }
+            break;
+          default:
+            break;
           }
         }else{
           if (data == 0) {

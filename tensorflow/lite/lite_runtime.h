@@ -39,7 +39,7 @@ class LiteScheduler;
 class TfLiteRuntime{
   public:
     TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                                        const char* model);
+                      const char* model, INPUT_TYPE type);
     ~TfLiteRuntime();
 
     TfLiteStatus AddModelToRuntime(const char* new_model);

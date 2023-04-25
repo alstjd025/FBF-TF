@@ -100,6 +100,48 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
 
   // legacy
   // // There's always at least 1 subgraph which is the primary subgraph.
+  AddSubgraphs(1);
+  context_ = primary_subgraph().context();
+
+  // Reserve some space for the tensors to avoid excessive resizing.
+  for (int i = 0; i < kTfLiteMaxExternalContexts; ++i) {
+    external_contexts_[i] = nullptr;
+  }
+
+  // This operation is cheap because we allocate the CPU context resources (i.e.
+  // threads) lazily.
+  own_external_cpu_backend_context_.reset(new ExternalCpuBackendContext());
+  external_contexts_[kTfLiteCpuBackendContext] =
+      own_external_cpu_backend_context_.get();
+
+  // legacy
+  primary_subgraph().UseNNAPI(false);
+  
+  // Minsung
+  // Add job queue
+  jobs = new std::queue<tflite::Job*>;
+
+  // THIS CODE IS DEPRECATED
+  // scheduler_ = new LiteScheduler(this); //create scheduler thread here
+  // std::cout << "Interperter Created with new job queue and scheduler" << "\n";
+
+}
+
+Interpreter::Interpreter(bool use_job) {
+  ErrorReporter* error_reporter = DefaultErrorReporter();
+  // TODO(b/128420794): Include the TFLite runtime version in the log.
+  // Prod logging is useful for mobile platforms where scraping console logs is
+  // critical for debugging.
+
+std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
+#if defined(TFLITE_IS_MOBILE_PLATFORM)
+  TFLITE_LOG_PROD_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
+#else
+  TFLITE_LOG_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
+#endif
+
+  // legacy
+  // // There's always at least 1 subgraph which is the primary subgraph.
   // AddSubgraphs(1);
   // context_ = primary_subgraph().context();
 
@@ -124,8 +166,7 @@ std::cout << "Interpreter : Initializing tflite interpreter" << "\n";
   // THIS CODE IS DEPRECATED
   // scheduler_ = new LiteScheduler(this); //create scheduler thread here
   // std::cout << "Interperter Created with new job queue and scheduler" << "\n";
-  
-  
+
 }
 
 Interpreter::~Interpreter() {
@@ -410,7 +451,6 @@ TfLiteStatus Interpreter::ReleaseNonPersistentMemory() {
 }
 
 TfLiteStatus Interpreter::Invoke() {
-  std::cout << "tensorflow/lite/interpreter.cc/Interpreter::Invoke()\n";
   ScopedRuntimeInstrumentationProfile scoped_runtime_event(installed_profiler_,
                                                            "invoke");
   TF_LITE_ENSURE_STATUS_WITH_SCOPED_INSTRUMENTATION(

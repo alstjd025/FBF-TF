@@ -90,6 +90,10 @@ class Interpreter {
   // recommended.
   explicit Interpreter(ErrorReporter* error_reporter = DefaultErrorReporter());
 
+  // Minsung
+  // Overloaded constructor for tf_runtime
+  Interpreter(bool use_job);
+
   ~Interpreter();
 
   // Interpreters are not copyable as they have non-trivial memory semantics.
@@ -718,6 +722,10 @@ class Interpreter {
     return n;
   }
 
+  void SetInputType(INPUT_TYPE type) { input_type = type; }
+  INPUT_TYPE GetInputType() { return input_type; }
+  
+
 
 
   // Minsung
@@ -895,6 +903,8 @@ class Interpreter {
   // Minsung
   // Subgraphs
   int subgraphs_created = 0;
+
+  INPUT_TYPE input_type;
 };
 
 }  // namespace tflite

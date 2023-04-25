@@ -1329,6 +1329,7 @@ TfLiteStatus InterpreterBuilder::operator()(
 
 TfLiteStatus InterpreterBuilder::operator()(
     std::unique_ptr<Interpreter>* interpreter, int num_threads) {
+  std::cout << "Interpreterbuilder creates subgraph" << "\n";
   if (!interpreter) {
     error_reporter_->Report(
         "Null output pointer passed to InterpreterBuilder.");
@@ -1439,7 +1440,7 @@ TfLiteStatus InterpreterBuilder::operator()(
 
   if (ApplyDelegates(interpreter_, num_threads) != kTfLiteOk)
     return cleanup_and_error();
-
+  std::cout << "Interpreterbuilder creates subgraph done" << "\n";
   return kTfLiteOk;
 }
 
