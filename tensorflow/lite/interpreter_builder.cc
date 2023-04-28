@@ -212,8 +212,12 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
   for(int i=0; i<raw_plan.size(); ++i){
     if(raw_plan[i][0] != -1){
       dummy_profile_->layer_subsets.push_back(std::vector<int>());
+      dummy_profile_->partitioning_ratios.push_back(std::vector<int>());
       for(int j=raw_plan[i][0]; j<raw_plan[i][1]; ++j){
         dummy_profile_->layer_subsets[i].push_back(j);
+      }
+      if(raw_plan[i][2] == 2){ // if subset is co-exetution subset
+        dummy_profile_->partitioning_ratios[i].push_back(raw_plan[i][3]);
       }
     }else{
       break;

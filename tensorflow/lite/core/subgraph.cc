@@ -1564,27 +1564,6 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         context_.tensors[tensor_filter].bytes = modified_bytes;
         context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
       }
-      else if(!strcmp(GetOpName(registration), "CONCATENATION")){
-        if(conv_filter_before_modification <= 0){
-          std::cout << "Error in filter Partitioning \n";
-          return kTfLiteError;
-        }
-        tensor_filter = node.inputs->data[1];
-        int modified_value =  conv_filter_before_modification - \
-              ceil(conv_filter_before_modification*((float)partitioning_plan/10));
-        TfLiteIntArray* ary = TfLiteIntArrayCreate(4);
-        for(int i=0; i<4; i++){
-          if(i==3){
-            ary->data[i] = context_.tensors[tensor_filter].dims->data[i] + \
-                            modified_value;
-          }
-          else{
-            ary->data[i] = context_.tensors[tensor_filter].dims->data[i];
-          }
-        }
-        SetTensorToDynamic(tensor(tensor_filter));
-        ResizeTensorImpl(tensor(tensor_filter), ary);
-      }
     }
   
     state_ = kStateInvokable;
