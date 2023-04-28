@@ -20,6 +20,7 @@ limitations under the License.
 #include <map>
 #include <utility>
 #include <vector>
+#include <cmath>
 
 #include "tensorflow/lite/allocation.h"
 #include "tensorflow/lite/c/common.h"
@@ -164,6 +165,11 @@ class Subgraph {
       return nullptr;
     }
     return &context_.tensors[tensor_index];
+  }
+
+  //Get OP Name by registration
+  const char* GetOpName(const TfLiteRegistration& op_reg){
+    return tflite::EnumNamesBuiltinOperator()[op_reg.builtin_code];
   }
 
   // Minsung

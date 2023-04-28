@@ -53,6 +53,9 @@ class TfLiteRuntime{
     TfLiteStatus RegisterModeltoScheduler();
     TfLiteStatus PartitionSubgraphs();
 
+    // Partitions subgraph in both Float & Int.
+    TfLiteStatus PartitionCoSubgraphs();
+
     TfLiteStatus DebugInvoke();
 
     void FeedInputToModel(const char* model, std::vector<cv::Mat>& input,

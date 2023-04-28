@@ -134,7 +134,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model registration to scheduler ERROR" << "\n";
     exit(-1);
   }
-  if(PartitionSubgraphs() != kTfLiteOk){
+  if(PartitionCoSubgraphs() != kTfLiteOk){
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
   }
@@ -364,6 +364,68 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
     return kTfLiteError;
   }
   
+  tf_packet tx_packet;
+  memset(&tx_packet, 0, sizeof(tf_packet));
+  tx_packet.runtime_id = runtime_id;
+  tx_packet.runtime_current_state = state;
+  if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
+    return kTfLiteError;
+  }
+
+  tf_packet rx_packet;
+  if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
+    return kTfLiteError;
+  }
+  // At this point, scheduler will send INVOKE state.
+  if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
+    return kTfLiteError;
+  }
+  interpreter->PrintSubgraphInfo();
+  PrintInterpreterStateV2(interpreter);
+  std::cout << "Successfully partitioned subgraph" << "\n";
+  std::cout << "Ready to invoke" << "\n";
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
+  std::vector<std::vector<int>> raw_plan;
+  for(int i=0; i<1000; ++i){
+    raw_plan.push_back(std::vector<int>());
+    if(partitioning_plan[i][0] == -1){
+      raw_plan[i].push_back(-1);
+      break;
+    }
+    for(int j=0; j<2; ++j){ // third idx means processor.
+      raw_plan[i].push_back(partitioning_plan[i][j]);
+    }
+  } 
+
+  // Create subgraphs of float model
+  interpreter_builder->CopyRawPartitioningPlan(raw_plan);
+  Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
+  if(origin_subgraph == nullptr){
+    std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 
+    return kTfLiteError;
+  }
+  if(interpreter_builder->CreateSubgraphsFromProfiling(origin_subgraph)
+      != kTfLiteOk){
+    std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+    return kTfLiteError;
+  }
+
+  // Create subgraphs of quantized model
+  quantized_builder->CopyRawPartitioningPlan(raw_plan);
+  Subgraph* origin_quantized_subgraph = quantized_builder->returnProfiledOriginalSubgraph(0);
+  if(origin_quantized_subgraph == nullptr){
+    std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 
+    return kTfLiteError;
+  }
+  if(quantized_builder->CreateSubgraphsFromProfiling(origin_quantized_subgraph)
+      != kTfLiteOk){
+    std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
+    return kTfLiteError;
+  }
+
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
   tx_packet.runtime_id = runtime_id;

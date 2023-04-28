@@ -30,6 +30,10 @@ limitations under the License.
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/util.h"
 
+// Minsung
+// For channel partitioning
+#include "tensorflow/lite/kernels/kernel_util.h"
+
 namespace tflite {
 
 namespace {
@@ -1517,6 +1521,137 @@ TfLiteStatus Subgraph::EnsureMemoryAllocations() {
   TF_LITE_ENSURE_EQ(&context_, state_, kStateInvokable);
   return kTfLiteOk;
 }
+
+// Modified one for Channel partitioning
+TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
+  TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(),
+                                       "ModifyGraphWithDelegate");
+  int partitioning_plan = 0;
+  int conv_filter_before_modification = 0;
+
+  // Restore delegation state if applicable.
+  TF_LITE_ENSURE_STATUS(RedoAllDelegates());
+
+  if (state_ == kStateInvokableAndImmutable) {
+    ReportError(
+        "ModifyGraphWithDelegate is disallowed when graph is immutable.");
+	  return kTfLiteApplicationError;
+  }
+  std::cout << "ModifyGraphWithDelegate " << "\n";
+  if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
+    int last_execution_plan_index_prepared;
+    // Runtime Filter Modification for CPU&GPU Multithreading
+    for (int node_index = 0;
+      node_index < nodes_and_registration_.size(); node_index++) {
+      TfLiteNode& node = nodes_and_registration_[node_index].first;
+      const TfLiteRegistration& registration =
+          nodes_and_registration_[node_index].second;
+      int tensor_filter = 0;
+      int tensor_bias = 0;
+      if(!strcmp(GetOpName(registration), "CONV_2D")){
+        tensor_filter = node.inputs->data[1];
+        tensor_bias = node.inputs->data[2];
+        conv_filter_before_modification =
+              context_.tensors[tensor_filter].dims->data[0];
+        int modified_value = 
+              ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+        context_.tensors[tensor_filter].dims->data[0] = modified_value;
+        context_.tensors[tensor_bias].dims->data[0] = modified_value;
+        int modified_bytes = 1 * sizeof(float);
+        for(int i=0; i<4; i++){
+          modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+        }
+        context_.tensors[tensor_filter].bytes = modified_bytes;
+        context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
+      }
+      else if(!strcmp(GetOpName(registration), "CONCATENATION")){
+        if(conv_filter_before_modification <= 0){
+          std::cout << "Error in filter Partitioning \n";
+          return kTfLiteError;
+        }
+        tensor_filter = node.inputs->data[1];
+        int modified_value =  conv_filter_before_modification - \
+              ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+        TfLiteIntArray* ary = TfLiteIntArrayCreate(4);
+        for(int i=0; i<4; i++){
+          if(i==3){
+            ary->data[i] = context_.tensors[tensor_filter].dims->data[i] + \
+                            modified_value;
+          }
+          else{
+            ary->data[i] = context_.tensors[tensor_filter].dims->data[i];
+          }
+        }
+        SetTensorToDynamic(tensor(tensor_filter));
+        ResizeTensorImpl(tensor(tensor_filter), ary);
+      }
+    }
+  
+    state_ = kStateInvokable;
+
+    std::cout << "prepare_1" << "\n";
+    std::cout << "Execution Plan Size : " << execution_plan_.size() << "\n";
+    
+    TF_LITE_ENSURE_OK(
+        &context_, PrepareOpsStartingAt(0, execution_plan_,
+                                        &last_execution_plan_index_prepared));
+    if (has_dynamic_tensors_) {
+      // Make sure that we are in a defined ready state before returning.
+      // Plan and allocate tensors before returning.
+      TF_LITE_ENSURE_OK(&context_, EnsureMemoryAllocations());
+      ReportError(
+          "Attempting to use a delegate that only supports static-sized "
+          "tensors with a graph that has dynamic-sized tensors.");
+		return kTfLiteApplicationError;
+    }
+  }
+  const bool was_invokable_before_delegate = state_ == kStateInvokable;
+  if (delegates_applied_.empty()) {
+    // This is the first delegate being applied, so remember original execution
+    // plan.
+    // TODO(b/119623453): Restore execution plan to this state if delegate
+    // application fails.
+    pre_delegation_execution_plan_ = execution_plan_;
+  }
+  // TODO(aselle): Consider if it is worth storing pointers to delegates.
+  // Setup additional context interface.
+  SwitchToDelegateContext();
+  auto reset_delegation_if_not_ok = [this](TfLiteStatus status) {
+    if (status != kTfLiteOk) {
+      TF_LITE_ENSURE_STATUS(RemoveAllDelegates());
+      ReportError(
+          "Restored original execution plan after delegate application "
+          "failure."); 
+      return kTfLiteDelegateError;
+    } 
+    return kTfLiteOk;
+  };
+  std::cout << "prepare_2" << "\n";
+  TfLiteStatus status = delegate->Prepare(&context_, delegate);
+  // Remove additional context info.
+  SwitchToKernelContext();
+  TF_LITE_ENSURE_STATUS(reset_delegation_if_not_ok(status));
+  if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
+    // Reset the state to force tensor/op reallocation.
+    state_ = kStateUninvokable;
+    TF_LITE_ENSURE_STATUS(
+        reset_delegation_if_not_ok(EnsureMemoryAllocations()));
+    // After using a delegate which doesn't support dynamic tensors, make the
+    // entire graph immutable.
+    state_ = kStateInvokableAndImmutable;
+  } else if (was_invokable_before_delegate) {
+    // If the graph was invokable prior to delegate application, flush
+    // allocation now to leave it in a consistent state.
+    TF_LITE_ENSURE_STATUS(
+        reset_delegation_if_not_ok(EnsureMemoryAllocations()));
+  }
+  delegates_applied_.push_back(delegate);
+  std::cout << "ModifyGraphWithDelegate for plan " << execution_plan_.size()\
+            << " done \n"; 
+  return status;
+}
+
+
 
 TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(),
