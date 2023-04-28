@@ -104,7 +104,7 @@ class InterpreterBuilder {
   // that the scheduler can handle them.
   TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph);
 
-  TfLiteStatus DelegateCreatedSubgraphs(std::vector<tflite::Subgraph*>& new_subgraphs);
+  TfLiteStatus DelegateSubgraphs(std::vector<tflite::Subgraph*>& new_subgraphs);
 
   // Minsung
   // Bind subgraph to a default(pre-proflied) job
@@ -188,8 +188,8 @@ class InterpreterBuilder {
   
   int default_thread = 4;
 
-  // flag for dummy using dummy plan on subgraph partitioning
-  bool use_dummy_plan_ = false;
+  // flag for quantized model
+  bool is_quantized = false;
   ProfileData* dummy_profile_;
 
   tflite::Interpreter* interpreter_;

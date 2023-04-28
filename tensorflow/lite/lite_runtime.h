@@ -40,9 +40,16 @@ class TfLiteRuntime{
   public:
     TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                       const char* model, INPUT_TYPE type);
+    TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
+                      const char* f_model, const char* i_model, INPUT_TYPE type);
+
     ~TfLiteRuntime();
 
     TfLiteStatus AddModelToRuntime(const char* new_model);
+  
+    // An overloaded function for Co-execution
+    TfLiteStatus AddModelToRuntime(const char* f_model, const char* i_model);
+    
     TfLiteStatus RegisterModeltoScheduler();
     TfLiteStatus PartitionSubgraphs();
 
@@ -76,11 +83,12 @@ class TfLiteRuntime{
     RuntimeState state;
     int runtime_id = -1;
     tflite::Interpreter* interpreter;
+    tflite::Interpreter* quantized_interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
-    //std::unique_ptr<tflite::FlatBufferModel>* model_;
-    //tflite::ops::builtin::BuiltinOpResolver* resolver;
+    tflite::InterpreterBuilder* qunatized_builder;
 
     // Subgraph partitioning
+    // Maybe need to change for CO-execution ratio.
     int partitioning_plan[1000][3];
 
     // IPC

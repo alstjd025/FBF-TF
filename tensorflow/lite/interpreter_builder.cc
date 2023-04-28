@@ -191,7 +191,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
                                       Interpreter* interpreter,
                                       const char* model_name,
-                                      int model_id, bool use_dummy_plan)
+                                      int model_id, bool is_quantized)
     : model_(model.GetModel()),
       op_resolver_(op_resolver),
       error_reporter_(DefaultErrorReporter()),
@@ -199,7 +199,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
       interpreter_(interpreter),
       model_id_(model_id),
       model_name_(model_name),
-      use_dummy_plan_(use_dummy_plan){
+      is_quantized(is_quantized){
         dummy_profile_ = new ProfileData;
       }
 
@@ -507,7 +507,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       ++subgraph_index) {
         // Note : Assume that we have only one subgraph before.
     const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
-    const auto profile_ = profiled_subgraph->GetProfileData();
     auto operators = subgraph->operators();
     auto tensors = subgraph->tensors();
     // Look for Conv2d OPs and save tensor index
@@ -531,13 +530,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       return;
     };
-    if(use_dummy_plan_){
-      std::cout << "Using dummy partitioning plan" << "\n";
-      CreatePartitioningPlanFromProfile(dummy_profile_);
-    }else{
-      std::cout << "Using profile base partitioning plan" << "\n";
-      CreatePartitioningPlanFromProfile(profile_);
-    }
+    std::cout << "Using partitioning plan" << "\n";
+    CreatePartitioningPlanFromProfile(dummy_profile_);
+  
 
     //For profiling
     std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
@@ -676,7 +671,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     return kTfLiteError;
   }
   std::cout << "Allocated tensors" << "\n";
-  if(DelegateCreatedSubgraphs(subgraphs_created) != kTfLiteOk){
+  if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
     std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
     return kTfLiteError;
   }
@@ -690,7 +685,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   return kTfLiteOk;
 }
 
-TfLiteStatus InterpreterBuilder::DelegateCreatedSubgraphs(
+TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
     std::cout << "delegate "<< new_subgraph->GetGraphid() << "\n";

@@ -59,6 +59,8 @@ namespace tflite {
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                                      const char* model, INPUT_TYPE type) {
   interpreter = new tflite::Interpreter(true);
+  quantized_interpreter = nullptr;
+  qunatized_builder = nullptr;
   interpreter->SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
@@ -83,6 +85,48 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     exit(-1);
   }
   if(AddModelToRuntime(model) != kTfLiteOk){
+    std::cout << "Model registration to runtime ERROR" << "\n";
+    exit(-1);
+  }
+  if(RegisterModeltoScheduler() != kTfLiteOk){
+    std::cout << "Model registration to scheduler ERROR" << "\n";
+    exit(-1);
+  }
+  if(PartitionSubgraphs() != kTfLiteOk){
+    std::cout << "Model partitioning ERROR" << "\n";
+    exit(-1);
+  }
+};
+
+TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
+                      const char* f_model, const char* i_model, INPUT_TYPE type) {
+  interpreter = new tflite::Interpreter(true);
+  quantized_interpreter = new tflite::Interpreter(true);
+  qunatized_builder = nullptr;
+  interpreter->SetInputType(type);
+  state = RuntimeState::INITIALIZE;
+  uds_runtime_filename = uds_runtime;
+  uds_scheduler_filename = uds_scheduler;
+  TfLiteDelegate* MyDelegate = NULL;
+  const TfLiteGpuDelegateOptionsV2 options = {
+      .is_precision_loss_allowed = 0,
+      .inference_preference =
+          TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
+      //.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED,
+      .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
+      //.inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
+      .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
+      .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
+      .experimental_flags = 1,
+      .max_delegated_partitions = 1000,
+  };
+  MyDelegate = TfLiteGpuDelegateV2Create(&options);
+  interpreter->RegisterDelegate(MyDelegate);
+  if(InitializeUDS() != kTfLiteOk){
+    std::cout << "UDS socker init ERROR" << "\n";
+    exit(-1);
+  }
+  if(AddModelToRuntime(f_model, i_model) != kTfLiteOk){
     std::cout << "Model registration to runtime ERROR" << "\n";
     exit(-1);
   }
@@ -197,7 +241,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
            new tflite::ops::builtin::BuiltinOpResolver;
 
   interpreter_builder = new tflite::InterpreterBuilder(
-      **model_, *resolver, interpreter, model, 0, true);
+      **model_, *resolver, interpreter, model, 0, false);
 
   // Now creates an invokable origin subgraph from new model.
   if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
@@ -208,6 +252,51 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
   interpreter->PrintSubgraphInfo();
   // scheduler->RegisterInterpreterBuilder(new_builder);
 
+  return kTfLiteOk;
+};
+
+TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
+                                               const char* i_model) {
+  std::unique_ptr<tflite::FlatBufferModel>* float_model = 
+        new std::unique_ptr<tflite::FlatBufferModel>(
+            tflite::FlatBufferModel::BuildFromFile(f_model));
+
+  std::unique_ptr<tflite::FlatBufferModel>* int_model = 
+        new std::unique_ptr<tflite::FlatBufferModel>(
+            tflite::FlatBufferModel::BuildFromFile(i_model));
+
+  // An opresolver for float interpreter
+  tflite::ops::builtin::BuiltinOpResolver* float_resolver =
+           new tflite::ops::builtin::BuiltinOpResolver;
+
+  // An opresolver for int interpreter
+  tflite::ops::builtin::BuiltinOpResolver* int_resolver =
+           new tflite::ops::builtin::BuiltinOpResolver;
+
+  // Build InterpreterBuilder for float model
+  interpreter_builder = new tflite::InterpreterBuilder(
+      **float_model, *float_resolver, interpreter, f_model, 0, false);
+
+  // Build IntpertereBuilder for int model
+  qunatized_builder = new tflite::InterpreterBuilder(
+      **int_model, *int_resolver, quantized_interpreter, i_model, 0, true);
+
+  // Now creates an invokable (float)origin subgraph from new model.
+  if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
+    std::cout << "CreateSubgraphFromFlatBuffer returned Error"
+              << "\n";
+    exit(-1);
+  }
+
+  // Now creates an invokable (int)origin subgraph from new model.
+  if (qunatized_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
+    std::cout << "CreateSubgraphFromFlatBuffer returned Error"
+              << "\n";
+    exit(-1);
+  }
+
+  //interpreter->PrintSubgraphInfo();
+  
   return kTfLiteOk;
 };
 
