@@ -982,6 +982,7 @@ typedef struct{
   // Number of nodes in a single plan
   int size;
   bool is_co_execution = false;
+  bool is_gpu_node = false;
 } SubgraphPartitioningPlan;
 
 // Build a 'null' delegate, with all the fields properly set to their default

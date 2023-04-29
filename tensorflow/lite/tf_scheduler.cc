@@ -257,9 +257,11 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[0][0] = 0;
     tx_p.partitioning_plan[0][1] = 4;
     tx_p.partitioning_plan[0][2] = 0;
+    tx_p.partitioning_plan[0][3] = 5; // partitioning ratio
     tx_p.partitioning_plan[1][0] = 4;
     tx_p.partitioning_plan[1][1] = 9;
     tx_p.partitioning_plan[1][2] = 0;
+    tx_p.partitioning_plan[1][3] = 5; // partitioning ratio
     tx_p.partitioning_plan[2][0] = -1;
   } // MNIST
   if(layers == 124){ // MOBILENET

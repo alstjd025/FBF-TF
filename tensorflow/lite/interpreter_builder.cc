@@ -541,6 +541,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
             new_plan->is_co_execution = true;
           }
+          // TODO(NOW) : Need to impl logic to create GPU delegated subgraph.
+          // ProfileData, CopyRaw...., dddd
         }
         master_partitioning_plan.push_back(new_plan);
       }
@@ -562,10 +564,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
                                                 ++partition_itr){
       /// Make a new subgraph
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
-
-      // FOR TEST //
-      new_subgraph->SetResourceType(ResourceType::GPU);
-      ///////////////
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // make linked-list structure
         prev_queue.front()->SetNextSubgraph(new_subgraph);
@@ -579,6 +577,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         new_subgraph->SetCoExecutionGraph(); // Set this sugraph as co-execution subgraph
         new_subgraph->PushPartitioningRatio(
             master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
+      }
+      if(master_partitioning_plan[partition_itr]->is_gpu_node){
+        // Set this sugraph as gpu subgraph
+        new_subgraph->SetResourceType(ResourceType::GPU); 
       }
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
