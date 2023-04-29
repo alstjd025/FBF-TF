@@ -191,7 +191,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
                                       Interpreter* interpreter,
                                       const char* model_name,
-                                      int model_id, bool is_quantized)
+                                      int model_id, bool is_co_execution)
     : model_(model.GetModel()),
       op_resolver_(op_resolver),
       error_reporter_(DefaultErrorReporter()),
@@ -199,7 +199,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
       interpreter_(interpreter),
       model_id_(model_id),
       model_name_(model_name),
-      is_quantized(is_quantized){
+      is_co_execution(is_co_execution){
         dummy_profile_ = new ProfileData;
       }
 
@@ -536,10 +536,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers
           new_plan->nodes[j] = profile->layer_subsets[i][j];
           // TODO : Consider better implementation for partitioning ratio per layer.
-          //        This code applies same partitiong ratio in a single subgraph. 
-          new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
-          if(profile->partitioning_ratios[i][j] != 0)
+          //        This code applies same partitiong ratio in a whole single subgraph. 
+          if(profile->partitioning_ratios[i][j] != 0){
+            new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
             new_plan->is_co_execution = true;
+          }
         }
         master_partitioning_plan.push_back(new_plan);
       }
@@ -576,6 +577,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
       if(master_partitioning_plan[partition_itr]->is_co_execution){
         new_subgraph->SetCoExecutionGraph(); // Set this sugraph as co-execution subgraph
+        new_subgraph->PushPartitioningRatio(
+            master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
       }
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
@@ -690,6 +693,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
     std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
     return kTfLiteError;
+  }
+  if(is_co_execution){ // If Co-execution CPU InterpreterBuilder
+    // Channel partitioning for CPU here
   }
   std::cout << "Delegate tensors" << "\n";
   if(interpreter_->ReadyJobsofGivenModel(model_id_) != kTfLiteOk){

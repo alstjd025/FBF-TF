@@ -88,7 +88,7 @@ class TfLiteRuntime{
     tflite::Interpreter* interpreter;
     tflite::Interpreter* quantized_interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
-    tflite::InterpreterBuilder* qunatized_builder;
+    tflite::InterpreterBuilder* quantized_builder;
 
     // Subgraph partitioning
     // Maybe need to change for CO-execution ratio.

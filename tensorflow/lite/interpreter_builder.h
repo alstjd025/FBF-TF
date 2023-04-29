@@ -78,7 +78,7 @@ class InterpreterBuilder {
                     const OpResolver& op_resolver,
                     Interpreter* interpreter,
                     const char* model_name,
-                    int model_id, bool use_dummy_plan);
+                    int model_id, bool is_co_execution);
 
   ~InterpreterBuilder();
   InterpreterBuilder(const InterpreterBuilder&) = delete;
@@ -188,8 +188,8 @@ class InterpreterBuilder {
   
   int default_thread = 4;
 
-  // flag for quantized model
-  bool is_quantized = false;
+  // flag for co-execution model in cpu.
+  bool is_co_execution = false;
   ProfileData* dummy_profile_;
 
   tflite::Interpreter* interpreter_;

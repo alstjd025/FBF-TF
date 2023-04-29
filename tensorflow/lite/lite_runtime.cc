@@ -60,7 +60,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                                      const char* model, INPUT_TYPE type) {
   interpreter = new tflite::Interpreter(true);
   quantized_interpreter = nullptr;
-  qunatized_builder = nullptr;
+  quantized_builder = nullptr;
   interpreter->SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
@@ -102,7 +102,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                       const char* f_model, const char* i_model, INPUT_TYPE type) {
   interpreter = new tflite::Interpreter(true);
   quantized_interpreter = new tflite::Interpreter(true);
-  qunatized_builder = nullptr;
+  quantized_builder = nullptr;
   interpreter->SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
@@ -278,7 +278,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
       **float_model, *float_resolver, interpreter, f_model, 0, false);
 
   // Build IntpertereBuilder for int model
-  qunatized_builder = new tflite::InterpreterBuilder(
+  quantized_builder = new tflite::InterpreterBuilder(
       **int_model, *int_resolver, quantized_interpreter, i_model, 0, true);
 
   // Now creates an invokable (float)origin subgraph from new model.
@@ -289,7 +289,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
   }
 
   // Now creates an invokable (int)origin subgraph from new model.
-  if (qunatized_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
+  if (quantized_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
     std::cout << "CreateSubgraphFromFlatBuffer returned Error"
               << "\n";
     exit(-1);
@@ -415,7 +415,7 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
 
   // Create subgraphs of quantized model
   quantized_builder->CopyRawPartitioningPlan(raw_plan);
-  Subgraph* origin_quantized_subgraph = quantized_builder->returnProfiledOriginalSubgraph(0);
+  Subgraph* origin_quantized_subgraph = quantized_interpreter->returnProfiledOriginalSubgraph(0);
   if(origin_quantized_subgraph == nullptr){
     std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 
     return kTfLiteError;

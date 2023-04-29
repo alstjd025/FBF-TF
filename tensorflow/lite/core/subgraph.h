@@ -31,6 +31,7 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/util.h"
 #include <mutex>
+#include "tensorflow/lite/schema/schema_generated.h"
 
 #define C_NRML "\033[0m"
 #define C_BLCK "\033[30m"
