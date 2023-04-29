@@ -182,6 +182,9 @@ typedef enum INPUT_TYPE{
   USER
 }INPUT_TYPE;
 
+
+
+// TODO : Consider including partitioning ratios per layer.
 typedef struct tf_packet{
   short runtime_id;
   short runtime_current_state;

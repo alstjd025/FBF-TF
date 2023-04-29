@@ -1540,37 +1540,34 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   std::cout << "ModifyGraphWithDelegate " << "\n";
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
-    // Runtime Filter Modification for CPU&GPU Multithreading
-    for (int node_index = 0;
-      node_index < nodes_and_registration_.size(); node_index++) {
-      TfLiteNode& node = nodes_and_registration_[node_index].first;
-      const TfLiteRegistration& registration =
-          nodes_and_registration_[node_index].second;
-      int tensor_filter = 0;
-      int tensor_bias = 0;
-      if(!strcmp(GetOpName(registration), "CONV_2D")){
-        tensor_filter = node.inputs->data[1];
-        tensor_bias = node.inputs->data[2];
-        conv_filter_before_modification =
-              context_.tensors[tensor_filter].dims->data[0];
-        int modified_value = 
-              ceil(conv_filter_before_modification*((float)partitioning_plan/10));
-        context_.tensors[tensor_filter].dims->data[0] = modified_value;
-        context_.tensors[tensor_bias].dims->data[0] = modified_value;
-        int modified_bytes = 1 * sizeof(float);
-        for(int i=0; i<4; i++){
-          modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+    if(IsCoExecution()){
+      // Runtime Filter Modification for CPU&GPU Co-execution
+      for (int node_index = 0;
+        node_index < nodes_and_registration_.size(); node_index++) {
+        TfLiteNode& node = nodes_and_registration_[node_index].first;
+        const TfLiteRegistration& registration =
+            nodes_and_registration_[node_index].second;
+        int tensor_filter = 0;
+        int tensor_bias = 0;
+        if(!strcmp(GetOpName(registration), "CONV_2D")){
+          tensor_filter = node.inputs->data[1];
+          tensor_bias = node.inputs->data[2];
+          conv_filter_before_modification =
+                context_.tensors[tensor_filter].dims->data[0];
+          int modified_value = 
+                ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+          context_.tensors[tensor_filter].dims->data[0] = modified_value;
+          context_.tensors[tensor_bias].dims->data[0] = modified_value;
+          int modified_bytes = 1 * sizeof(float);
+          for(int i=0; i<4; i++){
+            modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+          }
+          context_.tensors[tensor_filter].bytes = modified_bytes;
+          context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
         }
-        context_.tensors[tensor_filter].bytes = modified_bytes;
-        context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
       }
     }
-  
     state_ = kStateInvokable;
-
-    std::cout << "prepare_1" << "\n";
-    std::cout << "Execution Plan Size : " << execution_plan_.size() << "\n";
-    
     TF_LITE_ENSURE_OK(
         &context_, PrepareOpsStartingAt(0, execution_plan_,
                                         &last_execution_plan_index_prepared));

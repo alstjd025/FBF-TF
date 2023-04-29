@@ -173,6 +173,12 @@ class Subgraph {
   }
 
   // Minsung
+  void SetCoExecutionGraph() { co_execution = true; }
+  bool IsCoExecution() { return co_execution; } 
+  void PushPartitioningRatio(int r) { partitioning_ratios.push_back(r); }
+  std::vector<int>& GetPartitioningRatio() { return partitioning_ratios; }
+
+  // Minsung
   bool IsProfiled() { return is_profiled; }
   void SetProfiled() { is_profiled = true; }
 
@@ -860,6 +866,7 @@ class Subgraph {
   // Flag for co-execution of cpu/gpu (layer partitioning)
   bool co_execution = false;
   tflite::Subgraph* co_subgraph = nullptr;
+  std::vector<int> partitioning_ratios;
 
   // Minsung
   // Flag for profiling

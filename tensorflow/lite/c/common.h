@@ -969,13 +969,19 @@ typedef struct sharedcontext{
 } sharedcontext;
 
 // Minsung
-// Structure for dynamic subgraph partitioning
+// C Structure for dynamic subgraph partitioning & co-execution
 typedef struct{
   // An array which contains node numbers in a single plan 
   // (node numbers from original subgraph)
   int* nodes;
+
+  // An array which contains partitiong ratios of nodes.
+  // Use only when is_co_execution flag is set 'true'.
+  int* partitioning_ratios;
+
   // Number of nodes in a single plan
-  int size; 
+  int size;
+  bool is_co_execution = false;
 } SubgraphPartitioningPlan;
 
 // Build a 'null' delegate, with all the fields properly set to their default

@@ -218,6 +218,8 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
       }
       if(raw_plan[i][2] == 2){ // if subset is co-exetution subset
         dummy_profile_->partitioning_ratios[i].push_back(raw_plan[i][3]);
+      }else{
+        dummy_profile_->partitioning_ratios[i].push_back(0);
       }
     }else{
       break;
@@ -527,16 +529,23 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
         new_plan->size = profile->layer_subsets[i].size();
         new_plan->nodes = new int[new_plan->size];
+
+        // Consider better implementation. (memory waste)
+        new_plan->partitioning_ratios = new int[new_plan->size];        
+
         for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers
           new_plan->nodes[j] = profile->layer_subsets[i][j];
+          // TODO : Consider better implementation for partitioning ratio per layer.
+          //        This code applies same partitiong ratio in a single subgraph. 
+          new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
+          if(profile->partitioning_ratios[i][j] != 0)
+            new_plan->is_co_execution = true;
         }
         master_partitioning_plan.push_back(new_plan);
       }
       return;
     };
-    std::cout << "Using partitioning plan" << "\n";
     CreatePartitioningPlanFromProfile(dummy_profile_);
-  
 
     //For profiling
     std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
@@ -544,7 +553,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     int shared_tensor_bucket[tensors->size()][master_partitioning_plan.size()];
     for(int i=0; i<tensors->size(); ++i)
       for(int j=0; j<master_partitioning_plan.size(); ++j)
-      shared_tensor_bucket[i][j] = 0;
+        shared_tensor_bucket[i][j] = 0;
 
     std::queue<tflite::Subgraph*> prev_queue;
     // Partitioning iteration begins
@@ -565,6 +574,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
+      if(master_partitioning_plan[partition_itr]->is_co_execution){
+        new_subgraph->SetCoExecutionGraph(); // Set this sugraph as co-execution subgraph
+      }
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
         const auto* op = operators->Get(working_op);
@@ -699,7 +711,6 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
                    << " Delegate" << "\n";
       }
-      std::cout << "delegate" << "\n";
     }
   }
   return kTfLiteOk;
