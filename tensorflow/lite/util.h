@@ -153,7 +153,6 @@ typedef enum WorkerState{
 typedef enum ResourceType{
   CPU,
   GPU,
-  CPUGPU,
   CO_CPU,
   CO_GPU
 } ResourceType;
@@ -192,6 +191,7 @@ typedef struct Job{
 typedef struct ProfileData{
   std::vector<float> latency_by_layers;
   std::vector<std::vector<int>> layer_subsets;
+  std::vector<enum ResourceType> subset_resource;
   std::vector<std::vector<int>> partitioning_ratios;
   std::vector<int> gpu_layers;
   bool is_valid;

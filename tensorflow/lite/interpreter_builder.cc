@@ -216,6 +216,9 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
       for(int j=raw_plan[i][TF_P_IDX_START]; j<raw_plan[i][TF_P_IDX_END]; ++j){
         dummy_profile_->layer_subsets[i].push_back(j);
       }
+      // MUST FIX TO SUPPORT CO_EXECUTION CPU AND GPU
+      dummy_profile_->subset_resource.push_back(
+                              static_cast<ResourceType>(raw_plan[i][TF_P_IDX_RESOURCE]));
       if(raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E){ // if subset is co-exetution subset
         dummy_profile_->partitioning_ratios[i].push_back(raw_plan[i][TF_P_IDX_RATIO]);
       }else{
@@ -517,7 +520,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     auto tensors = subgraph->tensors();
     // Look for Conv2d OPs and save tensor index
     std::vector<int> conv_idx;
-    int i = 0;
     bool set_input = true;
     std::vector<int>* input_tensor = new std::vector<int>;
     std::vector<int>* output_tensor = new std::vector<int>;
@@ -531,18 +533,37 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         new_plan->nodes = new int[new_plan->size];
 
         // Consider better implementation. (memory waste)
-        new_plan->partitioning_ratios = new int[new_plan->size];        
+        new_plan->partitioning_ratios = new int[new_plan->size];
 
+        // Set the resource type of subgraph.        
+        // check if subset resource is Co_execution
+        // if so, check this interpreterbuilder if it is co-execution builder.
+        // co-execution builder : build cpu subgraphs for co-execution.
+        // not co-execution builder : build gpu subgraphs for co-execution.
+        switch (profile->subset_resource[i])
+        {
+        case TF_P_PLAN_CPU:
+          new_plan->resource_type = ResourceType::CPU;
+          break;
+        case TF_P_PLAN_GPU:
+          new_plan->resource_type = ResourceType::GPU;
+          break;
+        case TF_P_PLAN_CO_E:
+          if(is_co_execution)
+            new_plan->resource_type = ResourceType::CO_CPU;
+          else
+            new_plan->resource_type = ResourceType::CO_GPU;
+          break;
+        default:
+          break;
+        }
         for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers
           new_plan->nodes[j] = profile->layer_subsets[i][j];
           // TODO : Consider better implementation for partitioning ratio per layer.
           //        This code applies same partitiong ratio in a whole single subgraph. 
           if(profile->partitioning_ratios[i][j] != 0){
             new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
-            new_plan->is_co_execution = true;
           }
-          // TODO(NOW) : Need to impl logic to create GPU delegated subgraph.
-          // ProfileData, CopyRaw...., dddd
         }
         master_partitioning_plan.push_back(new_plan);
       }
@@ -573,14 +594,30 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
-      if(master_partitioning_plan[partition_itr]->is_co_execution){
+      switch (master_partitioning_plan[partition_itr]->resource_type)
+      {
+      case ResourceType::CPU:
+        // Set this sugraph as cpu subgraph
+        new_subgraph->SetResourceType(ResourceType::CPU);
+        break;
+      case ResourceType::GPU:
+        // Set this sugraph as gpu subgraph
+        new_subgraph->SetResourceType(ResourceType::GPU);
+        break;
+      case ResourceType::CO_CPU:
+        new_subgraph->SetResourceType(ResourceType::CO_CPU);
         new_subgraph->SetCoExecutionGraph(); // Set this sugraph as co-execution subgraph
         new_subgraph->PushPartitioningRatio(
-            master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
-      }
-      if(master_partitioning_plan[partition_itr]->is_gpu_node){
-        // Set this sugraph as gpu subgraph
-        new_subgraph->SetResourceType(ResourceType::GPU); 
+          1 - master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
+        break;
+      case ResourceType::CO_GPU:
+        new_subgraph->SetResourceType(ResourceType::CO_GPU);
+        new_subgraph->SetCoExecutionGraph(); // Set this sugraph as co-execution subgraph
+        new_subgraph->PushPartitioningRatio(
+          master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
+        break;
+      default:
+        break;
       }
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
@@ -619,7 +656,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           for (int l = 0; l < new_subgraph->tensors_size(); ++l) {
             auto* tensor = new_subgraph->tensor(l);
             if (tensor->is_variable) {
-              variables.push_back(i);
+              variables.push_back(l);
             }
           }
           new_subgraph->SetVariables(std::move(variables));
@@ -678,9 +715,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     SharedTensorsInGraphs* temp = new SharedTensorsInGraphs;
     temp->pair_tensor_graph = shared_info;
     temp->model_id = model_id_;
-   (interpreter_)->shared_tensor_and_graph.push_back(temp);
+    (interpreter_)->shared_tensor_and_graph.push_back(temp);
   }
-  // TODO: FINALY DELETE THE PROFILED RAW SUBGRAPH AND ALLOCATE TENSORS
+  // Delete old subgraphs 
   if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
       != kTfLiteOk){
     std::cout << "DeleteSubgraph ERROR" << "\n";
@@ -691,10 +728,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     return kTfLiteError;
   }
   std::cout << "Allocated tensors" << "\n";
+  // Delegate and Partitions-in-channel subgraphs 
   if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
-    std::cout << "DelegateCreatedSubgraphs ERROR" << "\n";
+    std::cout << "DelegateOldSubgraphs ERROR" << "\n";
     return kTfLiteError;
   }
+  // change
   if(is_co_execution){ // If Co-execution CPU InterpreterBuilder
     // Channel partitioning for CPU here
   }

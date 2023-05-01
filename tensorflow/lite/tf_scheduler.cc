@@ -203,9 +203,9 @@ bool TfScheduler::RoundRobin(ResourceType type, int runtime_id){
       }
     }else
       return false; // if last owner was this runtime
-  case ResourceType::CPUGPU:
-    /* Not implemented */
-    break;
+  // case ResourceType::CPUGPU:
+  //   /* Not implemented */
+  //   break;
   default:
     break;
   }
@@ -222,9 +222,9 @@ void TfScheduler::ReleaseResource(ResourceType type){
     gpu_usage_flag = false;
     break;
 
-  case ResourceType::CPUGPU :
-    cpgpu_usage_flag = false;
-    break;
+  // case ResourceType::CPUGPU :
+  //   cpgpu_usage_flag = false;
+  //   break;
 
   default:
     break;
