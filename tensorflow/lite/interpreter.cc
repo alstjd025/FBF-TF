@@ -698,26 +698,6 @@ tflite::Subgraph* Interpreter::CreateSubgraph(){
 }
 
 TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num){
-  // Creates a worker of given workerType.
-  // A default worker uses single CPU.
-  if(wType == ResourceType::CPUGPU){ 
-    
-  }else if(wType == ResourceType::GPU){
-    if(!is_gpu_delegate_prepared){
-      std::cout << "Interpreter : No GPU delegation found for CreateWorker" << "\n";
-      return kTfLiteError;
-    }
-    int new_id = GetAndAddWorkersCreated(1);
-    Worker* new_worker = new Worker(wType, new_id, this);
-    worker_ids.push_back(new_id);
-    workers.push_back(new_worker);
-  }else if(wType == ResourceType::CPU){
-    int new_id = GetAndAddWorkersCreated(1);
-    Worker* new_worker = new Worker(wType, new_id, this);
-    worker_ids.push_back(new_id);
-    workers.push_back(new_worker);
-    std::cout << "Interpreter : Created 1 CPU worker" << "\n";
-  }
 }
 
 // thread_safety

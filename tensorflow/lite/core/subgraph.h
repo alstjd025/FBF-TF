@@ -32,6 +32,7 @@ limitations under the License.
 #include "tensorflow/lite/util.h"
 #include <mutex>
 #include "tensorflow/lite/schema/schema_generated.h"
+#include "tensorflow/lite/channel_partitioner.h"
 
 #define C_NRML "\033[0m"
 #define C_BLCK "\033[30m"
@@ -174,8 +175,6 @@ class Subgraph {
   }
 
   // Minsung
-  void SetCoExecutionGraph() { co_execution = true; }
-  bool IsCoExecution() { return co_execution; } 
   void PushPartitioningRatio(int r) { partitioning_ratios.push_back(r); }
   std::vector<int>& GetPartitioningRatio() { return partitioning_ratios; }
 
@@ -443,6 +442,8 @@ class Subgraph {
       int tensor_index, const TfLiteCustomAllocation& allocation);
 
   bool input_refreshed = false;
+
+  TfLiteStatus PartitionChannel();
 
  private:
   // SubgraphAwareProfiler wraps an actual TFLite profiler, such as a
@@ -865,7 +866,6 @@ class Subgraph {
   
   // Minsung
   // Flag for co-execution of cpu/gpu (layer partitioning)
-  bool co_execution = false;
   tflite::Subgraph* co_subgraph = nullptr;
   std::vector<int> partitioning_ratios;
 

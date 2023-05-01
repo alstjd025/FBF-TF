@@ -123,6 +123,8 @@ class InterpreterBuilder {
                                       tflite::Job* new_job);
 
   void CopyRawPartitioningPlan(std::vector<std::vector<int>>& raw_plan);
+
+  TfLiteStatus PartitionChannels(std::vector<tflite::Subgraph*>& new_subgraphs);
   
  private:
   TfLiteStatus BuildLocalIndexToRegistrationMapping();

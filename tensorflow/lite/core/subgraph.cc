@@ -711,8 +711,89 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors();
+
   return kTfLiteOk;
 }
+
+TfLiteStatus Subgraph::PartitionChannel(){
+	std::vector<int> partitioning_plan;
+	std::vector<float> ratios;
+	for (int execution_plan_index = 0;
+			execution_plan_index < execution_plan_.size(); execution_plan_index++) {
+		int node_index = execution_plan_[execution_plan_index];
+		
+		TfLiteNode& node = nodes_and_registration_[node_index].first;
+		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+		
+		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
+			partitioning_plan.push_back(execution_plan_index);
+      if(!partitioning_ratios.empty())
+			  ratios.push_back(partitioning_ratios[0]);
+      else
+        return kTfLiteError;
+		}
+	}
+  for (int partitioning_plan_index = 0;
+		 	partitioning_plan_index < partitioning_plan.size(); partitioning_plan_index++) {
+		int node_index = partitioning_plan[partitioning_plan_index];
+		if (!(node_index < nodes_and_registration_.size())) {
+			std::cerr << "[" << node_index << "] layer is not exist." << "\n";
+			continue;
+		}
+		TfLiteNode& node = nodes_and_registration_[node_index].first;
+		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+
+		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
+			for (int n = 1; n < node.inputs->size; ++n) { //change weight tensor 
+				int tensor_index = node.inputs->data[n];
+				TfLiteTensor& tensor = context_.tensors[tensor_index];
+				void** data = &tensor.data.data;
+				size_t bytes = tensor.bytes;
+				int* dims = (int*)tensor.dims;
+				
+				if (n == 1) {
+					int o = *(dims + 1);
+					int w = *(dims + 2);
+					int h = *(dims + 3);
+					int i = *(dims + 4);
+					int next_filter = w * h * i * ((int)bytes / (o * w * h * i));
+					next_filter = (int)next_filter * ceil(o * (1 - ratios[partitioning_plan_index]));
+					*data += next_filter; 
+				}
+				if (n == 2) {							//change bias tensor
+					int o = *(dims + 1);
+					int next_bias = (int)bytes / o;
+					next_bias = (int)next_bias * ceil(o * (1 - ratios[partitioning_plan_index]));
+					*data += next_bias;
+				}
+				*(dims + 1) *= ratios[partitioning_plan_index]; //change dim of weight & bias
+				int bytes_ = 1;
+				for(int i=0; i<tensor.dims->size; i++){ //change bytes of tensor
+					bytes_ *= tensor.dims->data[i];
+				}
+				tensor.bytes = bytes_*sizeof(float);
+			}
+			for (int n = 0; n < node.outputs->size; ++n) { //change output tensor
+				int tensor_index = node.outputs->data[n];
+				TfLiteTensor& tensor = context_.tensors[tensor_index];
+				int* dims = (int*)tensor.dims;
+				int partitioning_dims = (int)floor(*(dims + 4) * ratios[partitioning_plan_index]);
+				*(dims + 4) = partitioning_dims;
+				int bytes_ = 1;
+				for(int i=0; i<tensor.dims->size; i++){ //change bytes of tensor
+					bytes_ *= tensor.dims->data[i];
+				}
+				tensor.bytes = bytes_*sizeof(float);
+			}
+		}
+		else {
+			std::cerr << "[" << node_index << "] layer must be CONV_2D" << std::endl;
+			continue;
+		}
+	}
+  return kTfLiteOk;
+}
+
 
 // TODO(ycling): Support non-zero default values.
 TfLiteStatus Subgraph::ResetVariableTensors() {
@@ -1538,7 +1619,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   std::cout << "ModifyGraphWithDelegate " << "\n";
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
-    if(IsCoExecution()){
+    if(resource_type == ResourceType::CO_GPU){
       // Runtime filter modification for co-execution
       std::vector<int> partitioning_ratio = GetPartitioningRatio();
       std::cout << "P ratio : ";

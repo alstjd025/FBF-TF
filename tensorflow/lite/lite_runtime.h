@@ -92,7 +92,7 @@ class TfLiteRuntime{
 
     // Subgraph partitioning
     // Maybe need to change for CO-execution ratio.
-    int partitioning_plan[1000][3];
+    int partitioning_plan[1000][4];
 
     // IPC
     char* uds_runtime_filename;

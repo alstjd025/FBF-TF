@@ -103,10 +103,8 @@ void KmContext::channelPartitioning(std::vector<int>& partitioning_plan, std::ve
 				tensor.bytes = bytes_*sizeof(float);
 			}
 		}
-		//else if (strcmp(GetOpName(registration), "CONCATENATION") == 0) {	
-		//}
 		else {
-			cerr << "[" << node_index << "] layer have to be CONV_2D or TfLiteGpuDelegateV2" << endl;
+			cerr << "[" << node_index << "] layer must be CONV_2D" << endl;
 			continue;
 		}
 		

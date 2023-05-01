@@ -524,7 +524,7 @@ class Interpreter {
   TfLiteStatus EnsureTensorDataIsReadable(int tensor_index) {
     return primary_subgraph().EnsureTensorDataIsReadable(tensor_index);
   }
-
+  
   // Minsung
   // Create a new subgraph
   // Use only in interpreterbuilder
