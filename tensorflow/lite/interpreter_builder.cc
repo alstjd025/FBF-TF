@@ -210,14 +210,14 @@ InterpreterBuilder::~InterpreterBuilder() {}
 void InterpreterBuilder::CopyRawPartitioningPlan(
                                     std::vector<std::vector<int>>& raw_plan){
   for(int i=0; i<raw_plan.size(); ++i){
-    if(raw_plan[i][0] != -1){
+    if(raw_plan[i][TF_P_IDX_START] != TF_P_END_PLAN){
       dummy_profile_->layer_subsets.push_back(std::vector<int>());
       dummy_profile_->partitioning_ratios.push_back(std::vector<int>());
-      for(int j=raw_plan[i][0]; j<raw_plan[i][1]; ++j){
+      for(int j=raw_plan[i][TF_P_IDX_START]; j<raw_plan[i][TF_P_IDX_END]; ++j){
         dummy_profile_->layer_subsets[i].push_back(j);
       }
-      if(raw_plan[i][2] == 2){ // if subset is co-exetution subset
-        dummy_profile_->partitioning_ratios[i].push_back(raw_plan[i][3]);
+      if(raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E){ // if subset is co-exetution subset
+        dummy_profile_->partitioning_ratios[i].push_back(raw_plan[i][TF_P_IDX_RATIO]);
       }else{
         dummy_profile_->partitioning_ratios[i].push_back(0);
       }
@@ -669,7 +669,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         }
       }
       if(sharing_subgraph_id.size() > 1){
-        std::cout << "shared tensor : " << t << "\n";
         pair_tensor_graph.first = t;        // tensor index
         pair_tensor_graph.second = sharing_subgraph_id; // subgraph id
         shared_info.push_back(pair_tensor_graph);
@@ -704,7 +703,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "ReadyJobsofGivenModel ERROR" << "\n";
     return kTfLiteError;
   }
-  std::cout << "ReadyJobsofGivenModel" << "\n";
   std::cout << "Interpreterbuilder: Subgraphs & job created" << "\n";
   return kTfLiteOk;
 }

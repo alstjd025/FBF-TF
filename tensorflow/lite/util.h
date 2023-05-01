@@ -26,6 +26,26 @@ limitations under the License.
 #define DEFAULT_AFFINITY 0
 #define DEFAULT_THREADS  1
 
+// Minsung
+// packet predefines
+#define TF_P_PLAN_LENGTH     1000
+#define TF_P_PLAN_SIZE       4
+
+// packet partitioning plan array idx
+#define TF_P_IDX_START       0
+#define TF_P_IDX_END         1
+#define TF_P_IDX_RESOURCE    2
+#define TF_P_IDX_RATIO       3
+
+// packet partitioning plan resource types
+#define TF_P_PLAN_CPU        0
+#define TF_P_PLAN_GPU        1
+#define TF_P_PLAN_CO_E       2
+
+// packet partitioning plan end flag
+#define TF_P_END_PLAN       -1
+
+// packet predefines
 
 #include <memory>
 #include <string>
@@ -133,7 +153,9 @@ typedef enum WorkerState{
 typedef enum ResourceType{
   CPU,
   GPU,
-  CPUGPU
+  CPUGPU,
+  CO_CPU,
+  CO_GPU
 } ResourceType;
 
 typedef enum RuntimeState{

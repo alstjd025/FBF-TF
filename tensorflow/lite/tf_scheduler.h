@@ -24,12 +24,12 @@ namespace tflite{
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
-    float latency[1000];
-    int partitioning_plan[1000][4];
+    float latency[TF_P_PLAN_LENGTH];
+    int partitioning_plan[TF_P_PLAN_LENGTH][TF_P_PLAN_SIZE];
     // First idx means first subgraph's idx in partitioning subset.
     // Second idx means last subgraph's idx in subset.
     // Third idx means processor to be used for invoke.
-    //  0 - cpu, 1 - gpu, 2 - cpugpu
+    //  0 - cpu, 1 - gpu, 2 - co_execution flag
     // Fourth idx means partitioning ratio(1~9).
     //  3 means, GPU : 3  CPU : 7
   }runtime_;

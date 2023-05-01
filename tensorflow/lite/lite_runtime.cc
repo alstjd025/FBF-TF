@@ -342,13 +342,13 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
 
 TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   std::vector<std::vector<int>> raw_plan;
-  for(int i=0; i<1000; ++i){
+  for(int i=0; i<TF_P_PLAN_LENGTH; ++i){
     raw_plan.push_back(std::vector<int>());
-    if(partitioning_plan[i][0] == -1){
-      raw_plan[i].push_back(-1);
+    if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
+      raw_plan[i].push_back(TF_P_END_PLAN);
       break;
     }
-    for(int j=0; j<2; ++j){ // third idx means processor.
+    for(int j=0; j<TF_P_PLAN_SIZE; ++j){ // third idx means processor.
       raw_plan[i].push_back(partitioning_plan[i][j]);
     }
   } 
@@ -389,16 +389,16 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
 
 TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::vector<std::vector<int>> raw_plan;
-  for(int i=0; i<1000; ++i){
+  for(int i=0; i<TF_P_PLAN_LENGTH; ++i){
     raw_plan.push_back(std::vector<int>());
-    if(partitioning_plan[i][0] == -1){
-      raw_plan[i].push_back(-1);
+    if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
+      raw_plan[i].push_back(TF_P_END_PLAN);
       break;
     }
-    for(int j=0; j<2; ++j){ // third idx means processor.
+    for(int j=0; j<TF_P_PLAN_SIZE; ++j){ // third idx means processor.
       raw_plan[i].push_back(partitioning_plan[i][j]);
     }
-  } 
+  }  
 
   // Create subgraphs of float model
   interpreter_builder->CopyRawPartitioningPlan(raw_plan);
