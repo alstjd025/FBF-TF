@@ -443,6 +443,8 @@ class Subgraph {
 
   bool input_refreshed = false;
 
+
+  // Channel partitioning for CPU-side subgraph.
   TfLiteStatus PartitionChannel();
 
  private:

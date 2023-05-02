@@ -728,7 +728,7 @@ TfLiteStatus Subgraph::PartitionChannel(){
 		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
 			partitioning_plan.push_back(execution_plan_index);
       if(!partitioning_ratios.empty())
-			  ratios.push_back(partitioning_ratios[0]);
+			  ratios.push_back(partitioning_ratios[0]/ 10.0);
       else
         return kTfLiteError;
 		}
@@ -757,7 +757,12 @@ TfLiteStatus Subgraph::PartitionChannel(){
 					int h = *(dims + 3);
 					int i = *(dims + 4);
 					int next_filter = w * h * i * ((int)bytes / (o * w * h * i));
+          std::cout << "next filer 1 : " << next_filter << "\n";
 					next_filter = (int)next_filter * ceil(o * (1 - ratios[partitioning_plan_index]));
+          std::cout << "bytes : " << bytes << "\n";
+          std::cout<< "o w h i " << o << " " << w << " " << h << " " << i << "\n";
+          std::cout << "ratios : " << ratios[partitioning_plan_index] << "\n";
+          std::cout << "next filer2 " << next_filter << "\n";
 					*data += next_filter; 
 				}
 				if (n == 2) {							//change bias tensor
