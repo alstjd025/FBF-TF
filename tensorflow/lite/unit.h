@@ -123,7 +123,6 @@ class UnitGPU : public Unit
         UnitType GetUnitType();
         void SetInput(std::vector<cv::Mat> input_);
         void PrintTest(std::vector<double> b_delegation_optimizer); // HOON : save each loop's latency & accuracy
-
         UnitType eType;
         std::vector<cv::Mat> input;
         std::thread myThread;

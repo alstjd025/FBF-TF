@@ -81,10 +81,10 @@ public:
 
     TfLiteStatus CreateUnitCPU(UnitType eType, std::vector<cv::Mat> input, int partitioning);
     TfLiteStatus CreateUnitGPU(UnitType eType, std::vector<cv::Mat> input, int partitioning, int loop_num, int max_delegated_partition_num); // ignore partitoning
-    TfLiteStatus Invoke(UnitType eType, UnitType eType_, std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num);
+    TfLiteStatus Invoke(UnitType eType, UnitType eType_, std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num, int test_number);
 
     TfLiteStatus CreateAndInvokeCPU(UnitType eType, std::vector<cv::Mat> input);
-    TfLiteStatus CreateAndInvokeGPU(UnitType eType, std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num);
+    TfLiteStatus CreateAndInvokeGPU(UnitType eType, std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num, int test_num);
 
     /* Not Impl*/
     void DeleteSharedContext(SharedContext* dataTobeCleared);

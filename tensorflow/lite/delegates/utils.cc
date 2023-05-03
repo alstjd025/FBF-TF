@@ -102,6 +102,19 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
   //                    right->nodes_to_replace->size;
   //           });
 
+  // DEBUGGING : partition_num is 7 ... not 36... 
+  for(int j=0; j<sorted_partitions.size(); ++j){
+    for(int k=0; k<sorted_partitions[j]->nodes_to_replace->size; ++k){
+      std::cout << sorted_partitions[j]->nodes_to_replace->data[k] << " ";
+    }
+    std::cout << "\n";
+  }
+  // 
+
+
+
+
+
   std::vector<TfLiteDelegateParams*> results;
   auto p_it = sorted_partitions.begin();
   const int total = sorted_partitions.size(); // maybe... "n" is max_delegated_option
@@ -239,7 +252,7 @@ std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
   // HOON
   // auto first_n_partitions =
       // GetFirstNLargestPartitions(n, min_nodes_per_partition);
-  // std::cout << "Original GraphPartitionHelper" << std::endl;
+  std::cout << "Original GraphPartitionHelper" << std::endl;
   auto first_n_partitions =
       GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
   std::vector<int> ops_to_replace;
@@ -304,7 +317,7 @@ FP16GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
   // HOON
   // auto first_n_partitions =
       // GetFirstNLargestPartitions(n, min_nodes_per_partition);
-  // std::cout << "FP16GraphPartitionHelper" << std::endl;
+  std::cout << "FP16GraphPasrtitionHelper" << std::endl;
   auto first_n_partitions =
       GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
   std::vector<int> ops_to_replace;

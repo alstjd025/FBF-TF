@@ -3,7 +3,7 @@
 #include <typeinfo>
 //#define MULTITHREAD
 #define GPUONLY
-#define Partition_Num 14
+#define Partition_Num 7
 //#define QUANTIZE
 
 
@@ -241,7 +241,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     }
     TFLITE_MINIMAL_CHECK(interpreter->get()->AllocateTensorsofAllSubgraphs() == kTfLiteOk);
     UnitGPU* temp;
-    //tflite::PrintInterpreterStateV2(interpreter->get());
+    // tflite::PrintInterpreterStateV2(interpreter->get());
     temp = new UnitGPU(eType, std::move(interpreter));
     temp->SetInput(input);
     //Set ContextHandler Pointer
@@ -271,10 +271,13 @@ int UnitHandler::combination(int n, int r) {
     	else return combination(n - 1, r - 1) + combination(n - 1, r);
 }
 
+// int stop_number = combination(4,5);
 bool print_flag = false; //master
+// TODO : should run "combination" logic "once"
+// 
 
 TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
-                                             std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num){
+                                             std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num, int test_number){
     mtx_lock.lock();
     if (CreateUnitGPU(eType, input, 8, loop_num, max_delegated_partition_num) != kTfLiteOk){
         PrintMsg("CreateUnitGPUError");
@@ -282,7 +285,8 @@ TfLiteStatus UnitHandler::CreateAndInvokeGPU(UnitType eType,
     }
     mtx_lock.unlock();
     // TODO: when to print test func;
-    if (loop_num  == combination(Partition_Num, max_delegated_partition_num)-1) print_flag=true;
+    //if(loop_num ==  test_number-1) print_flag=true;
+    if(loop_num ==  test_number - 1) print_flag=true;
     std::vector<Unit*>::iterator iter;
     for(iter = vUnitContainer.begin(); iter != vUnitContainer.end(); ++iter){
         if((*iter)->GetUnitType() == eType){
@@ -311,7 +315,7 @@ void UnitHandler::PrintInterpreterStatus(){
 }
 
 TfLiteStatus UnitHandler::Invoke(UnitType eType, UnitType eType_,
-                                 std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num){
+                                 std::vector<cv::Mat> input, int loop_num, int max_delegated_partition_num, int test_number){
     //eType -> CPU
     //eType_ -> GPU
     PrintMsg("Invoke");
@@ -319,14 +323,14 @@ TfLiteStatus UnitHandler::Invoke(UnitType eType, UnitType eType_,
     std::thread cpu;
     std::thread gpu;
     cpu = std::thread(&UnitHandler::CreateAndInvokeCPU, this, eType, input);
-    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input, loop_num);
+    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input); // HOON : ??? TODO
     cpu.join();
     gpu.join();
     #endif
     
     #ifdef GPUONLY
     std::thread gpu;
-    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input, loop_num, max_delegated_partition_num);
+    gpu = std::thread(&UnitHandler::CreateAndInvokeGPU, this, eType_, input, loop_num, max_delegated_partition_num, test_number);
     gpu.join();
     #endif
 

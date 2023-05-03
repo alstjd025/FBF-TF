@@ -3035,23 +3035,56 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   context->use_distribute_strategy_context = true;
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning 
   {
+
     if(registration->builtin_code == 49){ // Hoon  --------> SPLIT FALLBACK
     // HOON  : 111->ELU  98->LeakyRELU
     // HOON  :  3->CONV  9-> FullyCOnnected
     // builtin_ops.h  . 2 or 0 
+    std::cout << "Found a SPLIT" << "\n";
         if(priority_partition_num ==0)
           printf("FOUND A FALLBACK LAYER [split].. MAKE GPU DEL NODE \n");
         return false;
     }
-    if(registration->builtin_code == 2){ // Hoon --------> CONCATENATE FALLBACK
+
+    if(registration->builtin_code == 102){    
+      std::cout << "Found a SPLIT_V" << "\n";
+    // 16 : SPLIT_V
+    // 2 : concatenate
+    //Hoon --------> CONCATENATE FALLBACK
     // HOON  : 111->ELU  98->LeakyRELU
     // HOON  :  3->CONV  9-> FullyCOnnected
     // builtin_ops.h  . 2 or 0
         if(priority_partition_num ==0)
-          printf("FOUND A FALLBACK LAYER [cocatenate]... MAKE GPU DEL NODE \n");
+          printf("FOUND A FALLBACK LAYER [split_v]... MAKE GPU DEL NODE \n");
         return false;
     }
-    else {
+
+    if(registration->builtin_code == 0){   
+      std::cout << "Found a ADD" << "\n"; 
+    // 16 : SPLIT_V
+    // 2 : concatenate
+    //Hoon --------> CONCATENATE FALLBACK
+    // HOON  : 111->ELU  98->LeakyRELU
+    // HOON  :  3->CONV  9-> FullyCOnnected
+    // builtin_ops.h  . 2 or 0
+        if(priority_partition_num ==0)
+          printf("FOUND A FALLBACK LAYER [ADD]... MAKE GPU DEL NODE \n");
+        return false;
+    }
+   if(registration->builtin_code == 18){   
+      std::cout << "Found a MUL" << "\n"; 
+    // 16 : SPLIT_V
+    // 2 : concatenate
+    //Hoon --------> CONCATENATE FALLBACK
+    // HOON  : 111->ELU  98->LeakyRELU
+    // HOON  :  3->CONV  9-> FullyCOnnected
+    // builtin_ops.h  . 2 or 0
+        if(priority_partition_num ==0)
+          printf("FOUND A FALLBACK LAYER [MUL]... MAKE GPU DEL NODE \n");
+        return false;
+    }
+
+//    else {
       if (!status.ok()) {
         if (unsupported_details) {
           *unsupported_details = std::string(status.message());
@@ -3059,7 +3092,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
         return false;  
 
       }
-    }
+ //   }
   }
   context->use_distribute_strategy_context = false; // HOON : just for debugging
   if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
@@ -3116,6 +3149,10 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
 
   std::cout << ">>>>>>>>>>ops_to replace vector(nodes number for gpu delegation) is : ";
   //HOON : print vector ops_to_replace  // max patition option 3 -> 5 
+  // ops_to_replace.clear();
+  // for(int k=114; k<134; ++k){
+  //   ops_to_replace.push_back(k);
+  // }
   for (int i = 0; i < ops_to_replace.size(); i++) {
         // std::cout << ops_to_replace.at(i) << ' ';
         printf("\033[0;31m%d\033[0m ", ops_to_replace.at(i));

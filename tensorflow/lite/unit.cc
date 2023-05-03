@@ -1,6 +1,6 @@
 #include "unit.h"
 #include "algorithm"
-#define SEQ 1 //60000
+#define SEQ 500 //1000   ---> 4개부터 20000, 5개 15000, 6개 10000... 각 케이스마다 하루 정도 걸림.
 #define OUT_SEQ 1
 #define GPUONLY
 //#define MULTITHREAD
@@ -9,7 +9,7 @@
 //#define mnist
 // #define catdog
 //#define imagenet
-#define mnist
+#define imagenet
 
 std::mutex mtx_lock;
 
@@ -273,6 +273,9 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
 std::vector<double> b_delegation_optimizer; // HOON : vector for delegation optimizing test
 extern bool print_flag; // slave 
 
+
+
+
 #ifndef MULTITHREAD
 TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock, 
                             std::mutex& mtx_lock_,
@@ -380,6 +383,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     // std::cout << "delegation_optimizer vector size : " << b_delegation_optimizer.size() << std::endl;
     //
     if(print_flag) PrintTest(b_delegation_optimizer);
+    //interpreterGPU memory delete
     return kTfLiteOk;
 }
 #endif
