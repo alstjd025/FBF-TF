@@ -234,9 +234,46 @@ class Subgraph {
     return tensor(node.outputs->data[node.outputs->size-1]);
   }
 
+  // Minsung
+  // Returns the weight tensor of given node if 'exists'
+  TfLiteTensor* GetWeightTensor(TfLiteNode& node){
+    if(node.inputs->size < 3)
+      return nullptr;
+    return tensor(node.inputs->data[node.inputs->size-2]);
+  }
+
+  // Minsung
+  // Returns the weight tensor idx of given node if 'exists'
+  int GetWeightTensorIdx(TfLiteNode& node){
+    if(node.inputs->size < 3)
+      return -1;
+    return node.inputs->data[node.inputs->size-2];
+  }
+
+  // Minsung
+  // Returns the bias tensor of given node if 'exists'
+  TfLiteTensor* GetBiasTensor(TfLiteNode& node){
+    if(node.inputs->size < 3)
+      return nullptr;
+    return tensor(node.inputs->data[node.inputs->size-1]);
+  }
+
+  // Minsung
+  // Returns the bias tensor idx of given node if 'exists'
+  int GetBiasTensorIdx(TfLiteNode& node){
+    if(node.inputs->size < 3)
+      return -1;
+    return node.inputs->data[node.inputs->size-1];
+  }
+
+
   void PrintOutputTensor(TfLiteNode& node);
 
   void PrintTensor(TfLiteTensor& tensor);
+
+  void PrintWeightandBiasTensor(TfLiteTensor& tensor);
+
+  void PrintWeightandBiasTensor(TfLiteNode& node);
 
   // Read only access to list of inputs.
   std::vector<int>& inputs() { return inputs_; }

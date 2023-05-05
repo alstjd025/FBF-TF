@@ -96,6 +96,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
   }
+  
 };
 
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
@@ -104,6 +105,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   quantized_interpreter = new tflite::Interpreter(true);
   quantized_builder = nullptr;
   interpreter->SetInputType(type);
+  quantized_interpreter->SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;
@@ -457,6 +459,10 @@ void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
                                            std::vector<cv::Mat>& imagenet) {
   interpreter->mnist_input = mnist;
   interpreter->imagenet_input = imagenet;
+  if(quantized_interpreter != nullptr){
+    quantized_interpreter->mnist_input = mnist;
+    quantized_interpreter->imagenet_input = imagenet;
+  }
 }
 
 void TfLiteRuntime::FeedInputToModel(const char* model,
@@ -483,14 +489,6 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
     case INPUT_TYPE::IMAGENET224:
       memcpy(input_pointer, input[0].data,
              input[0].total() * input[0].elemSize());
-      // for (int i=0; i < 224; ++i){
-      //   for(int j=0; j < 224; ++j){
-      //     input_pointer[i*224 + j*3] = (float)input[0].at<cv::Vec3b>(i, j)[0]
-      //     /255.0; input_pointer[i*224 + j*3 + 1] =
-      //     (float)input[0].at<cv::Vec3b>(i, j)[1] /255.0; input_pointer[i*224
-      //     + j*3 + 2] = (float)input[0].at<cv::Vec3b>(i, j)[2] /255.0;
-      //   }
-      // }
       break;
     case INPUT_TYPE::IMAGENET300:
       for (int i = 0; i < 300; ++i) {
@@ -506,6 +504,92 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
       break;
     default:
       break;
+  }
+  // PrintTensor(*input_tensor);
+}
+
+void TfLiteRuntime::FeedInputToModelDebug(const char* model,
+                                     cv::Mat& input,
+                                     INPUT_TYPE input_type) {
+  bool use_two_interpreter = false;
+  TfLiteTensor* input_tensor = nullptr;
+  TfLiteTensor* quant_input_tensor = nullptr;
+  input_tensor = interpreter->input_tensor_of_model(0);
+  if(quantized_interpreter != nullptr){
+    quant_input_tensor = quantized_interpreter->input_tensor_of_model(0);
+    if(quant_input_tensor == nullptr) {
+      std::cout << "TfLiteRuntime : cannont get pointer to quant input tensor, model["
+              << model << "]"
+              << "\n";
+      return;
+    }
+    use_two_interpreter = true;
+  }
+  
+  if(input_tensor == nullptr) {
+    std::cout << "TfLiteRuntime : cannont get pointer to input tensor, model["
+              << model << "]"
+              << "\n";
+    return;
+  }
+
+  auto input_pointer = (float*)input_tensor->data.data;
+  switch (input_type) {
+    case INPUT_TYPE::MNIST:
+      for (int i = 0; i < 28; ++i) {
+        for (int j = 0; j < 28; ++j) {
+          input_pointer[i * 28 + j] = ((float)input.at<uchar>(i, j) / 255.0);
+        }
+      }
+      break;
+    case INPUT_TYPE::IMAGENET224:
+      memcpy(input_pointer, input.data,
+             input.total() * input.elemSize());
+      break;
+    case INPUT_TYPE::IMAGENET300:
+      for (int i = 0; i < 300; ++i) {
+        for (int j = 0; j < 300; ++j) {
+          input_pointer[i * 300 + j * 3] =
+              ((float)input.at<cv::Vec3b>(i, j)[0]);
+          input_pointer[i * 300 + j * 3 + 1] =
+              ((float)input.at<cv::Vec3b>(i, j)[1]);
+          input_pointer[i * 300 + j * 3 + 2] =
+              ((float)input.at<cv::Vec3b>(i, j)[2]);
+        }
+      }
+      break;
+    default:
+      break;
+  }
+  if(use_two_interpreter){
+    auto q_input_pointer = (float*)quant_input_tensor->data.data;
+    switch (input_type) {
+      case INPUT_TYPE::MNIST:
+        for (int i = 0; i < 28; ++i) {
+          for (int j = 0; j < 28; ++j) {
+            q_input_pointer[i * 28 + j] = ((float)input.at<uchar>(i, j) / 255.0);
+          }
+        }
+        break;
+      case INPUT_TYPE::IMAGENET224:
+        memcpy(q_input_pointer, input.data,
+              input.total() * input.elemSize());
+        break;
+      case INPUT_TYPE::IMAGENET300:
+        for (int i = 0; i < 300; ++i) {
+          for (int j = 0; j < 300; ++j) {
+            q_input_pointer[i * 300 + j * 3] =
+                ((float)input.at<cv::Vec3b>(i, j)[0]);
+            q_input_pointer[i * 300 + j * 3 + 1] =
+                ((float)input.at<cv::Vec3b>(i, j)[1]);
+            q_input_pointer[i * 300 + j * 3 + 2] =
+                ((float)input.at<cv::Vec3b>(i, j)[2]);
+          }
+        }
+        break;
+      default:
+        break;
+    }
   }
   // PrintTensor(*input_tensor);
 }
@@ -569,8 +653,20 @@ void TfLiteRuntime::WakeScheduler() {
 void TfLiteRuntime::JoinScheduler() { interpreter->JoinScheduler(); }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke() {
-  if (interpreter->DebugInvoke() != kTfLiteOk) {
-    return kTfLiteError;
+  Subgraph* subgraph;
+  int subgraph_idx = 0;
+  while(subgraph_idx < quantized_interpreter->subgraphs_size()){ // subgraph iteration
+    subgraph = quantized_interpreter->subgraph(subgraph_idx);
+    if(subgraph->GetPrevSubgraph() != nullptr){
+      CopyIntermediateDataIfNeeded(subgraph);
+    }
+    if(subgraph->Invoke() != kTfLiteOk){
+      std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+      return kTfLiteError;
+    }
+    if(subgraph->GetNextSubgraph() == nullptr)
+      PrintOutput(subgraph);
+    subgraph_idx++;
   }
   return kTfLiteOk;
 };

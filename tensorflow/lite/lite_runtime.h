@@ -62,6 +62,9 @@ class TfLiteRuntime{
                           INPUT_TYPE input_type);
     void FeedInputToModel(const char* model, cv::Mat& input,
                           INPUT_TYPE input_type);
+
+    void FeedInputToModelDebug(const char* model, cv::Mat& input,
+                          INPUT_TYPE input_type);
     
     // For debugging only
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
