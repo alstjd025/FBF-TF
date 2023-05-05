@@ -101,6 +101,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                       const char* f_model, const char* i_model, INPUT_TYPE type) {
+  co_execution = true;
   interpreter = new tflite::Interpreter(true);
   quantized_interpreter = new tflite::Interpreter(true);
   quantized_builder = nullptr;
@@ -671,8 +672,100 @@ TfLiteStatus TfLiteRuntime::DebugInvoke() {
   return kTfLiteOk;
 };
 
+TfLiteStatus TfLiteRuntime::Invoke(){
+  TfLiteStatus state;
+  if(co_execution){
+    state = InvokeCoExecution();
+  }else{
+    state = InvokeSingleExecution();
+  }
+  return state;
+}
+
+TfLiteStatus TfLiteRuntime::InvokeCoExecution(){
+  if(state != RuntimeState::INVOKE_){
+    std::cout << "ERROR cannot invoke runtime [" << runtime_id << "]\n";
+    std::cout << "State is not INVOKE. cur state is " << state << "\n";
+    return kTfLiteError;
+  }
+  Subgraph* subgraph;
+  int subgraph_idx = 0;
+  while(subgraph_idx < interpreter->subgraphs_size()){ // subgraph iteration
+    subgraph = interpreter->subgraph(subgraph_idx);
+    tf_packet tx_packet;
+    memset(&tx_packet, 0, sizeof(tf_packet));
+    tx_packet.runtime_id = runtime_id;
+    tx_packet.runtime_current_state = state;
+
+    if(subgraph != nullptr){
+      if(subgraph->GetResourceType() == ResourceType::CPU)
+        tx_packet.cur_graph_resource = 0;
+      else if(subgraph->GetResourceType() == ResourceType::GPU)
+        tx_packet.cur_graph_resource = 1;
+      else // Subject to change. (impl CPUGPU Co-execution)
+        tx_packet.cur_graph_resource = 0;
+    }
+    
+    if(SendPacketToScheduler(tx_packet) != kTfLiteOk){ // Request invoke permission to scheduler
+      return kTfLiteError;
+    }
+    tf_packet rx_packet;
+    if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
+      return kTfLiteError;
+    }
+    switch (rx_packet.runtime_next_state)
+    {
+    case RuntimeState::INVOKE_ :{
+      // Invoke next subgraph in subgraph order.
+      if(subgraph->GetPrevSubgraph() != nullptr){
+        CopyIntermediateDataIfNeeded(subgraph);
+      }
+      if(subgraph->Invoke() != kTfLiteOk){
+        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        return kTfLiteError;
+      }
+      if(subgraph->GetNextSubgraph() == nullptr){
+        PrintOutput(subgraph);
+        if(!output_correct){
+          std::cout << "OUTPUT WRONG!" << "\n";
+          exit(-1);
+          output_correct = false;
+        }
+      }
+      subgraph_idx++;
+      break;
+    }
+    case RuntimeState::BLOCKED_ : {
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
+      break;
+    }
+    case RuntimeState::NEED_PROFILE :{
+      // Need profile.
+      if(RegisterModeltoScheduler() != kTfLiteOk){
+        std::cout << "RegisterModeltoScheduler ERROR" << "\n";
+        return kTfLiteError;
+      }
+      break;
+    }
+    case RuntimeState::SUBGRAPH_CREATE :{
+      // Need subgraph partitioning.
+      // this will delete the existing subgraphs and partition from original model.
+      if(PartitionSubgraphs() != kTfLiteOk){
+        std::cout << "PartitionSubgraphs ERROR" << "\n";
+        return kTfLiteError;
+      }
+      subgraph_idx = 0;
+      break;
+    }
+    default:
+      break;
+    }
+  } // end of subgraph interation
+  return kTfLiteOk;
+}
+
 // working function
-TfLiteStatus TfLiteRuntime::Invoke() {
+TfLiteStatus TfLiteRuntime::InvokeSingleExecution() {
   if(state != RuntimeState::INVOKE_){
     std::cout << "ERROR cannot invoke runtime [" << runtime_id << "]\n";
     std::cout << "State is not INVOKE. cur state is " << state << "\n";
@@ -752,7 +845,6 @@ TfLiteStatus TfLiteRuntime::Invoke() {
     }
   } // end of subgraph interation
   return kTfLiteOk;
-  // int graphs_to_invoke = interpreter->Get
 }
 
 void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {

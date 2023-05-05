@@ -74,6 +74,8 @@ class TfLiteRuntime{
     void JoinScheduler();
 
     TfLiteStatus Invoke();
+    TfLiteStatus InvokeCoExecution();
+    TfLiteStatus InvokeSingleExecution();
     void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
@@ -92,6 +94,8 @@ class TfLiteRuntime{
     tflite::Interpreter* quantized_interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
     tflite::InterpreterBuilder* quantized_builder;
+
+    bool co_execution = false;
 
     // Subgraph partitioning
     // Maybe need to change for CO-execution ratio.
