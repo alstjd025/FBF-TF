@@ -56,19 +56,24 @@ class TfLiteRuntime{
     // Partitions subgraph in both Float & Int.
     TfLiteStatus PartitionCoSubgraphs();
 
-    TfLiteStatus DebugInvoke();
+    // Binds the subgraphs in co-execution subgraphs.
+    TfLiteStatus BindCoExecutionSubgraphs();
 
     void FeedInputToModel(const char* model, std::vector<cv::Mat>& input,
                           INPUT_TYPE input_type);
     void FeedInputToModel(const char* model, cv::Mat& input,
                           INPUT_TYPE input_type);
 
-    void FeedInputToModelDebug(const char* model, cv::Mat& input,
-                          INPUT_TYPE input_type);
     
-    // For debugging only
+    /// For debugging only
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);
+    TfLiteStatus DebugInvoke();
+    void FeedInputToModelDebug(const char* model, cv::Mat& input,
+                          INPUT_TYPE input_type);
+    void PrintOutput(Subgraph* subgraph);
+    void PrintTensor(TfLiteTensor& tensor, bool is_output);
+    //////
 
     void WakeScheduler();
     void JoinScheduler();
@@ -77,8 +82,6 @@ class TfLiteRuntime{
     TfLiteStatus InvokeCoExecution();
     TfLiteStatus InvokeSingleExecution();
     void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
-    void PrintOutput(Subgraph* subgraph);
-    void PrintTensor(TfLiteTensor& tensor, bool is_output);
 
     //// IPC functions
     // Initialize UDS and check communication with scheduler.
@@ -86,6 +89,7 @@ class TfLiteRuntime{
     TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
     TfLiteStatus SendPacketToScheduler(tf_packet& tx_p);
     TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
+    //////
 
   private:
     RuntimeState state;

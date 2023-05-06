@@ -456,6 +456,26 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::BindCoExecutionSubgraphs(){
+  if(co_execution){
+    if(quantized_interpreter == nullptr){
+      std::cout << "BindCoExecutionSubgraphs ERROR [nullptr]" << "\n";
+      return kTfLiteError;
+    }
+  }
+  int gpu_subgraph_size = interpreter->subgraphs_size();
+  int cpu_subgraph_size = quantized_interpreter->subgraphs_size();
+  
+  if(gpu_subgraph_size != cpu_subgraph_size){
+    std::cout << "Subgraph size missmatch ERROR " << gpu_subgraph_size << " "
+        << cpu_subgraph_size << "\n";
+    return kTfLiteError;
+  }
+  for(int subgraph_idx=0; subgraph_idx<gpu_subgraph_size; ++subgraph_idx){
+    if()
+  }
+}
+
 void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
                                            std::vector<cv::Mat>& imagenet) {
   interpreter->mnist_input = mnist;
