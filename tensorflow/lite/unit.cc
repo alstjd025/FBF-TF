@@ -1,15 +1,24 @@
 #include "unit.h"
 #include "algorithm"
-#define SEQ 500 //1000   ---> 4개부터 20000, 5개 15000, 6개 10000... 각 케이스마다 하루 정도 걸림.
-#define OUT_SEQ 1
 #define GPUONLY
 //#define MULTITHREAD
 //#define quantize
 //#define MONITORING
 //#define mnist
-// #define catdog
+//#define catdog
 //#define imagenet
-#define imagenet
+
+#define yolo  // Y/N
+
+#ifdef yolo
+#define SEQ 100 
+#define OUT_SEQ 1
+#endif
+
+#ifndef yolo
+#define SEQ 10000 //1000   ---> 4개부터 20000, 5개 15000, 6개 10000... 각 케이스마다 하루 정도 걸림.
+#define OUT_SEQ 1
+#endif
 
 std::mutex mtx_lock;
 
@@ -91,7 +100,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             std::cout << "CPU " << *C_Counter << "\n";
-            #ifdef imagenet
+            #ifdef yolo
             auto *input_pointer = interpreterCPU->get()->typed_input_tensor<float>(0);
             memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
             // for (int i=0; i < 224; ++i) {
@@ -152,7 +161,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             double temp_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
             //printf("time : %.6fs \n", temp_time);
             time += temp_time;
-            #ifdef imagenet
+            #ifdef yolo
                 interpreterCPU->get()->PrintOutputTensor(eType);
             #endif
             #ifdef MONITORING
@@ -292,7 +301,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             //std::cout << "GPU " << *G_Counter << "\n";
-            #ifdef imagenet
+
+            #ifdef yolo  // same code as catdog //HOON
             auto *input_pointer = interpreterGPU->get()->typed_input_tensor<float>(0);
             memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
             #endif
@@ -300,10 +310,10 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             #ifdef catdog
             for (int i=0; i < 300; ++i) {
                 for(int j=0; j < 300; j++){
-                    interpreterGPU->get()->typed_input_tensor<float>(0)[i*300 + j*3] = \
+                    interpreterGPU->get()->typed_input_tensor<float>(0)[i*300 + j*3] = \   //image size : 300*300
                      ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
 
-                    interpreterGPU->get()->typed_input_tensor<float>(0)[i*300 + j*3 + 1] = \
+                    interpreterGPU->get()->typed_input_tensor<float>(0)[i*300 + j*3 + 1] = \  // cause of RGB
                      ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
 
                     interpreterGPU->get()->typed_input_tensor<float>(0)[i*300 + j*3 + 2] = \
@@ -336,7 +346,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             time += temp_time;
             //printf("time : %.6fs \n", temp_time);
             #ifdef MONITORING
-            #ifdef imagenet
+            #ifdef yolo
                 for (int i =0; i<1000; i++){
                     float value = interpreterGPU->get()->typed_output_tensor<float>(0)[i];
                     printf("label : %d, pre : %0.5f \n", i, value);

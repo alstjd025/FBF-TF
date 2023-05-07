@@ -3,7 +3,17 @@
 #include <typeinfo>
 //#define MULTITHREAD
 #define GPUONLY
+
+#define yolo  //  Y / N
+
+#ifdef yolo
 #define Partition_Num 7
+#endif
+
+
+#ifndef yolo
+#define Partition_Num 10
+#endif
 //#define QUANTIZE
 
 
