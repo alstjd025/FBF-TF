@@ -302,7 +302,7 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 }
 
 // Minsung
-// First, allocate first subgraph of subgraph subset(which made from same model id).
+// First, allocate first subgraph of subgraph subset(which have same model id).
 // (first subgraph means the subgraph which owns the input tensor of a model)
 // Check the input tensor range from it.
 // Resize intermediate sharing tensors of all subgraph subset.

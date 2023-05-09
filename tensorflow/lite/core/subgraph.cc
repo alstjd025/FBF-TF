@@ -801,6 +801,51 @@ TfLiteStatus Subgraph::PartitionChannel(){
   return kTfLiteOk;
 }
 
+TfLiteStatus Subgraph::PartitionHeightTest(){
+	std::vector<int> partitioning_plan;
+	std::vector<float> ratios;
+  std::vector<std::pair<int, int>> tensor_pair;
+  
+  // First get the input & output tensor of all nodes in subgraph.
+	for (int execution_plan_index = 0;
+    	execution_plan_index < execution_plan_.size(); execution_plan_index++) {
+		int node_index = execution_plan_[execution_plan_index];
+		int input_tensor, output_tensor;
+		TfLiteNode& node = nodes_and_registration_[node_index].first;
+		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+    if(node.inputs->size > 0 && node.outputs->size > 0){
+      input_tensor = node.inputs->data[0];
+      output_tensor = node.outputs->data[0];
+    }else{
+      std::cout << "ERROR Node " << GetOpName(registration) 
+            << " input, output size not > 0" << "\n";
+      return kTfLiteError;
+    }
+    tensor_pair.push_back(std::pair<int, int>(input_tensor, output_tensor));
+  }
+  std::cout << "Got intput, output tensors to resize" << "\n";
+  for(int i=0; i<tensor_pair.size(); ++i){
+    std::cout << tensor_pair[i].first << " " << tensor_pair[i].second << "\n";
+  }
+
+  // Resize the tensors 
+  // TEST FOR FIRST NODE
+  TfLiteTensor* input_tensor;
+  TfLiteTensor* output_tensor;
+  std::vector<int> new_dims;
+  input_tensor = tensor(tensor_pair[0].first);
+  output_tensor = tensor(tensor_pair[0].second);
+  
+  // calculate paddings for inputs. (consider input, kernel size)
+  int padding;
+  for(int i=0; i<input_tensor->dims->size; ++i){
+    new_dims.push_back(input_tensor->dims->data[i]);
+  }
+  // no padding for output. (consider input, kernel size)
+  
+  // Move the data pointer to proper point.
+  
+}
 
 // TODO(ycling): Support non-zero default values.
 TfLiteStatus Subgraph::ResetVariableTensors() {

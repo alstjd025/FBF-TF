@@ -471,9 +471,9 @@ TfLiteStatus TfLiteRuntime::BindCoExecutionSubgraphs(){
         << cpu_subgraph_size << "\n";
     return kTfLiteError;
   }
-  for(int subgraph_idx=0; subgraph_idx<gpu_subgraph_size; ++subgraph_idx){
-    if()
-  }
+  // for(int subgraph_idx=0; subgraph_idx<gpu_subgraph_size; ++subgraph_idx){
+  //   if()
+  // }
 }
 
 void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,

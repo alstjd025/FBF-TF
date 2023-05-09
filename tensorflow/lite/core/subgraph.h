@@ -484,6 +484,9 @@ class Subgraph {
   // Channel partitioning for CPU-side subgraph.
   TfLiteStatus PartitionChannel();
 
+  // Height partitioning for CPU-side subgraph.
+  TfLiteStatus PartitionHeightTest();
+
  private:
   // SubgraphAwareProfiler wraps an actual TFLite profiler, such as a
   // BufferedProfiler instance, and takes care of event profiling/tracing in a
