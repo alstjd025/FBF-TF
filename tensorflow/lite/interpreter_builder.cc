@@ -191,7 +191,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
                                       Interpreter* interpreter,
                                       const char* model_name,
-                                      int model_id, bool is_co_execution)
+                                      int model_id, bool is_co_execution_cpu)
     : model_(model.GetModel()),
       op_resolver_(op_resolver),
       error_reporter_(DefaultErrorReporter()),
@@ -199,7 +199,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
       interpreter_(interpreter),
       model_id_(model_id),
       model_name_(model_name),
-      is_co_execution(is_co_execution){
+      is_co_execution_cpu(is_co_execution_cpu){
         dummy_profile_ = new ProfileData;
       }
 
@@ -549,7 +549,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_plan->resource_type = ResourceType::GPU;
           break;
         case TF_P_PLAN_CO_E:
-          if(is_co_execution)
+          if(is_co_execution_cpu)
             new_plan->resource_type = ResourceType::CO_CPU;
           else
             new_plan->resource_type = ResourceType::CO_GPU;
@@ -731,10 +731,16 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "DelegateOldSubgraphs ERROR" << "\n";
     return kTfLiteError;
   }
-  if(is_co_execution){ // If Co-execution CPU InterpreterBuilder
+  if(is_co_execution_cpu){ // If Co-execution CPU InterpreterBuilder
     if(PartitionChannels((subgraphs_created)) != kTfLiteOk){
       std::cout << "Partition channel-wise for cpu ERROR" << "\n";
       return kTfLiteError;
+    }
+    // need to reallocate if tensor shapes are changed.
+    // BUT NEED CHECK
+    if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){ 
+      std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
+      return kTfLiteError; // TEST
     }
   }
   std::cout << "Delegate tensors" << "\n";

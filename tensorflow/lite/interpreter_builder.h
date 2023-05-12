@@ -78,7 +78,7 @@ class InterpreterBuilder {
                     const OpResolver& op_resolver,
                     Interpreter* interpreter,
                     const char* model_name,
-                    int model_id, bool is_co_execution);
+                    int model_id, bool is_co_execution_cpu);
 
   ~InterpreterBuilder();
   InterpreterBuilder(const InterpreterBuilder&) = delete;
@@ -190,8 +190,8 @@ class InterpreterBuilder {
   
   int default_thread = 4;
 
-  // flag for co-execution model in cpu.
-  bool is_co_execution = false;
+  // flag for co-execution model for cpu.
+  bool is_co_execution_cpu = false;
   ProfileData* dummy_profile_;
 
   tflite::Interpreter* interpreter_;

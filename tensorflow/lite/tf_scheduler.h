@@ -30,8 +30,9 @@ namespace tflite{
     // Second idx means last subgraph's idx in subset.
     // Third idx means processor to be used for invoke.
     //  0 - cpu, 1 - gpu, 2 - co_execution flag
-    // Fourth idx means partitioning ratio(1~9).
-    //  3 means, GPU : 3  CPU : 7
+    // Fourth idx means partitioning ratio(1~19).
+    //  3 means, GPU : 3  CPU : 7 (for channel-wise)
+    // 13 means, GPU : 3  CPU : 7 (for height-wise)
   }runtime_;
 
   class TfScheduler{

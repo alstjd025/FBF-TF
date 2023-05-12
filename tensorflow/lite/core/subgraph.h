@@ -484,7 +484,7 @@ class Subgraph {
   // Channel partitioning for CPU-side subgraph.
   TfLiteStatus PartitionChannel();
 
-  // Height partitioning for CPU-side subgraph.
+  // Height partitioning for subgraph.
   TfLiteStatus PartitionHeightTest();
 
  private:

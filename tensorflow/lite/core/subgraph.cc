@@ -717,7 +717,16 @@ TfLiteStatus Subgraph::AllocateTensors() {
   return kTfLiteOk;
 }
 
+// TODO : Consider better logic for choosing hight, channel partitioning.
 TfLiteStatus Subgraph::PartitionChannel(){
+  if(partitioning_ratios[0] >= 10){
+    if(PartitionHeightTest() != kTfLiteOk){
+      std::cout << "Hight Partitioning for CPU size returned ERROR" << "\n";
+      return kTfLiteError;
+    }else{
+      return kTfLiteOk;
+    }
+  }
 	std::vector<int> partitioning_plan;
 	std::vector<float> ratios;
 	for (int execution_plan_index = 0;
@@ -830,20 +839,44 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
 
   // Resize the tensors 
   // TEST FOR FIRST NODE
+  // TEST FOR FIRST NODE
   TfLiteTensor* input_tensor;
   TfLiteTensor* output_tensor;
+  int input_tensor_idx = tensor_pair[0].first;
+  int output_tensor_idx = tensor_pair[0].second; 
   std::vector<int> new_dims;
-  input_tensor = tensor(tensor_pair[0].first);
-  output_tensor = tensor(tensor_pair[0].second);
+  input_tensor = tensor(input_tensor_idx);
+  output_tensor = tensor(output_tensor_idx);
   
   // calculate paddings for inputs. (consider input, kernel size)
-  int padding;
+  int padding = 0;
+  int pointer_offset = 0;
   for(int i=0; i<input_tensor->dims->size; ++i){
     new_dims.push_back(input_tensor->dims->data[i]);
   }
   // no padding for output. (consider input, kernel size)
+  auto data_pointer = *(&input_tensor->data.data);
+  int o = input_tensor->dims->data[0];
+  int w = input_tensor->dims->data[1];
+  int h = input_tensor->dims->data[2];
+  int i = input_tensor->dims->data[3];
+  padding = 16;
+  new_dims[0] = o;
+  new_dims[1] = w;
+  new_dims[2] = padding;
+  new_dims[3] = i;
+  pointer_offset = o * padding * w;
   
-  // Move the data pointer to proper point.
+  // TEST FOR FIRST NODE
+  // TEST FOR FIRST NODE
+
+  // Move the data pointer to proper point. (No need to move if CO_GPU)
+  if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
+    data_pointer += pointer_offset;
+  }
+  
+  // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
+  ResizeInputTensor(input_tensor_idx, new_dims);
   
 }
 
@@ -1226,7 +1259,7 @@ TfLiteStatus Subgraph::Invoke() {
     // if(strcmp(GetOpName(registration), "CONV_2D") == 0){
     //   PrintWeightandBiasTensor(node);
     // }
-    //PrintOutputTensor(node);
+    // PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1669,6 +1702,7 @@ TfLiteStatus Subgraph::EnsureMemoryAllocations() {
 }
 
 // Modified one for Channel partitioning
+// TODO : Consider better logic for choosing heigh, channel partitioning.
 TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(),
                                        "ModifyGraphWithDelegate");
@@ -1692,31 +1726,38 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         std::cout << partitioning_ratio[i];
       }
       std::cout << "\n";
-      int conv_filter_before_modification = 0;
-      int partitioning_plan = partitioning_ratio[0];
-      for (int node_index = 0;
-        node_index < nodes_and_registration_.size(); node_index++) {
-        TfLiteNode& node = nodes_and_registration_[node_index].first;
-        const TfLiteRegistration& registration =
-            nodes_and_registration_[node_index].second;
-        int tensor_filter = 0;
-        int tensor_bias = 0;
-        if(!strcmp(GetOpName(registration), "CONV_2D")){
-          std::cout << "Layer " << node_index << " is CONV_2D" << "\n";
-          tensor_filter = node.inputs->data[1];
-          tensor_bias = node.inputs->data[2];
-          conv_filter_before_modification =
-                context_.tensors[tensor_filter].dims->data[0];
-          int modified_value = 
-                ceil(conv_filter_before_modification*((float)partitioning_plan/10));
-          context_.tensors[tensor_filter].dims->data[0] = modified_value;
-          context_.tensors[tensor_bias].dims->data[0] = modified_value;
-          int modified_bytes = 1 * sizeof(float);
-          for(int i=0; i<4; i++){
-            modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+      if(partitioning_ratio[0] >= 10){ // Height-wise partitioning
+        if(PartitionHeightTest() != kTfLiteOk){
+          std::cout << "Height partitioning returned ERROR" << "\n";
+          return kTfLiteError;
+        }
+      }else{ // channel-wise partitioning
+        int conv_filter_before_modification = 0;
+        int partitioning_plan = partitioning_ratio[0];
+        for (int node_index = 0;
+          node_index < nodes_and_registration_.size(); node_index++) {
+          TfLiteNode& node = nodes_and_registration_[node_index].first;
+          const TfLiteRegistration& registration =
+              nodes_and_registration_[node_index].second;
+          int tensor_filter = 0;
+          int tensor_bias = 0;
+          if(!strcmp(GetOpName(registration), "CONV_2D")){
+            std::cout << "Layer " << node_index << " is CONV_2D" << "\n";
+            tensor_filter = node.inputs->data[1];
+            tensor_bias = node.inputs->data[2];
+            conv_filter_before_modification =
+                  context_.tensors[tensor_filter].dims->data[0];
+            int modified_value = 
+                  ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+            context_.tensors[tensor_filter].dims->data[0] = modified_value;
+            context_.tensors[tensor_bias].dims->data[0] = modified_value;
+            int modified_bytes = 1 * sizeof(float);
+            for(int i=0; i<4; i++){
+              modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+            }
+            context_.tensors[tensor_filter].bytes = modified_bytes;
+            context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
           }
-          context_.tensors[tensor_filter].bytes = modified_bytes;
-          context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
         }
       }
     }
