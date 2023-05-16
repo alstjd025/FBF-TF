@@ -562,17 +562,22 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
   }
 
   auto input_pointer = (float*)input_tensor->data.data;
-  int h = input_tensor->dims->data[1];
-  int w = input_tensor->dims->data[2];
+  int w = input_tensor->dims->data[1];
+  int h = input_tensor->dims->data[2];
   switch (input_type) {
     case INPUT_TYPE::MNIST:
-      // for (int i = 0; i < h; ++i) {
-      //   for (int j = 0; j < w; ++j) {
-      //     input_pointer[i * h + j] = ((float)input.at<uchar>(i, j) / 255.0);
-      //   }
-      // }
-      memcpy(input_pointer, input.data,
-             h * w * input.elemSize());
+      // std::cout << "input_elemSize " << input.elemSize() << "\n"; 
+      std::cout << "h" <<  h << "\n";
+      std::cout << "w" <<  w << "\n";
+      // std::cout << "copy size " << h * w * sizeof(float) << "\n";
+      // std::cout << "total " << input.total() << "\n";
+      for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+          input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
+        }
+      }
+        // memcpy(input_pointer, input.data,
+        //      h * w * sizeof(float));
       break;
     case INPUT_TYPE::IMAGENET224:
       memcpy(input_pointer, input.data,
@@ -593,17 +598,20 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     default:
       break;
   }
+  PrintTensor(*input_tensor, false);
   if(use_two_interpreter){
     auto q_input_pointer = (float*)quant_input_tensor->data.data;
+    w = quant_input_tensor->dims->data[1];
+    h = quant_input_tensor->dims->data[2];
+    std::cout << "w " << w << "\n";
+    std::cout << "h " << h << "\n";
     switch (input_type) {
       case INPUT_TYPE::MNIST:
-        // for (int i = 0; i < h; ++i) {
-        //   for (int j = 0; j < w; ++j) {
-        //     q_input_pointer[i * 28 + j] = ((float)input.at<uchar>(i+(28-h), j) / 255.0);
-        //   }
-        // }
-        memcpy(q_input_pointer, input.data + ((w - h) * w),
-             h * w * input.elemSize());
+      for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+          q_input_pointer[i * w + j] = ((float)input.at<uchar>(i+(28-h), j) / 255.0);
+        }
+      }
         break;
       case INPUT_TYPE::IMAGENET224:
         memcpy(q_input_pointer, input.data,
@@ -625,7 +633,6 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         break;
     }
   }
-  PrintTensor(*input_tensor, false);
   PrintTensor(*quant_input_tensor, false);
 }
 
@@ -953,7 +960,8 @@ void TfLiteRuntime::PrintTensor(TfLiteTensor& tensor, bool is_output){
     }
     tensor_data_size *= tensor.dims->data[i]; 
   }
-  // std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Nunber of ch : " << tensor_data_ch_size << "\n";
   // std::cout << " Tensor DATA " << "\n";
   if(tensor.type == TfLiteType::kTfLiteFloat32){
     auto data_st = (float*)tensor.data.data;
