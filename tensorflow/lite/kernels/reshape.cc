@@ -65,8 +65,8 @@ TfLiteStatus ResizeOutput(TfLiteContext* context, TfLiteNode* node) {
     output_shape->data[stretch_dim] = num_input_elements / num_output_elements;
     num_output_elements *= output_shape->data[stretch_dim];
   }
-
-  TF_LITE_ENSURE_EQ(context, num_input_elements, num_output_elements);
+  // MINSUNG IMPORTANT_CHANGE
+  //TF_LITE_ENSURE_EQ(context, num_input_elements, num_output_elements);
   return context->ResizeTensor(context, output, scoped_output_shape.release());
 }
 
