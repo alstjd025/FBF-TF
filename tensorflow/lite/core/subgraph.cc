@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-#define LATENCY_MEASURE
+//#define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -871,13 +871,39 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   // TEST FOR FIRST NODE
 
   // Move the data pointer to proper point. (No need to move if CO_GPU)
+  // moving data pointer isn't necessary for global input tensor.
   if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
     data_pointer += pointer_offset;
   }
   
   // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
   ResizeInputTensor(input_tensor_idx, new_dims);
-  
+
+
+  std::cout << "Height partitioning done" << "\n";
+  TfLiteTensor* test_bias = tensor(1);
+  PrintWeightandBiasTensor(*test_bias);
+  test_bias->allocation_type = kTfLiteArenaRw;
+  SetTensorToDynamic(test_bias);
+  std::cout << " " << test_bias->bytes/sizeof(float) << "\n";
+  float* bias_new_space = (float *)malloc(test_bias->bytes);
+  for(int i=0; i<10; ++i){
+    bias_new_space[i] = 0;
+  }
+  test_bias->data.data = bias_new_space;
+  PrintWeightandBiasTensor(*test_bias);
+
+  TfLiteTensor* test_weight = tensor(9);
+  PrintWeightandBiasTensor(*test_weight);
+  test_weight->allocation_type = kTfLiteArenaRw;
+  SetTensorToDynamic(test_weight);
+  std::cout << " " << test_weight->bytes/sizeof(float) << "\n";
+  float* weight_new_space = (float *)malloc(test_weight->bytes);
+  for(int i=0; i<90; ++i){
+    weight_new_space[i] = 1.0;
+  }
+  test_weight->data.data = weight_new_space;
+  PrintWeightandBiasTensor(*test_weight);
 }
 
 // TODO(ycling): Support non-zero default values.
@@ -1242,6 +1268,7 @@ TfLiteStatus Subgraph::Invoke() {
 
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
+    PrintInputTensor(node);
     #ifdef LATENCY_MEASURE
       double response_time = 0;
       struct timespec begin, end;
@@ -1256,10 +1283,10 @@ TfLiteStatus Subgraph::Invoke() {
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
       printf("Invoke Latency %.6f \n", response_time);
     #endif
-    // if(strcmp(GetOpName(registration), "CONV_2D") == 0){
-    //   PrintWeightandBiasTensor(node);
-    // }
-    // PrintOutputTensor(node);
+    if(execution_plan_index == 0){
+      PrintWeightandBiasTensor(node);
+    }
+    PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1944,8 +1971,30 @@ std::vector<int> Subgraph::GetTensorShape(int tensor_index){
   return dims;  
 }
 
+void Subgraph::PrintInputTensor(TfLiteNode& node){
+  std::cout << "[Print Input Tensor] \n";
+  TfLiteTensor* temp = GetInputTensor(node);
+  int tensor_index = GetInputTensorIndex(node);
+  int tensor_data_dims_size = temp->dims->size-1;
+  int tensor_data_ch_size = temp->dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< temp->dims->size; i++){
+    if(i == 1){
+      tensor_axis = temp->dims->data[i];
+    }
+    tensor_data_size *= temp->dims->data[i]; 
+  }
+  std::cout << "\n";
+  std::cout << "[" << tensor_index << "] Nunber of Tensors : "\
+                                           << tensor_data_size << "\n";
+  std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
+
+  PrintTensor(*temp);
+}
+
 void Subgraph::PrintOutputTensor(TfLiteNode& node){
-  std::cout << "[Print OutPut Tensor] \n";
+  std::cout << "[Print Output Tensor] \n";
   TfLiteTensor* temp = GetOutputTensor(node);
   int tensor_index = GetOutputTensorIndex(node);
   int tensor_data_dims_size = temp->dims->size-1;
@@ -2011,6 +2060,41 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){
   std::cout << "\n";
 }
 
+void Subgraph::PrintTensorserial(TfLiteTensor& tensor){
+  std::cout << "[Print Tensor]" << "\n";
+  int tensor_data_dims_size = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< tensor.dims->size; i++){
+    if(i == 1){
+      tensor_axis = tensor.dims->data[i];
+    }
+    tensor_data_size *= tensor.dims->data[i]; 
+  }
+  std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Tensor DATA " << "\n";
+  if(tensor.type == TfLiteType::kTfLiteFloat32){
+    std::cout << "[FLOAT32 TENSOR]" << "\n";
+    auto data_st = (float*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        float data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%0.6f ", data);
+        }
+        else if (data != 0) {
+            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+      std::cout << "\n";
+    }
+  }
+}
 
 void Subgraph::PrintTensor(TfLiteTensor& tensor){
   std::cout << "[Print Tensor]" << "\n";
@@ -2094,7 +2178,7 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteTensor& tensor){
   int tensor_data_dims_size = tensor.dims->size-4;
   int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
-  int tensor_axis = tensor.dims->data[0] * tensor.dims->data[3];
+  int tensor_axis = tensor.dims->data[1] * tensor.dims->data[2];
   int tensor_kernel_axis = tensor.dims->data[1];
   for(int i=0; i< tensor.dims->size; i++){  
     tensor_data_size *= tensor.dims->data[i]; 
@@ -2106,6 +2190,9 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteTensor& tensor){
     auto data_st = (float*)tensor.data.data;
     for(int j=0; j<tensor_data_size; j++){
       float data = *(data_st+j);
+      if(j > 0 && j % tensor_kernel_axis == 0){
+        std::cout << "\n";
+      }
       if (j % tensor_axis == 0) {
         std::cout << "[Kernel : " << (int)(j / tensor_axis) << "] \n"; 
       }
@@ -2114,9 +2201,6 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteTensor& tensor){
       }
       else if (data != 0) {
         printf("%s%0.6f%s ", C_GREN, data, C_NRML);
-      }
-      if(j % tensor_kernel_axis == 0){
-        std::cout << "\n";
       }
     }
     std::cout << "\n";

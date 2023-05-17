@@ -448,8 +448,8 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
-  interpreter->PrintSubgraphInfo();
-  PrintInterpreterStateV2(interpreter);
+  //interpreter->PrintSubgraphInfo();
+  //PrintInterpreterStateV2(interpreter);
   PrintInterpreterStateV2(quantized_interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
@@ -471,9 +471,6 @@ TfLiteStatus TfLiteRuntime::BindCoExecutionSubgraphs(){
         << cpu_subgraph_size << "\n";
     return kTfLiteError;
   }
-  // for(int subgraph_idx=0; subgraph_idx<gpu_subgraph_size; ++subgraph_idx){
-  //   if()
-  // }
 }
 
 void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
@@ -601,17 +598,25 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
   PrintTensor(*input_tensor, false);
   if(use_two_interpreter){
     auto q_input_pointer = (float*)quant_input_tensor->data.data;
-    w = quant_input_tensor->dims->data[1];
-    h = quant_input_tensor->dims->data[2];
-    std::cout << "w " << w << "\n";
+    h = quant_input_tensor->dims->data[1];
+    w = quant_input_tensor->dims->data[2];
     std::cout << "h " << h << "\n";
+    std::cout << "w " << w << "\n";
     switch (input_type) {
       case INPUT_TYPE::MNIST:
-      for (int i = 0; i < h; ++i) {
-        for (int j = 0; j < w; ++j) {
-          q_input_pointer[i * w + j] = ((float)input.at<uchar>(i+(28-h), j) / 255.0);
+      for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+          q_input_pointer[i * h + j] = 0;
         }
       }
+      for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+          q_input_pointer[i * h + j] = ((float)input.at<uchar>(i+(28-h), j) / 255.0);
+          //q_input_pointer[i * h + j] = 0.0;
+        }
+      }
+      //q_input_pointer[0] = 1.0;
+      q_input_pointer[27] = 1.0;
         break;
       case INPUT_TYPE::IMAGENET224:
         memcpy(q_input_pointer, input.data,

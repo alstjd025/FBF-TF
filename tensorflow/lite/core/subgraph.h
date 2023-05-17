@@ -220,18 +220,36 @@ class Subgraph {
 
   //Minsung 
   //Returns Output Tensor index of given node
+  // THIS FUNCTION IS NOT SAFE
   int GetOutputTensorIndex(TfLiteNode& node){
     return node.outputs->data[node.outputs->size-1];
   }
 
+  //Minsung 
+  //Returns input Tensor index of given node
+  // THIS FUNCTION IS NOT SAFE
+  int GetInputTensorIndex(TfLiteNode& node){
+    return node.inputs->data[0];
+  }
+
   // Minsung
-  // Returns the output tensor of given node
+  // Returns the output tensor of given node.
   // Return tensor is the last tensor of given node's tensor index.
-  // The node must have only one output tensor
+  // The node must have only one output tensor.
   TfLiteTensor* GetOutputTensor(TfLiteNode& node){
     if(node.outputs->size <= 0)
       return nullptr;
     return tensor(node.outputs->data[node.outputs->size-1]);
+  }
+
+  // Minsung
+  // Returns the input tensor of given node.
+  // Return tensor is the first tensor of given node's tensor index.
+  // The node must have at least one input tensor.
+  TfLiteTensor* GetInputTensor(TfLiteNode& node){
+    if(node.inputs->size < 1)
+      return nullptr;
+    return tensor(node.inputs->data[0]);
   }
 
   // Minsung
@@ -266,10 +284,14 @@ class Subgraph {
     return node.inputs->data[node.inputs->size-1];
   }
 
+  void PrintInputTensor(TfLiteNode& node);
 
   void PrintOutputTensor(TfLiteNode& node);
 
   void PrintTensor(TfLiteTensor& tensor);
+
+  // Prints tensor in natural NHWC format.
+  void PrintTensorserial(TfLiteTensor& tensor);
 
   void PrintWeightandBiasTensor(TfLiteTensor& tensor);
 
