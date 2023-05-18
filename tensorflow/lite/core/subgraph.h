@@ -291,7 +291,7 @@ class Subgraph {
   void PrintTensor(TfLiteTensor& tensor);
 
   // Prints tensor in natural NHWC format.
-  void PrintTensorserial(TfLiteTensor& tensor);
+  void PrintTensorSerial(TfLiteTensor& tensor);
 
   void PrintWeightandBiasTensor(TfLiteTensor& tensor);
 

@@ -73,6 +73,7 @@ class TfLiteRuntime{
                           INPUT_TYPE input_type);
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
+    void PrintTensorSerial(TfLiteTensor& tensor);
     //////
 
     void WakeScheduler();

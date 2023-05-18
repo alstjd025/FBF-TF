@@ -857,13 +857,13 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   // no padding for output. (consider input, kernel size)
   auto data_pointer = *(&input_tensor->data.data);
   int o = input_tensor->dims->data[0];
-  int w = input_tensor->dims->data[1];
-  int h = input_tensor->dims->data[2];
+  int h = input_tensor->dims->data[1];
+  int w = input_tensor->dims->data[2];
   int i = input_tensor->dims->data[3];
   padding = 16;
   new_dims[0] = o;
-  new_dims[1] = w;
-  new_dims[2] = padding;
+  new_dims[1] = padding;
+  new_dims[2] = w;
   new_dims[3] = i;
   pointer_offset = o * padding * w;
   
@@ -881,29 +881,29 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
 
 
   std::cout << "Height partitioning done" << "\n";
-  TfLiteTensor* test_bias = tensor(1);
-  PrintWeightandBiasTensor(*test_bias);
-  test_bias->allocation_type = kTfLiteArenaRw;
-  SetTensorToDynamic(test_bias);
-  std::cout << " " << test_bias->bytes/sizeof(float) << "\n";
-  float* bias_new_space = (float *)malloc(test_bias->bytes);
-  for(int i=0; i<10; ++i){
-    bias_new_space[i] = 0;
-  }
-  test_bias->data.data = bias_new_space;
-  PrintWeightandBiasTensor(*test_bias);
+  // TfLiteTensor* test_bias = tensor(1);
+  // PrintWeightandBiasTensor(*test_bias);
+  // test_bias->allocation_type = kTfLiteArenaRw;
+  // SetTensorToDynamic(test_bias);
+  // std::cout << " " << test_bias->bytes/sizeof(float) << "\n";
+  // float* bias_new_space = (float *)malloc(test_bias->bytes);
+  // for(int i=0; i<10; ++i){
+  //   bias_new_space[i] = 0;
+  // }
+  // test_bias->data.data = bias_new_space;
+  // PrintWeightandBiasTensor(*test_bias);
 
-  TfLiteTensor* test_weight = tensor(9);
-  PrintWeightandBiasTensor(*test_weight);
-  test_weight->allocation_type = kTfLiteArenaRw;
-  SetTensorToDynamic(test_weight);
-  std::cout << " " << test_weight->bytes/sizeof(float) << "\n";
-  float* weight_new_space = (float *)malloc(test_weight->bytes);
-  for(int i=0; i<90; ++i){
-    weight_new_space[i] = 1.0;
-  }
-  test_weight->data.data = weight_new_space;
-  PrintWeightandBiasTensor(*test_weight);
+  // TfLiteTensor* test_weight = tensor(9);
+  // PrintWeightandBiasTensor(*test_weight);
+  // test_weight->allocation_type = kTfLiteArenaRw;
+  // SetTensorToDynamic(test_weight);
+  // std::cout << " " << test_weight->bytes/sizeof(float) << "\n";
+  // float* weight_new_space = (float *)malloc(test_weight->bytes);
+  // for(int i=0; i<90; ++i){
+  //   weight_new_space[i] = 1.0;
+  // }
+  // test_weight->data.data = weight_new_space;
+  // PrintWeightandBiasTensor(*test_weight);
 }
 
 // TODO(ycling): Support non-zero default values.
@@ -1990,7 +1990,7 @@ void Subgraph::PrintInputTensor(TfLiteNode& node){
                                            << tensor_data_size << "\n";
   std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
 
-  PrintTensor(*temp);
+  PrintTensorSerial(*temp);
 }
 
 void Subgraph::PrintOutputTensor(TfLiteNode& node){
@@ -2012,7 +2012,7 @@ void Subgraph::PrintOutputTensor(TfLiteNode& node){
                                            << tensor_data_size << "\n";
   std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
 
-  PrintTensor(*temp);  
+  PrintTensorSerial(*temp);  
 }
 
 void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){
@@ -2059,20 +2059,78 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){
   PrintWeightandBiasTensor(*bias);
   std::cout << "\n";
 }
+ 
+// Minsung
+// Returns the bias tensor idx of given node if 'exists'
+// void Subgraph::PrintTensorSerial(TfLiteTensor& tensor){
+//   std::cout << "[Print Tensor in NHWC format]" << "\n";
+//   int tensor_data_dims_size = tensor.dims->size-1;
+//   int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+//   int tensor_data_size = 1;
+//   int tensor_axis;
+//   int n, h, w, c;
+//   int batch, height, width, channel;
+//   if(tensor.dims->size < 4){
+//     std::cout << "PrintTensorSerial only works in 4 dim tensor" << "\n";
+//     return;
+//   }
+//   batch = tensor.dims->data[0];
+//   height = tensor.dims->data[1];
+//   width = tensor.dims->data[2];
+//   channel = tensor.dims->data[3];
 
-void Subgraph::PrintTensorserial(TfLiteTensor& tensor){
+//   for(int i=0; i< tensor.dims->size; i++){
+//     if(i == 1){
+//       tensor_axis = tensor.dims->data[i];
+//     }
+//     tensor_data_size *= tensor.dims->data[i]; 
+//   }
+//   std::cout << " Number of data : " << tensor_data_size << "\n";
+//   std::cout << " Tensor DATA " << "\n";
+//   if(tensor.type == TfLiteType::kTfLiteFloat32){
+//     std::cout << "[FLOAT32 TENSOR]" << "\n";
+//     std::cout << "[" << batch <<", " << height << ", " <<
+//                      width << ", " << channel << "]\n";
+//     auto data_st = (float*)tensor.data.data;
+//     for(int b=0; b<batch; ++b){
+//       for(int c=0; c<channel; ++c){
+//         for(int h=0; h<height; ++h){
+//           for(int w=0; w<width; ++w){
+//             int offset = b * height * width * channel + 
+//                          c * height * width +
+//                          h * width +
+//                          w;
+//             float data = *(data_st+offset);
+//             if (data == 0) {
+//               printf("%0.6f ", data);
+//             }
+//             else if (data != 0) {
+//               printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+//             }
+//           }
+//           std::cout << "\n";
+//         }
+//         std::cout << "\n";
+//       }
+//       std::cout << "\n";
+//     }
+//     std::cout << "\n";
+//   }
+// }
+
+void Subgraph::PrintTensorSerial(TfLiteTensor& tensor){
   std::cout << "[Print Tensor]" << "\n";
-  int tensor_data_dims_size = tensor.dims->size-1;
-  int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+  int tensor_channel_idx = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_channel_idx];
   int tensor_data_size = 1;
   int tensor_axis;
   for(int i=0; i< tensor.dims->size; i++){
-    if(i == 1){
+    if(i == 2){
       tensor_axis = tensor.dims->data[i];
     }
     tensor_data_size *= tensor.dims->data[i]; 
   }
-  std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Number of data : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
   if(tensor.type == TfLiteType::kTfLiteFloat32){
     std::cout << "[FLOAT32 TENSOR]" << "\n";
@@ -2098,7 +2156,6 @@ void Subgraph::PrintTensorserial(TfLiteTensor& tensor){
 
 void Subgraph::PrintTensor(TfLiteTensor& tensor){
   std::cout << "[Print Tensor]" << "\n";
-  
   int tensor_data_dims_size = tensor.dims->size-1;
   int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
@@ -2109,7 +2166,7 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor){
     }
     tensor_data_size *= tensor.dims->data[i]; 
   }
-  std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Number of data : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
   if(tensor.type == TfLiteType::kTfLiteFloat32){
     std::cout << "[FLOAT32 TENSOR]" << "\n";

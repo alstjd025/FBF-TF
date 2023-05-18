@@ -532,7 +532,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
                                      INPUT_TYPE input_type) {
   for (int i = 0; i < 28; ++i) {
     for (int j = 0; j < 28; ++j) {
-      std::cout << ((float)input.at<uchar>(i, j) / 255.0) << " ";
+      printf("%.6f ", ((float)input.at<uchar>(i,j) / 255.0));
     }
     std::cout << "\n";
   }
@@ -559,8 +559,8 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
   }
 
   auto input_pointer = (float*)input_tensor->data.data;
-  int w = input_tensor->dims->data[1];
-  int h = input_tensor->dims->data[2];
+  int h = input_tensor->dims->data[1];
+  int w = input_tensor->dims->data[2];
   switch (input_type) {
     case INPUT_TYPE::MNIST:
       // std::cout << "input_elemSize " << input.elemSize() << "\n"; 
@@ -595,7 +595,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     default:
       break;
   }
-  PrintTensor(*input_tensor, false);
+  PrintTensorSerial(*input_tensor);
   if(use_two_interpreter){
     auto q_input_pointer = (float*)quant_input_tensor->data.data;
     h = quant_input_tensor->dims->data[1];
@@ -604,19 +604,19 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     std::cout << "w " << w << "\n";
     switch (input_type) {
       case INPUT_TYPE::MNIST:
-      for (int i = 0; i < w; ++i) {
-        for (int j = 0; j < h; ++j) {
-          q_input_pointer[i * h + j] = 0;
-        }
-      }
-      for (int i = 0; i < w; ++i) {
-        for (int j = 0; j < h; ++j) {
-          q_input_pointer[i * h + j] = ((float)input.at<uchar>(i+(28-h), j) / 255.0);
-          //q_input_pointer[i * h + j] = 0.0;
+      // for (int i = 0; i < w; ++i) {
+      //   for (int j = 0; j < h; ++j) {
+      //     q_input_pointer[i * h + j] = 0;
+      //   }
+      // }
+      for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+          q_input_pointer[i * w + j] = ((float)input.at<uchar>(i+(28-h), j) / 255.0);
+          // q_input_pointer[i * w + j] = 0.0;
         }
       }
       //q_input_pointer[0] = 1.0;
-      q_input_pointer[27] = 1.0;
+      q_input_pointer[16] = 1.0;
         break;
       case INPUT_TYPE::IMAGENET224:
         memcpy(q_input_pointer, input.data,
@@ -638,7 +638,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         break;
     }
   }
-  PrintTensor(*quant_input_tensor, false);
+  PrintTensorSerial(*quant_input_tensor);
 }
 
 void TfLiteRuntime::FeedInputToModel(const char* model,
@@ -1017,6 +1017,42 @@ void TfLiteRuntime::PrintTensor(TfLiteTensor& tensor, bool is_output){
         }
       }
  //     std::cout << "\n";
+    }
+  }
+}
+
+void TfLiteRuntime::PrintTensorSerial(TfLiteTensor& tensor){
+  std::cout << "[Print Tensor]" << "\n";
+  int tensor_channel_idx = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_channel_idx];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  for(int i=0; i< tensor.dims->size; i++){
+    if(i == 2){
+      tensor_axis = tensor.dims->data[i];
+    }
+    tensor_data_size *= tensor.dims->data[i]; 
+  }
+  std::cout << " Number of data : " << tensor_data_size << "\n";
+  std::cout << " Tensor DATA " << "\n";
+  if(tensor.type == TfLiteType::kTfLiteFloat32){
+    std::cout << "[FLOAT32 TENSOR]" << "\n";
+    auto data_st = (float*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        float data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%0.6f ", data);
+        }
+        else if (data != 0) {
+            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+      std::cout << "\n";
     }
   }
 }
