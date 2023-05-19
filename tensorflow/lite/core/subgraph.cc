@@ -721,6 +721,12 @@ TfLiteStatus Subgraph::AllocateTensors() {
 TfLiteStatus Subgraph::PartitionChannel(){
 	std::vector<int> partitioning_plan;
 	std::vector<float> ratios;
+  if(partitioning_ratios.empty())
+    return kTfLiteOk;
+  else{
+    if(partitioning_ratios[0] >= 10) // this subgraph is hw
+      return kTfLiteOk;
+  }
 	for (int execution_plan_index = 0;
 			execution_plan_index < execution_plan_.size(); execution_plan_index++) {
 		int node_index = execution_plan_[execution_plan_index];
@@ -760,13 +766,9 @@ TfLiteStatus Subgraph::PartitionChannel(){
 					int h = *(dims + 3);
 					int i = *(dims + 4);
 					int next_filter = w * h * i * ((int)bytes / (o * w * h * i));
-          std::cout << "next filer 1 : " << next_filter << "\n";
+         
 					next_filter = (int)next_filter * ceil(o * (1 - ratios[partitioning_plan_index]));
-          std::cout << "bytes : " << bytes << "\n";
-          std::cout<< "o w h i " << o << " " << w << " " << h << " " << i << "\n";
-          std::cout << "ratios : " << ratios[partitioning_plan_index] << "\n";
-          std::cout << "next filer2 " << next_filter << "\n";
-					*data += next_filter; 
+         	*data += next_filter; 
 				}
 				if (n == 2) {							//change bias tensor
 					int o = *(dims + 1);
@@ -1740,37 +1742,34 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     if(resource_type == ResourceType::CO_GPU){
       // Runtime filter modification for co-execution
       std::vector<int> partitioning_ratio = GetPartitioningRatio();
-      std::cout << "P ratio : ";
-      for(int i=0; i<partitioning_ratio.size(); ++i){
-        std::cout << partitioning_ratio[i];
-      }
-      std::cout << "\n";
-      // channel-wise partitioning
-      int conv_filter_before_modification = 0;
-      int partitioning_plan = partitioning_ratio[0];
-      for (int node_index = 0;
-        node_index < nodes_and_registration_.size(); node_index++) {
-        TfLiteNode& node = nodes_and_registration_[node_index].first;
-        const TfLiteRegistration& registration =
-            nodes_and_registration_[node_index].second;
-        int tensor_filter = 0;
-        int tensor_bias = 0;
-        if(!strcmp(GetOpName(registration), "CONV_2D")){
-          std::cout << "Layer " << node_index << " is CONV_2D" << "\n";
-          tensor_filter = node.inputs->data[1];
-          tensor_bias = node.inputs->data[2];
-          conv_filter_before_modification =
-                context_.tensors[tensor_filter].dims->data[0];
-          int modified_value = 
-                ceil(conv_filter_before_modification*((float)partitioning_plan/10));
-          context_.tensors[tensor_filter].dims->data[0] = modified_value;
-          context_.tensors[tensor_bias].dims->data[0] = modified_value;
-          int modified_bytes = 1 * sizeof(float);
-          for(int i=0; i<4; i++){
-            modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+      if(partitioning_ratio[0] < 10){  
+        // channel-wise partitioning
+        int conv_filter_before_modification = 0;
+        int partitioning_plan = partitioning_ratio[0];
+        for (int node_index = 0;
+          node_index < nodes_and_registration_.size(); node_index++) {
+          TfLiteNode& node = nodes_and_registration_[node_index].first;
+          const TfLiteRegistration& registration =
+              nodes_and_registration_[node_index].second;
+          int tensor_filter = 0;
+          int tensor_bias = 0;
+          if(!strcmp(GetOpName(registration), "CONV_2D")){
+            std::cout << "Layer " << node_index << " is CONV_2D" << "\n";
+            tensor_filter = node.inputs->data[1];
+            tensor_bias = node.inputs->data[2];
+            conv_filter_before_modification =
+                  context_.tensors[tensor_filter].dims->data[0];
+            int modified_value = 
+                  ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+            context_.tensors[tensor_filter].dims->data[0] = modified_value;
+            context_.tensors[tensor_bias].dims->data[0] = modified_value;
+            int modified_bytes = 1 * sizeof(float);
+            for(int i=0; i<4; i++){
+              modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
+            }
+            context_.tensors[tensor_filter].bytes = modified_bytes;
+            context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
           }
-          context_.tensors[tensor_filter].bytes = modified_bytes;
-          context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
         }
       }
     }

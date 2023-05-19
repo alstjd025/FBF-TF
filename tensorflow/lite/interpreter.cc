@@ -304,7 +304,7 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 // Minsung
 // First, partition subgraphs in height-wise if needed.
 // (becasue TfLite automatically propagates hw-partitioned tensor dims, 
-//   we partition hw before allocation.)
+//  we partition hw before allocation.)
 // Second, allocate first subgraph of subgraph subset(which have same model id).
 // (first subgraph means the subgraph which owns the input tensor of a model)
 // Check the input tensor range from it.
