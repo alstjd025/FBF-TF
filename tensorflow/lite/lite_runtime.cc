@@ -297,7 +297,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
               << "\n";
     exit(-1);
   }
-  PrintInterpreterStateV2(interpreter);
+  //PrintInterpreterStateV2(interpreter);
   //interpreter->PrintSubgraphInfo();
   
   return kTfLiteOk;
@@ -449,7 +449,11 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
     return kTfLiteError;
   }
   //interpreter->PrintSubgraphInfo();
-  //PrintInterpreterStateV2(interpreter);
+  std::cout << "=====================" << "\n";
+  std::cout << "GPU Interpreter state" << "\n";
+  PrintInterpreterStateV2(interpreter);
+  std::cout << "=====================" << "\n";
+  std::cout << "CPU Interpreter state" << "\n";
   PrintInterpreterStateV2(quantized_interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
@@ -595,7 +599,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     default:
       break;
   }
-  PrintTensorSerial(*input_tensor);
+  // PrintTensorSerial(*input_tensor);
   if(use_two_interpreter){
     auto q_input_pointer = (float*)quant_input_tensor->data.data;
     h = quant_input_tensor->dims->data[1];
@@ -615,8 +619,6 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
           // q_input_pointer[i * w + j] = 0.0;
         }
       }
-      //q_input_pointer[0] = 1.0;
-      q_input_pointer[16] = 1.0;
         break;
       case INPUT_TYPE::IMAGENET224:
         memcpy(q_input_pointer, input.data,
@@ -638,7 +640,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         break;
     }
   }
-  PrintTensorSerial(*quant_input_tensor);
+  // PrintTensorSerial(*quant_input_tensor);
 }
 
 void TfLiteRuntime::FeedInputToModel(const char* model,
@@ -698,6 +700,32 @@ void TfLiteRuntime::WakeScheduler() {
 }
 
 void TfLiteRuntime::JoinScheduler() { interpreter->JoinScheduler(); }
+
+TfLiteStatus TfLiteRuntime::DebugCoInvoke(){
+  c_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, ResourceType::CO_CPU);
+  g_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, ResourceType::CO_GPU);
+  c_thread.join();
+  g_thread.join();
+}
+
+TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
+  // For prototye, invoke first layer only with HW-partitioning and merge them.
+  Subgraph* subgraph;
+  int subgraph_idx = 0;
+  if(type == ResourceType::CO_CPU){
+    subgraph = quantized_interpreter->subgraph(subgraph_idx);
+    if(subgraph->Invoke() != kTfLiteOk){
+      std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+      return kTfLiteError;
+    }
+  }else if(type == ResourceType::CO_GPU){
+    subgraph = interpreter->subgraph(subgraph_idx);
+    if(subgraph->Invoke() != kTfLiteOk){
+      std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+      return kTfLiteError;
+    }
+  }
+}
 
 TfLiteStatus TfLiteRuntime::DebugInvoke() {
   Subgraph* subgraph;

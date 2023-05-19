@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-//#define LATENCY_MEASURE
+#define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -719,14 +719,6 @@ TfLiteStatus Subgraph::AllocateTensors() {
 
 // TODO : Consider better logic for choosing hight, channel partitioning.
 TfLiteStatus Subgraph::PartitionChannel(){
-  if(partitioning_ratios[0] >= 10){
-    if(PartitionHeightTest() != kTfLiteOk){
-      std::cout << "Hight Partitioning for CPU size returned ERROR" << "\n";
-      return kTfLiteError;
-    }else{
-      return kTfLiteOk;
-    }
-  }
 	std::vector<int> partitioning_plan;
 	std::vector<float> ratios;
 	for (int execution_plan_index = 0;
@@ -1268,7 +1260,7 @@ TfLiteStatus Subgraph::Invoke() {
 
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
-    PrintInputTensor(node);
+    // PrintInputTensor(node);
     #ifdef LATENCY_MEASURE
       double response_time = 0;
       struct timespec begin, end;
@@ -1283,10 +1275,10 @@ TfLiteStatus Subgraph::Invoke() {
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
       printf("Invoke Latency %.6f \n", response_time);
     #endif
-    if(execution_plan_index == 0){
-      PrintWeightandBiasTensor(node);
-    }
-    PrintOutputTensor(node);
+    // if(execution_plan_index == 0){
+    //   PrintWeightandBiasTensor(node);
+    // }
+    // PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1753,38 +1745,32 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         std::cout << partitioning_ratio[i];
       }
       std::cout << "\n";
-      if(partitioning_ratio[0] >= 10){ // Height-wise partitioning
-        if(PartitionHeightTest() != kTfLiteOk){
-          std::cout << "Height partitioning returned ERROR" << "\n";
-          return kTfLiteError;
-        }
-      }else{ // channel-wise partitioning
-        int conv_filter_before_modification = 0;
-        int partitioning_plan = partitioning_ratio[0];
-        for (int node_index = 0;
-          node_index < nodes_and_registration_.size(); node_index++) {
-          TfLiteNode& node = nodes_and_registration_[node_index].first;
-          const TfLiteRegistration& registration =
-              nodes_and_registration_[node_index].second;
-          int tensor_filter = 0;
-          int tensor_bias = 0;
-          if(!strcmp(GetOpName(registration), "CONV_2D")){
-            std::cout << "Layer " << node_index << " is CONV_2D" << "\n";
-            tensor_filter = node.inputs->data[1];
-            tensor_bias = node.inputs->data[2];
-            conv_filter_before_modification =
-                  context_.tensors[tensor_filter].dims->data[0];
-            int modified_value = 
-                  ceil(conv_filter_before_modification*((float)partitioning_plan/10));
-            context_.tensors[tensor_filter].dims->data[0] = modified_value;
-            context_.tensors[tensor_bias].dims->data[0] = modified_value;
-            int modified_bytes = 1 * sizeof(float);
-            for(int i=0; i<4; i++){
-              modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
-            }
-            context_.tensors[tensor_filter].bytes = modified_bytes;
-            context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
+      // channel-wise partitioning
+      int conv_filter_before_modification = 0;
+      int partitioning_plan = partitioning_ratio[0];
+      for (int node_index = 0;
+        node_index < nodes_and_registration_.size(); node_index++) {
+        TfLiteNode& node = nodes_and_registration_[node_index].first;
+        const TfLiteRegistration& registration =
+            nodes_and_registration_[node_index].second;
+        int tensor_filter = 0;
+        int tensor_bias = 0;
+        if(!strcmp(GetOpName(registration), "CONV_2D")){
+          std::cout << "Layer " << node_index << " is CONV_2D" << "\n";
+          tensor_filter = node.inputs->data[1];
+          tensor_bias = node.inputs->data[2];
+          conv_filter_before_modification =
+                context_.tensors[tensor_filter].dims->data[0];
+          int modified_value = 
+                ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+          context_.tensors[tensor_filter].dims->data[0] = modified_value;
+          context_.tensors[tensor_bias].dims->data[0] = modified_value;
+          int modified_bytes = 1 * sizeof(float);
+          for(int i=0; i<4; i++){
+            modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
           }
+          context_.tensors[tensor_filter].bytes = modified_bytes;
+          context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
         }
       }
     }

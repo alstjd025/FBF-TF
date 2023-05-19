@@ -721,6 +721,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "DeleteSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
+  // MUST CHECK
+  // Does CPU-side interpreter need to call AllocateTensors twice?
   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;

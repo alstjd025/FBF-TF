@@ -302,20 +302,47 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 }
 
 // Minsung
-// First, allocate first subgraph of subgraph subset(which have same model id).
+// First, partition subgraphs in height-wise if needed.
+// (becasue TfLite automatically propagates hw-partitioned tensor dims, 
+//   we partition hw before allocation.)
+// Second, allocate first subgraph of subgraph subset(which have same model id).
 // (first subgraph means the subgraph which owns the input tensor of a model)
 // Check the input tensor range from it.
 // Resize intermediate sharing tensors of all subgraph subset.
+// Then, partition other subgraphs in height-wise.
 // Finally allocate tensors of all subgraph subset.
 TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
+  auto HeightPartitionIfNeed = [&](Subgraph* subgraph){
+    if(subgraph->GetResourceType() == ResourceType::CO_CPU ||
+        subgraph->GetResourceType() == ResourceType::CO_GPU){
+      std::vector<int> partitioning_ratio;
+      partitioning_ratio = subgraph->GetPartitioningRatio();
+      if(partitioning_ratio.empty()){
+        std::cout << "ERROR HeightPartitionIfNeed : " << "graph has been set Co-execution"
+                  << " but has no partitioning plan" << "\n";
+        return kTfLiteError;
+      }
+      if(partitioning_ratio[0] >= 10){
+        if(subgraph->PartitionHeightTest() != kTfLiteOk){
+          std::cout << "Height partitioning TEST returned ERROR" << "\n";
+          return kTfLiteError;
+        }
+      }
+    }
+    return kTfLiteOk;
+  };
   Subgraph* primary_working_subgraph;
   for(auto subset : subgraph_subsets){
     if(subset.first == model_id){
       if(subset.second.size() > 0){
         primary_working_subgraph = subgraph_id(subset.second[0]); // Allocate first subgraph
+        if(HeightPartitionIfNeed(primary_working_subgraph) != kTfLiteOk){
+          std::cout << "Height Partition ERROR in AllocateTensors" << "\n";
+          return kTfLiteError;
+        } 
         if(primary_working_subgraph->AllocateTensors() != kTfLiteOk){
           std::cout << "AllocateTensors of graph [" << subset.second[0] << "] "
-          << "returned ERROR" << "\n";
+            << "returned ERROR" << "\n";
           return kTfLiteError;
         }
         // Resize intermediate shared tensors with GetIntermediateTensorRange()
@@ -340,8 +367,12 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                   }
                   else
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
-                    if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
-                      return kTfLiteError;
+                  if(HeightPartitionIfNeed(subgraph_id(working_subgraph)) != kTfLiteOk){
+                    std::cout << "Height Partition ERROR in AllocateTensors" << "\n";
+                    return kTfLiteError;
+                  }  
+                  if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
+                    return kTfLiteError;
                 }
                 working_tensor = nullptr;
                 match_dims.clear();

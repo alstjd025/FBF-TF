@@ -68,7 +68,18 @@ class TfLiteRuntime{
     /// For debugging only
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);
+
+    // Debug invoke (for single interpreter invoke test) 
     TfLiteStatus DebugInvoke();
+
+    // Debug invoke (for co-execution invoke test api) 
+    TfLiteStatus DebugCoInvoke();
+
+    // Debug invoke (for co-execution invoke synchronization test)
+    // Call after DebugCoInvoke()
+    TfLiteStatus DebugSyncInvoke(ResourceType type);
+
+
     void FeedInputToModelDebug(const char* model, cv::Mat& input,
                           INPUT_TYPE input_type);
     void PrintOutput(Subgraph* subgraph);
@@ -100,7 +111,11 @@ class TfLiteRuntime{
     tflite::InterpreterBuilder* interpreter_builder;
     tflite::InterpreterBuilder* quantized_builder;
 
+    // Co-execution
     bool co_execution = false;
+    
+    std::thread c_thread;
+    std::thread g_thread;
 
     // Subgraph partitioning
     // Maybe need to change for CO-execution ratio.
