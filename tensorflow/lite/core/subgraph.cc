@@ -826,10 +826,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     }
     tensor_pair.push_back(std::pair<int, int>(input_tensor, output_tensor));
   }
-  std::cout << "Got intput, output tensors to resize" << "\n";
-  for(int i=0; i<tensor_pair.size(); ++i){
-    std::cout << tensor_pair[i].first << " " << tensor_pair[i].second << "\n";
-  }
 
   // Resize the tensors 
   // TEST FOR FIRST NODE

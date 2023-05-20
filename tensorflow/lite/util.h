@@ -149,12 +149,14 @@ typedef enum WorkerState{
   BLOCKED
 } WorkerState;
 
-
+// ResourceType for subgraph
+// 
 typedef enum ResourceType{
   CPU,
   GPU,
   CO_CPU,
-  CO_GPU
+  CO_GPU,
+  NONE
 } ResourceType;
 
 typedef enum RuntimeState{

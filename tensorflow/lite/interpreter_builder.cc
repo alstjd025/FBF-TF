@@ -191,7 +191,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
                                       const OpResolver& op_resolver,
                                       Interpreter* interpreter,
                                       const char* model_name,
-                                      int model_id, bool is_co_execution_cpu)
+                                      int model_id, bool is_sub_interpreter)
     : model_(model.GetModel()),
       op_resolver_(op_resolver),
       error_reporter_(DefaultErrorReporter()),
@@ -199,7 +199,7 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
       interpreter_(interpreter),
       model_id_(model_id),
       model_name_(model_name),
-      is_co_execution_cpu(is_co_execution_cpu){
+      is_sub_interpreter(is_sub_interpreter){
         dummy_profile_ = new ProfileData;
       }
 
@@ -546,11 +546,18 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_plan->resource_type = ResourceType::CPU;
           break;
         case TF_P_PLAN_GPU:
+          if(is_sub_interpreter){
+            // Don't create subgraph if sub-interprter. 
+            new_plan->resource_type = ResourceType::NONE;
+            break;
+          }
           new_plan->resource_type = ResourceType::GPU;
           break;
         case TF_P_PLAN_CO_E:
-          if(is_co_execution_cpu)
+          if(is_sub_interpreter){
             new_plan->resource_type = ResourceType::CO_CPU;
+            break;
+          }
           else
             new_plan->resource_type = ResourceType::CO_GPU;
           break;
@@ -571,7 +578,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     };
     CreatePartitioningPlanFromProfile(dummy_profile_);
 
-    //For profiling
+    // Initialize variables for profiling
     std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
     std::vector<std::pair<int, std::vector<int>>> shared_info;
     int shared_tensor_bucket[tensors->size()][master_partitioning_plan.size()];
@@ -583,36 +590,43 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     // Partitioning iteration begins
     for(int partition_itr=0; partition_itr<master_partitioning_plan.size(); 
                                                 ++partition_itr){
+      if(master_partitioning_plan[partition_itr]->resource_type 
+          == ResourceType::NONE)
+        continue; // Don't make subgraph for resourcetype::NONE
       /// Make a new subgraph
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
       subgraphs_created.push_back(new_subgraph);
-      if(!prev_queue.empty()){ // make linked-list structure
+      if(!prev_queue.empty()){ // make linked-list structure of subgraphs
         prev_queue.front()->SetNextSubgraph(new_subgraph);
         new_subgraph->SetPrevSubgraph(prev_queue.front());
         prev_queue.pop();
       }
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
-      const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
+      const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size; 
       switch (master_partitioning_plan[partition_itr]->resource_type)
       {
       case ResourceType::CPU:
-        // Set this sugraph as cpu subgraph
+        // Set this sugraph for cpu subgraph
         new_subgraph->SetResourceType(ResourceType::CPU);
+        std::cout << "Set new graph for cpu" << "\n";
         break;
       case ResourceType::GPU:
-        // Set this sugraph as gpu subgraph
+        // Set this sugraph for gpu subgraph
         new_subgraph->SetResourceType(ResourceType::GPU);
+        std::cout << "Set new graph for gpu" << "\n";
         break;
       case ResourceType::CO_CPU:
         new_subgraph->SetResourceType(ResourceType::CO_CPU);
         new_subgraph->PushPartitioningRatio(
-          master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
+        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
+        std::cout << "Set new graph for co_cpu" << "\n";
         break;
       case ResourceType::CO_GPU:
         new_subgraph->SetResourceType(ResourceType::CO_GPU);
         new_subgraph->PushPartitioningRatio(
-          master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
+        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
+        std::cout << "Set new graph for co_gpu" << "\n";
         break;
       default:
         break;
@@ -721,7 +735,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "DeleteSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
-  // MUST CHECK
+  // MUST CHEKC
   // Does CPU-side interpreter need to call AllocateTensors twice?
   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
@@ -733,7 +747,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "DelegateOldSubgraphs ERROR" << "\n";
     return kTfLiteError;
   }
-  if(is_co_execution_cpu){ // If Co-execution CPU InterpreterBuilder
+  if(is_sub_interpreter){ // If Co-execution CPU InterpreterBuilder
     if(PartitionChannels((subgraphs_created)) != kTfLiteOk){
       std::cout << "Partition channel-wise for cpu ERROR" << "\n";
       return kTfLiteError;
@@ -789,12 +803,11 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(
                                       tflite::Subgraph* new_subgraph,
                                       tflite::Job* new_job){
   // Setup model, job, graph id 
-  std::cout << "Bind" << "\n";
   new_subgraph->SetModelid(model_id_);
   new_subgraph->SetJobid(interpreter_->GetAndAddNumJobsCreated(1));
   new_subgraph->SetGraphid(interpreter_->GetAndAddSubgraphsCreated(1));
   graph_subsets.push_back(new_subgraph->GetGraphid());
-  std::cout << "Bind" << "\n";
+  
   // Make a new job
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
   new_job->job_id = new_subgraph->GetJobid();
@@ -804,7 +817,6 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithDefaultJob(
   new_job->resource_type = ResourceType::CPU;
   new_job->subgraphs.push_back(
                   std::pair<int, int>(new_subgraph->GetGraphid(), -1));
-  std::cout << "Bind" << "\n";
   return kTfLiteOk;
 }
 

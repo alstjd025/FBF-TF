@@ -739,8 +739,8 @@ TfLiteStatus TfLiteRuntime::DebugInvoke() {
       std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
       return kTfLiteError;
     }
-    if(subgraph->GetNextSubgraph() == nullptr)
-      PrintOutput(subgraph);
+    // if(subgraph->GetNextSubgraph() == nullptr)
+    //   PrintOutput(subgraph);
     subgraph_idx++;
   }
   return kTfLiteOk;

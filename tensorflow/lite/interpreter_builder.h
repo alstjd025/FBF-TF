@@ -190,8 +190,8 @@ class InterpreterBuilder {
   
   int default_thread = 4;
 
-  // flag for co-execution model for cpu.
-  bool is_co_execution_cpu = false;
+  // flag for sub interpreter.
+  bool is_sub_interpreter = false;
   ProfileData* dummy_profile_;
 
   tflite::Interpreter* interpreter_;
