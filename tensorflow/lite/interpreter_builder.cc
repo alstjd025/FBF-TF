@@ -528,6 +528,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     
     auto CreatePartitioningPlanFromProfile = [&](const ProfileData* profile){
       for(int i=0; i<profile->layer_subsets.size(); ++i){ //graphs
+        std::cout << "Create new subgraph plan "  << "\n";
         SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
         new_plan->size = profile->layer_subsets[i].size();
         new_plan->nodes = new int[new_plan->size];
@@ -566,6 +567,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         }
         for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers
           new_plan->nodes[j] = profile->layer_subsets[i][j];
+          std::cout << "Pushed node " << new_plan->nodes[j] << "\n";
           // TODO : Consider better implementation for partitioning ratio per layer.
           //        This code applies same partitiong ratio in a whole single subgraph. 
           if(profile->partitioning_ratios[i][j] != 0){
@@ -604,6 +606,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size; 
+      //std::cout << "num_nodes_in_partition : " << num_nodes_in_partition << "\n";
       switch (master_partitioning_plan[partition_itr]->resource_type)
       {
       case ResourceType::CPU:
@@ -633,6 +636,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
+        std::cout << "Working op " << working_op << "\n";
         const auto* op = operators->Get(working_op);
         int op_index = op->opcode_index();
         /// get every tensor indices of all nodes
@@ -735,7 +739,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "DeleteSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
-  // MUST CHEKC
+  // MUST CHECK
   // Does CPU-side interpreter need to call AllocateTensors twice?
   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";

@@ -312,7 +312,7 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 // Then, partition other subgraphs in height-wise.
 // Finally allocate tensors of all subgraph subset.
 TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
-  auto HeightPartitionIfNeed = [&](Subgraph* subgraph){
+  auto HeightPartitionAndAllocateIfNeed = [&](Subgraph* subgraph){
     if(subgraph->GetResourceType() == ResourceType::CO_CPU ||
         subgraph->GetResourceType() == ResourceType::CO_GPU){
       std::vector<int> partitioning_ratio;
@@ -327,6 +327,10 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
           std::cout << "Height partitioning TEST returned ERROR" << "\n";
           return kTfLiteError;
         }
+        if(subgraph->AllocateTensors() != kTfLiteOk){
+          std::cout << "AllocateTensors after HeightPartitioning returned ERROR" << "\n";
+          return kTfLiteError;
+        }
       }
     }
     return kTfLiteOk;
@@ -336,10 +340,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
     if(subset.first == model_id){
       if(subset.second.size() > 0){
         primary_working_subgraph = subgraph_id(subset.second[0]); // Allocate first subgraph
-        if(HeightPartitionIfNeed(primary_working_subgraph) != kTfLiteOk){
-          std::cout << "Height Partition ERROR in AllocateTensors" << "\n";
-          return kTfLiteError;
-        } 
         if(primary_working_subgraph->AllocateTensors() != kTfLiteOk){
           std::cout << "AllocateTensors of graph [" << subset.second[0] << "] "
             << "returned ERROR" << "\n";
@@ -365,12 +365,10 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
-                  else
+                  else{
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
-                  if(HeightPartitionIfNeed(subgraph_id(working_subgraph)) != kTfLiteOk){
-                    std::cout << "Height Partition ERROR in AllocateTensors" << "\n";
-                    return kTfLiteError;
-                  }  
+                    std::cout << "resized dims for tensor " << base_tensor << "\n";
+                  }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
                 }
@@ -379,10 +377,18 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
               }
             }           
           }
-        }
+        }      
       }else{
         std::cout << "Interpreter : Allocation Error, no registerd subgraph of "
                   << "model id [" << model_id << "] \n";
+        return kTfLiteError;
+      }
+    }
+    for(int subgraph_idx=0; subgraph_idx<subset.second.size(); ++subgraph_idx){
+      int working_subgraph_id = subset.second[subgraph_idx];
+      Subgraph* working_subgraph = subgraph_id(working_subgraph_id);
+      if(HeightPartitionAndAllocateIfNeed(working_subgraph) != kTfLiteOk){
+        std::cout << "HeightPartitionAndAllocateIfNeed returned ERROR" << "\n";
         return kTfLiteError;
       }
     }
@@ -772,10 +778,10 @@ TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
 TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   subgraphs_.emplace_back(new_subgraph);
   std::cout << "Interpreter: New subgraph, now size:" << subgraphs_.size() << "\n";
-  // for(int i=0; i<subgraphs_.size(); ++i){
-  //   std::cout << "id : " << subgraphs_[i]->GetGraphid();
-  // }
-  // std::cout << "\n";
+  for(int i=0; i<subgraphs_.size(); ++i){
+    std::cout << "id : " << subgraphs_[i]->GetGraphid();
+  }
+  std::cout << "\n";
   return kTfLiteOk;
 }
 
@@ -816,6 +822,7 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
   LockJobs();
   for(size_t i=0; i<subgraphs_.size(); ++i){
     if(subgraphs_[i]->GetGraphid() == subgraph_id){
+      std::cout << "Delete subgraph of id " << subgraphs_[i]->GetGraphid() << "\n"; 
       subgraphs_.erase(subgraphs_.begin()+i);
     }
   }

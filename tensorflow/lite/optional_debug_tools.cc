@@ -140,6 +140,7 @@ void PrintInterpreterState(Interpreter* interpreter) {
 void PrintInterpreterStateV2(Interpreter* interpreter) {
   int subgraph_size = interpreter->subgraphs_size();
   printf("Interpreter has %d subgraphs\n", subgraph_size);
+  //interpreter->PrintSubgraphInfo();
   for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
     std::cout << "======================================" << "\n";
     int subgraph_id = interpreter->subgraph(subgraph_index)->GetGraphid();

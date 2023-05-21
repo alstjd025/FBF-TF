@@ -391,12 +391,10 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
 }
 
 TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
-  std::cout << "PartitionCoSubgraphs" << "\n";
   std::vector<std::vector<int>> raw_plan;
   for(int i=0; i<TF_P_PLAN_LENGTH; ++i){
     raw_plan.push_back(std::vector<int>());
     if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
-      std::cout << partitioning_plan[i][TF_P_IDX_START] << "\n";
       raw_plan[i].push_back(TF_P_END_PLAN);
       break;
     }
@@ -404,8 +402,6 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
       raw_plan[i].push_back(partitioning_plan[i][j]);
     }
   }  
-  std::cout << "raw plan has copied" << "\n";
-
   // Create subgraphs of float model
   interpreter_builder->CopyRawPartitioningPlan(raw_plan);
   Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
