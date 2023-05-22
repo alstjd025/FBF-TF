@@ -709,6 +709,7 @@ TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
   Subgraph* subgraph;
   int subgraph_idx = 0;
   if(type == ResourceType::CO_CPU){
+    // 
     subgraph = quantized_interpreter->subgraph(subgraph_idx);
     if(subgraph->Invoke() != kTfLiteOk){
       std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
@@ -716,11 +717,19 @@ TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
     }
   }else if(type == ResourceType::CO_GPU){
     subgraph = interpreter->subgraph(subgraph_idx);
+    if(subgraph->GetResourceType() == CO_GPU){
+      // wake cpu thread here
+    }
     if(subgraph->Invoke() != kTfLiteOk){
       std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
       return kTfLiteError;
     }
+    // sync with cpu here
+
+    // data merge here
+
   }
+
 }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke() {
@@ -953,13 +962,13 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
 
   // check dims 
   if(dest_tensor->dims->data[1] == source_tensor_cpu->dims->data[1]){
-    // CH partitioning case
+    // Merge CW-partitioned data 
     int dest_ch, source_cpu_ch, source_gpu_ch;
     dest_ch = dest_tensor->dims->data[3];
     source_cpu_ch = source_tensor_cpu->dims->data[3];
     source_gpu_ch = source_tensor_gpu->dims->data[3];
     if((source_cpu_ch + source_gpu_ch) != dest_ch){
-      std::cout << "Tensor dim cpu + gpu != dest ERROR" << "\n";
+      std::cout << "Tensor dim [OCH] cpu + gpu != dest ERROR" << "\n";
       return;
     }
     auto data_cpu = (float*)source_tensor_cpu->data.data;
@@ -978,9 +987,41 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
       memcpy(data_dest + (source_gpu_ch * (i+1)), data_cpu + (source_cpu_ch * i),
               source_cpu_ch * sizeof(float));
     }
-  }else{ // HW partitioning case
+  }else{ // Merge HW-partitioned data
+    int dest_ch = dest_tensor->dims->data[3];
+    int dest_ht = dest_tensor->dims->data[1];
+    int source_cpu_ht = source_tensor_cpu->dims->data[1];
+    int source_gpu_ht = source_tensor_gpu->dims->data[1];
+    int tensor_dest_data_size = 1;
+    int tensor_gpu_data_size = 1;
+    int tensor_cpu_data_size = 1;
+    for(int i=0; i<dest_tensor->dims->size; ++i){
+      tensor_dest_data_size *= dest_tensor->dims->data[i];
+    }
+    for(int i=0; i<source_tensor_gpu->dims->size; ++i){
+      tensor_gpu_data_size *= source_tensor_gpu->dims->data[i];
+    }
+    for(int i=0; i<source_tensor_cpu->dims->size; ++i){
+      tensor_cpu_data_size *= source_tensor_cpu->dims->data[i];
+    }
+    if((tensor_gpu_data_size + tensor_cpu_data_size) != tensor_dest_data_size){
+      std::cout << "Tensor size cpu + gpu != dest ERROR" << "\n";
+      return;
+    }
+    if((source_cpu_ht + source_gpu_ht) != dest_ht){
+      std::cout << "Tensor dim [Height] cpu + gpu != dest ERROR" << "\n";
+      return;
+    }
+    auto data_cpu = (float*)source_tensor_cpu->data.data;
+    auto data_gpu = (float*)source_tensor_gpu->data.data;
+    auto data_dest = (float*)dest_tensor->data.data;
 
+    memcpy(data_dest, data_gpu, sizeof(float)*tensor_gpu_data_size);
+    memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
+            sizeof(float)*tensor_cpu_data_size);
   }
+  PrintTensorSerial(*dest_tensor);
+  return; 
 }
 
 void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {

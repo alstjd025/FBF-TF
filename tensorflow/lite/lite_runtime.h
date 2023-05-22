@@ -117,11 +117,18 @@ class TfLiteRuntime{
     tflite::InterpreterBuilder* interpreter_builder;
     tflite::InterpreterBuilder* quantized_builder;
 
-    // Co-execution
+    //// Co-execution
     bool co_execution = false;
     
     std::thread c_thread;
     std::thread g_thread;
+
+    std::condition_variable invoke_sync_cv;
+    std::condition_variable data_sync_cv;
+    std::mutex data_sync_mtx;
+    std::mutex invoke_sync_mtx;
+    bool is_execution_done = false;
+    ////
 
     // Subgraph partitioning
     // Maybe need to change for CO-execution ratio.
