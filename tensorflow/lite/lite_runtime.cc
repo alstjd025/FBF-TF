@@ -976,7 +976,9 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* source_tensor_cpu = cpu_source->tensor(source_tensor_cpu_idx);
   TfLiteTensor* source_tensor_gpu = gpu_source->tensor(source_tensor_gpu_idx);
-
+  std::cout << "dest_tensor_idx : " << dest_tensor_idx << "\n";
+  std::cout << "source_tensor_cpu_idx : " << source_tensor_cpu_idx << "\n";
+  std::cout << "source_tensor_gpu_idx : " << source_tensor_gpu_idx << "\n"; 
   if(dest_tensor == nullptr || source_tensor_cpu == nullptr ||
       source_tensor_gpu == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
@@ -1035,6 +1037,9 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
     for(int i=0; i<source_tensor_cpu->dims->size; ++i){
       tensor_cpu_data_size *= source_tensor_cpu->dims->data[i];
     }
+    std::cout << "tensor_gpu_data_size : " << tensor_gpu_data_size << "\n";
+    std::cout << "tensor_cpu_data_size: " << tensor_cpu_data_size << "\n";
+    std::cout << "tensor_dest_data_size: " << tensor_dest_data_size << "\n";
     if((tensor_gpu_data_size + tensor_cpu_data_size) != tensor_dest_data_size){
       std::cout << "Tensor size cpu + gpu != dest ERROR" << "\n";
       return;
@@ -1051,6 +1056,8 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
     memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
             sizeof(float)*tensor_cpu_data_size);
   }
+  PrintTensorSerial(*source_tensor_cpu);
+  PrintTensorSerial(*source_tensor_gpu);
   PrintTensorSerial(*dest_tensor);
   return; 
 }

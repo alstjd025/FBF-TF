@@ -850,7 +850,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   int h = input_tensor->dims->data[1];
   int w = input_tensor->dims->data[2];
   int i = input_tensor->dims->data[3];
-  padding = 16;
+  padding = 15;
   new_dims[0] = o;
   new_dims[1] = padding;
   new_dims[2] = w;
