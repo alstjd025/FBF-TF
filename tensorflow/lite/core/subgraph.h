@@ -218,6 +218,10 @@ class Subgraph {
   // Access to an input tensor (for multiple subgraphs and GPUdelegate)
   int GetInputTensorIndex() { return inputs()[inputs().size()-1]; }
 
+  // MInsung
+  // Access to an output tensor (for multiple subgraphs and GPUdelegate)
+  int GetOutputTensorIndex() { return outputs()[outputs().size()-1]; }
+
   //Minsung 
   //Returns Output Tensor index of given node
   // THIS FUNCTION IS NOT SAFE

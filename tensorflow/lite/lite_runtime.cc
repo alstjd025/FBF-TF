@@ -917,6 +917,72 @@ TfLiteStatus TfLiteRuntime::InvokeSingleExecution() {
   return kTfLiteOk;
 }
 
+
+// Description below is conceptual. 
+// Get dest subgraphs('D')'s next subgraph. (subgraph 'Dn')
+// Compare input & output dims between 'Dn' and 'S'(source subgraph, probabily cpu side)
+// Merge 'S' and 'D's output tensor to 'Dn's input tensor.
+void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_source){
+  Subgraph* dest_subgraph;
+  dest_subgraph = gpu_source->GetNextSubgraph();
+  if(dest_subgraph == nullptr){
+    std::cout << "MergeCoExecutionData ERROR" << "\n";
+    std::cout << "dest_subgraph nullptr." << "\n";
+    return;
+  }
+  int dest_tensor_idx = dest_subgraph->GetInputTensorIndex();
+  int source_tensor_cpu_idx = cpu_source->GetOutputTensorIndex();
+  int source_tensor_gpu_idx = gpu_source->GetOutputTensorIndex();
+  TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
+  TfLiteTensor* source_tensor_cpu = cpu_source->tensor(source_tensor_cpu_idx);
+  TfLiteTensor* source_tensor_gpu = gpu_source->tensor(source_tensor_gpu_idx);
+
+  if(dest_tensor == nullptr || source_tensor_cpu == nullptr ||
+      source_tensor_gpu == nullptr){
+    std::cout << "MergeCoExecutionData ERROR" << "\n";
+    std::cout << "Tensor NULLPTR" << "\n";
+    return;
+  }
+
+  if(dest_tensor->dims->size < 4 || source_tensor_cpu->dims->size < 4 ||
+      source_tensor_gpu->dims->size < 4){
+    std::cout << "MergeCoExecutionData ERROR" << "\n";
+    std::cout << "Tensor rank smaller then 4" << "\n";
+    return;
+  }
+
+  // check dims 
+  if(dest_tensor->dims->data[1] == source_tensor_cpu->dims->data[1]){
+    // CH partitioning case
+    int dest_ch, source_cpu_ch, source_gpu_ch;
+    dest_ch = dest_tensor->dims->data[3];
+    source_cpu_ch = source_tensor_cpu->dims->data[3];
+    source_gpu_ch = source_tensor_gpu->dims->data[3];
+    if((source_cpu_ch + source_gpu_ch) != dest_ch){
+      std::cout << "Tensor dim cpu + gpu != dest ERROR" << "\n";
+      return;
+    }
+    auto data_cpu = (float*)source_tensor_cpu->data.data;
+    auto data_gpu = (float*)source_tensor_gpu->data.data;
+    auto data_dest = (float*)dest_tensor->data.data;
+    int tensor_data_size = 1;
+    for(int i=0; i<dest_tensor->dims->size; ++i){
+      tensor_data_size *= dest_tensor->dims->data[i];
+    }
+    int tensor_data_per_ch = tensor_data_size / dest_ch;
+    for(int i=0; i<tensor_data_per_ch; ++i){ //copy GPU side data
+      memcpy(data_dest + (source_cpu_ch * i), data_gpu + (source_gpu_ch * i),
+              source_gpu_ch * sizeof(float));
+    }
+    for(int i=0; i<tensor_data_per_ch; ++i){ //copy CPU side data
+      memcpy(data_dest + (source_gpu_ch * (i+1)), data_cpu + (source_cpu_ch * i),
+              source_cpu_ch * sizeof(float));
+    }
+  }else{ // HW partitioning case
+
+  }
+}
+
 void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
   // use source_graph_id, dest_graph_id
   auto connect = [&](int source_subgraph, int dest_subgraph) {

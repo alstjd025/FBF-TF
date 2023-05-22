@@ -65,7 +65,7 @@ class TfLiteRuntime{
                           INPUT_TYPE input_type);
 
     
-    /// For debugging only
+    /// For debugging only ==
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);
 
@@ -85,7 +85,7 @@ class TfLiteRuntime{
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
     void PrintTensorSerial(TfLiteTensor& tensor);
-    //////
+    ////// ==
 
     void WakeScheduler();
     void JoinScheduler();
@@ -93,7 +93,13 @@ class TfLiteRuntime{
     TfLiteStatus Invoke();
     TfLiteStatus InvokeCoExecution();
     TfLiteStatus InvokeSingleExecution();
+
+    // Merge output(which is intermediate in the view of whole task)
+    // data from previous subgraph.
     void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
+    
+    // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
+    void MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_source);
 
     //// IPC functions
     // Initialize UDS and check communication with scheduler.
