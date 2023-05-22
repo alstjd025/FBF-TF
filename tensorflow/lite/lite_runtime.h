@@ -128,10 +128,11 @@ class TfLiteRuntime{
     std::mutex data_sync_mtx;
     std::mutex invoke_sync_mtx;
     bool is_execution_done = false;
+    bool invoke_cpu = false;
+    Subgraph* co_execution_graph = nullptr;
     ////
 
     // Subgraph partitioning
-    // Maybe need to change for CO-execution ratio.
     int partitioning_plan[1000][4];
 
     // IPC

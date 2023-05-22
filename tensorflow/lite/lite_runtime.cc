@@ -699,35 +699,66 @@ void TfLiteRuntime::JoinScheduler() { interpreter->JoinScheduler(); }
 
 TfLiteStatus TfLiteRuntime::DebugCoInvoke(){
   c_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, ResourceType::CO_CPU);
-  g_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, ResourceType::CO_GPU);
+  DebugSyncInvoke(ResourceType::CO_GPU);
   c_thread.join();
-  g_thread.join();
 }
 
 TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
   int subgraph_idx = 0;
-  if(type == ResourceType::CO_CPU){
-    // 
-    subgraph = quantized_interpreter->subgraph(subgraph_idx);
-    if(subgraph->Invoke() != kTfLiteOk){
-      std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
-      return kTfLiteError;
+  while(true){
+    if(type == ResourceType::CO_CPU){
+      // sync with gpu here (notified by gpu)
+      std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
+      invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
+      invoke_cpu = false;
+      subgraph = quantized_interpreter->subgraph(subgraph_idx);
+      if(subgraph->Invoke() != kTfLiteOk){
+        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        return kTfLiteError;
+      }
+      // sync with gpu here (wake gpu)
+      std::unique_lock<std::mutex> lock_data(data_sync_mtx);
+      is_execution_done = true;
+      co_execution_graph = subgraph;
+      data_sync_cv.notify_one();
+      if(subgraph->GetNextSubgraph() != nullptr)
+        subgraph_idx++;
+      else{
+        std::cout << "CPU execution done" << "\n";
+        break;
+      }
+    }else if(type == ResourceType::CO_GPU){
+      subgraph = interpreter->subgraph(subgraph_idx);
+      if(subgraph->GetResourceType() == CO_GPU){
+        // wake cpu thread here
+        std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
+        invoke_cpu = true;
+        invoke_sync_cv.notify_one();
+      }
+      if(subgraph->Invoke() != kTfLiteOk){
+        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        return kTfLiteError;
+      }
+      if(subgraph->GetResourceType() == CO_GPU){
+        // sync with cpu here
+        std::unique_lock<std::mutex> lock_data(data_sync_mtx);
+        data_sync_cv.wait(lock_data, [&]{ return is_execution_done; });
+        is_execution_done = false;
+        // data merge here
+        if(co_execution_graph != nullptr){
+          MergeCoExecutionData(co_execution_graph, subgraph);
+          co_execution_graph = nullptr;
+        }
+      }
+      if(subgraph->GetNextSubgraph() != nullptr)
+        subgraph_idx++;
+      else{
+        std::cout << "GPU execution done" << "\n";
+        break;
+      }
     }
-  }else if(type == ResourceType::CO_GPU){
-    subgraph = interpreter->subgraph(subgraph_idx);
-    if(subgraph->GetResourceType() == CO_GPU){
-      // wake cpu thread here
-    }
-    if(subgraph->Invoke() != kTfLiteOk){
-      std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
-      return kTfLiteError;
-    }
-    // sync with cpu here
-
-    // data merge here
-
   }
 
 }
