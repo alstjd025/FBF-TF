@@ -1082,10 +1082,16 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   }
   
 
+
+
+// --------------------------------------------------------------------------------------------------------------
+// HOON : tensor access methods
+
   // Invocations are always done in node order.
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
+  int final_execution_index = execution_plan_.size()-1;
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     //if(eType == UnitType::GPU0)
@@ -1106,21 +1112,50 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     
     if (profiler_) op_name = GetTFLiteOpName(registration);
     TFLITE_SCOPED_TAGGED_OPERATOR_PROFILE(profiler_.get(), op_name, node_index);
+  
+    for (int i = 0; i < node.outputs->size; ++i) {
+      int tensor_index = node.outputs->data[i];
+      // printf("HOON. each node (%d)'s output tensor's index num  :  %d\n",execution_plan_index,tensor_index);
+      //TfLiteTensor* tensor = &context_.tensors[tensor_index]; //HOON  : same tool . indirect
+      TfLiteTensor* tensor = &tensors_[tensor_index]; //HOON : same tool. direct. (not via tfitecontext)      
+      // printf("HOON. output tensor's bytes is %u\n" ,tensor->bytes);
+      if(tensor_index == 212) {
+        // --------------------------------------------
+        printf("212 : \n");
+        printf("todopoint %f\n", tensor->data);
+        PrintTensor(*tensor, UnitType::GPU0);
+        
+      }    
+      if(tensor_index == 233) {
+        // --------------------------------------------
+        printf("233 : \n");
+        printf("todopoint %f\n", tensor->data);
+        PrintTensor(*tensor, UnitType::GPU0);
+        
+      }    
+    }
+
+// --------------------------------------------------------------------------------------------------------
 
     // TODO(ycling): This is an extra loop through inputs to check if the data
     // need to be copied from Delegate buffer to raw memory, which is often not
     // needed. We may want to cache this in prepare to know if this needs to be
     // done for a node or not.
+
     for (int i = 0; i < node.inputs->size; ++i) {
       int tensor_index = node.inputs->data[i];
       if (tensor_index == kTfLiteOptionalTensor) {
         continue;
-      }
+      }      // HOON : get tensor's index
+    
       //TfLiteTensor* tensor = &context_.tensors[tensor_index]; //HOON  : same tool . indirect
       TfLiteTensor* tensor = &tensors_[tensor_index]; //HOON : same tool. direct. (not via tfitecontext)
       // *tensor.delegate == tensor->delegate
       // in CPU tensor->delegate == nullptr
       // in GPU.. tensor->delegate != nullptr
+
+
+      
       if (tensor->delegate && tensor->delegate != node.delegate &&
           tensor->data_is_stale) {
         TF_LITE_ENSURE_STATUS(EnsureTensorDataIsReadable(tensor_index));

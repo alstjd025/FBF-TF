@@ -11,7 +11,7 @@
 #define yolo  // Y/N
 
 #ifdef yolo
-#define SEQ 100 
+#define SEQ 1   // debugging
 #define OUT_SEQ 1
 #endif
 
@@ -368,6 +368,11 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             std::cout << "\n";
             #endif
             //std::cout << *G_Counter << "\n";
+
+            // <<<<<<<<<<<<<<<<<<<<<<<<<< HOON : TODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            // make runtime-softmax function 
+
+            // <<<<<<<<<<<<<<<<<<<<<<<<<< HOON : TODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>
             float max  = 0;
             for (int i =0; i<10; i++){
                 float value = interpreterGPU->get()->typed_output_tensor_final<float>(0)[i];
