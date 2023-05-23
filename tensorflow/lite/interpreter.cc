@@ -379,9 +379,9 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
           }
         }      
       }else{
-        std::cout << "Interpreter : Allocation Error, no registerd subgraph of "
-                  << "model id [" << model_id << "] \n";
-        return kTfLiteError;
+        std::cout << "Interpreter : no registerd subgraph of "
+                  << "model id [" << model_id << "] no allocation occurs.\n";
+        return kTfLiteOk;
       }
     }
     for(int subgraph_idx=0; subgraph_idx<subset.second.size(); ++subgraph_idx){

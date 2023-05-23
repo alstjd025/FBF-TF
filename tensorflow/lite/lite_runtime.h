@@ -77,7 +77,7 @@ class TfLiteRuntime{
 
     // Debug invoke (for co-execution invoke synchronization test)
     // Call after DebugCoInvoke()
-    TfLiteStatus DebugSyncInvoke(ResourceType type);
+    void DebugSyncInvoke(ThreadType type);
 
 
     void FeedInputToModelDebug(const char* model, cv::Mat& input,

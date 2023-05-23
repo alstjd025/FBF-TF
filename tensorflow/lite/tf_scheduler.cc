@@ -264,8 +264,8 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     // if want two subgraph
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
     tx_p.partitioning_plan[0][TF_P_IDX_END]      = 1;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[1][TF_P_IDX_START]    = 1;
     tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
     tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
@@ -284,6 +284,13 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[0][1] = 124;
     tx_p.partitioning_plan[0][2] = 0;
     tx_p.partitioning_plan[1][0] = TF_P_END_PLAN;
+  }
+  if(layers == 152){
+    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 152;
+    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
   }
 }
 

@@ -606,7 +606,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size; 
-      //std::cout << "num_nodes_in_partition : " << num_nodes_in_partition << "\n";
+      std::cout << "num_nodes_in_partition : " << num_nodes_in_partition << "\n";
       switch (master_partitioning_plan[partition_itr]->resource_type)
       {
       case ResourceType::CPU:
@@ -688,6 +688,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
     }// Partitioning iteration ends
+    // Job is deprecated.
     tflite::Job* new_job = new tflite::Job;
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){
@@ -764,11 +765,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     }
   }
   std::cout << "Delegate tensors" << "\n";
-  if(interpreter_->ReadyJobsofGivenModel(model_id_) != kTfLiteOk){
-    std::cout << "ReadyJobsofGivenModel ERROR" << "\n";
-    return kTfLiteError;
-  }
-  std::cout << "Interpreterbuilder: Subgraphs & job created" << "\n";
+  std::cout << "Interpreterbuilder: Subgraphs created" << "\n";
   return kTfLiteOk;
 }
 

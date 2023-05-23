@@ -1271,7 +1271,11 @@ TfLiteStatus Subgraph::Invoke() {
     #ifdef LATENCY_MEASURE
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      printf("Invoke Latency %.6f \n", response_time);
+      if(resource_type == ResourceType::CO_CPU)
+        printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
+      else if(resource_type == ResourceType::CO_GPU ||
+                  resource_type == ResourceType::GPU)
+        printf("%sInvoke Latency %.6f %s\n", C_BLUE, response_time, C_NRML);
     #endif
     // if(execution_plan_index == 0){
     //   PrintWeightandBiasTensor(node);
@@ -1297,7 +1301,6 @@ TfLiteStatus Subgraph::Invoke() {
       }
     }
   }
-
   return status;
 }
 

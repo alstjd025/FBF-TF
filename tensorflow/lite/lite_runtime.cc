@@ -530,17 +530,17 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
 void TfLiteRuntime::FeedInputToModelDebug(const char* model,
                                      cv::Mat& input,
                                      INPUT_TYPE input_type) {
-  for (int i = 0; i < 28; ++i) {
-    for (int j = 0; j < 28; ++j) {
-      printf("%.6f ", ((float)input.at<uchar>(i,j) / 255.0));
-    }
-    std::cout << "\n";
-  }
+  // for (int i = 0; i < 28; ++i) {
+  //   for (int j = 0; j < 28; ++j) {
+  //     printf("%.6f ", ((float)input.at<uchar>(i,j) / 255.0));
+  //   }
+  //   std::cout << "\n";
+  // }
   bool use_two_interpreter = false;
   TfLiteTensor* input_tensor = nullptr;
   TfLiteTensor* quant_input_tensor = nullptr;
   input_tensor = interpreter->input_tensor_of_model(0);
-  if(quantized_interpreter != nullptr){
+  if(quantized_interpreter != nullptr && quantized_interpreter->subgraphs_size() > 0){
     quant_input_tensor = quantized_interpreter->input_tensor_of_model(0);
     if(quant_input_tensor == nullptr) {
       std::cout << "TfLiteRuntime : cannont get pointer to quant input tensor, model["
@@ -698,17 +698,21 @@ void TfLiteRuntime::WakeScheduler() {
 void TfLiteRuntime::JoinScheduler() { interpreter->JoinScheduler(); }
 
 TfLiteStatus TfLiteRuntime::DebugCoInvoke(){
-  c_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, ResourceType::CO_CPU);
-  DebugSyncInvoke(ResourceType::CO_GPU);
+  c_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, ThreadType::THREAD_CPU);
+  DebugSyncInvoke(ThreadType::THREAD_GPU);
   c_thread.join();
 }
 
-TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
+void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
   int subgraph_idx = 0;
   while(true){
-    if(type == ResourceType::CO_CPU){
+    if(type == ThreadType::THREAD_CPU){
+      if(quantized_interpreter->subgraphs_size() < 1){
+        std::cout << "No invokable subgraph for cpu" << "\n";
+        break;
+      }
       // sync with gpu here (notified by gpu)
       std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
@@ -716,7 +720,7 @@ TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
       subgraph = quantized_interpreter->subgraph(subgraph_idx);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
-        return kTfLiteError;
+        return;
       }
       // sync with gpu here (wake gpu)
       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -729,19 +733,24 @@ TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
         std::cout << "CPU execution done" << "\n";
         break;
       }
-    }else if(type == ResourceType::CO_GPU){
+    }else if(type == ThreadType::THREAD_GPU){
       subgraph = interpreter->subgraph(subgraph_idx);
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
+      }else if(subgraph->GetResourceType() == ResourceType::GPU){
+        if(subgraph->GetPrevSubgraph() != nullptr &&
+            subgraph->GetPrevSubgraph()->GetResourceType() == ResourceType::GPU){
+          CopyIntermediateDataIfNeeded(subgraph);
+        }
       }
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
-        return kTfLiteError;
+        return;
       }
-      if(subgraph->GetResourceType() == CO_GPU){
+      if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
         data_sync_cv.wait(lock_data, [&]{ return is_execution_done; });
@@ -756,28 +765,43 @@ TfLiteStatus TfLiteRuntime::DebugSyncInvoke(ResourceType type){
         subgraph_idx++;
       else{
         std::cout << "GPU execution done" << "\n";
+        int output_tensor = subgraph->GetOutputTensorIndex();
+        PrintTensorSerial(*(subgraph->tensor(output_tensor)));
         break;
       }
     }
   }
-
+  return;
 }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke() {
   Subgraph* subgraph;
-  int subgraph_idx = 0;
-  while(subgraph_idx < quantized_interpreter->subgraphs_size()){ // subgraph iteration
-    subgraph = quantized_interpreter->subgraph(subgraph_idx);
-    if(subgraph->GetPrevSubgraph() != nullptr){
-      CopyIntermediateDataIfNeeded(subgraph);
+  if(quantized_interpreter != nullptr){
+    int subgraph_idx = 0;
+    while(subgraph_idx < quantized_interpreter->subgraphs_size()){ // subgraph iteration
+      subgraph = quantized_interpreter->subgraph(subgraph_idx);
+      if(subgraph->GetPrevSubgraph() != nullptr){
+        CopyIntermediateDataIfNeeded(subgraph);
+      }
+      if(subgraph->Invoke() != kTfLiteOk){
+        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        return kTfLiteError;
+      }
+      subgraph_idx++;
     }
-    if(subgraph->Invoke() != kTfLiteOk){
-      std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
-      return kTfLiteError;
+  }else{
+    int subgraph_idx = 0;
+    while(subgraph_idx < interpreter->subgraphs_size()){ // subgraph iteration
+      subgraph = interpreter->subgraph(subgraph_idx);
+      if(subgraph->GetPrevSubgraph() != nullptr){
+        CopyIntermediateDataIfNeeded(subgraph);
+      }
+      if(subgraph->Invoke() != kTfLiteOk){
+        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        return kTfLiteError;
+      }
+      subgraph_idx++;
     }
-    // if(subgraph->GetNextSubgraph() == nullptr)
-    //   PrintOutput(subgraph);
-    subgraph_idx++;
   }
   return kTfLiteOk;
 };
@@ -976,9 +1000,6 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* source_tensor_cpu = cpu_source->tensor(source_tensor_cpu_idx);
   TfLiteTensor* source_tensor_gpu = gpu_source->tensor(source_tensor_gpu_idx);
-  std::cout << "dest_tensor_idx : " << dest_tensor_idx << "\n";
-  std::cout << "source_tensor_cpu_idx : " << source_tensor_cpu_idx << "\n";
-  std::cout << "source_tensor_gpu_idx : " << source_tensor_gpu_idx << "\n"; 
   if(dest_tensor == nullptr || source_tensor_cpu == nullptr ||
       source_tensor_gpu == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
@@ -1037,9 +1058,6 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
     for(int i=0; i<source_tensor_cpu->dims->size; ++i){
       tensor_cpu_data_size *= source_tensor_cpu->dims->data[i];
     }
-    std::cout << "tensor_gpu_data_size : " << tensor_gpu_data_size << "\n";
-    std::cout << "tensor_cpu_data_size: " << tensor_cpu_data_size << "\n";
-    std::cout << "tensor_dest_data_size: " << tensor_dest_data_size << "\n";
     if((tensor_gpu_data_size + tensor_cpu_data_size) != tensor_dest_data_size){
       std::cout << "Tensor size cpu + gpu != dest ERROR" << "\n";
       return;
@@ -1056,9 +1074,9 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
     memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
             sizeof(float)*tensor_cpu_data_size);
   }
-  PrintTensorSerial(*source_tensor_cpu);
-  PrintTensorSerial(*source_tensor_gpu);
-  PrintTensorSerial(*dest_tensor);
+  // PrintTensorSerial(*source_tensor_cpu);
+  // PrintTensorSerial(*source_tensor_gpu);
+  // PrintTensorSerial(*dest_tensor);
   return; 
 }
 
@@ -1073,7 +1091,6 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
     TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
     size_t source_byte_size = source_tensor->bytes;
     size_t dest_byte_size = dest_tensor->bytes;
-    // source_graph->PrintTensor(*source_tensor, UnitType::GPU0);
     if (source_byte_size != dest_byte_size) {
       std::cout << "Source tensor[" << source_tensor_idx << "] size "
                 << static_cast<int>(source_byte_size) << " and Dest tensor["
@@ -1085,7 +1102,6 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
     auto data_source = (float*)source_tensor->data.data;
     auto data_dest = (float*)dest_tensor->data.data;
     memcpy(data_dest, data_source, source_byte_size);
-    // dest_graph->PrintTensor(*dest_tensor, UnitType::GPU0);
     if (dest_tensor->data.raw == nullptr) {
       std::cout << "dest data nullptr!"
                 << "\n";

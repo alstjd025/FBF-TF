@@ -149,8 +149,13 @@ typedef enum WorkerState{
   BLOCKED
 } WorkerState;
 
+// Threadtype for co-execution
+typedef enum ThreadType{
+  THREAD_CPU,
+  THREAD_GPU
+} ThreadType;
+
 // ResourceType for subgraph
-// 
 typedef enum ResourceType{
   CPU,
   GPU,
