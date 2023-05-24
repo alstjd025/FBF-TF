@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/context_util.h"
+#include "iostream"
 
 namespace tflite {
 namespace delegates {
@@ -81,6 +82,14 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
               return left->nodes_to_replace->size >
                      right->nodes_to_replace->size;
             });
+
+  std::cout << "Partitions for gpu delegate" << "\n";
+  for(int i=0; i<sorted_partitions.size(); ++i){
+    for(int j=0; j<sorted_partitions[i]->nodes_to_replace->size; ++j){
+      std::cout << sorted_partitions[i]->nodes_to_replace->data[j] << " ";
+    }
+    std::cout << "\n";
+  }
 
   std::vector<TfLiteDelegateParams*> results;
   auto p_it = sorted_partitions.begin();

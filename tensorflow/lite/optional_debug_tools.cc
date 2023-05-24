@@ -18,6 +18,21 @@ limitations under the License.
 #include "tensorflow/lite/schema/schema_generated.h"
 namespace tflite {
 
+// cascade operator overloading for debug message.
+std::ostream& operator<<(std::ostream& out, const tflite::ResourceType value){
+  const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+  switch(value){
+    PROCESS_VAL(CPU);     
+    PROCESS_VAL(GPU);     
+    PROCESS_VAL(CO_CPU);
+    PROCESS_VAL(CO_GPU);
+    PROCESS_VAL(NONE);
+  }
+#undef PROCESS_VAL
+  return out << s;
+}
+
 void PrintIntVector(const std::vector<int>& v) {
   for (const auto& it : v) {
     printf(" %d", it);
@@ -149,7 +164,8 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
     printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
         tensor_size, node_size);
     printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
-    
+    std::cout << "Resource type : " 
+          << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";
     for (size_t node_index = 0; node_index < node_size;
         node_index++) {
       const std::pair<TfLiteNode, TfLiteRegistration>* node_and_reg =

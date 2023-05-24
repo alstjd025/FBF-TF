@@ -297,7 +297,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
               << "\n";
     exit(-1);
   }
-  //PrintInterpreterStateV2(interpreter);
+  PrintInterpreterStateV2(interpreter);
   //interpreter->PrintSubgraphInfo();
   
   return kTfLiteOk;
@@ -766,7 +766,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       else{
         std::cout << "GPU execution done" << "\n";
         int output_tensor = subgraph->GetOutputTensorIndex();
-        PrintTensorSerial(*(subgraph->tensor(output_tensor)));
+        // PrintTensorSerial(*(subgraph->tensor(output_tensor)));
         break;
       }
     }

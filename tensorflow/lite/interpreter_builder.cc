@@ -544,6 +544,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         switch (profile->subset_resource[i])
         {
         case TF_P_PLAN_CPU:
+          if(is_sub_interpreter){
+            // Don't create subgraph if sub-interprter. 
+            new_plan->resource_type = ResourceType::NONE;
+            break;
+          }
           new_plan->resource_type = ResourceType::CPU;
           break;
         case TF_P_PLAN_GPU:

@@ -2841,6 +2841,7 @@ bool IsAllAllowedTensors(TfLiteContext* context,
 
 // TODO(impjdi): Check number of input/output tensors and their dimensions.
 // TODO(impjdi): Check ops' parameters.
+// IMPORTANT
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions) {
   delegates::IsNodeSupportedFn node_supported_fn =
@@ -2849,13 +2850,19 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-    if (!status.ok()) {
-      if (unsupported_details) {
-        *unsupported_details = std::string(status.message());
+        // CODE FOR FALLBACK TEST
+    //if(registration->builtin_code == 9){ //check if FC layer
+    if(false){ //check if FC layer
+        printf("FOUND A FC LAYER... MAKE FALLBACK\n");
+        return false;
+    }else{
+      if (!status.ok()) {
+        if (unsupported_details) {
+          *unsupported_details = std::string(status.message());
+        }
+        return false;
       }
-      return false;
     }
-
     if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
         !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) {
       if (unsupported_details) {
@@ -2879,7 +2886,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   std::vector<int> ops_to_replace =
       partition_helper.GetNodesOfFirstNLargestPartitions(
           max_delegated_partitions);
-
+  std::cout << "ops to replace : ";
+  for(int i=0; i<ops_to_replace.size(); ++i){
+    std::cout << ops_to_replace[i] << " ";
+  }
+  std::cout << "\n";
   if (!unsupported_nodes_info.empty()) {
     std::string unsupported = absl::StrJoin(unsupported_nodes_info, "\n");
     std::string error_message = absl::StrCat(
