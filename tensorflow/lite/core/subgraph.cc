@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-#define LATENCY_MEASURE
+// #define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -850,7 +850,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   int h = input_tensor->dims->data[1];
   int w = input_tensor->dims->data[2];
   int i = input_tensor->dims->data[3];
-  padding = 15;
+  padding = 20;
   new_dims[0] = o;
   new_dims[1] = padding;
   new_dims[2] = w;
@@ -1271,7 +1271,8 @@ TfLiteStatus Subgraph::Invoke() {
     #ifdef LATENCY_MEASURE
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      if(resource_type == ResourceType::CO_CPU)
+      if(resource_type == ResourceType::CO_CPU||
+                  resource_type == ResourceType::CPU)
         printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
       else if(resource_type == ResourceType::CO_GPU ||
                   resource_type == ResourceType::GPU)
@@ -1280,7 +1281,8 @@ TfLiteStatus Subgraph::Invoke() {
     // if(execution_plan_index == 0){
     //   PrintWeightandBiasTensor(node);
     // }
-    // PrintOutputTensor(node);
+    if(resource_type == ResourceType::CO_CPU)
+      PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&

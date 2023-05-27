@@ -735,21 +735,33 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       }
     }else if(type == ThreadType::THREAD_GPU){
       subgraph = interpreter->subgraph(subgraph_idx);
+      // if(subgraph_idx == 2){ // INPUT TEST CODE
+      //   subgraph->context()->tensors[55].data.data =
+      //      interpreter->subgraph(1)->tensor(55)->data.data;
+      // }
+      // if(subgraph_idx == 5){ // INPUT TEST CODE
+      //   subgraph->context()->tensors[68].data.data =
+      //      interpreter->subgraph(4)->tensor(68)->data.data;
+      // }
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
-      }else if(subgraph->GetResourceType() == ResourceType::GPU){
+      }else{ // if not co-execution, it needs additional imtermediate data copy.
         if(subgraph->GetPrevSubgraph() != nullptr &&
-            subgraph->GetPrevSubgraph()->GetResourceType() == ResourceType::GPU){
+            subgraph->GetPrevSubgraph()->GetResourceType() != ResourceType::CO_GPU){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
       if(subgraph->Invoke() != kTfLiteOk){
-        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
         return;
       }
+      // if(subgraph_idx == 0){
+      //   PrintTensorSerial(*subgraph->tensor(12));
+      //   PrintTensorSerial(*subgraph->tensor(13));
+      // }
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -759,14 +771,14 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
         if(co_execution_graph != nullptr){
           MergeCoExecutionData(co_execution_graph, subgraph);
           co_execution_graph = nullptr;
+          int input_tensor = subgraph->GetNextSubgraph()->GetInputTensorIndex();
+          PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
         }
       }
       if(subgraph->GetNextSubgraph() != nullptr)
         subgraph_idx++;
       else{
         std::cout << "GPU execution done" << "\n";
-        int output_tensor = subgraph->GetOutputTensorIndex();
-        // PrintTensorSerial(*(subgraph->tensor(output_tensor)));
         break;
       }
     }
@@ -1058,21 +1070,29 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_sou
     for(int i=0; i<source_tensor_cpu->dims->size; ++i){
       tensor_cpu_data_size *= source_tensor_cpu->dims->data[i];
     }
-    if((tensor_gpu_data_size + tensor_cpu_data_size) != tensor_dest_data_size){
-      std::cout << "Tensor size cpu + gpu != dest ERROR" << "\n";
-      return;
-    }
+    // Need to drop padding data before merge.
+    // Drop CPU data because it is dequantized and might drop accuracy.
     if((source_cpu_ht + source_gpu_ht) != dest_ht){
-      std::cout << "Tensor dim [Height] cpu + gpu != dest ERROR" << "\n";
-      return;
-    }
-    auto data_cpu = (float*)source_tensor_cpu->data.data;
-    auto data_gpu = (float*)source_tensor_gpu->data.data;
-    auto data_dest = (float*)dest_tensor->data.data;
+      auto data_cpu = (float*)source_tensor_cpu->data.data;
+      auto data_gpu = (float*)source_tensor_gpu->data.data;
+      auto data_dest = (float*)dest_tensor->data.data;
+      int drop_height = (dest_ht - (source_cpu_ht + source_gpu_ht)) * (-1/2);
+      if(drop_height < 0){
+        std::cout << "Wrong drop in HW merging ERROR " << "\n";
+        return;
+      }
+      memcpy(data_dest, data_gpu, sizeof(float)*tensor_gpu_data_size);
+      memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
+              sizeof(float)*(tensor_dest_data_size - tensor_cpu_data_size));
+    }else{  // No need to drop.
+      auto data_cpu = (float*)source_tensor_cpu->data.data;
+      auto data_gpu = (float*)source_tensor_gpu->data.data;
+      auto data_dest = (float*)dest_tensor->data.data;
 
-    memcpy(data_dest, data_gpu, sizeof(float)*tensor_gpu_data_size);
-    memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
-            sizeof(float)*tensor_cpu_data_size);
+      memcpy(data_dest, data_gpu, sizeof(float)*tensor_gpu_data_size);
+      memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
+              sizeof(float)*tensor_cpu_data_size);
+    }
   }
   // PrintTensorSerial(*source_tensor_cpu);
   // PrintTensorSerial(*source_tensor_gpu);
