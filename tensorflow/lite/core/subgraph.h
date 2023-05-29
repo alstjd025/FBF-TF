@@ -517,6 +517,10 @@ class Subgraph {
   // Height partitioning for subgraph.
   TfLiteStatus PartitionHeightTest();
 
+  // Replaces destination tensor's data pointer(buffer arena) with source tensor.
+  // The dimension must match between two tensors.
+  TfLiteStatus ReplaceBufferofSameDims(TfLiteTensor* source, TfLiteTensor* dest);
+
  private:
   // SubgraphAwareProfiler wraps an actual TFLite profiler, such as a
   // BufferedProfiler instance, and takes care of event profiling/tracing in a

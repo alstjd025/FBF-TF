@@ -896,6 +896,24 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   // PrintWeightandBiasTensor(*test_weight);
 }
 
+TfLiteStatus Subgraph::ReplaceBufferofSameDims(TfLiteTensor* source,
+                                              TfLiteTensor* dest){
+  if(source->dims->size != dest->dims->size){
+    std::cout << "Dimension size does not match for buffer replace" << "\n";
+    return kTfLiteError;
+  }
+  for(int i=0; i<source->dims->size; ++i){
+    if(source->dims->data[i] != dest->dims->data[i]){
+      std::cout << "Dimension does not match for buffer replace" << "\n";
+      std::cout << source->dims->data[i] << " != " << dest->dims->data[i] << "\n";
+      return kTfLiteError;
+    }
+  }
+  dest->data.data = source->data.data;
+  return kTfLiteOk;
+
+}
+
 // TODO(ycling): Support non-zero default values.
 TfLiteStatus Subgraph::ResetVariableTensors() {
   for (auto& tensor : tensors_) {
