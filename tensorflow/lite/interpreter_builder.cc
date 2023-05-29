@@ -659,9 +659,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         if(j == num_nodes_in_partition - 1){
           output_tensor = new std::vector<int>;
           output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
-          if(partition_itr == 0 && num_nodes_in_partition == 2){ // OUTPUT TEST CODE
-            output_tensor->push_back(12);
-          }
           new_subgraph->SetActualOutput(*output_tensor); // set 'actual' output tensors
           if (new_subgraph->AddTensors(tensors->size()) != kTfLiteOk){
             return kTfLiteError;

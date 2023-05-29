@@ -297,7 +297,12 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
               << "\n";
     exit(-1);
   }
+  std::cout << "============================" << "\n";
+  std::cout << "Full precision interpreter" << "\n";
   PrintInterpreterStateV2(interpreter);
+  std::cout << "============================" << "\n";
+  std::cout << "Minimal precision interpreter" << "\n";
+  PrintInterpreterStateV2(quantized_interpreter);
   //interpreter->PrintSubgraphInfo();
   
   return kTfLiteOk;
@@ -735,14 +740,6 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       }
     }else if(type == ThreadType::THREAD_GPU){
       subgraph = interpreter->subgraph(subgraph_idx);
-      // if(subgraph_idx == 2){ // INPUT TEST CODE
-      //   subgraph->context()->tensors[55].data.data =
-      //      interpreter->subgraph(1)->tensor(55)->data.data;
-      // }
-      // if(subgraph_idx == 5){ // INPUT TEST CODE
-      //   subgraph->context()->tensors[68].data.data =
-      //      interpreter->subgraph(4)->tensor(68)->data.data;
-      // }
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
@@ -758,10 +755,6 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
         return;
       }
-      // if(subgraph_idx == 0){
-      //   PrintTensorSerial(*subgraph->tensor(12));
-      //   PrintTensorSerial(*subgraph->tensor(13));
-      // }
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -1106,7 +1099,22 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
     Subgraph* source_graph = interpreter->subgraph_id(source_subgraph);
     Subgraph* dest_graph = interpreter->subgraph_id(dest_subgraph);
     int source_tensor_idx = source_graph->outputs()[0];
-    int dest_tensor_idx = dest_graph->GetInputTensorIndex();
+    int dest_tensor_idx = -1; 
+    TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
+    for(int i=0; i<input_tensor_indices->size; ++i){
+      if(source_tensor_idx == input_tensor_indices->data[i])
+        dest_tensor_idx = input_tensor_indices->data[i];
+    }
+    if(dest_tensor_idx == -1){
+      std::cout << "Source tensor [" << source_tensor_idx << "] cannot"
+                << " found a matching input tensor in subgraph "
+                << dest_subgraph << "\n";
+      return kTfLiteError;
+    }
+    std::cout << "source graph : " << source_subgraph << "\n";
+    std::cout << "source tensor : " << source_tensor_idx << "\n";
+    std::cout << "dest graph : " << dest_subgraph << "\n";
+    std::cout << "dest tensor : " << dest_tensor_idx << "\n";
     TfLiteTensor* source_tensor = source_graph->tensor(source_tensor_idx);
     TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
     size_t source_byte_size = source_tensor->bytes;
@@ -1119,17 +1127,12 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
                 << "\n";
       return kTfLiteError;
     }
+    PrintTensorSerial(*dest_tensor);
     auto data_source = (float*)source_tensor->data.data;
     auto data_dest = (float*)dest_tensor->data.data;
+    std::cout << "adsf" << "\n";
     memcpy(data_dest, data_source, source_byte_size);
-    if (dest_tensor->data.raw == nullptr) {
-      std::cout << "dest data nullptr!"
-                << "\n";
-    }
-    #ifdef latency_debug
-        std::cout << "Tensor connection done"
-                  << "\n";
-    #endif
+    std::cout << "Copied intermediate data" << "\n";
     return kTfLiteOk;
   };
   Subgraph* prev_graph = subgraph->GetPrevSubgraph();

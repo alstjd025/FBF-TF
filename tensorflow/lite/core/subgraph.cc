@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-// #define LATENCY_MEASURE
+#define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -1874,6 +1874,15 @@ std::vector<int> Subgraph::GetTensorShape(int tensor_index){
     dims.push_back(tensor->dims->data[i]);
   }
   return dims;  
+}
+
+TfLiteIntArray* Subgraph::GetInputTensorIndices(){
+  for(int execution_plan_idx = 0;
+      execution_plan_idx < execution_plan_.size(); ++execution_plan_idx){
+    int node_index = execution_plan_[execution_plan_idx];
+    TfLiteNode& node = nodes_and_registration_[node_index].first;
+    return node.inputs;
+  }
 }
 
 void Subgraph::PrintInputTensor(TfLiteNode& node){

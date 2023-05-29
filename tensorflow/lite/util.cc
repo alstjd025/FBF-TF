@@ -157,4 +157,26 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
   return result;
 }
 
+LatencyHelper::LatencyHelper(){
+  
+}
+
+LatencyHelper::
+
+LatencyHelper::~LatencyHelper(){
+  
+}
+
+void LatencyHelper::AddLatency(struct timespec& start_time,
+                              struct timespec& end_time, int graph, int node){
+  if(latency_data.size() < graph){
+    latency_data.push_back(new std::vector<latency_st*>);
+    // if(la)
+  }
+}
+
+void LatencyHelper::PrintLatency(){
+
+}
+
 }  // namespace tflite

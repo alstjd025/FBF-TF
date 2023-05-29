@@ -218,6 +218,10 @@ class Subgraph {
   // Access to an input tensor (for multiple subgraphs and GPUdelegate)
   int GetInputTensorIndex() { return inputs()[inputs().size()-1]; }
 
+  // Minsung
+  // Access to indices of input tensors of first node in execution plan.
+  TfLiteIntArray* GetInputTensorIndices();
+
   // MInsung
   // Access to an output tensor (for multiple subgraphs and GPUdelegate)
   int GetOutputTensorIndex() { return outputs()[outputs().size()-1]; }
