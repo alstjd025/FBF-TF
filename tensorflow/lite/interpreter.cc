@@ -367,7 +367,11 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                   }
                   else{
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
-                    std::cout << "resized dims for tensor " << base_tensor << "\n";
+                    if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
+                      subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
+                      std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";
+                      return kTfLiteError;
+                    }
                   }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;

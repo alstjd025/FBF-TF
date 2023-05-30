@@ -1098,41 +1098,40 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
   auto connect = [&](int source_subgraph, int dest_subgraph) {
     Subgraph* source_graph = interpreter->subgraph_id(source_subgraph);
     Subgraph* dest_graph = interpreter->subgraph_id(dest_subgraph);
-    int source_tensor_idx = source_graph->outputs()[0];
-    int dest_tensor_idx = -1; 
+    std::vector<int> dest_tensor_indices; 
+    TfLiteIntArray* source_tensor_idx = source_graph->GetOutputTensorIndices();
     TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
     for(int i=0; i<input_tensor_indices->size; ++i){
-      if(source_tensor_idx == input_tensor_indices->data[i])
-        dest_tensor_idx = input_tensor_indices->data[i];
+      for(int j=0; j<source_tensor_idx->size; ++j){
+        if(source_tensor_idx->data[j] == input_tensor_indices->data[i])
+          dest_tensor_indices.push_back(input_tensor_indices->data[i]);
+      }
     }
-    if(dest_tensor_idx == -1){
-      std::cout << "Source tensor [" << source_tensor_idx << "] cannot"
-                << " found a matching input tensor in subgraph "
-                << dest_subgraph << "\n";
+    if(dest_tensor_indices.empty()){
+      std::cout << "Output tensor of subgraph [" << source_subgraph << "] cannot"
+                << " found a matching input tensor in subgraph ["
+                << dest_subgraph << "]\n";
       return kTfLiteError;
     }
-    std::cout << "source graph : " << source_subgraph << "\n";
-    std::cout << "source tensor : " << source_tensor_idx << "\n";
-    std::cout << "dest graph : " << dest_subgraph << "\n";
-    std::cout << "dest tensor : " << dest_tensor_idx << "\n";
-    TfLiteTensor* source_tensor = source_graph->tensor(source_tensor_idx);
-    TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_idx);
-    size_t source_byte_size = source_tensor->bytes;
-    size_t dest_byte_size = dest_tensor->bytes;
-    if (source_byte_size != dest_byte_size) {
-      std::cout << "Source tensor[" << source_tensor_idx << "] size "
-                << static_cast<int>(source_byte_size) << " and Dest tensor["
-                << dest_tensor_idx << "] size "
-                << static_cast<int>(dest_byte_size) << " missmatch!"
-                << "\n";
-      return kTfLiteError;
+    for(int i=0; i<dest_tensor_indices.size(); ++i){
+      TfLiteTensor* source_tensor = source_graph->tensor(dest_tensor_indices[i]);
+      TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_indices[i]);
+      size_t source_byte_size = source_tensor->bytes;
+      size_t dest_byte_size = dest_tensor->bytes;
+      if (source_byte_size != dest_byte_size) {
+        std::cout << "Source tensor[" << dest_tensor_indices[i] << "] size "
+                  << static_cast<int>(source_byte_size) << " and Dest tensor["
+                  << dest_tensor_indices[i] << "] size "
+                  << static_cast<int>(dest_byte_size) << " missmatch!"
+                  << "\n";
+        return kTfLiteError;
+      }
+      // PrintTensorSerial(*dest_tensor);
+      auto data_source = (float*)source_tensor->data.data;
+      auto data_dest = (float*)dest_tensor->data.data;
+      memcpy(data_dest, data_source, source_byte_size);
+      std::cout << "Copied intermediate data" << "\n";
     }
-    PrintTensorSerial(*dest_tensor);
-    auto data_source = (float*)source_tensor->data.data;
-    auto data_dest = (float*)dest_tensor->data.data;
-    std::cout << "adsf" << "\n";
-    memcpy(data_dest, data_source, source_byte_size);
-    std::cout << "Copied intermediate data" << "\n";
     return kTfLiteOk;
   };
   Subgraph* prev_graph = subgraph->GetPrevSubgraph();

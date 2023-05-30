@@ -869,31 +869,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
   ResizeInputTensor(input_tensor_idx, new_dims);
 
-
   std::cout << "Height partitioning done" << "\n";
-  // TfLiteTensor* test_bias = tensor(1);
-  // PrintWeightandBiasTensor(*test_bias);
-  // test_bias->allocation_type = kTfLiteArenaRw;
-  // SetTensorToDynamic(test_bias);
-  // std::cout << " " << test_bias->bytes/sizeof(float) << "\n";
-  // float* bias_new_space = (float *)malloc(test_bias->bytes);
-  // for(int i=0; i<10; ++i){
-  //   bias_new_space[i] = 0;
-  // }
-  // test_bias->data.data = bias_new_space;
-  // PrintWeightandBiasTensor(*test_bias);
-
-  // TfLiteTensor* test_weight = tensor(9);
-  // PrintWeightandBiasTensor(*test_weight);
-  // test_weight->allocation_type = kTfLiteArenaRw;
-  // SetTensorToDynamic(test_weight);
-  // std::cout << " " << test_weight->bytes/sizeof(float) << "\n";
-  // float* weight_new_space = (float *)malloc(test_weight->bytes);
-  // for(int i=0; i<90; ++i){
-  //   weight_new_space[i] = 1.0;
-  // }
-  // test_weight->data.data = weight_new_space;
-  // PrintWeightandBiasTensor(*test_weight);
 }
 
 TfLiteStatus Subgraph::ReplaceBufferofSameDims(TfLiteTensor* source,
@@ -1299,8 +1275,8 @@ TfLiteStatus Subgraph::Invoke() {
     // if(execution_plan_index == 0){
     //   PrintWeightandBiasTensor(node);
     // }
-    if(resource_type == ResourceType::CO_CPU)
-      PrintOutputTensor(node);
+    // if(resource_type == ResourceType::CO_CPU)
+    //   PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
@@ -1895,11 +1871,18 @@ std::vector<int> Subgraph::GetTensorShape(int tensor_index){
 }
 
 TfLiteIntArray* Subgraph::GetInputTensorIndices(){
-  for(int execution_plan_idx = 0;
-      execution_plan_idx < execution_plan_.size(); ++execution_plan_idx){
-    int node_index = execution_plan_[execution_plan_idx];
+  if(execution_plan_.size() > 0){
+    int node_index = execution_plan_[0];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     return node.inputs;
+  }
+}
+
+TfLiteIntArray* Subgraph::GetOutputTensorIndices(){
+  if(execution_plan_.size() > 0){
+    int node_index = execution_plan_[execution_plan_.size() - 1];
+    TfLiteNode& node = nodes_and_registration_[node_index].first;
+    return node.outputs;
   }
 }
 

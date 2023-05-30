@@ -226,6 +226,10 @@ class Subgraph {
   // Access to an output tensor (for multiple subgraphs and GPUdelegate)
   int GetOutputTensorIndex() { return outputs()[outputs().size()-1]; }
 
+  // Minsung
+  // Access to indices of output tensors of final node in execution plan.
+  TfLiteIntArray* GetOutputTensorIndices();
+
   //Minsung 
   //Returns Output Tensor index of given node
   // THIS FUNCTION IS NOT SAFE
