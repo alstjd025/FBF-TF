@@ -1117,7 +1117,7 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
         for(int i=0; i<node.inputs->size; ++i)
           input_tensors.push_back(node.inputs->data[i]);
         if(input_tensors.size() != 2){
-          std::cout << "Number of nput tensor != 2 for concatenate" 
+          std::cout << "Number of input tensor != 2 for concatenate" 
                     << " PrepareOpsStartingAt ERROR" << "\n";
           return kTfLiteError;
         }
@@ -1125,13 +1125,11 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
         TfLiteTensor* input_r = tensor(input_tensors[1]);
         std::vector<int> new_dims;
         if(input_l->dims->data[1] < input_r->dims->data[1]){
-          std::cout << "got dif tensor " << input_tensors[0] << " " << input_tensors[1] << "\n";
           for(int i=0; i<input_l->dims->size; ++i){
             new_dims.push_back(input_l->dims->data[i]);
           }
           ResizeInputTensor(input_tensors[1], new_dims);
         }else if(input_l->dims->data[1] > input_r->dims->data[1]){
-          std::cout << "got dif tensor " << input_tensors[0] << " " << input_tensors[1] << "\n";
           for(int i=0; i<input_r->dims->size; ++i){
             new_dims.push_back(input_r->dims->data[i]);
           }

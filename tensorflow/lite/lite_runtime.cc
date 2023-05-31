@@ -472,6 +472,10 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
     return kTfLiteError;
   }
   //interpreter->PrintSubgraphInfo();
+  if(PrepareCoExecution() != kTfLiteOk){
+    std::cout << "PrepareCoExecution returned ERROR" << "\n";
+    return kTfLiteError;
+  }
   std::cout << "=====================" << "\n";
   std::cout << "GPU Interpreter state" << "\n";
   PrintInterpreterStateV2(interpreter);
@@ -483,21 +487,35 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::BindCoExecutionSubgraphs(){
-  if(co_execution){
-    if(quantized_interpreter == nullptr){
-      std::cout << "BindCoExecutionSubgraphs ERROR [nullptr]" << "\n";
-      return kTfLiteError;
-    }
-  }
-  int gpu_subgraph_size = interpreter->subgraphs_size();
-  int cpu_subgraph_size = quantized_interpreter->subgraphs_size();
-  
-  if(gpu_subgraph_size != cpu_subgraph_size){
-    std::cout << "Subgraph size missmatch ERROR " << gpu_subgraph_size << " "
-        << cpu_subgraph_size << "\n";
+TfLiteStatus TfLiteRuntime::PrepareCoExecution(){
+  if(quantized_interpreter == nullptr){
+    std::cout << "PrepareCoExecution ERROR" << "\n";
+    std::cout << "minimal precision interpreter nullptr" << "\n";
     return kTfLiteError;
   }
+  int co_subgraph_idx = 0;
+  for(int subgraph_idx=0; subgraph_idx < interpreter->subgraphs_size();
+        subgraph_idx++){
+    Subgraph* subgraph = interpreter->subgraph(subgraph_idx);
+    if(subgraph->GetResourceType() == ResourceType::CO_GPU){
+      if(quantized_interpreter->subgraphs_size() < 1){
+        std::cout << "PrepareCoExecution ERROR" << "\n";
+        std::cout << "minimal precision interpreter has no subgraph" << "\n";
+        return kTfLiteError;
+      }
+      Subgraph* co_subgraph = quantized_interpreter->subgraph(co_subgraph_idx);
+      std::vector<int> inputs = subgraph->inputs();
+      std::vector<int> outputs = subgraph->outputs();
+      for(int i=0; i<inputs.size(); ++i){
+        co_subgraph->PushToInputs(inputs[i]);
+      }
+      for(int i=0; i<outputs.size(); ++i){
+        co_subgraph->PushToOutputs(outputs[i]);
+      }
+      co_subgraph_idx++;
+    } 
+  }
+  return kTfLiteOk;
 }
 
 void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,

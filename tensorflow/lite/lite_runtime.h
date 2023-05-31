@@ -56,8 +56,8 @@ class TfLiteRuntime{
     // Partitions subgraph in both Float & Int.
     TfLiteStatus PartitionCoSubgraphs();
 
-    // Binds the subgraphs in co-execution subgraphs.
-    TfLiteStatus BindCoExecutionSubgraphs();
+    // Prepares co-execution for intermediate & shared tensors between interpreters.
+    TfLiteStatus PrepareCoExecution();
 
     void FeedInputToModel(const char* model, std::vector<cv::Mat>& input,
                           INPUT_TYPE input_type);
