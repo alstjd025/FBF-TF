@@ -772,6 +772,8 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
       invoke_cpu = false;
       subgraph = quantized_interpreter->subgraph(subgraph_idx);
+      if(main_execution_graph != nullptr)
+        CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
       std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
@@ -794,6 +796,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
         // wake cpu thread here
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
+        main_execution_graph = subgraph;
         invoke_sync_cv.notify_one();
       }else{ // if not co-execution, it needs additional imtermediate data copy.
         if(subgraph->GetPrevSubgraph() != nullptr &&
@@ -1048,6 +1051,9 @@ TfLiteStatus TfLiteRuntime::InvokeSingleExecution() {
 // Get dest subgraphs('D')'s next subgraph. (subgraph 'Dn')
 // Compare input & output dims between 'Dn' and 'S'(source subgraph, probabily cpu side)
 // Merge 'S' and 'D's output tensor to 'Dn's input tensor.
+// NEED TO FIX FOR MULTIPLE OUTPUT TENSORS!!!!
+// NEED TO FIX FOR MULTIPLE OUTPUT TENSORS!!!!
+// NEED TO FIX FOR MULTIPLE OUTPUT TENSORS!!!!
 void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_source){
   Subgraph* dest_subgraph;
   dest_subgraph = gpu_source->GetNextSubgraph();
@@ -1196,6 +1202,55 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
     int source_graph_id = prev_graph->GetGraphid();
     int dest_graph_id = subgraph->GetGraphid();
     if (connect(source_graph_id, dest_graph_id) != kTfLiteOk) {
+      std::cout << "Subgraph intermediate data copy failed"
+                << "\n";
+      return;
+    }
+  } else {  // if nulltpr returned
+    return;
+  }
+  return;
+}
+
+// SOURCE TENSOR AND DEST TENSOR SHOULD BE IN SAME PRECISION...
+void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph) {
+  // use source_graph_id, dest_graph_id
+  auto connect = [&](Subgraph* source_subgraph, Subgraph* dest_subgraph) {
+    std::vector<int> dest_tensor_indices; 
+    std::vector<int> source_tensor_idx = source_subgraph->outputs();
+    std::vector<int> input_tensor_indices = dest_subgraph->inputs();
+    for(int i=0; i<input_tensor_indices.size(); ++i){
+      for(int j=0; j<source_tensor_idx.size(); ++j){
+        if(source_tensor_idx[j] == input_tensor_indices[i])
+          dest_tensor_indices.push_back(input_tensor_indices[i]);
+      }
+    }
+    if(dest_tensor_indices.empty()){
+      std::cout << "Output tensor of subgraph [" << source_subgraph->GetGraphid() << "] cannot"
+                << " found a matching input tensor in subgraph ["
+                << dest_subgraph->GetGraphid() << "]\n";
+      return kTfLiteError;
+    }
+    for(int i=0; i<dest_tensor_indices.size(); ++i){
+      // std::cout << "dest_tensor_indices : " << dest_tensor_indices[i] << "\n";
+      TfLiteTensor* source_tensor = source_subgraph->tensor(dest_tensor_indices[i]);
+      TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_indices[i]);
+      size_t source_byte_size = source_tensor->bytes;
+      size_t dest_byte_size = dest_tensor->bytes;
+      //int offset = (source_byte_size - dest_byte_size) / sizeof(source_tensor->type);
+      // PrintTensorSerial(*dest_tensor);
+      auto data_source = (float*)source_tensor->data.data;
+      auto data_dest = (float*)dest_tensor->data.data;
+      // std::cout << "source : " <<  source_byte_size << " dest " << dest_byte_size << "\n";
+      dest_tensor->data.data = source_tensor->data.data;
+      // memcpy(data_dest, data_source, dest_byte_size);
+      std::cout << "Copied intermediate data" << "\n";
+    }
+    return kTfLiteOk;
+  };
+  Subgraph* prev_graph = subgraph->GetPrevSubgraph();
+  if (prev_graph != nullptr) {  // Need to copy output from previous graph.
+    if (connect(prev_graph, co_subgraph) != kTfLiteOk) {
       std::cout << "Subgraph intermediate data copy failed"
                 << "\n";
       return;

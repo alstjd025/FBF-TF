@@ -101,6 +101,12 @@ class TfLiteRuntime{
     // Merge output(which is intermediate in the view of whole task)
     // data from previous subgraph.
     void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
+
+    // Merge output(which is intermediate in the view of whole task)
+    // data from full precision subgraph.
+    void CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph);
+
+    
     
     // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
     void MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_source);
@@ -134,6 +140,7 @@ class TfLiteRuntime{
     bool is_execution_done = false;
     bool invoke_cpu = false;
     Subgraph* co_execution_graph = nullptr;
+    Subgraph* main_execution_graph = nullptr;
     ////
 
     // Subgraph partitioning
