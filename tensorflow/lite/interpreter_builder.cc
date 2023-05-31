@@ -580,7 +580,24 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
           }
         }
-        master_partitioning_plan.push_back(new_plan);
+        if(new_plan->resource_type == ResourceType::CO_CPU){
+          SubgraphPartitioningPlan* new_plan_ = new SubgraphPartitioningPlan;          
+          new_plan_->resource_type = ResourceType::CO_CPU;
+          new_plan_->partitioning_ratios = new int[20];
+          new_plan_->nodes = new int[20];
+          new_plan_->size = 20;
+          int j=0;
+          for(int i=38; i<58; ++i){
+            new_plan_->nodes[j] = i;
+            new_plan_->partitioning_ratios[j] = 15;
+            j++;
+          }
+          std::cout << "co cpu dummy plan" << "\n";
+          master_partitioning_plan.push_back(new_plan_);
+        }else{
+          master_partitioning_plan.push_back(new_plan);
+        }
+      // master_partitioning_plan.push_back(new_plan);
       }
       return;
     };
@@ -611,7 +628,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
-      const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size; 
+      const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
+      
       std::cout << "num_nodes_in_partition : " << num_nodes_in_partition << "\n";
       switch (master_partitioning_plan[partition_itr]->resource_type)
       {

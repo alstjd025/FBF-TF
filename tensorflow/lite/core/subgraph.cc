@@ -555,12 +555,19 @@ TfLiteStatus Subgraph::SetOutputs(std::vector<int> outputs) {
 }
 
 void Subgraph::PushToInputs(int tensor){
+  for(int i=0; i<inputs_.size(); ++i){
+    if(inputs_[i] == tensor)
+      return;
+  }
   inputs_.push_back(tensor);
   return;
 }
 
 void Subgraph::PushToOutputs(int tensor){
-  outputs_.push_back(tensor);
+  for(int i=0; i<outputs_.size(); ++i){
+    if(outputs_[i] == tensor)
+      return;
+  }outputs_.push_back(tensor);
   return;
 }
 

@@ -437,7 +437,9 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
     std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
     return kTfLiteError;
   }
-
+  std::cout << "===============================" << "\n";
+  std::cout << "Full precision subgraph created" << "\n";
+  std::cout << "===============================" << "\n";
   // Create subgraphs of quantized model
   quantized_builder->CopyRawPartitioningPlan(raw_plan);
   Subgraph* origin_quantized_subgraph = quantized_interpreter->returnProfiledOriginalSubgraph(0);
@@ -450,7 +452,9 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
     std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
     return kTfLiteError;
   }
-
+  std::cout << "===============================" << "\n";
+  std::cout << "Minimal precision subgraph created" << "\n";
+  std::cout << "===============================" << "\n";
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
   tx_packet.runtime_id = runtime_id;
@@ -623,7 +627,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
       break;
   }
   // PrintTensorSerial(*input_tensor);
-  if(use_two_interpreter){
+  if(false){
     auto q_input_pointer = (float*)quant_input_tensor->data.data;
     h = quant_input_tensor->dims->data[1];
     w = quant_input_tensor->dims->data[2];
@@ -750,6 +754,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
       invoke_cpu = false;
       subgraph = quantized_interpreter->subgraph(subgraph_idx);
+      std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
         return;
@@ -778,7 +783,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
-      std::cout << "Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
