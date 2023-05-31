@@ -66,6 +66,10 @@ class TfLiteRuntime{
 
     
     /// For debugging only ==
+    void InitLogFile();
+    void WriteVectorLog(std::vector<double>& latency);
+    std::ofstream logFile; 
+
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);
 

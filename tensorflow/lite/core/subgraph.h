@@ -70,10 +70,19 @@ class Subgraph {
   // interpreter.
   TfLiteStatus SetInputs(std::vector<int> inputs);
 
+  // Minsung
+  // Push a tensor index to inputs of subgraph.
+  void PushToInputs(int tensor);
+
   // Provide a list of tensor indexes that are outputs to the model
   // Each index is bound check and this modifies the consistent_ flag of the
   // interpreter.
   TfLiteStatus SetOutputs(std::vector<int> outputs);
+
+  // Minsung
+  // Push a tensor index to outputs of subgraph.
+  void PushToOutputs(int tensor);
+
 
   // Provide a list of tensor indexes that are variable tensors.
   // Each index is bound check and this modifies the consistent_ flag of the

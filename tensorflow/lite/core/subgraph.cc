@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-#define LATENCY_MEASURE
+// #define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -554,6 +554,16 @@ TfLiteStatus Subgraph::SetOutputs(std::vector<int> outputs) {
   return kTfLiteOk;
 }
 
+void Subgraph::PushToInputs(int tensor){
+  inputs_.push_back(tensor);
+  return;
+}
+
+void Subgraph::PushToOutputs(int tensor){
+  outputs_.push_back(tensor);
+  return;
+}
+
 TfLiteStatus Subgraph::SetVariables(std::vector<int> variables) {
   TF_LITE_ENSURE_OK(&context_, CheckTensorIndices("variables", variables.data(),
                                                   variables.size()));
@@ -850,7 +860,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   int h = input_tensor->dims->data[1];
   int w = input_tensor->dims->data[2];
   int i = input_tensor->dims->data[3];
-  padding = 20;
+  padding = 15;
   new_dims[0] = o;
   new_dims[1] = padding;
   new_dims[2] = w;
@@ -883,11 +893,10 @@ TfLiteStatus Subgraph::ReplaceBufferofSameDims(TfLiteTensor* source,
       std::cout << "Dimension does not match for buffer replace" << "\n";
       std::cout << source->dims->data[i] << " != " << dest->dims->data[i] << "\n";
       return kTfLiteError;
-    }
-  }
+    } 
+  } 
   dest->data.data = source->data.data;
   return kTfLiteOk;
-
 }
 
 // TODO(ycling): Support non-zero default values.
@@ -1078,6 +1087,9 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
   return op_reg.prepare(&context_, node);
 }
 
+// Minsung
+// Fixed to prapagate dims properly in HW partitioning, concatenation layer. 
+// Need to change for other multi-input layers such as add.
 TfLiteStatus Subgraph::PrepareOpsStartingAt(
     int first_execution_plan_index, const std::vector<int>& execution_plan,
     int* last_execution_plan_index_prepared) {
@@ -1091,6 +1103,35 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
     const TfLiteRegistration& registration =
         nodes_and_registration_[node_index].second;
     EnsureTensorsVectorCapacity();
+    if(resource_type == ResourceType::CO_GPU || 
+        resource_type == ResourceType::CO_CPU){
+      if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
+        std::vector<int> input_tensors;
+        for(int i=0; i<node.inputs->size; ++i)
+          input_tensors.push_back(node.inputs->data[i]);
+        if(input_tensors.size() != 2){
+          std::cout << "Number of nput tensor != 2 for concatenate" 
+                    << " PrepareOpsStartingAt ERROR" << "\n";
+          return kTfLiteError;
+        }
+        TfLiteTensor* input_l = tensor(input_tensors[0]); 
+        TfLiteTensor* input_r = tensor(input_tensors[1]);
+        std::vector<int> new_dims;
+        if(input_l->dims->data[1] < input_r->dims->data[1]){
+          std::cout << "got dif tensor " << input_tensors[0] << " " << input_tensors[1] << "\n";
+          for(int i=0; i<input_l->dims->size; ++i){
+            new_dims.push_back(input_l->dims->data[i]);
+          }
+          ResizeInputTensor(input_tensors[1], new_dims);
+        }else if(input_l->dims->data[1] > input_r->dims->data[1]){
+          std::cout << "got dif tensor " << input_tensors[0] << " " << input_tensors[1] << "\n";
+          for(int i=0; i<input_r->dims->size; ++i){
+            new_dims.push_back(input_r->dims->data[i]);
+          }
+          ResizeInputTensor(input_tensors[0], new_dims);
+        }
+      }
+    }
     if (OpPrepare(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to prepare");

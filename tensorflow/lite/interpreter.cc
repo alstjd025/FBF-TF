@@ -311,6 +311,7 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 // Resize intermediate sharing tensors of all subgraph subset.
 // Then, partition other subgraphs in height-wise.
 // Finally allocate tensors of all subgraph subset.
+// +++ All shared tensors should be input tensors of it's subgraph.
 TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
   auto HeightPartitionAndAllocateIfNeed = [&](Subgraph* subgraph){
     if(subgraph->GetResourceType() == ResourceType::CO_CPU ||
@@ -362,19 +363,21 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                 for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
                   int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
                   if(j == 0){
+                    std::cout << "working subgraph : " << working_subgraph << "\n";
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
+                    std::cout << "resize tensor " << base_tensor << " graph " <<  working_subgraph << "\n";
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
-                    if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
-                      subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
-                      std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";
-                      return kTfLiteError;
-                    }
                   }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
+                  if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
+                    subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
+                    std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";
+                    return kTfLiteError;
+                  }
                 }
                 working_tensor = nullptr;
                 match_dims.clear();

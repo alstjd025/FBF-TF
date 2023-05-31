@@ -141,12 +141,30 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
   }
+  InitLogFile();
 };
 
 TfLiteRuntime::~TfLiteRuntime() {
   std::cout << "TfLiteRuntime destructor called"
             << "\n";
 };
+
+void TfLiteRuntime::InitLogFile(){
+  logFile.open("latency.txt");
+  return;
+}
+
+void TfLiteRuntime::WriteVectorLog(std::vector<double>& log){
+  if(logFile.is_open()){
+    for(int i=0; i<log.size(); ++i){
+      logFile << log[i] << " ";
+    }
+    logFile << "\n";
+  }else{
+    std::cout << "Log file not open ERROR" << "\n";
+    return;
+  }
+}
 
 TfLiteStatus TfLiteRuntime::InitializeUDS(){
   // Delete runtime socket if already exists.
@@ -597,6 +615,10 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         }
       }
       break;
+    case INPUT_TYPE::IMAGENET416:
+      memcpy(input_pointer, input.data,
+             input.total() * input.elemSize());
+      break;
     default:
       break;
   }
@@ -605,8 +627,6 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     auto q_input_pointer = (float*)quant_input_tensor->data.data;
     h = quant_input_tensor->dims->data[1];
     w = quant_input_tensor->dims->data[2];
-    std::cout << "h " << h << "\n";
-    std::cout << "w " << w << "\n";
     switch (input_type) {
       case INPUT_TYPE::MNIST:
       // for (int i = 0; i < w; ++i) {
@@ -637,6 +657,10 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
           }
         }
         break;
+    case INPUT_TYPE::IMAGENET416:
+      memcpy(q_input_pointer, input.data,
+             input.total() * input.elemSize());
+      break;
       default:
         break;
     }
@@ -712,6 +736,9 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
   int subgraph_idx = 0;
+  double response_time = 0; 
+  std::vector<double> latency;
+  struct timespec begin, end;
   while(true){
     if(type == ThreadType::THREAD_CPU){
       if(quantized_interpreter->subgraphs_size() < 1){
@@ -724,7 +751,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       invoke_cpu = false;
       subgraph = quantized_interpreter->subgraph(subgraph_idx);
       if(subgraph->Invoke() != kTfLiteOk){
-        std::cout << "ERROR on invoking subgraph " << subgraph->GetGraphid() << "\n";
+        std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
         return;
       }
       // sync with gpu here (wake gpu)
@@ -751,10 +778,15 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
+      std::cout << "Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
         return;
       }
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      latency.push_back(response_time);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -765,13 +797,15 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
           MergeCoExecutionData(co_execution_graph, subgraph);
           co_execution_graph = nullptr;
           int input_tensor = subgraph->GetNextSubgraph()->GetInputTensorIndex();
-          PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
+          // PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
         }
       }
       if(subgraph->GetNextSubgraph() != nullptr)
         subgraph_idx++;
       else{
+        WriteVectorLog(latency);
         std::cout << "GPU execution done" << "\n";
+        // PrintTensorSerial(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         break;
       }
     }

@@ -272,26 +272,29 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
   } // MNIST
-  if(layers == 124){ // MOBILENET
+  else if(layers == 124){ // MOBILENET
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
     tx_p.partitioning_plan[0][TF_P_IDX_END]      = 124;
     tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
     tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
   }
-  if(layers == 152){
+  else if(layers == 152){
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
     tx_p.partitioning_plan[0][TF_P_IDX_END]      = 152;
     tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
   }
-  if(layers == 59){ //yolov4_tiny from pinto
+  else if(layers == 59){ //yolov4_tiny from pinto
   // for gpu
   // 0 ~ 7
   // 9 ~ 19
   // 21 ~ 31
-  // 33 ~ 50
+  // 33 ~ 50  -> testing subgraph
+  // for cpu(minimal precision, int8) 38 ~ 57 is co-execution subgraph 
+  // node 33 -> conv2d input 1 26 26 128
+  //
   // 55 ~ 58
 
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
@@ -318,10 +321,10 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[5][TF_P_IDX_END]      = 33;
     tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[6][TF_P_IDX_START]    = 33;
+    tx_p.partitioning_plan[6][TF_P_IDX_START]    = 33; 
     tx_p.partitioning_plan[6][TF_P_IDX_END]      = 50;
-    tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 15; // partitioning ratio
     tx_p.partitioning_plan[7][TF_P_IDX_START]    = 50;
     tx_p.partitioning_plan[7][TF_P_IDX_END]      = 56;
     tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
@@ -331,6 +334,23 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[8][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
     tx_p.partitioning_plan[8][TF_P_IDX_RATIO]    = 0;
     tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 59;
+    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
+    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  }
+  else if(layers == 54){ // case of yolo v4 tiny prelu
+
+  }
+  else{
+    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 0;
+    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
+    tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;  
   }
 }
 
