@@ -608,11 +608,6 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
   int w = input_tensor->dims->data[2];
   switch (input_type) {
     case INPUT_TYPE::MNIST:
-      // std::cout << "input_elemSize " << input.elemSize() << "\n"; 
-      std::cout << "h" <<  h << "\n";
-      std::cout << "w" <<  w << "\n";
-      // std::cout << "copy size " << h * w * sizeof(float) << "\n";
-      // std::cout << "total " << input.total() << "\n";
       for (int i = 0; i < h; ++i) {
         for (int j = 0; j < w; ++j) {
           input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
@@ -651,15 +646,9 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     w = quant_input_tensor->dims->data[2];
     switch (input_type) {
       case INPUT_TYPE::MNIST:
-      // for (int i = 0; i < w; ++i) {
-      //   for (int j = 0; j < h; ++j) {
-      //     q_input_pointer[i * h + j] = 0;
-      //   }
-      // }
       for (int i = 0; i < h; ++i) {
         for (int j = 0; j < w; ++j) {
           q_input_pointer[i * w + j] = ((float)input.at<uchar>(i+(28-h), j) / 255.0);
-          // q_input_pointer[i * w + j] = 0.0;
         }
       }
         break;

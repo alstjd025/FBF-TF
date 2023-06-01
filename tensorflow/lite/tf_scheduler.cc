@@ -342,8 +342,20 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
 
   }
-  else if(layers == 54){ // case of yolo v4 tiny prelu
-
+  else if(layers == 68){ // case of yolo v4 tiny cpu (including quantize layer)
+    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0; 
+    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 38;
+    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 38; 
+    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 58;
+    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[2][TF_P_IDX_START]    = 58;
+    tx_p.partitioning_plan[2][TF_P_IDX_END]      = 68;
+    tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0;
+    tx_p.partitioning_plan[3][TF_P_IDX_START]    = TF_P_END_PLAN;
   }
   else{
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;

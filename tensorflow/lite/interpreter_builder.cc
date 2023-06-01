@@ -592,7 +592,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             new_plan_->partitioning_ratios[j] = 15;
             j++;
           }
-          std::cout << "co cpu dummy plan" << "\n";
           master_partitioning_plan.push_back(new_plan_);
         }else{
           master_partitioning_plan.push_back(new_plan);
@@ -636,6 +635,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       case ResourceType::CPU:
         // Set this sugraph for cpu subgraph
         new_subgraph->SetResourceType(ResourceType::CPU);
+        new_subgraph->context()->recommended_num_threads = 6;     
         std::cout << "Set new graph for cpu" << "\n";
         break;
       case ResourceType::GPU:
@@ -646,7 +646,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       case ResourceType::CO_CPU:
         new_subgraph->SetResourceType(ResourceType::CO_CPU);
         new_subgraph->PushPartitioningRatio(
-        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
+        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);   
+        new_subgraph->context()->recommended_num_threads = 6;     
         std::cout << "Set new graph for co_cpu" << "\n";
         break;
       case ResourceType::CO_GPU:
