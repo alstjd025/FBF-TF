@@ -151,16 +151,23 @@ TfLiteRuntime::~TfLiteRuntime() {
 
 void TfLiteRuntime::InitLogFile(){
   logFile.open("latency.txt");
+  logFile_.open("latency_.txt");
   return;
 }
 
-void TfLiteRuntime::WriteVectorLog(std::vector<double>& log){
-  if(logFile.is_open()){
+void TfLiteRuntime::WriteVectorLog(std::vector<double>& log, int n){
+  if(logFile.is_open() && n == 0){
     for(int i=0; i<log.size(); ++i){
       logFile << log[i] << " ";
     }
     logFile << "\n";
-  }else{
+  }else if(logFile_.is_open() && n == 1){
+    for(int i=0; i<log.size(); ++i){
+      logFile_ << log[i] << " ";
+    }
+    logFile_ << "\n";
+  }
+  else{
     std::cout << "Log file not open ERROR" << "\n";
     return;
   }
@@ -602,7 +609,6 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
               << "\n";
     return;
   }
-
   auto input_pointer = (float*)input_tensor->data.data;
   int h = input_tensor->dims->data[1];
   int w = input_tensor->dims->data[2];
@@ -764,10 +770,14 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       if(main_execution_graph != nullptr)
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
       std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
         return;
       }
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      latency.push_back(response_time);
       // sync with gpu here (wake gpu)
       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
       is_execution_done = true;
@@ -776,6 +786,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       if(subgraph->GetNextSubgraph() != nullptr)
         subgraph_idx++;
       else{
+        WriteVectorLog(latency, 1);
         std::cout << "CPU execution done" << "\n";
         break;
       }
@@ -815,12 +826,13 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
           // PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
         }
       }
-      if(subgraph->GetNextSubgraph() != nullptr)
+      if(subgraph->GetNextSubgraph() != nullptr){
         subgraph_idx++;
+      }
       else{
-        WriteVectorLog(latency);
+        WriteVectorLog(latency, 0);
         std::cout << "GPU execution done" << "\n";
-        // PrintTensorSerial(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
+        // PrintyoloOutput(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         break;
       }
     }
@@ -1179,9 +1191,18 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
         return kTfLiteError;
       }
       // PrintTensorSerial(*dest_tensor);
-      auto data_source = (float*)source_tensor->data.data;
-      auto data_dest = (float*)dest_tensor->data.data;
-      memcpy(data_dest, data_source, source_byte_size);
+      
+      if(source_tensor->type == kTfLiteFloat32 && dest_tensor->type == kTfLiteFloat32){
+        // auto data_source = (float*)source_tensor->data.data;
+        // auto data_dest = (float*)dest_tensor->data.data;
+        // memcpy(data_dest, data_source, source_byte_size);
+        dest_tensor->data.data = source_tensor->data.data;
+      }else if(source_tensor->type == kTfLiteInt8 && dest_tensor->type == kTfLiteInt8){
+        // auto data_source = (int8_t*)source_tensor->data.data;
+        // auto data_dest = (int8_t*)dest_tensor->data.data;
+        // memcpy(data_dest, data_source, source_byte_size);
+        dest_tensor->data.data = source_tensor->data.data;
+      }
       std::cout << "Copied intermediate data" << "\n";
     }
     return kTfLiteOk;
@@ -1358,6 +1379,36 @@ void TfLiteRuntime::PrintTensorSerial(TfLiteTensor& tensor){
         }
         if (j % tensor_axis == tensor_axis-1) {
           printf("\n");
+        }
+      }
+      std::cout << "\n";
+    }
+  }
+}
+
+void TfLiteRuntime::PrintyoloOutput(TfLiteTensor& tensor){
+  std::cout << "[Print Yolo output Tensor]" << "\n";
+  int tensor_channel_idx = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_channel_idx];
+  int tensor_data_size = 1;
+  int tensor_axis;
+  int ch = (tensor.dims->data[1] * tensor.dims->data[2]);
+  int data_size = tensor.dims->data[3];
+
+  std::cout << " Number of data : " << tensor_data_size << "\n";
+  std::cout << " Tensor DATA " << "\n";
+  if(tensor.type == TfLiteType::kTfLiteFloat32){
+    std::cout << "[FLOAT32 TENSOR]" << "\n";
+    auto data_st = (float*)tensor.data.data;
+    for(int i=0; i<ch; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<data_size; j++){
+        float data = *(data_st+ j + (data_size * i));
+        if (data == 0) {
+          printf("%0.6f ", data);
+        }
+        else if (data != 0) {
+            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
         }
       }
       std::cout << "\n";

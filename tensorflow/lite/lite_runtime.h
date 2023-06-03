@@ -67,8 +67,9 @@ class TfLiteRuntime{
     
     /// For debugging only ==
     void InitLogFile();
-    void WriteVectorLog(std::vector<double>& latency);
+    void WriteVectorLog(std::vector<double>& latency, int n);
     std::ofstream logFile; 
+    std::ofstream logFile_; 
 
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);
@@ -89,6 +90,7 @@ class TfLiteRuntime{
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
     void PrintTensorSerial(TfLiteTensor& tensor);
+    void PrintyoloOutput(TfLiteTensor& tensor);
     ////// ==
 
     void WakeScheduler();
