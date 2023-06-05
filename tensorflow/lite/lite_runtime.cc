@@ -832,7 +832,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       else{
         WriteVectorLog(latency, 0);
         std::cout << "GPU execution done" << "\n";
-        // PrintyoloOutput(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
+        PrintyoloOutput(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         break;
       }
     }
@@ -1405,11 +1405,12 @@ void TfLiteRuntime::PrintyoloOutput(TfLiteTensor& tensor){
       for(int j=0; j<data_size; j++){
         float data = *(data_st+ j + (data_size * i));
         if (data == 0) {
-          printf("%0.6f ", data);
+          printf("%0.6f", data);
         }
         else if (data != 0) {
-            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+            printf("%s%0.6f%s", C_GREN, data, C_NRML);
         }
+        printf(",");
       }
       std::cout << "\n";
     }
