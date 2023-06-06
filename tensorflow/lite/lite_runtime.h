@@ -20,7 +20,6 @@
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/optional_debug_tools.h"
-#include "tensorflow/lite/delegates/gpu/delegate.h"
 #include "tensorflow/lite/c/common.h"
 #include "thread"
 #include "future"

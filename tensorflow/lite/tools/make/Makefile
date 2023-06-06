@@ -77,7 +77,6 @@ LIBS := \
 -lopencv_objdetect -lopencv_calib3d -lopencv_imgcodecs -lopencv_features2d -lopencv_flann\
 -lopencv_xphoto -lopencv_photo -lopencv_imgproc\
 -lopencv_core\
-/home/xavier/FBF-TF/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so\
 /usr/lib/aarch64-linux-gnu/libGL.so\
 /usr/lib/aarch64-linux-gnu/libEGL.so\
 /usr/lib/aarch64-linux-gnu/libGLESv2.so
