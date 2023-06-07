@@ -108,7 +108,7 @@ class TfLiteRuntime{
 
     // FOR AWS web socket communication
     void MergeFromClient(Subgraph* subgraph); 
-
+    void SendtoServer(Subgraph* subgraph);
 
     // Merge output(which is intermediate in the view of whole task)
     // data from previous subgraph.

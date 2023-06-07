@@ -777,13 +777,13 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
-      MergeFromClient(subgraph);
       std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
         return;
       }
+      SendtoServer(subgraph);
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
@@ -883,6 +883,44 @@ void TfLiteRuntime::MergeFromClient(Subgraph* subgraph){
   close(serverSocket);
 
   return;
+}
+
+void TfLiteRuntime::SendtoServer(Subgraph* subgraph){
+  int clientSocket;
+  struct sockaddr_in serverAddress;
+  TfLiteTensor* output_tensor = subgraph->tensor(subgraph->GetOutputTensorIndex());
+  size_t BUFFER_SIZE = output_tensor->bytes;
+  char buffer[BUFFER_SIZE];
+
+  // Create socket
+  clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+  if (clientSocket == -1) {
+      std::cerr << "Failed to create socket." << std::endl;
+      return;
+  }
+
+  // Configure server address
+  serverAddress.sin_family = AF_INET;
+  serverAddress.sin_port = htons(PORT);
+  serverAddress.sin_addr.s_addr = inet_addr("13.210.196.193");
+
+  // Connect to server
+  if (connect(clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1) {
+      std::cerr << "Failed to connect to server." << std::endl;
+      return;
+  }
+
+  std::cout << "Connected to server." << std::endl;
+
+  // Send data to server
+  if (send(clientSocket, output_tensor->data.data, BUFFER_SIZE, 0) == -1) {
+      std::cerr << "Failed to send data." << std::endl;
+      return;
+  }
+
+  std::cout << "Send intermediate data" << "\n";
+  // Close socket
+  close(clientSocket);
 }
 
 TfLiteStatus TfLiteRuntime::DebugInvoke() {
