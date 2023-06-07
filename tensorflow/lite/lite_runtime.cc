@@ -777,6 +777,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
+      MergeFromClient(subgraph);
       std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
@@ -808,6 +809,79 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       }
     }
   }
+  return;
+}
+
+void TfLiteRuntime::MergeFromClient(Subgraph* subgraph){
+  int serverSocket, clientSocket;
+  struct sockaddr_in serverAddress, clientAddress;
+  TfLiteTensor* input_tensor = subgraph->tensor(subgraph->GetInputTensorIndex());
+  size_t BUFFER_SIZE = input_tensor->bytes;
+  char buffer[BUFFER_SIZE];
+
+  // Create socket
+  serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+  if (serverSocket == -1) {
+      std::cerr << "Failed to create socket." << std::endl;
+      return;
+  }
+
+  // Bind socket to IP and port
+  serverAddress.sin_family = AF_INET;
+  serverAddress.sin_addr.s_addr = INADDR_ANY;
+  serverAddress.sin_port = htons(PORT);
+  if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1) {
+      std::cerr << "Failed to bind socket." << std::endl;
+      return;
+  }
+
+  // Listen for incoming connections
+  if (listen(serverSocket, 5) == -1) {
+      std::cerr << "Failed to listen on socket." << std::endl;
+      return;
+  }
+
+  std::cout << "Server is listening on port " << PORT << std::endl;
+
+  // Accept incoming connection
+  socklen_t clientAddressLength = sizeof(clientAddress);
+  clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientAddressLength);
+  if (clientSocket == -1) {
+      std::cerr << "Failed to accept connection." << std::endl;
+      return;
+  }
+
+  std::cout << "Client connected: " << inet_ntoa(clientAddress.sin_addr) << std::endl;
+
+  // Receive and send data
+  while (true) {
+      memset(buffer, 0, sizeof(buffer));
+      int bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+      if (bytesRead == -1) {
+          std::cerr << "Failed to receive data." << std::endl;
+          break;
+      }
+
+      if (bytesRead == 0) {
+          std::cout << "Client disconnected." << std::endl;
+          break;
+      }
+
+      memcpy(input_tensor->data.data, buffer, sizeof(buffer));
+      PrintTensorSerial(*input_tensor);
+      // std::string response = "Server response: ";
+      // response += buffer;
+
+      // if (send(clientSocket, response.c_str(), response.length(), 0) == -1) {
+      //     std::cerr << "Failed to send data." << std::endl;
+      //     break;
+      // }
+  }
+
+  // Close sockets
+  close(clientSocket);
+  close(serverSocket);
+
   return;
 }
 

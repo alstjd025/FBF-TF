@@ -262,15 +262,11 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
     
     // if want two subgraph
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 4;
+    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 5;
+    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 9;
     tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 4;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
+    tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
   } // MNIST
   else if(layers == 124){ // MOBILENET
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;

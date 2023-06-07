@@ -12,6 +12,11 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <functional>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <cstring>
+
 
 #include "condition_variable"
 #include "opencv2/opencv.hpp"
@@ -30,6 +35,8 @@ This class is re-writed for IPC with scheduler and 1:1 relationship for interpre
 and interpreterbuilder. (commit b56faa4981)
 
 */
+
+#define PORT 80
 
 namespace tflite{
 
@@ -98,6 +105,10 @@ class TfLiteRuntime{
     TfLiteStatus Invoke();
     TfLiteStatus InvokeCoExecution();
     TfLiteStatus InvokeSingleExecution();
+
+    // FOR AWS web socket communication
+    void MergeFromClient(Subgraph* subgraph); 
+
 
     // Merge output(which is intermediate in the view of whole task)
     // data from previous subgraph.
