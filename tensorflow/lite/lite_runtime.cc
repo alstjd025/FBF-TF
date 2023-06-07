@@ -751,7 +751,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      latency.push_back(response_time);
+      printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
       // sync with gpu here (wake gpu)
       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
       is_execution_done = true;
@@ -760,7 +760,6 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       if(subgraph->GetNextSubgraph() != nullptr)
         subgraph_idx++;
       else{
-        WriteVectorLog(latency, 1);
         std::cout << "CPU execution done" << "\n";
         break;
       }
@@ -786,7 +785,6 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      latency.push_back(response_time);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -804,8 +802,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
         subgraph_idx++;
       }
       else{
-        WriteVectorLog(latency, 0);
-        std::cout << "GPU execution done" << "\n";
+        std::cout << "Execution done" << "\n";
         PrintyoloOutput(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         break;
       }
