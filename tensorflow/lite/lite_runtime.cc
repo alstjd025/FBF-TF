@@ -803,7 +803,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       }
       else{
         std::cout << "Execution done" << "\n";
-        PrintyoloOutput(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
+        PrintTensorSerial(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         break;
       }
     }
