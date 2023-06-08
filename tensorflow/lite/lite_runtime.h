@@ -82,7 +82,7 @@ class TfLiteRuntime{
 
     // Debug invoke (for co-execution invoke synchronization test)
     // Call after DebugCoInvoke()
-    void DebugSyncInvoke(ThreadType type);
+    void DebugSyncInvoke(PrecisionType type);
 
 
     void FeedInputToModelDebug(const char* model, cv::Mat& input,
@@ -91,6 +91,7 @@ class TfLiteRuntime{
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
     void PrintTensorSerial(TfLiteTensor& tensor);
     void PrintyoloOutput(TfLiteTensor& tensor);
+    std::vector<std::vector<float>*>* GetFloatOutputInVector();
     ////// ==
 
     void WakeScheduler();
@@ -128,6 +129,8 @@ class TfLiteRuntime{
     tflite::Interpreter* quantized_interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
     tflite::InterpreterBuilder* quantized_builder;
+
+    TfLiteTensor* global_output_tensor = nullptr;
 
     //// Co-execution
     bool co_execution = false;

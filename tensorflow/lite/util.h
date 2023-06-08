@@ -171,9 +171,9 @@ typedef enum WorkerState{
 } WorkerState;
 
 // Threadtype for co-execution
-typedef enum ThreadType{
-  THREAD_CPU,
-  THREAD_GPU
+typedef enum PrecisionType{
+  MINIMAL_PRECISION,
+  MAX_PRECISION
 } ThreadType;
 
 // ResourceType for subgraph

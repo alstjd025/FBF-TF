@@ -625,6 +625,16 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     case INPUT_TYPE::IMAGENET224:
       memcpy(input_pointer, input.data,
              input.total() * input.elemSize());
+      // for (int i = 0; i < 224; ++i) {
+      //   for (int j = 0; j < 224; ++j) {
+      //     input_pointer[i * 224 + j * 3] =
+      //         ((float)input.at<cv::Vec3b>(i, j)[0]);
+      //     input_pointer[i * 224 + j * 3 + 1] =
+      //         ((float)input.at<cv::Vec3b>(i, j)[1]);
+      //     input_pointer[i * 224 + j * 3 + 2] =
+      //         ((float)input.at<cv::Vec3b>(i, j)[2]);
+      //   }
+      // }
       break;
     case INPUT_TYPE::IMAGENET300:
       for (int i = 0; i < 300; ++i) {
@@ -641,6 +651,16 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
     case INPUT_TYPE::IMAGENET416:
       memcpy(input_pointer, input.data,
              input.total() * input.elemSize());
+      // for (int i = 0; i < 416; ++i) {
+      //   for (int j = 0; j < 416; ++j) {
+      //     input_pointer[i * 416 + j * 3] =
+      //         ((float)input.at<cv::Vec3b>(i, j)[0]);
+      //     input_pointer[i * 416 + j * 3 + 1] =
+      //         ((float)input.at<cv::Vec3b>(i, j)[1]);
+      //     input_pointer[i * 416 + j * 3 + 2] =
+      //         ((float)input.at<cv::Vec3b>(i, j)[2]);
+      //   }
+      // }
       break;
     default:
       break;
@@ -744,12 +764,13 @@ void TfLiteRuntime::WakeScheduler() {
 void TfLiteRuntime::JoinScheduler() { interpreter->JoinScheduler(); }
 
 TfLiteStatus TfLiteRuntime::DebugCoInvoke(){
-  c_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, ThreadType::THREAD_CPU);
-  DebugSyncInvoke(ThreadType::THREAD_GPU);
+  c_thread = std::thread(&TfLiteRuntime::DebugSyncInvoke, this, 
+                          PrecisionType::MINIMAL_PRECISION);
+  DebugSyncInvoke(PrecisionType::MAX_PRECISION);
   c_thread.join();
 }
 
-void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
+void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
   int subgraph_idx = 0;
@@ -757,7 +778,7 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
   std::vector<double> latency;
   struct timespec begin, end;
   while(true){
-    if(type == ThreadType::THREAD_CPU){
+    if(type == PrecisionType::MINIMAL_PRECISION){
       if(quantized_interpreter->subgraphs_size() < 1){
         std::cout << "No invokable subgraph for cpu" << "\n";
         break;
@@ -787,10 +808,10 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
         subgraph_idx++;
       else{
         WriteVectorLog(latency, 1);
-        std::cout << "CPU execution done" << "\n";
+        std::cout << "Minimal precision graph invoke done" << "\n";
         break;
       }
-    }else if(type == ThreadType::THREAD_GPU){
+    }else if(type == PrecisionType::MAX_PRECISION){
       subgraph = interpreter->subgraph(subgraph_idx);
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
@@ -831,8 +852,10 @@ void TfLiteRuntime::DebugSyncInvoke(ThreadType type){
       }
       else{
         WriteVectorLog(latency, 0);
-        std::cout << "GPU execution done" << "\n";
-        PrintyoloOutput(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
+        std::cout << "Max precision graph invoke done" << "\n";
+        PrintyoloOutput(*(subgraph->tensor(109)));
+        // PrintTensorSerial(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
+        global_output_tensor = subgraph->tensor(subgraph->GetOutputTensorIndex());
         break;
       }
     }
@@ -1415,6 +1438,44 @@ void TfLiteRuntime::PrintyoloOutput(TfLiteTensor& tensor){
       std::cout << "\n";
     }
   }
+}
+
+std::vector<std::vector<float>*>* TfLiteRuntime::GetFloatOutputInVector(){
+  std::vector<std::vector<float>*>* output = new std::vector<std::vector<float>*>;
+  if(global_output_tensor == nullptr){
+    std::cout << "No output tensor to parse " << "\n";
+    return output;
+  }
+  TfLiteTensor* tensor = global_output_tensor;
+  if(tensor->dims->size == 2){
+    int tensor_channel_idx = tensor->dims->size-1;
+    int tensor_data_ch_size = tensor->dims->data[tensor_channel_idx];
+    int tensor_data_size = 1;
+    int tensor_axis;
+    int ch = tensor->dims->data[1];
+    auto data_st = (float*)tensor->data.data;
+    output->push_back(new std::vector<float>());
+    for(int j=0; j<ch; j++){
+      float data = *(data_st + j);
+      output->at(0)->push_back(data);
+    }
+  }else if(tensor->dims->size == 4){
+    int tensor_channel_idx = tensor->dims->size-1;
+    int tensor_data_ch_size = tensor->dims->data[tensor_channel_idx];
+    int tensor_data_size = 1;
+    int tensor_axis;
+    int ch = (tensor->dims->data[1] * tensor->dims->data[2]);
+    int data_size = tensor->dims->data[3];
+    auto data_st = (float*)tensor->data.data;
+    for(int i=0; i<ch; i++){
+      output->push_back(new std::vector<float>());
+      for(int j=0; j<data_size; j++){
+        float data = *(data_st+ j + (data_size * i));
+        output->at(i)->push_back(data);
+      }
+    }
+  }
+  return output;
 }
 
 }  // namespace tflite
