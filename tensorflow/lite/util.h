@@ -176,6 +176,13 @@ typedef enum PrecisionType{
   MAX_PRECISION
 } ThreadType;
 
+// Partitioning types for co-execution
+typedef enum PartitioningType{
+  NO_PARTITIONING,
+  HEIGHT_PARTITIONING,
+  CHANNEL_PARTITIONING
+} PartitioningType;
+
 // ResourceType for subgraph
 typedef enum ResourceType{
   CPU,

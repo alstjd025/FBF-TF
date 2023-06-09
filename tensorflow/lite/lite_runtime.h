@@ -112,7 +112,8 @@ class TfLiteRuntime{
     
     
     // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
-    void MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_source);
+    void MergeCoExecutionData(Subgraph* min_precision_subgraph
+                            , Subgraph* max_precision_subgraph);
 
     //// IPC functions
     // Initialize UDS and check communication with scheduler.

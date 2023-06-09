@@ -188,6 +188,10 @@ class Subgraph {
   std::vector<int>& GetPartitioningRatio() { return partitioning_ratios; }
 
   // Minsung
+  void SetPartitioningType(PartitioningType type) { partitioning_type = type; }
+  PartitioningType GetPartitioningType() { return partitioning_type; }
+
+  // Minsung
   bool IsProfiled() { return is_profiled; }
   void SetProfiled() { is_profiled = true; }
 
@@ -976,6 +980,7 @@ class Subgraph {
   int job_id_ = -1;
 
   ResourceType resource_type = ResourceType::CPU;
+  PartitioningType partitioning_type = PartitioningType::NO_PARTITIONING; 
 
 };
 

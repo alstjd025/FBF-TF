@@ -853,7 +853,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       else{
         WriteVectorLog(latency, 0);
         std::cout << "Max precision graph invoke done" << "\n";
-        PrintyoloOutput(*(subgraph->tensor(109)));
+        // PrintyoloOutput(*(subgraph->tensor(109)));
         // PrintTensorSerial(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         global_output_tensor = subgraph->tensor(subgraph->GetOutputTensorIndex());
         break;
@@ -1078,100 +1078,101 @@ TfLiteStatus TfLiteRuntime::InvokeSingleExecution() {
 // NEED TO FIX FOR MULTIPLE OUTPUT TENSORS!!!!
 // NEED TO FIX FOR MULTIPLE OUTPUT TENSORS!!!!
 // NEED TO FIX FOR MULTIPLE OUTPUT TENSORS!!!!
-void TfLiteRuntime::MergeCoExecutionData(Subgraph* cpu_source, Subgraph* gpu_source){
+void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
+                                      , Subgraph* max_precision_subgraph){
   Subgraph* dest_subgraph;
-  dest_subgraph = gpu_source->GetNextSubgraph();
+  dest_subgraph = max_precision_subgraph->GetNextSubgraph();
   if(dest_subgraph == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
     std::cout << "dest_subgraph nullptr." << "\n";
     return;
   }
   int dest_tensor_idx = dest_subgraph->GetInputTensorIndex();
-  int source_tensor_cpu_idx = cpu_source->GetOutputTensorIndex();
-  int source_tensor_gpu_idx = gpu_source->GetOutputTensorIndex();
+  int min_precision_tensor_idx = min_precision_subgraph->GetOutputTensorIndex();
+  int max_precision_tensor_idx = max_precision_subgraph->GetOutputTensorIndex();
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
-  TfLiteTensor* source_tensor_cpu = cpu_source->tensor(source_tensor_cpu_idx);
-  TfLiteTensor* source_tensor_gpu = gpu_source->tensor(source_tensor_gpu_idx);
-  if(dest_tensor == nullptr || source_tensor_cpu == nullptr ||
-      source_tensor_gpu == nullptr){
+  TfLiteTensor* min_precision_tensor = min_precision_subgraph->tensor(min_precision_tensor_idx);
+  TfLiteTensor* max_precision_tensor = max_precision_subgraph->tensor(max_precision_tensor_idx);
+  if(dest_tensor == nullptr || min_precision_tensor == nullptr ||
+      max_precision_tensor == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
     std::cout << "Tensor NULLPTR" << "\n";
     return;
   }
 
-  if(dest_tensor->dims->size < 4 || source_tensor_cpu->dims->size < 4 ||
-      source_tensor_gpu->dims->size < 4){
+  if(dest_tensor->dims->size < 4 || min_precision_tensor->dims->size < 4 ||
+      max_precision_tensor->dims->size < 4){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
-    std::cout << "Tensor rank smaller then 4" << "\n";
+    std::cout << "Tensor rank must 4" << "\n";
     return;
   }
 
   // check dims 
-  if(dest_tensor->dims->data[1] == source_tensor_cpu->dims->data[1]){
+  if(dest_tensor->dims->data[1] == min_precision_tensor->dims->data[1]){
     // Merge CW-partitioned data 
-    int dest_ch, source_cpu_ch, source_gpu_ch;
+    int dest_ch, min_tensor_ch, max_tensor_ch;
     dest_ch = dest_tensor->dims->data[3];
-    source_cpu_ch = source_tensor_cpu->dims->data[3];
-    source_gpu_ch = source_tensor_gpu->dims->data[3];
-    if((source_cpu_ch + source_gpu_ch) != dest_ch){
-      std::cout << "Tensor dim [OCH] cpu + gpu != dest ERROR" << "\n";
+    min_tensor_ch = min_precision_tensor->dims->data[3];
+    max_tensor_ch = max_precision_tensor->dims->data[3];
+    if((min_tensor_ch + max_tensor_ch) != dest_ch){
+      std::cout << "Tensor dim [OCH] min_prec + max_prec != dest ERROR" << "\n";
       return;
     }
-    auto data_cpu = (float*)source_tensor_cpu->data.data;
-    auto data_gpu = (float*)source_tensor_gpu->data.data;
+    auto data_min = (float*)min_precision_tensor->data.data;
+    auto data_max = (float*)max_precision_tensor->data.data;
     auto data_dest = (float*)dest_tensor->data.data;
     int tensor_data_size = 1;
     for(int i=0; i<dest_tensor->dims->size; ++i){
       tensor_data_size *= dest_tensor->dims->data[i];
     }
     int tensor_data_per_ch = tensor_data_size / dest_ch;
-    for(int i=0; i<tensor_data_per_ch; ++i){ //copy GPU side data
-      memcpy(data_dest + (source_cpu_ch * i), data_gpu + (source_gpu_ch * i),
-              source_gpu_ch * sizeof(float));
+    for(int i=0; i<tensor_data_per_ch; ++i){ //copy maximum precision side data
+      memcpy(data_dest + (min_tensor_ch * i), data_max + (max_tensor_ch * i),
+              max_tensor_ch * sizeof(float));
     }
-    for(int i=0; i<tensor_data_per_ch; ++i){ //copy CPU side data
-      memcpy(data_dest + (source_gpu_ch * (i+1)), data_cpu + (source_cpu_ch * i),
-              source_cpu_ch * sizeof(float));
+    for(int i=0; i<tensor_data_per_ch; ++i){ //copy minimum precision side data
+      memcpy(data_dest + (max_tensor_ch * (i+1)), data_min + (min_tensor_ch * i),
+              min_tensor_ch * sizeof(float));
     }
   }else{ // Merge HW-partitioned data
     int dest_ch = dest_tensor->dims->data[3];
     int dest_ht = dest_tensor->dims->data[1];
-    int source_cpu_ht = source_tensor_cpu->dims->data[1];
-    int source_gpu_ht = source_tensor_gpu->dims->data[1];
+    int min_tensor_ht = min_precision_tensor->dims->data[1];
+    int max_tensor_ht = max_precision_tensor->dims->data[1];
     int tensor_dest_data_size = 1;
-    int tensor_gpu_data_size = 1;
-    int tensor_cpu_data_size = 1;
+    int min_precision_data_size = 1;
+    int max_precision_data_size = 1;
     for(int i=0; i<dest_tensor->dims->size; ++i){
       tensor_dest_data_size *= dest_tensor->dims->data[i];
     }
-    for(int i=0; i<source_tensor_gpu->dims->size; ++i){
-      tensor_gpu_data_size *= source_tensor_gpu->dims->data[i];
+    for(int i=0; i<max_precision_tensor->dims->size; ++i){
+      max_precision_data_size *= max_precision_tensor->dims->data[i];
     }
-    for(int i=0; i<source_tensor_cpu->dims->size; ++i){
-      tensor_cpu_data_size *= source_tensor_cpu->dims->data[i];
+    for(int i=0; i<min_precision_tensor->dims->size; ++i){
+      min_precision_data_size *= min_precision_tensor->dims->data[i];
     }
     // Need to drop padding data before merge.
-    // Drop CPU data because it is dequantized and might drop accuracy.
-    if((source_cpu_ht + source_gpu_ht) != dest_ht){
-      auto data_cpu = (float*)source_tensor_cpu->data.data;
-      auto data_gpu = (float*)source_tensor_gpu->data.data;
+    // Drop minimum precision data because it is dequantized and might drop accuracy.
+    if((min_tensor_ht + max_tensor_ht) != dest_ht){
+      auto data_min = (float*)min_precision_tensor->data.data;
+      auto data_max = (float*)max_precision_tensor->data.data;
       auto data_dest = (float*)dest_tensor->data.data;
-      int drop_height = (dest_ht - (source_cpu_ht + source_gpu_ht)) * (-1/2);
+      int drop_height = (dest_ht - (min_tensor_ht + max_tensor_ht)) * (-1/2);
       if(drop_height < 0){
         std::cout << "Wrong drop in HW merging ERROR " << "\n";
         return;
       }
-      memcpy(data_dest, data_gpu, sizeof(float)*tensor_gpu_data_size);
-      memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
-              sizeof(float)*(tensor_dest_data_size - tensor_cpu_data_size));
+      memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);
+      memcpy(data_dest+max_precision_data_size, data_min, 
+              sizeof(float)*(tensor_dest_data_size - min_precision_data_size));
     }else{  // No need to drop.
-      auto data_cpu = (float*)source_tensor_cpu->data.data;
-      auto data_gpu = (float*)source_tensor_gpu->data.data;
+      auto data_min = (float*)min_precision_tensor->data.data;
+      auto data_max = (float*)max_precision_tensor->data.data;
       auto data_dest = (float*)dest_tensor->data.data;
 
-      memcpy(data_dest, data_gpu, sizeof(float)*tensor_gpu_data_size);
-      memcpy(data_dest+tensor_gpu_data_size, data_cpu, 
-              sizeof(float)*tensor_cpu_data_size);
+      memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);
+      memcpy(data_dest+max_precision_data_size, data_min, 
+              sizeof(float)*min_precision_data_size);
     }
   }
   // PrintTensorSerial(*source_tensor_cpu);

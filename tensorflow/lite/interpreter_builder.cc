@@ -628,37 +628,41 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
-      
-      std::cout << "num_nodes_in_partition : " << num_nodes_in_partition << "\n";
+    
       switch (master_partitioning_plan[partition_itr]->resource_type)
       {
       case ResourceType::CPU:
         // Set this sugraph for cpu subgraph
         new_subgraph->SetResourceType(ResourceType::CPU);
         new_subgraph->context()->recommended_num_threads = 6;     
-        std::cout << "Set new graph for cpu" << "\n";
         break;
       case ResourceType::GPU:
         // Set this sugraph for gpu subgraph
         new_subgraph->SetResourceType(ResourceType::GPU);
-        std::cout << "Set new graph for gpu" << "\n";
         break;
       case ResourceType::CO_CPU:
         new_subgraph->SetResourceType(ResourceType::CO_CPU);
         new_subgraph->PushPartitioningRatio(
-        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);   
+        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);  
+        if(master_partitioning_plan[partition_itr]->partitioning_ratios[0] > 10)
+          new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
+        else
+          new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);
         new_subgraph->context()->recommended_num_threads = 6;     
-        std::cout << "Set new graph for co_cpu" << "\n";
         break;
       case ResourceType::CO_GPU:
         new_subgraph->SetResourceType(ResourceType::CO_GPU);
         new_subgraph->PushPartitioningRatio(
-        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);        
-        std::cout << "Set new graph for co_gpu" << "\n";
+        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
+        if(master_partitioning_plan[partition_itr]->partitioning_ratios[0] > 10)
+          new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
+        else
+          new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);        
         break;
       default:
         break;
       }
+      // Now setup nodes and tensors for new subgraph
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
         std::cout << "Working op " << working_op << "\n";
@@ -713,14 +717,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
     }// Partitioning iteration ends
-    // Job is deprecated.
+    // "Job is deprecated"
     tflite::Job* new_job = new tflite::Job;
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "BindSubgraphWithJob ERROR" << "\n";
       return kTfLiteError;
     }
-    std::cout << "BindSubgraphWithJob" << "\n";
     if(RegisterJobAndSubgraphs(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";

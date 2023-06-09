@@ -316,14 +316,12 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
   auto HeightPartitionAndAllocateIfNeed = [&](Subgraph* subgraph){
     if(subgraph->GetResourceType() == ResourceType::CO_CPU ||
         subgraph->GetResourceType() == ResourceType::CO_GPU){
-      std::vector<int> partitioning_ratio;
-      partitioning_ratio = subgraph->GetPartitioningRatio();
-      if(partitioning_ratio.empty()){
+      if(subgraph->GetPartitioningType() == PartitioningType::NO_PARTITIONING){
         std::cout << "ERROR HeightPartitionIfNeed : " << "graph has been set Co-execution"
                   << " but has no partitioning plan" << "\n";
         return kTfLiteError;
       }
-      if(partitioning_ratio[0] >= 10){
+      if(subgraph->GetPartitioningType() == PartitioningType::HEIGHT_PARTITIONING){
         if(subgraph->PartitionHeightTest() != kTfLiteOk){
           std::cout << "Height partitioning TEST returned ERROR" << "\n";
           return kTfLiteError;
@@ -363,13 +361,13 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                 for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
                   int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
                   if(j == 0){
-                    std::cout << "working subgraph : " << working_subgraph << "\n";
+                    // std::cout << "working subgraph : " << working_subgraph << "\n";
                     subgraph_id(working_subgraph)->PushToOutputs(base_tensor);
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
-                    std::cout << "resize tensor " << base_tensor << " graph " <<  working_subgraph << "\n";
+                    // std::cout << "resize tensor " << base_tensor << " graph " <<  working_subgraph << "\n";
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
                     subgraph_id(working_subgraph)->PushToInputs(base_tensor);
                   }
