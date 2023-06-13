@@ -25,6 +25,14 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 #include "tensorflow/lite/delegates/gpu/gl/command_queue.h"
 
+
+#include <iostream>
+
+#ifdef latency_measure
+  #include "time.h"
+#endif  
+
+
 namespace tflite {
 namespace gpu {
 namespace gl {

@@ -419,10 +419,13 @@ class InferenceRunnerImpl : public InferenceRunner {
 
   absl::Status Run() override {
     for (auto& obj : inputs_) {
+      std::cout << "CopyFromExternalObject()" << "\n";
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
     }
+    std::cout << "Execute" << "\n";
     RETURN_IF_ERROR(runtime_->Execute());
     for (auto& obj : outputs_) {
+      std::cout << "CopyToExternalObject()" << "\n";
       RETURN_IF_ERROR(obj->CopyToExternalObject());
     }
     RETURN_IF_ERROR(runtime_->command_queue()->Flush());

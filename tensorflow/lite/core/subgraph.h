@@ -184,11 +184,18 @@ class Subgraph {
   }
 
   // Minsung
+  // Pushs partitioning ratio to partitioning_ratio_vector of current subgraph.
   void PushPartitioningRatio(int r) { partitioning_ratios.push_back(r); }
+
+  // Minsung
+  // Returns partitioning ratio vector of current subgraph.
   std::vector<int>& GetPartitioningRatio() { return partitioning_ratios; }
 
   // Minsung
+  // Sets partitioning type of current subgraph.
   void SetPartitioningType(PartitioningType type) { partitioning_type = type; }
+  
+  // Returns partitioning type of current subgraph.
   PartitioningType GetPartitioningType() { return partitioning_type; }
 
   // Minsung

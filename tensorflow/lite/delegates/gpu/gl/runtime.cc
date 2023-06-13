@@ -590,6 +590,7 @@ absl::Status Runtime::Execute() {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());
     }
+    std::cout << "Gl Execute()::Dispatch()" << "\n";
     RETURN_IF_ERROR(command_queue_->Dispatch(descriptor.program,
                                              descriptor.num_workgroups));
   }

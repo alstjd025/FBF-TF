@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-// #define LATENCY_MEASURE
+#define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -822,8 +822,6 @@ TfLiteStatus Subgraph::PartitionChannel(){
 }
 
 TfLiteStatus Subgraph::PartitionHeightTest(){
-	std::vector<int> partitioning_plan;
-	std::vector<float> ratios;
   std::vector<std::pair<int, int>> tensor_pair;
   
   // First get the input & output tensor of all nodes in subgraph.
@@ -843,7 +841,12 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     }
     tensor_pair.push_back(std::pair<int, int>(input_tensor, output_tensor));
   }
-
+  std::vector<int> partitioning_plan = GetPartitioningRatio();
+  for(int i=0; i<partitioning_plan.size(); ++i){
+    std::cout << "partitioning_plan : " << partitioning_plan[i] << " ";
+  }
+  std::cout << "\n";
+  
   // Resize the tensors 
   // TEST FOR FIRST NODE
   // TEST FOR FIRST NODE

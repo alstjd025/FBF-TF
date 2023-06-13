@@ -32,6 +32,8 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/stats.h"
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 
+#include <iostream>
+
 namespace tflite {
 namespace gpu {
 namespace gl {

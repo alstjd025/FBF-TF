@@ -619,8 +619,6 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
           input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
         }
       }
-        // memcpy(input_pointer, input.data,
-        //      h * w * sizeof(float));
       break;
     case INPUT_TYPE::IMAGENET224:
       memcpy(input_pointer, input.data,
@@ -843,7 +841,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         if(co_execution_graph != nullptr){
           MergeCoExecutionData(co_execution_graph, subgraph);
           co_execution_graph = nullptr;
-          int input_tensor = subgraph->GetNextSubgraph()->GetInputTensorIndex();
+          // int input_tensor = subgraph->GetNextSubgraph()->GetInputTensorIndex();
           // PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
         }
       }

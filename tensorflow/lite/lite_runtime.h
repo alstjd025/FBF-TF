@@ -84,7 +84,6 @@ class TfLiteRuntime{
     // Call after DebugCoInvoke()
     void DebugSyncInvoke(PrecisionType type);
 
-
     void FeedInputToModelDebug(const char* model, cv::Mat& input,
                           INPUT_TYPE input_type);
     void PrintOutput(Subgraph* subgraph);
