@@ -418,20 +418,60 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
+  #ifdef latency_measure
+    double response_time = 0.0;
+    struct timespec begin, end;
+  #endif
+
     for (auto& obj : inputs_) {
-      std::cout << "CopyFromExternalObject()" << "\n";
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &begin);
+      #endif
+
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
+      
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        response_time = (end.tv_sec - begin.tv_sec) +
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        printf("CopyFromExternalObject latency %.6f \n", response_time);
+      #endif  
     }
-    std::cout << "Execute" << "\n";
+    
     RETURN_IF_ERROR(runtime_->Execute());
+    
     for (auto& obj : outputs_) {
-      std::cout << "CopyToExternalObject()" << "\n";
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &begin);
+      #endif
+
       RETURN_IF_ERROR(obj->CopyToExternalObject());
+
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        response_time = (end.tv_sec - begin.tv_sec) +
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        printf("CopyToExternalObject latency %.6f \n", response_time);
+      #endif  
+
     }
+
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif
+
     RETURN_IF_ERROR(runtime_->command_queue()->Flush());
     if (output_to_cpu_) {
       RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());
     }
+
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time = (end.tv_sec - begin.tv_sec) +
+                      ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("Flush and WaitforCompletion latency %.6f \n", response_time);
+    #endif  
+
     return absl::OkStatus();
   }
 

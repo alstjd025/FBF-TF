@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-#define LATENCY_MEASURE
+// #define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -822,8 +822,51 @@ TfLiteStatus Subgraph::PartitionChannel(){
 }
 
 TfLiteStatus Subgraph::PartitionHeightTest(){
-  std::vector<std::pair<int, int>> tensor_pair;
   
+  auto stub_method = [&](int padding, std::vector<std::pair<int, int>>& tensor_pair){
+    // Resize the tensors 
+    // TEST FOR FIRST NODE
+    // TEST FOR FIRST NODE
+    TfLiteTensor* input_tensor;
+    TfLiteTensor* output_tensor;
+    int input_tensor_idx = tensor_pair[0].first;
+    int output_tensor_idx = tensor_pair[0].second; 
+    std::vector<int> new_dims;
+    input_tensor = tensor(input_tensor_idx);
+    output_tensor = tensor(output_tensor_idx);
+    
+    // calculate paddings for inputs. (consider input, kernel size)
+    int padd = padding;
+    int pointer_offset = 0;
+    for(int i=0; i<input_tensor->dims->size; ++i){
+      new_dims.push_back(input_tensor->dims->data[i]);
+    }
+    // no padding for output. (consider input, kernel size)
+    auto data_pointer = *(&input_tensor->data.data);
+    int o = input_tensor->dims->data[0];
+    int h = input_tensor->dims->data[1];
+    int w = input_tensor->dims->data[2];
+    int i = input_tensor->dims->data[3];
+    new_dims[0] = o;
+    new_dims[1] = padd;
+    new_dims[2] = w;
+    new_dims[3] = i;
+    pointer_offset = o * padd * w;
+    
+    // TEST FOR FIRST NODE
+    // TEST FOR FIRST NODE
+
+    // Move the data pointer to proper point. (No need to move if CO_GPU)
+    // moving data pointer isn't necessary for global input tensor.
+    if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
+      data_pointer += pointer_offset;
+    }
+    
+    // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
+    ResizeInputTensor(input_tensor_idx, new_dims);
+  };
+
+  std::vector<std::pair<int, int>> tensor_pair;
   // First get the input & output tensor of all nodes in subgraph.
 	for (int execution_plan_index = 0;
     	execution_plan_index < execution_plan_.size(); execution_plan_index++) {
@@ -846,49 +889,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     std::cout << "partitioning_plan : " << partitioning_plan[i] << " ";
   }
   std::cout << "\n";
-  
-  // Resize the tensors 
-  // TEST FOR FIRST NODE
-  // TEST FOR FIRST NODE
-  TfLiteTensor* input_tensor;
-  TfLiteTensor* output_tensor;
-  int input_tensor_idx = tensor_pair[0].first;
-  int output_tensor_idx = tensor_pair[0].second; 
-  std::vector<int> new_dims;
-  input_tensor = tensor(input_tensor_idx);
-  output_tensor = tensor(output_tensor_idx);
-  
-  // calculate paddings for inputs. (consider input, kernel size)
-  int padding = 0;
-  int pointer_offset = 0;
-  for(int i=0; i<input_tensor->dims->size; ++i){
-    new_dims.push_back(input_tensor->dims->data[i]);
-  }
-  // no padding for output. (consider input, kernel size)
-  auto data_pointer = *(&input_tensor->data.data);
-  int o = input_tensor->dims->data[0];
-  int h = input_tensor->dims->data[1];
-  int w = input_tensor->dims->data[2];
-  int i = input_tensor->dims->data[3];
-  padding = 15;
-  new_dims[0] = o;
-  new_dims[1] = padding;
-  new_dims[2] = w;
-  new_dims[3] = i;
-  pointer_offset = o * padding * w;
-  
-  // TEST FOR FIRST NODE
-  // TEST FOR FIRST NODE
 
-  // Move the data pointer to proper point. (No need to move if CO_GPU)
-  // moving data pointer isn't necessary for global input tensor.
-  if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
-    data_pointer += pointer_offset;
-  }
-  
-  // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
-  ResizeInputTensor(input_tensor_idx, new_dims);
-
+  stub_method(15, tensor_pair);
   std::cout << "Height partitioning done" << "\n";
 }
 

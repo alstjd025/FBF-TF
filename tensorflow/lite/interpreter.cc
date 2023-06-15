@@ -430,6 +430,9 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id
   *begin = node->outputs->data[0];  
   // Get last node's input tensor index from final subgraph.
   // Because the node's intput & output tensor(which are intermediate tensors)
+  // WARNING!!!
+  // MUST FIX FOR CASES NOT IN ASCENDING ORDER.
+  // MUST FIX FOR CASES NOT IN ASCENDING ORDER.
   // idices are in ascending order, we can get intermediate tensors range.
   if(subgraphs_size() > 1){   // If interpreter has more than one subgraph.
     TfLiteIntArray* execution_plan;

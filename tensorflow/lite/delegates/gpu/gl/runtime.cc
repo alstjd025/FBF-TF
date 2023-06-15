@@ -34,6 +34,11 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
 #include "tensorflow/lite/delegates/gpu/gl/variable.h"
 
+#ifdef latency_measure
+  #define latency_measure
+  #include "time.h"
+#endif
+
 namespace tflite {
 namespace gpu {
 namespace gl {
@@ -586,13 +591,27 @@ absl::Status Runtime::AssignInternalObjects(
 }
 
 absl::Status Runtime::Execute() {
+  
+  #ifdef latency_measure
+    double response_time = 0.0;
+    struct timespec begin, end;
+  #endif
+
   for (const auto& descriptor : programs_) {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());
     }
-    std::cout << "Gl Execute()::Dispatch()" << "\n";
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif  
     RETURN_IF_ERROR(command_queue_->Dispatch(descriptor.program,
                                              descriptor.num_workgroups));
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time = (end.tv_sec - begin.tv_sec) +
+                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("Dispatch latency %.6f \n", response_time);
+    #endif  
   }
   return absl::OkStatus();
 }

@@ -141,6 +141,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
   }
+  
   InitLogFile();
 };
 
@@ -778,7 +779,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   while(true){
     if(type == PrecisionType::MINIMAL_PRECISION){
       if(quantized_interpreter->subgraphs_size() < 1){
-        std::cout << "No invokable subgraph for cpu" << "\n";
+        // std::cout << "No invokable subgraph for cpu" << "\n";
         break;
       }
       // sync with gpu here (notified by gpu)
@@ -788,7 +789,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       subgraph = quantized_interpreter->subgraph(subgraph_idx);
       if(main_execution_graph != nullptr)
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
-      std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      // std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
@@ -806,7 +807,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         subgraph_idx++;
       else{
         WriteVectorLog(latency, 1);
-        std::cout << "Minimal precision graph invoke done" << "\n";
+        // std::cout << "Minimal precision graph invoke done" << "\n";
         break;
       }
     }else if(type == PrecisionType::MAX_PRECISION){
@@ -823,7 +824,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
-      std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      // std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
@@ -850,7 +851,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       }
       else{
         WriteVectorLog(latency, 0);
-        std::cout << "Max precision graph invoke done" << "\n";
+        // std::cout << "Max precision graph invoke done" << "\n";
         // PrintyoloOutput(*(subgraph->tensor(109)));
         // PrintTensorSerial(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         global_output_tensor = subgraph->tensor(subgraph->GetOutputTensorIndex());
