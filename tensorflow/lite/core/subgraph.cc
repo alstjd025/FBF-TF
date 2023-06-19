@@ -1117,14 +1117,41 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       int tensor_index = node.outputs->data[i];
       // printf("HOON. each node (%d)'s output tensor's index num  :  %d\n",execution_plan_index,tensor_index);
       //TfLiteTensor* tensor = &context_.tensors[tensor_index]; //HOON  : same tool . indirect
-      TfLiteTensor* tensor = &tensors_[tensor_index]; //HOON : same tool. direct. (not via tfitecontext)      
+      TfLiteTensor* output_tensor = &tensors_[tensor_index]; //HOON : same tool. direct. (not via tfitecontext)      
       // printf("HOON. output tensor's bytes is %u\n" ,tensor->bytes);
-      if(tensor_index == 212) {
+      if(tensor_index == 233) {  //212  //233
         // --------------------------------------------
-        //printf("212 : \n");
-        //printf("todopoint %f\n", tensor->data);
-        //PrintTensor(*tensor, UnitType::GPU0);
-        
+        printf("233 : \n");
+        // printf("todopoint %f\n", output_tensor->data.f)];
+        printf("todopoint %f\n", output_tensor->data);        
+        // PrintTensor(*tensor, UnitType::GPU0);
+        // 출력 텐서 가져오기
+        // TfLiteTensor* output_tensor = interpreter->output_tensor(tensor_index);
+        const float* output_data = output_tensor->data.f;
+  
+        const int height = output_tensor->dims->data[1]; // 2535. bounding boxes_num
+        const int width = output_tensor->dims->data[2];  // 4
+        const int num_boxes = output_tensor->dims->data[0];  //1 .  ---> NOTE this is not num_boxes
+        printf("HOONING: hegiht, width, num_boxes --> %d %d %d \n", height, width, num_boxes);
+        std::vector<float> boxes(num_boxes * 4);
+        std::vector<float> confidences(num_boxes);
+  
+        for (int i = 0; i < num_boxes; ++i) {
+          boxes[i * 4] = output_data[i * 4 + 0];
+          boxes[i * 4 + 1] = output_data[i * 4 + 1];
+          boxes[i * 4 + 2] = output_data[i * 4 + 2];
+          boxes[i * 4 + 3] = output_data[i * 4 + 3];
+          confidences[i] = output_data[i * 4 + 4];
+          }
+
+        printf("Bounding boxes:\n");
+        for (int i = 0; i < num_boxes; ++i) {
+            printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
+        }
+        printf("Class confidences:\n");
+        for (int i = 0; i < num_boxes; ++i) {
+            printf("%f\n", confidences[i]);
+        }
       }    
       if(tensor_index == 233) {
         // --------------------------------------------
