@@ -16,7 +16,7 @@
 #endif
 
 #ifndef yolo
-#define SEQ 10000 //1000   ---> 4개부터 20000, 5개 15000, 6개 10000... 각 케이스마다 하루 정도 걸림.
+#define SEQ 500 //1000   ---> 4개부터 20000, 5개 15000, 6개 10000... 각 케이스마다 하루 정도 걸림.
 #define OUT_SEQ 1
 #endif
 
@@ -391,7 +391,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     time = time / (SEQ * OUT_SEQ);
     sum_average = sum_average / (SEQ * OUT_SEQ);
     printf("Average invoke time : \033[0;31m%0.6f\033[0m ms \n", time*1000);
-    printf("Average accuracy : %.6f % \n", sum_average*100);
+    //printf("Average accuracy : %.6f % \n", sum_average*100);
     std::cout << "\n";
     std::cout << "GPU All Jobs done" << "\n";
     b_delegation_optimizer.push_back(time*1000);

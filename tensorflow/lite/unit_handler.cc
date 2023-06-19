@@ -12,7 +12,7 @@
 
 
 #ifndef yolo
-#define Partition_Num 10
+#define Partition_Num 14
 #endif
 //#define QUANTIZE
 

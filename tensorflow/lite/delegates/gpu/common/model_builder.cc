@@ -54,8 +54,11 @@ limitations under the License.
 #include "tensorflow/lite/kernels/kernel_util.h"
 #include "tensorflow/lite/util.h"
 
+
 #include "tensorflow/lite/kmdebug.h"
+
 #define GPUONLY
+#define YOLO
 
 namespace tflite {
 namespace gpu {
@@ -3035,7 +3038,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   context->use_distribute_strategy_context = true;
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning 
   {
-
+    #ifdef YOLO
     if(registration->builtin_code == 49){ // Hoon  --------> SPLIT FALLBACK
     // HOON  : 111->ELU  98->LeakyRELU
     // HOON  :  3->CONV  9-> FullyCOnnected
@@ -3083,7 +3086,22 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           printf("FOUND A FALLBACK LAYER [MUL]... MAKE GPU DEL NODE \n");
         return false;
     }
+    #endif
+    #ifndef YOLO
+   if(registration->builtin_code == 2){   
+      // std::cout << "Found a MUL" << "\n"; 
+    // 16 : SPLIT_V
+    // 2 : concatenate
+    //Hoon --------> CONCATENATE FALLBACK
+    // HOON  : 111->ELU  98->LeakyRELU
+    // HOON  :  3->CONV  9-> FullyCOnnected
+    // builtin_ops.h  . 2 or 0
+        if(priority_partition_num ==0)
+          printf("FOUND A FALLBACK LAYER [CONCATENATE]... MAKE GPU DEL NODE \n");
+        return false;
+    }
 
+    #endif
 //    else {
       if (!status.ok()) {
         if (unsupported_details) {

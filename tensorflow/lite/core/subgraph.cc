@@ -1121,16 +1121,16 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       // printf("HOON. output tensor's bytes is %u\n" ,tensor->bytes);
       if(tensor_index == 212) {
         // --------------------------------------------
-        printf("212 : \n");
-        printf("todopoint %f\n", tensor->data);
-        PrintTensor(*tensor, UnitType::GPU0);
+        //printf("212 : \n");
+        //printf("todopoint %f\n", tensor->data);
+        //PrintTensor(*tensor, UnitType::GPU0);
         
       }    
       if(tensor_index == 233) {
         // --------------------------------------------
-        printf("233 : \n");
-        printf("todopoint %f\n", tensor->data);
-        PrintTensor(*tensor, UnitType::GPU0);
+        //printf("233 : \n");
+        //printf("todopoint %f\n", tensor->data);
+        //PrintTensor(*tensor, UnitType::GPU0);
         
       }    
     }
