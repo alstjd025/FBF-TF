@@ -583,9 +583,9 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
 void TfLiteRuntime::FeedInputToModelDebug(const char* model,
                                      cv::Mat& input,
                                      INPUT_TYPE input_type) {
-  // for (int i = 0; i < 28; ++i) {
-  //   for (int j = 0; j < 28; ++j) {
-  //     printf("%.6f ", ((float)input.at<uchar>(i,j) / 255.0));
+  // for (int i = 0; i < 224; ++i) {
+  //   for (int j = 0; j < 224; ++j) {
+  //     printf("%d ", ((uint8_t)input.at<uchar>(i,j)));
   //   }
   //   std::cout << "\n";
   // }
@@ -610,65 +610,124 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
               << "\n";
     return;
   }
-  auto input_pointer = (float*)input_tensor->data.data;
-  int h = input_tensor->dims->data[1];
-  int w = input_tensor->dims->data[2];
-  switch (input_type) {
-    case INPUT_TYPE::MNIST:
-      for (int i = 0; i < h; ++i) {
-        for (int j = 0; j < w; ++j) {
-          input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
+  if(input_tensor->type == kTfLiteFloat32){
+    auto input_pointer = (float*)input_tensor->data.data;
+    int h = input_tensor->dims->data[1];
+    int w = input_tensor->dims->data[2];
+    switch (input_type) {
+      case INPUT_TYPE::MNIST:
+        for (int i = 0; i < h; ++i) {
+          for (int j = 0; j < w; ++j) {
+            input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
+          }
         }
-      }
-      break;
-    case INPUT_TYPE::IMAGENET224:
-      memcpy(input_pointer, input.data,
-             input.total() * input.elemSize());
-      // for (int i = 0; i < 224; ++i) {
-      //   for (int j = 0; j < 224; ++j) {
-      //     input_pointer[i * 224 + j * 3] =
-      //         ((float)input.at<cv::Vec3b>(i, j)[0]);
-      //     input_pointer[i * 224 + j * 3 + 1] =
-      //         ((float)input.at<cv::Vec3b>(i, j)[1]);
-      //     input_pointer[i * 224 + j * 3 + 2] =
-      //         ((float)input.at<cv::Vec3b>(i, j)[2]);
-      //   }
-      // }
-      break;
-    case INPUT_TYPE::IMAGENET300:
-      for (int i = 0; i < 300; ++i) {
-        for (int j = 0; j < 300; ++j) {
-          input_pointer[i * 300 + j * 3] =
-              ((float)input.at<cv::Vec3b>(i, j)[0]);
-          input_pointer[i * 300 + j * 3 + 1] =
-              ((float)input.at<cv::Vec3b>(i, j)[1]);
-          input_pointer[i * 300 + j * 3 + 2] =
-              ((float)input.at<cv::Vec3b>(i, j)[2]);
+        break;
+      case INPUT_TYPE::IMAGENET224:
+        memcpy(input_pointer, input.data,
+              input.total() * input.elemSize());
+        // for (int i = 0; i < 224; ++i) {
+        //   for (int j = 0; j < 224; ++j) {
+        //     input_pointer[i * 224 + j * 3] =
+        //         ((float)input.at<cv::Vec3b>(i, j)[0]);
+        //     input_pointer[i * 224 + j * 3 + 1] =
+        //         ((float)input.at<cv::Vec3b>(i, j)[1]);
+        //     input_pointer[i * 224 + j * 3 + 2] =
+        //         ((float)input.at<cv::Vec3b>(i, j)[2]);
+        //   }
+        // }
+        break;
+      case INPUT_TYPE::IMAGENET300:
+        for (int i = 0; i < 300; ++i) {
+          for (int j = 0; j < 300; ++j) {
+            input_pointer[i * 300 + j * 3] =
+                ((float)input.at<cv::Vec3b>(i, j)[0]);
+            input_pointer[i * 300 + j * 3 + 1] =
+                ((float)input.at<cv::Vec3b>(i, j)[1]);
+            input_pointer[i * 300 + j * 3 + 2] =
+                ((float)input.at<cv::Vec3b>(i, j)[2]);
+          }
         }
+        break;
+      case INPUT_TYPE::IMAGENET416:
+        memcpy(input_pointer, input.data,
+              input.total() * input.elemSize());
+        // for (int i = 0; i < 416; ++i) {
+        //   for (int j = 0; j < 416; ++j) {
+        //     input_pointer[i * 416 + j * 3] =
+        //         ((float)input.at<cv::Vec3b>(i, j)[0]);
+        //     input_pointer[i * 416 + j * 3 + 1] =
+        //         ((float)input.at<cv::Vec3b>(i, j)[1]);
+        //     input_pointer[i * 416 + j * 3 + 2] =
+        //         ((float)input.at<cv::Vec3b>(i, j)[2]);
+        //   }
+        // }
+        break;
+      default:
+        break;
       }
-      break;
-    case INPUT_TYPE::IMAGENET416:
-      memcpy(input_pointer, input.data,
-             input.total() * input.elemSize());
-      // for (int i = 0; i < 416; ++i) {
-      //   for (int j = 0; j < 416; ++j) {
-      //     input_pointer[i * 416 + j * 3] =
-      //         ((float)input.at<cv::Vec3b>(i, j)[0]);
-      //     input_pointer[i * 416 + j * 3 + 1] =
-      //         ((float)input.at<cv::Vec3b>(i, j)[1]);
-      //     input_pointer[i * 416 + j * 3 + 2] =
-      //         ((float)input.at<cv::Vec3b>(i, j)[2]);
-      //   }
-      // }
-      break;
-    default:
-      break;
+    }else if(input_tensor->type == kTfLiteUInt8){
+      std::cout << "Feed uint8 input " << "\n";
+      auto input_pointer = (uint8_t*)input_tensor->data.data;
+      int h = input_tensor->dims->data[1];
+      int w = input_tensor->dims->data[2];
+      switch (input_type) {
+        case INPUT_TYPE::MNIST:
+          for (int i = 0; i < h; ++i) {
+            for (int j = 0; j < w; ++j) {
+              input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
+            }
+          }
+          break;
+        case INPUT_TYPE::IMAGENET224:
+          memcpy(input_pointer, input.data,
+                input.total() * input.elemSize());
+          std::cout << "input.total() * input.elemSize() : " << input.total() * input.elemSize() << "\n";
+          // for (int i = 0; i < 224; ++i) {
+          //   for (int j = 0; j < 224; ++j) {
+          //     input_pointer[i * 224 + j * 3] =
+          //         ((float)input.at<cv::Vec3b>(i, j)[0]);
+          //     input_pointer[i * 224 + j * 3 + 1] =
+          //         ((float)input.at<cv::Vec3b>(i, j)[1]);
+          //     input_pointer[i * 224 + j * 3 + 2] =
+          //         ((float)input.at<cv::Vec3b>(i, j)[2]);
+          //   }
+          // }
+          break;
+        case INPUT_TYPE::IMAGENET300:
+          for (int i = 0; i < 300; ++i) {
+            for (int j = 0; j < 300; ++j) {
+              input_pointer[i * 300 + j * 3] =
+                  ((float)input.at<cv::Vec3b>(i, j)[0]);
+              input_pointer[i * 300 + j * 3 + 1] =
+                  ((float)input.at<cv::Vec3b>(i, j)[1]);
+              input_pointer[i * 300 + j * 3 + 2] =
+                  ((float)input.at<cv::Vec3b>(i, j)[2]);
+            }
+          }
+          break;
+        case INPUT_TYPE::IMAGENET416:
+          memcpy(input_pointer, input.data,
+                input.total() * input.elemSize());
+          // for (int i = 0; i < 416; ++i) {
+          //   for (int j = 0; j < 416; ++j) {
+          //     input_pointer[i * 416 + j * 3] =
+          //         ((float)input.at<cv::Vec3b>(i, j)[0]);
+          //     input_pointer[i * 416 + j * 3 + 1] =
+          //         ((float)input.at<cv::Vec3b>(i, j)[1]);
+          //     input_pointer[i * 416 + j * 3 + 2] =
+          //         ((float)input.at<cv::Vec3b>(i, j)[2]);
+          //   }
+          // }
+          break;
+        default:
+          break;
+      }
   }
   // PrintTensorSerial(*input_tensor);
   if(false){
     auto q_input_pointer = (float*)quant_input_tensor->data.data;
-    h = quant_input_tensor->dims->data[1];
-    w = quant_input_tensor->dims->data[2];
+    int h = quant_input_tensor->dims->data[1];
+    int w = quant_input_tensor->dims->data[2];
     switch (input_type) {
       case INPUT_TYPE::MNIST:
       for (int i = 0; i < h; ++i) {
@@ -1406,6 +1465,26 @@ void TfLiteRuntime::PrintTensorSerial(TfLiteTensor& tensor){
       }
       std::cout << "\n";
     }
+  }else if(tensor.type == TfLiteType::kTfLiteUInt8){
+    std::cout << "[UINT8 TENSOR]" << "\n";
+    auto data_st = (uint8_t*)tensor.data.data;
+    for(int i=0; i<tensor_data_ch_size; i++){
+      std::cout << "CH [" << i << "] \n";
+      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+        uint8_t data = *(data_st+(i+j*tensor_data_ch_size));
+        if (data == 0) {
+          printf("%d ", data);
+        }
+        else if (data != 0) {
+            printf("%s%d%s ", C_GREN, data, C_NRML);
+        }
+        if (j % tensor_axis == tensor_axis-1) {
+          printf("\n");
+        }
+      }
+      std::cout << "\n";
+    }
+
   }
 }
 
@@ -1471,6 +1550,44 @@ std::vector<std::vector<float>*>* TfLiteRuntime::GetFloatOutputInVector(){
       output->push_back(new std::vector<float>());
       for(int j=0; j<data_size; j++){
         float data = *(data_st+ j + (data_size * i));
+        output->at(i)->push_back(data);
+      }
+    }
+  }
+  return output;
+}
+
+std::vector<std::vector<uint8_t>*>* TfLiteRuntime::GetUintOutputInVector(){
+  std::vector<std::vector<uint8_t>*>* output = new std::vector<std::vector<uint8_t>*>;
+  if(global_output_tensor == nullptr){
+    std::cout << "No output tensor to parse " << "\n";
+    return output;
+  }
+  TfLiteTensor* tensor = global_output_tensor;
+  if(tensor->dims->size == 2){
+    int tensor_channel_idx = tensor->dims->size-1;
+    int tensor_data_ch_size = tensor->dims->data[tensor_channel_idx];
+    int tensor_data_size = 1;
+    int tensor_axis;
+    int ch = tensor->dims->data[1];
+    auto data_st = (uint8_t*)tensor->data.data;
+    output->push_back(new std::vector<uint8_t>());
+    for(int j=0; j<ch; j++){
+      uint8_t data = *(data_st + j);
+      output->at(0)->push_back(data);
+    }
+  }else if(tensor->dims->size == 4){
+    int tensor_channel_idx = tensor->dims->size-1;
+    int tensor_data_ch_size = tensor->dims->data[tensor_channel_idx];
+    int tensor_data_size = 1;
+    int tensor_axis;
+    int ch = (tensor->dims->data[1] * tensor->dims->data[2]);
+    int data_size = tensor->dims->data[3];
+    auto data_st = (uint8_t*)tensor->data.data;
+    for(int i=0; i<ch; i++){
+      output->push_back(new std::vector<uint8_t>());
+      for(int j=0; j<data_size; j++){
+        uint8_t data = *(data_st+ j + (data_size * i));
         output->at(i)->push_back(data);
       }
     }

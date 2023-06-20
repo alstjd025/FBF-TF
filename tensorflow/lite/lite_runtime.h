@@ -91,6 +91,7 @@ class TfLiteRuntime{
     void PrintTensorSerial(TfLiteTensor& tensor);
     void PrintyoloOutput(TfLiteTensor& tensor);
     std::vector<std::vector<float>*>* GetFloatOutputInVector();
+    std::vector<std::vector<uint8_t>*>* GetUintOutputInVector();
     ////// ==
 
     void WakeScheduler();
