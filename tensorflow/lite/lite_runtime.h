@@ -22,6 +22,7 @@
 #include "tensorflow/lite/optional_debug_tools.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 #include "tensorflow/lite/c/common.h"
+#include "tensorflow/lite/kernels/internal/cppmath.h"
 #include "thread"
 #include "future"
 
@@ -85,7 +86,7 @@ class TfLiteRuntime{
     void DebugSyncInvoke(PrecisionType type);
 
     void FeedInputToModelDebug(const char* model, cv::Mat& input,
-                          INPUT_TYPE input_type);
+                               cv::Mat& input_quant, INPUT_TYPE input_type);
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
     void PrintTensorSerial(TfLiteTensor& tensor);
@@ -114,6 +115,25 @@ class TfLiteRuntime{
     // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
     void MergeCoExecutionData(Subgraph* min_precision_subgraph
                             , Subgraph* max_precision_subgraph);
+
+    // Quantize given tensor to uint8
+    TfLiteStatus QuantizeGivenTensor(TfLiteTensor* tensor);
+    
+    // Dequantize given tensor to float32
+    TfLiteStatus DeQuantizeGivenTensor(TfLiteTensor* tensor);
+
+    void QuantizeFloats(const float* float_data_ptr, int n_batch,
+                                int n_data, int8_t* quantized_data_ptr,
+                                float* scaling_factors, int32_t* zero_points,
+                                bool do_asymmetric);
+
+    void QuantizeSymFloatsMain(const float* values, const int size,
+                                     int8_t* quantized_values, float min_value,
+                                     float max_value, float* scaling_factor);
+
+    void QuantizeSymFloats(const float* values, const int size,
+                                     int8_t* quantized_values, float* min_value,
+                                     float* max_value, float* scaling_factor);
 
     //// IPC functions
     // Initialize UDS and check communication with scheduler.

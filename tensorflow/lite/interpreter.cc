@@ -367,6 +367,8 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
+                    // MUST FIX BUG, REDUNDUNT INPUT, OUTPUT TENSOR PARSED!!
+                    // MUST FIX BUG, REDUNDUNT INPUT, OUTPUT TENSOR PARSED!!
                     // std::cout << "resize tensor " << base_tensor << " graph " <<  working_subgraph << "\n";
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
                     subgraph_id(working_subgraph)->PushToInputs(base_tensor);

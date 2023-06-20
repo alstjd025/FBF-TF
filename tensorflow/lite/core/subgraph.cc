@@ -890,7 +890,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   }
   std::cout << "\n";
 
-  stub_method(15, tensor_pair);
+  stub_method(112, tensor_pair);
   std::cout << "Height partitioning done" << "\n";
 }
 
