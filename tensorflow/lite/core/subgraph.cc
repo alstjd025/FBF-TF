@@ -892,6 +892,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
 
   stub_method(112, tensor_pair);
   std::cout << "Height partitioning done" << "\n";
+  return kTfLiteOk;
 }
 
 TfLiteStatus Subgraph::ReplaceBufferofSameDims(TfLiteTensor* source,
