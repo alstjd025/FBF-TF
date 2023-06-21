@@ -3040,48 +3040,23 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   {
     #ifdef YOLO
     if(registration->builtin_code == 49){ // Hoon  --------> SPLIT FALLBACK
-    // HOON  : 111->ELU  98->LeakyRELU
-    // HOON  :  3->CONV  9-> FullyCOnnected
-    // builtin_ops.h  . 2 or 0 
-    // std::cout << "Found a SPLIT" << "\n";
         if(priority_partition_num ==0)
           printf("FOUND A FALLBACK LAYER [split].. MAKE GPU DEL NODE \n");
         return false;
     }
 
     if(registration->builtin_code == 102){    
-      // std::cout << "Found a SPLIT_V" << "\n";
-    // 16 : SPLIT_V
-    // 2 : concatenate
-    //Hoon --------> CONCATENATE FALLBACK
-    // HOON  : 111->ELU  98->LeakyRELU
-    // HOON  :  3->CONV  9-> FullyCOnnected
-    // builtin_ops.h  . 2 or 0
         if(priority_partition_num ==0)
           printf("FOUND A FALLBACK LAYER [split_v]... MAKE GPU DEL NODE \n");
         return false;
     }
 
     if(registration->builtin_code == 0){   
-      // std::cout << "Found a ADD" << "\n"; 
-    // 16 : SPLIT_V
-    // 2 : concatenate
-    //Hoon --------> CONCATENATE FALLBACK
-    // HOON  : 111->ELU  98->LeakyRELU
-    // HOON  :  3->CONV  9-> FullyCOnnected
-    // builtin_ops.h  . 2 or 0
         if(priority_partition_num ==0)
           printf("FOUND A FALLBACK LAYER [ADD]... MAKE GPU DEL NODE \n");
         return false;
     }
-   if(registration->builtin_code == 18){   
-      // std::cout << "Found a MUL" << "\n"; 
-    // 16 : SPLIT_V
-    // 2 : concatenate
-    //Hoon --------> CONCATENATE FALLBACK
-    // HOON  : 111->ELU  98->LeakyRELU
-    // HOON  :  3->CONV  9-> FullyCOnnected
-    // builtin_ops.h  . 2 or 0
+    if(registration->builtin_code == 18){   
         if(priority_partition_num ==0)
           printf("FOUND A FALLBACK LAYER [MUL]... MAKE GPU DEL NODE \n");
         return false;
