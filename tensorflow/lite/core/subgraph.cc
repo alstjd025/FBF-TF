@@ -851,7 +851,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     new_dims[1] = padd;
     new_dims[2] = w;
     new_dims[3] = i;
-    pointer_offset = o * padd * w;
+    pointer_offset = o * (h - padd) * w;
     
     // TEST FOR FIRST NODE
     // TEST FOR FIRST NODE
@@ -891,6 +891,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   std::cout << "\n";
 
   stub_method(112, tensor_pair);
+  // stub_method(224, tensor_pair);
+
   std::cout << "Height partitioning done" << "\n";
   return kTfLiteOk;
 }

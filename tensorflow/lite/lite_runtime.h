@@ -122,6 +122,14 @@ class TfLiteRuntime{
     // Dequantize given tensor to float32 and return the swaped buffer.
     // Recommended to use with RestoreOriginalBuffer. 
     void* DeQuantizeGivenTensor(TfLiteTensor* tensor);
+
+    // Dequantize given tensor to float32 and return the swaped buffer.
+    // Recommended to use with RestoreOriginalBuffer. 
+    // Calculate dequantization parameters from given refenrece tensor.
+    void* DeQuantizeGivenTensor(TfLiteTensor* tensor, TfLiteTensor* ref_tensor);
+
+    // Restore original buffer of given tensor and buffer
+    // Use after dequantization
     void RestoreOriginalBuffer(TfLiteTensor* tensor, void* buffer);
 
     void QuantizeFloats(const float* float_data_ptr, int n_batch,
@@ -136,6 +144,8 @@ class TfLiteRuntime{
     void QuantizeSymFloats(const float* values, const int size,
                                      int8_t* quantized_values, float* min_value,
                                      float* max_value, float* scaling_factor);
+
+    TfLiteAffineQuantization* CalcQuantizationParamsFromTensor(TfLiteTensor* tensor);
 
     //// IPC functions
     // Initialize UDS and check communication with scheduler.
