@@ -119,8 +119,10 @@ class TfLiteRuntime{
     // Quantize given tensor to uint8
     TfLiteStatus QuantizeGivenTensor(TfLiteTensor* tensor);
     
-    // Dequantize given tensor to float32
-    TfLiteStatus DeQuantizeGivenTensor(TfLiteTensor* tensor);
+    // Dequantize given tensor to float32 and return the swaped buffer.
+    // Recommended to use with RestoreOriginalBuffer. 
+    void* DeQuantizeGivenTensor(TfLiteTensor* tensor);
+    void RestoreOriginalBuffer(TfLiteTensor* tensor, void* buffer);
 
     void QuantizeFloats(const float* float_data_ptr, int n_batch,
                                 int n_data, int8_t* quantized_data_ptr,

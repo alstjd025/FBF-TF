@@ -1176,7 +1176,7 @@ TfLiteStatus TfLiteRuntime::InvokeSingleExecution() {
 // NEED TO FIX FOR MULTIPLE OUTPUT TENSORS!!!!
 void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
                                       , Subgraph* max_precision_subgraph){
-  std::cout << "Merge" << "\n";
+  // std::cout << "Merge" << "\n";
   Subgraph* dest_subgraph;
   dest_subgraph = max_precision_subgraph->GetNextSubgraph();
   if(dest_subgraph == nullptr){
@@ -1188,8 +1188,8 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
   // int min_precision_tensor_idx = min_precision_subgraph->GetOutputTensorIndex();
   int min_precision_tensor_idx = 61;
   int max_precision_tensor_idx = max_precision_subgraph->GetOutputTensorIndex();
-  std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-              << max_precision_tensor_idx << "\n";
+  // std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
+  //             << max_precision_tensor_idx << "\n";
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* min_precision_tensor = min_precision_subgraph->tensor(min_precision_tensor_idx);
   TfLiteTensor* max_precision_tensor = max_precision_subgraph->tensor(max_precision_tensor_idx);
@@ -1206,11 +1206,17 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
     std::cout << "Tensor rank must 4" << "\n";
     return;
   }
+  // This flag means that the tensor is de-quantized temporary for merge.
+  // Restore to the original buffer after merge.
+  bool temporary_quantized = false;
+  uint8_t* original_buffer = nullptr;
   if(min_precision_tensor->type == kTfLiteUInt8){
-    if(DeQuantizeGivenTensor(min_precision_tensor) != kTfLiteOk){
-      std::cout << "DeQuantizeGivenTensor returned ERROR" << "\n";
+    original_buffer = (uint8_t*)DeQuantizeGivenTensor(min_precision_tensor);
+    if(original_buffer == nullptr){
+      std::cout << "DeQuantizeGivenTensor returned nullptr ERROR" << "\n";
       return;
     }
+    temporary_quantized = true;
   }
   // check dims 
   if(dest_tensor->dims->data[1] == min_precision_tensor->dims->data[1]){
@@ -1280,6 +1286,7 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
               sizeof(float)*min_precision_data_size);
     }
   }
+  RestoreOriginalBuffer(min_precision_tensor, original_buffer);
   // PrintTensorSerial(*source_tensor_cpu);
   // PrintTensorSerial(*source_tensor_gpu);
   // PrintTensorSerial(*dest_tensor);
@@ -1449,7 +1456,6 @@ void TfLiteRuntime::QuantizeSymFloatsMain(const float* values, const int size,
   }
 }
 
-
 TfLiteStatus TfLiteRuntime::QuantizeGivenTensor(TfLiteTensor* tensor){
   TfLiteTensor* working_tensor = tensor;
   working_tensor->allocation_type = kTfLiteDynamic;
@@ -1482,14 +1488,13 @@ TfLiteStatus TfLiteRuntime::QuantizeGivenTensor(TfLiteTensor* tensor){
   //PrintTensor(*working_tensor, UnitType::CPU0);
   return kTfLiteOk;
 }
-
-TfLiteStatus TfLiteRuntime::DeQuantizeGivenTensor(TfLiteTensor* tensor){
-  std::cout << "Dequnatize \n";
+// !!!! AFTER DEQUANTIZE, RESTORE THE ORIGINAL BUFFER
+void* TfLiteRuntime::DeQuantizeGivenTensor(TfLiteTensor* tensor){
   TfLiteTensor* working_tensor = tensor;
   if(working_tensor->quantization.type != kTfLiteAffineQuantization &&\
       working_tensor->type != kTfLiteInt8){
     std::cout << "Dequantization Tensor Type Error \n";
-    return kTfLiteError;
+    return nullptr;
   }
   //if(working_tensor->allocation_type != kTfLiteDynamic || 
   //  working_tensor->quantization.type != kTfLiteAffineQuantization){
@@ -1520,13 +1525,26 @@ TfLiteStatus TfLiteRuntime::DeQuantizeGivenTensor(TfLiteTensor* tensor){
   working_tensor->type = TfLiteType::kTfLiteFloat32;
   working_tensor->data.data = dequantized_values;
   working_tensor->bytes = tensor_data_size * sizeof(float);
-  working_tensor->params.scale = NULL;
-  working_tensor->params.zero_point = NULL;
-  working_tensor->quantization.params = NULL;
-  working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteNoQuantization;
+  // working_tensor->params.scale = NULL;
+  // working_tensor->params.zero_point = NULL;
+  // working_tensor->quantization.params = NULL;
+  // working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteNoQuantization;
   // free(data_st_origin);
   std::cout << "Dequnatize Done\n";
-  return kTfLiteOk;
+  // and return the original buffer to restore
+  return data_st_origin;
+}
+
+void TfLiteRuntime::RestoreOriginalBuffer(TfLiteTensor* tensor, void* buffer){
+  int tensor_data_size = 1;
+  for(int i=0; i<tensor->dims->size; i++){
+    tensor_data_size *= tensor->dims->data[i]; 
+  }
+  tensor->type = TfLiteType::kTfLiteUInt8;
+  free(tensor->data.data);
+  tensor->data.data = buffer;
+  tensor->bytes = tensor_data_size * sizeof(uint8_t);
+  std::cout << "restored original buffer" << "\n";
 }
 
 
