@@ -1307,10 +1307,11 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   }
   // ---------------------------------------------------------------------
   // NOTE
+
   // should do yolo-parsing after invoke
   //TfLiteTensor* output_tensor = &context_.tensors[tensor_index];
   TfLiteTensor* output_tensor = tensor(233); // 3rd method. simplest tool in subgraph
-  printf("233: \n");
+  printf("233 (localiztion data): \n");
   const float* output_data = (float*)output_tensor->data.data; // only use data.data
   const int num_boxes = output_tensor->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes);
@@ -1327,10 +1328,43 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
       if(boxes[i*4] + boxes[i * 4 + 1] + boxes[i * 4 + 2] + boxes[i * 4 + 3] > 0){
         bbox_count +=1;
       }
-      printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
+      // printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
   }
   printf("HOON : Real B_Box num is : %d\n", bbox_count );
-  // PrintTensor(*output_tensor, UnitType::GPU0);
+  // PrintTensor(*output_tensor, UnitType::CPU0); 
+
+  // -----------------------------------------------------------------------
+  
+  TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
+  printf("212 (classfication data): \n");
+  const float* output_data_2 = (float*)output_tensor_2->data.data; // only use data.data
+  const int num_boxes_2 = output_tensor_2->dims->data[1]; 
+  printf("HOONING: num_boxes --> %d\n", num_boxes_2);
+  // std::vector<float> boxes(num_boxes * 4);
+  std::vector<float> classifications(num_boxes_2 * 80);
+  for (int i = 0; i < num_boxes_2; ++i) {
+  for (int j = 0; j < 80; ++j) {
+    classifications[i * 80 + j] = output_data_2[i * 80 + j];
+    }
+  }
+  // Printing the classification information
+  int conf_count = 0;
+  for (int i = 0; i < num_boxes_2; ++i) {
+    // printf("Box %d:\n", i+1);
+    int box_per_conf_count = 0;
+    for (int j = 0; j < 80; ++j) {
+      if (classifications[i * 80 + j] > 0){
+        box_per_conf_count +=1;
+      }
+      // printf("%f ", classifications[i * 80 + j]);
+    }
+    if(box_per_conf_count >0){
+      conf_count +=1;
+    }
+    // printf("\n");
+  }
+  printf("HOON : B_Boxes's real conf data num is : %d\n", conf_count );
+  // PrintTensor(*output_tensor, UnitType::CPU0);
   return status;
 }
 

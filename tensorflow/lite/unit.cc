@@ -1,6 +1,7 @@
 #include "unit.h"
 #include "algorithm"
-#define GPUONLY
+// #define GPUONLY
+#define CPUONLY
 //#define MULTITHREAD
 //#define quantize
 //#define MONITORING
@@ -162,7 +163,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //printf("time : %.6fs \n", temp_time);
             time += temp_time;
             #ifdef yolo
-                interpreterCPU->get()->PrintOutputTensor(eType);
+                // interpreterCPU->get()->PrintOutputTensor(eType);
             #endif
             #ifdef MONITORING
             // for (int i =0; i<1001; i++){
