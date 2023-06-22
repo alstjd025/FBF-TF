@@ -33,6 +33,19 @@ std::ostream& operator<<(std::ostream& out, const tflite::ResourceType value){
   return out << s;
 }
 
+// cascade operator overloading for debug message.
+std::ostream& operator<<(std::ostream& out, const tflite::PartitioningType value){
+  const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+  switch(value){
+    PROCESS_VAL(NO_PARTITIONING);     
+    PROCESS_VAL(HEIGHT_PARTITIONING);     
+    PROCESS_VAL(CHANNEL_PARTITIONING);
+  }
+#undef PROCESS_VAL
+  return out << s;
+}
+
 void PrintIntVector(const std::vector<int>& v) {
   for (const auto& it : v) {
     printf(" %d", it);
@@ -166,6 +179,12 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
     printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
     std::cout << "Resource type : " 
           << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";
+    std::cout<< "Partitioning type : " 
+          << interpreter->subgraph_id(subgraph_id)->GetPartitioningType() << "\n";
+    if(interpreter->subgraph_id(subgraph_id)->IsInvokable())
+      std::cout << "State : Invokable" << "\n";
+    else
+      std::cout << "State : Not Invokable" << "\n";
     for (size_t node_index = 0; node_index < node_size;
         node_index++) {
       const std::pair<TfLiteNode, TfLiteRegistration>* node_and_reg =
@@ -204,6 +223,75 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
       TfLiteTensor* tensor = interpreter->tensor(subgraph_id, static_cast<int>(tensor_index));
       printf("Tensor %3zu %-20s %10s %15s %10zu bytes (%4.1f MB) ", tensor_index,
            tensor->name, TensorTypeName(tensor->type),
+           AllocTypeName(tensor->allocation_type), tensor->bytes,
+           (static_cast<float>(tensor->bytes) / (1 << 20)));
+      PrintTfLiteIntVector(tensor->dims);
+    }
+    printf("\n");
+  }
+}
+
+// Minsung
+// Prints a dump of what tensors and what nodes are in the interpreter.
+// Simplified version of PrintInterpreterStateV2
+void PrintInterpreterStateV3(Interpreter* interpreter) {
+  int subgraph_size = interpreter->subgraphs_size();
+  printf("Interpreter has %d subgraphs\n", subgraph_size);
+  //interpreter->PrintSubgraphInfo();
+  for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
+    std::cout << "======================================" << "\n";
+    int subgraph_id = interpreter->subgraph(subgraph_index)->GetGraphid();
+    int tensor_size = interpreter->subgraph_id(subgraph_id)->tensors_size();
+    int node_size = interpreter->nodes_size(subgraph_id);
+    printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
+        tensor_size, node_size);
+    printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
+    std::cout << "Resource type : " 
+          << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";
+    std::cout<< "Partitioning type : " 
+          << interpreter->subgraph_id(subgraph_id)->GetPartitioningType() << "\n";
+    if(interpreter->subgraph_id(subgraph_id)->IsInvokable())
+      std::cout << "State : Invokable" << "\n";
+    else
+      std::cout << "State : Not Invokable" << "\n";
+    for (size_t node_index = 0; node_index < node_size;
+        node_index++) {
+      const std::pair<TfLiteNode, TfLiteRegistration>* node_and_reg =
+          interpreter->node_and_registration(static_cast<int>(node_index), subgraph_id);
+      const TfLiteNode& node = node_and_reg->first;
+      const TfLiteRegistration& reg = node_and_reg->second;
+      if (reg.custom_name != nullptr) {
+        printf("Node %3zu Operator Custom Name %s\n", node_index,
+              reg.custom_name);
+      } else {
+        printf("Node %3zu Operator Builtin Code %3d %s\n", node_index,
+              reg.builtin_code, EnumNamesBuiltinOperator()[reg.builtin_code]);
+      }
+      printf("  Inputs:");
+      PrintTfLiteIntVector(node.inputs);
+      printf("  Outputs:");
+      PrintTfLiteIntVector(node.outputs);
+      if (node.intermediates && node.intermediates->size) {
+        printf("  Intermediates:");
+        PrintTfLiteIntVector(node.intermediates);
+      }
+      if (node.temporaries && node.temporaries->size) {
+        printf("  Temporaries:");
+        PrintTfLiteIntVector(node.temporaries);
+      }
+    }
+    std::cout << "======================================" << "\n";
+    printf("Inputs:");
+    PrintIntVector(interpreter->inputs(subgraph_id));
+    printf("Outputs:");
+    PrintIntVector(interpreter->outputs(subgraph_id));
+    printf("\n");
+    printf("Tensor size : %d\n", tensor_size);
+    for (size_t tensor_index = 0; tensor_index < tensor_size-1;
+       tensor_index++) {
+      TfLiteTensor* tensor = interpreter->tensor(subgraph_id, static_cast<int>(tensor_index));
+      printf("Tensor %3zu %10s %15s %10zu bytes (%4.1f MB) ", tensor_index,
+           TensorTypeName(tensor->type),
            AllocTypeName(tensor->allocation_type), tensor->bytes,
            (static_cast<float>(tensor->bytes) / (1 << 20)));
       PrintTfLiteIntVector(tensor->dims);

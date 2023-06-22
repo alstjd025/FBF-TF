@@ -118,15 +118,23 @@ class TfLiteRuntime{
 
     // Quantize given tensor to uint8
     TfLiteStatus QuantizeGivenTensor(TfLiteTensor* tensor);
+
+    TfLiteStatus QuantizeGivenTensorandCopy(TfLiteTensor* source_tensor,
+                                            TfLiteTensor* dest_tensor);
     
+    // This function is deprecated.
+    // Use Quant/dequantOnCopy() instead. 
     // Dequantize given tensor to float32 and return the swaped buffer.
-    // Recommended to use with RestoreOriginalBuffer. 
+    // Recommended to use with RestoreOriginalBuffer.
     void* DeQuantizeGivenTensor(TfLiteTensor* tensor);
 
+    // This function is deprecated.
+    // Use Quant/dequantOnCopy() instead.
     // Dequantize given tensor to float32 and return the swaped buffer.
     // Recommended to use with RestoreOriginalBuffer. 
     // Calculate dequantization parameters from given refenrece tensor.
-    void* DeQuantizeGivenTensor(TfLiteTensor* tensor, TfLiteTensor* ref_tensor);
+    void* DeQuantizeGivenTensorWithReference(
+                        TfLiteTensor* tensor, TfLiteTensor* ref_tensor);
 
     // Restore original buffer of given tensor and buffer
     // Use after dequantization
@@ -146,6 +154,9 @@ class TfLiteRuntime{
                                      float* max_value, float* scaling_factor);
 
     TfLiteAffineQuantization* CalcQuantizationParamsFromTensor(TfLiteTensor* tensor);
+
+    TfLiteStatus QuantizeOnCopy(TfLiteTensor* source, TfLiteTensor* dest);
+    TfLiteStatus DequantizeOnCopy(TfLiteTensor* source, TfLiteTensor* dest);
 
     //// IPC functions
     // Initialize UDS and check communication with scheduler.

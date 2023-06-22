@@ -313,7 +313,7 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 // Finally allocate tensors of all subgraph subset.
 // +++ All shared tensors should be input tensors of it's subgraph.
 TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
-  auto HeightPartitionAndAllocateIfNeed = [&](Subgraph* subgraph){
+  auto HeightPartitionandAllocateIfNeed = [&](Subgraph* subgraph){
     if(subgraph->GetResourceType() == ResourceType::CO_CPU ||
         subgraph->GetResourceType() == ResourceType::CO_GPU){
       if(subgraph->GetPartitioningType() == PartitioningType::NO_PARTITIONING){
@@ -367,12 +367,13 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
-                    // MUST FIX BUG, REDUNDUNT INPUT, OUTPUT TENSOR PARSED!!
-                    // MUST FIX BUG, REDUNDUNT INPUT, OUTPUT TENSOR PARSED!!
+                    // MUST FIX. REDUNDUNT INPUT, OUTPUT TENSOR!!
+                    // MUST FIX. REDUNDUNT INPUT, OUTPUT TENSOR!!
                     // std::cout << "resize tensor " << base_tensor << " graph " <<  working_subgraph << "\n";
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
                     subgraph_id(working_subgraph)->PushToInputs(base_tensor);
                   }
+                  std::cout << "allocate subgraph : " << working_subgraph << "\n";
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
                   if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
@@ -396,9 +397,14 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
     for(int subgraph_idx=0; subgraph_idx<subset.second.size(); ++subgraph_idx){
       int working_subgraph_id = subset.second[subgraph_idx];
       Subgraph* working_subgraph = subgraph_id(working_subgraph_id);
-      if(HeightPartitionAndAllocateIfNeed(working_subgraph) != kTfLiteOk){
+      if(HeightPartitionandAllocateIfNeed(working_subgraph) != kTfLiteOk){
         std::cout << "HeightPartitionAndAllocateIfNeed returned ERROR" << "\n";
         return kTfLiteError;
+      }
+      if(!working_subgraph->IsInvokable()){
+        std::cout << "allocate subgraph : " << working_subgraph_id << "\n";
+        if(working_subgraph->AllocateTensors() != kTfLiteOk)
+          return kTfLiteError;        
       }
     }
   }
@@ -417,7 +423,6 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id
       last_subgraph_id = subset.second.back();
     }
   }
-  std::cout << "GetIntermediateTensorRange" << "\n";
   if(execution_plan->size < 0){
     std::cout << "[ERROR] Execution Plan size < 0 in subgraph 0" << "\n";
     return kTfLiteError;

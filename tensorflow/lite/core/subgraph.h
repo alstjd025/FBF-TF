@@ -236,15 +236,19 @@ class Subgraph {
 
   // Minsung
   // Access to an input tensor (for multiple subgraphs and GPUdelegate)
+  // THIS FUNTION IS DEPRECATED!!! (DO NOT USE)
+  // becasue subgraph can have multiple input and output tensors, 
+  // returning first tensor of them is tirivial.
   int GetInputTensorIndex() { return inputs()[inputs().size()-1]; }
 
   // Minsung
   // Access to indices of input tensors of first node in execution plan.
   TfLiteIntArray* GetInputTensorIndices();
 
-  // MInsung
+  // Minsung
   // Access to an output tensor (for multiple subgraphs and GPUdelegate)
-  int GetOutputTensorIndex() { return outputs()[outputs().size()-1]; }
+  // Simply returns final node's output tensor in execution plan.
+  int GetFirstOutputTensorIndex();
 
   // Minsung
   // Access to indices of output tensors of final node in execution plan.
@@ -362,6 +366,10 @@ class Subgraph {
 
   // Return read-only vector of node indices in the order of execution.
   const std::vector<int>& execution_plan() const { return execution_plan_; }
+
+  // Check if this subgraph is invokable.
+  // returns true if invokable.
+  bool IsInvokable();
 
   // Mutable form of tensors (TEMPORARY for refactor).
   // TODO(b/119495520): remove when refactoring complete.

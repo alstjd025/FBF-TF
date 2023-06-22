@@ -740,7 +740,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
     }
     // Save shared intermediate tensor indices in interpreter's graph_and_shared_tensor.
-    // Will used when AllocateTensorsofAllSubgraphs called.
+    // Used when AllocateTensorsofAllSubgraphs called.
     // (to propagate tensor shapes)
     for(size_t t=0; t<tensors->size(); ++t){
       std::pair<int, std::vector<int>> pair_tensor_graph;

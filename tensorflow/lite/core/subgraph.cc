@@ -1312,6 +1312,7 @@ TfLiteStatus Subgraph::Invoke() {
       struct timespec begin, end;
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
+    std::cout << resource_type << " Opinvoke " << graph_id_ << "\n"; 
     if (OpInvoke(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
@@ -1428,6 +1429,12 @@ TfLiteStatus Subgraph::AddTensors(TfLiteContext* context, int tensors_to_add,
   // (this function is static).
   return static_cast<Subgraph*>(context->impl_)
       ->AddTensors(tensors_to_add, first_new_tensor_index);
+}
+
+bool Subgraph::IsInvokable(){
+  if(state_ == kStateInvokable)
+    return true;
+  return false;
 }
 
 TfLiteStatus Subgraph::GetNodeAndRegistration(
@@ -1929,6 +1936,14 @@ TfLiteIntArray* Subgraph::GetInputTensorIndices(){
     int node_index = execution_plan_[0];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     return node.inputs;
+  }
+}
+
+int Subgraph::GetFirstOutputTensorIndex(){
+  if(execution_plan_.size() > 0){
+    int node_index = execution_plan_[execution_plan_.size() - 1];
+    TfLiteNode& node = nodes_and_registration_[node_index].first;
+    return node.outputs->data[0];
   }
 }
 
