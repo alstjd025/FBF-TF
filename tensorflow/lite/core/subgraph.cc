@@ -1308,36 +1308,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     if(eType == UnitType::GPU0){
     }
   }
-  // ---------------------------------------------------------------------
-  // NOTE
-
-  // should do yolo-parsing after invoke
-  //TfLiteTensor* output_tensor = &context_.tensors[tensor_index];
-  TfLiteTensor* output_tensor = tensor(233); // 3rd method. simplest tool in subgraph
-  printf("233 (localiztion data): \n");
-  const float* output_data = (float*)output_tensor->data.data; // only use data.data
-  const int num_boxes = output_tensor->dims->data[1]; 
-  printf("HOONING: num_boxes --> %d\n", num_boxes);
-  std::vector<float> boxes(num_boxes * 4);
-  // std::vector<float> confidences(num_boxes);
-  for (int i = 0; i < num_boxes; ++i) {
-    boxes[i * 4] = output_data[i * 4];
-    boxes[i * 4 + 1] = output_data[i * 4 + 1];
-    boxes[i * 4 + 2] = output_data[i * 4 + 2];
-    boxes[i * 4 + 3] = output_data[i * 4 + 3];
-    }
-  int bbox_count = 0;
-  for (int i = 0; i < num_boxes; ++i) {
-      if(boxes[i*4] + boxes[i * 4 + 1] + boxes[i * 4 + 2] + boxes[i * 4 + 3] > 0){
-        bbox_count +=1;
-      }
-      // printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
-  }
-  printf("HOON : Real B_Box num is : %d\n", bbox_count );
-  // PrintTensor(*output_tensor, UnitType::CPU0); 
-
   // -----------------------------------------------------------------------
-  
   TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
   printf("212 (classfication data): \n");
   const float* output_data_2 = (float*)output_tensor_2->data.data; // only use data.data
@@ -1353,6 +1324,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // Printing the classification information
   int conf_count = 0;
   int real_bbox_index = -1;
+  std::vector<int> real_bbox_vector;
   // TfLiteTensor new_tensor;
   for (int i = 0; i < num_boxes_2; ++i) {
     // printf("Box %d:\n", i+1);
@@ -1368,11 +1340,53 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     }
     if(box_per_conf_count >0){
       conf_count +=1;
+      real_bbox_vector.push_back(i); //NOTE : should replace 2-dimension vector (like DOT)
     }
     printf("\n");
   }
   printf("HOON : B_Boxes's real conf data num is : %d\n", conf_count );
   // PrintTensor(*output_tensor, UnitType::CPU0);
+  printf("real_bbox_vector : ");
+  for(int i=0 ; i < real_bbox_vector.size(); i++){
+          std::cout << " " << real_bbox_vector[i];
+  }
+  // SOFTMAX // 
+  //         //
+  //         //
+  printf("\n");
+  // real_bbox_v //
+  //  append     //
+  //  conf_score & class_number //
+  // ---------------------------------------------------------------------
+  TfLiteTensor* output_tensor = tensor(233); // 3rd method. simplest tool in subgraph
+  printf("233 (localization data): \n");
+  const float* output_data = (float*)output_tensor->data.data; // only use data.data
+  const int num_boxes = output_tensor->dims->data[1];
+  std::vector<float> boxes(num_boxes * 4);
+  for (int i = 0; i < num_boxes; ++i) {
+    boxes[i * 4] = output_data[i * 4];
+    boxes[i * 4 + 1] = output_data[i * 4 + 1];
+    boxes[i * 4 + 2] = output_data[i * 4 + 2];
+    boxes[i * 4 + 3] = output_data[i * 4 + 3];
+    }
+  int bbox_count = 0;
+  printf("HOON : below data is real_bbox's localization data \n");
+  for (int i = 0; i < num_boxes; ++i) {
+      // if(boxes[i*4] + boxes[i * 4 + 1] + boxes[i * 4 + 2] + boxes[i * 4 + 3] > 0){
+      //   bbox_count +=1;
+      // }
+      for(int j=0 ; j < real_bbox_vector.size(); j++){
+          if(i == real_bbox_vector[j]){
+            printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
+          }
+      }
+  }
+  // Make fin_data for mAP  //
+  //                        //
+  //                        //
+  // TODO ~ 
+  // NOTE : make real_bbox_vector containing loc & cls data
+  // printf("HOON : Real B_Box num is : %d\n", bbox_count );
   return status;
 }
 
