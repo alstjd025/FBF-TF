@@ -17,7 +17,7 @@
 #endif
 
 #ifndef yolo
-#define SEQ 500 //1000   ---> 4개부터 20000, 5개 15000, 6개 10000... 각 케이스마다 하루 정도 걸림.
+#define SEQ 1 //1000   ---> 4개부터 20000, 5개 15000, 6개 10000... 각 케이스마다 하루 정도 걸림.
 #define OUT_SEQ 1
 #endif
 
@@ -102,20 +102,25 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
         for(int k=0; k<SEQ; k++){
             std::cout << "CPU " << *C_Counter << "\n";
             #ifdef yolo
-            auto *input_pointer = interpreterCPU->get()->typed_input_tensor<float>(0);
-            memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
-            // for (int i=0; i < 224; ++i) {
-            //     for(int j=0; j < 224; j++){
-            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3] = \
-            //          ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;    
+            for (int i=0; i<416; i++){
+                for (int j=0; j<416; j++){
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*416 + j*3] = \
+                        ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;
+                        // printf("%0.6f ",(float)input[0].at<cv::Vec3b>(i, j)[0]/255.0);     
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*416 + j*3+1] = \
+                        ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*416 + j*3+2] = \
+                        ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[0]);
+                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[1]);
+                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[2]);
+                }
+                // printf("\n");
+            } 
 
-            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3 + 1] = \
-            //          ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
-
-            //         interpreterCPU->get()->typed_input_tensor<float>(0)[i*224 + j*3 + 2] = \
-            //          ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
-            //     }
-            // }
+            // auto input_pointer = interpreterCPU->get()->typed_input_tensor<float>(0);
+            // memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+           
             #endif
             #ifdef catdog
             for (int i=0; i < 300; ++i) {
@@ -163,7 +168,8 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //printf("time : %.6fs \n", temp_time);
             time += temp_time;
             #ifdef yolo
-                // interpreterCPU->get()->PrintOutputTensor(eType);
+                // interpreterCPU->get()->PrintOutputTensor(eType);            
+                // interpreterCPU->get()->PrintInputTensor(eType);
             #endif
             #ifdef MONITORING
             // for (int i =0; i<1001; i++){
@@ -304,8 +310,23 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //std::cout << "GPU " << *G_Counter << "\n";
 
             #ifdef yolo  // same code as catdog //HOON
-            auto *input_pointer = interpreterGPU->get()->typed_input_tensor<float>(0);
-            memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
+            for (int i=0; i<416; i++){
+                for (int j=0; j<416; j++){
+                        interpreterGPU->get()->typed_input_tensor<float>(0)[i*416 + j*3] = \
+                        ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;
+                        // printf("%0.6f ",(float)input[0].at<cv::Vec3b>(i, j)[0]/255.0);     
+                        interpreterGPU->get()->typed_input_tensor<float>(0)[i*416 + j*3+1] = \
+                        ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+                        interpreterGPU->get()->typed_input_tensor<float>(0)[i*416 + j*3+2] = \
+                        ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[0]);
+                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[1]);
+                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[2]);
+                }
+                // printf("\n");
+            } 
+            // auto *input_pointer = interpreterGPU->get()->typed_input_tensor<float>(0);
+            // memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
             #endif
 
             #ifdef catdog

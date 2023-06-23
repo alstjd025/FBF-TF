@@ -1178,7 +1178,10 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
     //std::cout << "==================================" << "\n";
     //PrintNodeInfo(node_index, node, registration);
-    //PrintInputTensor(node, eType);
+    if(node_index == 0){
+      // PrintInputTensor(node, eType);  
+    }
+    // PrintInputTensor(node, eType);
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
@@ -1349,19 +1352,24 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   }
   // Printing the classification information
   int conf_count = 0;
+  int real_bbox_index = -1;
+  // TfLiteTensor new_tensor;
   for (int i = 0; i < num_boxes_2; ++i) {
     // printf("Box %d:\n", i+1);
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
-      if (classifications[i * 80 + j] > 0){
+      if (classifications[i * 80 + j] > 0.1){
         box_per_conf_count +=1;
+        printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
       }
-      // printf("%f ", classifications[i * 80 + j]);
+      else{
+        printf("%f ", classifications[i * 80 + j]);
+      }
     }
     if(box_per_conf_count >0){
       conf_count +=1;
     }
-    // printf("\n");
+    printf("\n");
   }
   printf("HOON : B_Boxes's real conf data num is : %d\n", conf_count );
   // PrintTensor(*output_tensor, UnitType::CPU0);
@@ -2007,11 +2015,13 @@ void Subgraph::PrintInputTensor(TfLiteNode& node, UnitType eType){
   std::cout << "[Print Input Tensor] \n";
   //TfLiteTensor* temp = GetInputTensor(node);
   int tensor_index;
-  if(node.inputs->size == 3)
-    tensor_index = node.inputs->data[0];
-  else
-    tensor_index = node.inputs->data[1];
+  tensor_index = node.inputs->data[0];  //HOON : Debugging for YOLO input image 
+  // if(node.inputs->size == 3)
+    // tensor_index = node.inputs->data[0];
+  // else
+    // tensor_index = node.inputs->data[1];
   TfLiteTensor* temp =  tensor(tensor_index);
+  std::cout << "tensor_index is : " << tensor_index << std::endl;
   std::cout << "Possible Input Tensors : ";
   for(int i=0; i<node.inputs->size; ++i){
     std::cout << node.inputs->data[i] << " "; 
@@ -2064,8 +2074,8 @@ void Subgraph::PrintOutputTensor(TfLiteNode& node, UnitType eType){
 
 void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
   std::cout << "[Print Tensor]" << "\n";
-  
   int tensor_data_dims_size = tensor.dims->size-1;
+  std::cout << "tensor_dims_size" << tensor.dims->size << std::endl;
   int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
   int tensor_axis;
