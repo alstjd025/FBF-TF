@@ -116,8 +116,14 @@ class TfLiteRuntime{
     void MergeCoExecutionData(Subgraph* min_precision_subgraph
                             , Subgraph* max_precision_subgraph);
 
-    // Quantize given tensor to uint8
+    // Quantize given tensor
+    // (This function changes the entire metadata to uint8)
     TfLiteStatus QuantizeGivenTensor(TfLiteTensor* tensor);
+
+    // Quantize given tensor and return buffer pointer which contains quantized
+    // values.
+    // (This function does not )
+    void* QuantizeGivenTensorandReturnBuffer(TfLiteTensor* tensor);
 
     TfLiteStatus QuantizeGivenTensorandCopy(TfLiteTensor* source_tensor,
                                             TfLiteTensor* dest_tensor);
@@ -126,14 +132,14 @@ class TfLiteRuntime{
     // Use Quant/dequantOnCopy() instead. 
     // Dequantize given tensor to float32 and return the swaped buffer.
     // Recommended to use with RestoreOriginalBuffer.
-    void* DeQuantizeGivenTensor(TfLiteTensor* tensor);
+    void* DequantizeGivenTensor(TfLiteTensor* tensor);
 
     // This function is deprecated.
     // Use Quant/dequantOnCopy() instead.
     // Dequantize given tensor to float32 and return the swaped buffer.
     // Recommended to use with RestoreOriginalBuffer. 
     // Calculate dequantization parameters from given refenrece tensor.
-    void* DeQuantizeGivenTensorWithReference(
+    void* DequantizeGivenTensorWithReference(
                         TfLiteTensor* tensor, TfLiteTensor* ref_tensor);
 
     // Restore original buffer of given tensor and buffer
@@ -188,7 +194,11 @@ class TfLiteRuntime{
     std::mutex invoke_sync_mtx;
     bool is_execution_done = false;
     bool invoke_cpu = false;
+
+    // must do readonly works on this object.
     Subgraph* co_execution_graph = nullptr;
+
+    // must do readonly works on this object.
     Subgraph* main_execution_graph = nullptr;
     ////
 
