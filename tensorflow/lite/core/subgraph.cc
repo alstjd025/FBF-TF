@@ -1330,11 +1330,11 @@ TfLiteStatus Subgraph::Invoke() {
     // if(execution_plan_index == 0){
     //   PrintWeightandBiasTensor(node);
     // }
-    if(resource_type == ResourceType::GPU)
-      PrintTensor(*tensor(12));
-      // PrintInputTensor(node);
-    if(resource_type == ResourceType::CO_CPU)
-      PrintOutputTensor(node);
+    // if(resource_type == ResourceType::GPU)
+    //   PrintTensor(*tensor(12));
+    //   // PrintInputTensor(node);
+    // if(resource_type == ResourceType::CO_CPU)
+    //   PrintOutputTensor(node);
 
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
