@@ -754,7 +754,7 @@ TfLiteStatus Subgraph::PartitionChannel(){
 		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
 			partitioning_plan.push_back(execution_plan_index);
       if(!partitioning_ratios.empty())
-			  ratios.push_back(partitioning_ratios[0]/ 10.0);
+			  ratios.push_back(1.0 - partitioning_ratios[0] / 10.0);
       else
         return kTfLiteError;
 		}
@@ -783,7 +783,7 @@ TfLiteStatus Subgraph::PartitionChannel(){
 					int h = *(dims + 3);
 					int i = *(dims + 4);
 					int next_filter = w * h * i * ((int)bytes / (o * w * h * i));
-         
+          std::cout << "partitioning " << ratios[partitioning_plan_index] << "\n";
 					next_filter = (int)next_filter * ceil(o * (1 - ratios[partitioning_plan_index]));
          	*data += next_filter; 
 				}
@@ -1330,11 +1330,12 @@ TfLiteStatus Subgraph::Invoke() {
     // if(execution_plan_index == 0){
     //   PrintWeightandBiasTensor(node);
     // }
-    // if(resource_type == ResourceType::GPU)
-    //   PrintTensor(*tensor(12));
-    //   // PrintInputTensor(node);
-    // if(resource_type == ResourceType::CO_GPU)
-    //   PrintOutputTensor(node);
+    if(resource_type == ResourceType::GPU)
+      PrintTensor(*tensor(12));
+      // PrintInputTensor(node);
+    if(resource_type == ResourceType::CO_CPU)
+      PrintOutputTensor(node);
+
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
     if (tensor_resized_since_op_invoke_ &&
