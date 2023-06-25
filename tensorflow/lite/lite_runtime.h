@@ -123,7 +123,8 @@ class TfLiteRuntime{
     // Quantize given tensor and return buffer pointer which contains quantized
     // values.
     // (This function does not )
-    void* QuantizeGivenTensorandReturnBuffer(TfLiteTensor* tensor);
+    void* QuantizeGivenTensorandReturnBuffer(TfLiteTensor* tensor,
+                                          TfLiteAffineQuantization* quant_params);
 
     TfLiteStatus QuantizeGivenTensorandCopy(TfLiteTensor* source_tensor,
                                             TfLiteTensor* dest_tensor);
@@ -152,12 +153,12 @@ class TfLiteRuntime{
                                 bool do_asymmetric);
 
     void QuantizeSymFloatsMain(const float* values, const int size,
-                                     int8_t* quantized_values, float min_value,
-                                     float max_value, float* scaling_factor);
+                              int8_t* quantized_values, float min_value,
+                              float max_value, float* scaling_factor, int32_t* zero_points);
 
     void QuantizeSymFloats(const float* values, const int size,
-                                     int8_t* quantized_values, float* min_value,
-                                     float* max_value, float* scaling_factor);
+                          int8_t* quantized_values, float* min_value,
+                          float* max_value, float* scaling_factor, int32_t* zero_points);
 
     TfLiteAffineQuantization* CalcQuantizationParamsFromTensor(TfLiteTensor* tensor);
 

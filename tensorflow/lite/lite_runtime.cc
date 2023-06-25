@@ -884,13 +884,15 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         break;
       }
       // sync with gpu here (notified by gpu)
+      std::cout << "cpu wait" << "\n";
       std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
       invoke_cpu = false;
+      std::cout << "cpu woke up" << "\n";
       subgraph = quantized_interpreter->subgraph(subgraph_idx);
       if(main_execution_graph != nullptr)
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
-      // std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
@@ -926,7 +928,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
-      // std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
@@ -937,9 +939,11 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       latency.push_back(response_time);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
+        std::cout << "gpu wait" << "\n";
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
         data_sync_cv.wait(lock_data, [&]{ return is_execution_done; });
         is_execution_done = false;
+        std::cout << "gpu woke up" << "\n";
         // data merge here
         if(co_execution_graph != nullptr){
           MergeCoExecutionData(co_execution_graph, subgraph);
@@ -952,10 +956,11 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         subgraph_idx++;
       }
       else{
+        main_execution_graph = nullptr;
+        //co_execution_graph = nullptr;
         WriteVectorLog(latency, 0);
         // std::cout << "Max precision graph invoke done" << "\n";
         // PrintyoloOutput(*(subgraph->tensor(109)));
-        // PrintTensorSerial(*(subgraph->tensor(subgraph->GetOutputTensorIndex())));
         global_output_tensor = subgraph->tensor(subgraph->GetFirstOutputTensorIndex());
         break;
       }
@@ -1191,22 +1196,32 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
   }
   std::vector<int> dest_tensor_indicies = 
                               dest_subgraph->inputs();
-  int dest_tensor_idx = dest_subgraph->GetInputTensorIndex();
 
+  int dest_tensor_idx = dest_subgraph->GetInputTensorIndex();
   int min_precision_tensor_idx = min_precision_subgraph->GetFirstOutputTensorIndex(); // for uint model
   int max_precision_tensor_idx = max_precision_subgraph->GetFirstOutputTensorIndex();
   int dequant_reference_tensor_idx = 0;
-
+  
+  std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
+                " max id : " << max_precision_subgraph->GetGraphid() << "\n";
   std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-              << max_precision_tensor_idx << "\n";
+              << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* min_precision_tensor = 
                   min_precision_subgraph->tensor(min_precision_tensor_idx);
   TfLiteTensor* max_precision_tensor = 
                   max_precision_subgraph->tensor(max_precision_tensor_idx);
-  TfLiteTensor* dequant_reference_tensor = 
-                  max_precision_subgraph->tensor(dequant_reference_tensor_idx);
-
+  int quantization_param_tensor_idx =  
+                  min_precision_subgraph->GetFirstInputTensorIndex();
+  TfLiteTensor* dequant_reference_tensor = nullptr;
+  if(min_precision_subgraph->tensor(quantization_param_tensor_idx)->quantization.type
+    == kTfLiteAffineQuantization){
+    dequant_reference_tensor = min_precision_subgraph->tensor(quantization_param_tensor_idx);
+  }else{
+    quantization_param_tensor_idx= max_precision_subgraph->GetFirstInputTensorIndex();
+    dequant_reference_tensor = max_precision_subgraph->tensor(quantization_param_tensor_idx); 
+  }
+                
   if(dest_tensor == nullptr || min_precision_tensor == nullptr ||
       max_precision_tensor == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
@@ -1232,22 +1247,28 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
       return;
     }
   }
-  float* data_min;
+  // minimum precision side data buffer.
+  float* data_min; 
   if(dequantized_buffer != nullptr){
     data_min = dequantized_buffer;
   }else{
     data_min = (float*)min_precision_tensor->data.data;
   }
+  // max precision side data buffer.
   float* data_max = (float*)max_precision_tensor->data.data;
+  
+  // destination buffer.
   float* data_dest = (float*)dest_tensor->data.data;
+
   // check dims 
-  if(dest_tensor->dims->data[0] != min_precision_tensor->dims->data[0]){
+  if(dest_tensor->dims->data[3] == 
+      min_precision_tensor->dims->data[3] + max_precision_tensor->dims->data[3]){
     // Merge CW-partitioned data 
     int dest_ch, min_tensor_ch, max_tensor_ch;
-    dest_ch = dest_tensor->dims->data[0];
-    min_tensor_ch = min_precision_tensor->dims->data[0];
-    max_tensor_ch = max_precision_tensor->dims->data[0];
-    std::cout << "min_tensor_ch " << min_tensor_ch << "max_tensor_ch " << max_tensor_ch << "\n";
+    dest_ch = dest_tensor->dims->data[3];
+    min_tensor_ch = min_precision_tensor->dims->data[3];
+    max_tensor_ch = max_precision_tensor->dims->data[3];
+    std::cout << "min_tensor_ch " << min_tensor_ch << " max_tensor_ch " << max_tensor_ch << "\n";
     if((min_tensor_ch + max_tensor_ch) != dest_ch){
       std::cout << "Tensor dim [OCH] min_prec + max_prec != dest ERROR" << "\n";
       return;
@@ -1256,15 +1277,21 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
     for(int i=0; i<dest_tensor->dims->size; ++i){
       tensor_data_size *= dest_tensor->dims->data[i];
     }
+    // WRONG MERGE
+    // WRONG MERGE
+    // WRONG MERGE
+    // Note : max pricision side is front channel.
     int tensor_data_per_ch = tensor_data_size / dest_ch;
-    for(int i=0; i<tensor_data_per_ch; ++i){ //copy maximum precision side data
-      memcpy(data_dest + (min_tensor_ch * i), data_max + (max_tensor_ch * i),
+    for(int i=0; i<tensor_data_per_ch; ++i){ //copy minimum precision side data
+      memcpy(data_dest + (dest_ch * i), data_max + (max_tensor_ch * i),
               max_tensor_ch * sizeof(float));
     }
+    
     for(int i=0; i<tensor_data_per_ch; ++i){ //copy minimum precision side data
-      memcpy(data_dest + (max_tensor_ch * (i+1)), data_min + (min_tensor_ch * i),
+      memcpy(data_dest + max_tensor_ch + (dest_ch * i), data_min + (min_tensor_ch * i),
               min_tensor_ch * sizeof(float));
     }
+    
   }else{ // Merge HW-partitioned data
     int dest_ht = dest_tensor->dims->data[1];
     int min_tensor_ht = min_precision_tensor->dims->data[1];
@@ -1272,7 +1299,11 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
     int tensor_dest_data_size = 1;
     int min_precision_data_size = 1;
     int max_precision_data_size = 1;
-    
+    ////////////////////////
+    // TODO AFTER DINNER
+    // MERGE FIX
+    // SYNCHRONIZATION FIX
+
     // Calculate data size to copy.
     for(int i=0; i<dest_tensor->dims->size; ++i){
       tensor_dest_data_size *= dest_tensor->dims->data[i];
@@ -1371,61 +1402,74 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
 }
 
 // SOURCE TENSOR AND DEST TENSOR MUST BE IN SAME PRECISION...
-void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph) {
-  // use source_graph_id, dest_graph_id
+// TODO : Quantization, height partitioning aware data copy
+// IMPORTANT : There are some cases that input, output tensor indices are not same.
+//             So, be aware to use this function in those cases.
+void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision_subgraph_
+                                              , Subgraph* max_precision_subgraph_) {
   auto connect = [&](Subgraph* source_subgraph, Subgraph* dest_subgraph) {
-    std::vector<int> dest_tensor_indices; 
-    std::vector<int> source_tensor_idx = source_subgraph->outputs();
-    std::vector<int> input_tensor_indices = dest_subgraph->inputs();
-    for(int i=0; i<input_tensor_indices.size(); ++i){
-      for(int j=0; j<source_tensor_idx.size(); ++j){
-        if(source_tensor_idx[j] == input_tensor_indices[i])
-          dest_tensor_indices.push_back(input_tensor_indices[i]);
-      }
+    std::cout << "connect s : " << source_subgraph->GetGraphid() <<
+                  " d : " << dest_subgraph->GetGraphid() << "\n";
+    int source_tensor_idx = source_subgraph->inputs()[0];
+    int input_tensor_idx = dest_subgraph->GetFirstInputTensorIndex();
+    TfLiteTensor* source_tensor = source_subgraph->tensor(source_tensor_idx);
+    TfLiteTensor* dest_tensor = dest_subgraph->tensor(input_tensor_idx);
+    std::cout << "source_tensor : " << source_tensor_idx << "\n";
+    std::cout << "dest_tensor : " << input_tensor_idx << "\n";
+    void* data_source = nullptr;
+    int source_data_size = 1;
+    int dest_data_size = 1;
+    for(int i=0; i<source_tensor->dims->size; ++i){
+      source_data_size *= source_tensor->dims->data[i]; 
     }
-    if(dest_tensor_indices.empty()){
-      std::cout << "Output tensor of subgraph [" << source_subgraph->GetGraphid() << "] cannot"
-                << " found a matching input tensor in subgraph ["
-                << dest_subgraph->GetGraphid() << "]\n";
-      return kTfLiteError;
+    for(int i=0; i<dest_tensor->dims->size; ++i){
+      dest_data_size *= dest_tensor->dims->data[i]; 
     }
-    for(int i=0; i<dest_tensor_indices.size(); ++i){
-      // std::cout << "dest_tensor_indices : " << dest_tensor_indices[i] << "\n";
-      TfLiteTensor* source_tensor = source_subgraph->tensor(dest_tensor_indices[i]);
-      TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_indices[i]);
-      
-      // Match tensor precision (quantize)
-      if(source_tensor->type != dest_tensor->type){
-
-      }
-      
-      size_t source_byte_size = source_tensor->bytes;
-      size_t dest_byte_size = dest_tensor->bytes;
-      //int offset = (source_byte_size - dest_byte_size) / sizeof(source_tensor->type);
-      // PrintTensorSerial(*dest_tensor);
-      auto data_source = (float*)source_tensor->data.data;
-      auto data_dest = (float*)dest_tensor->data.data;
-      // std::cout << "source : " <<  source_byte_size << " dest " << dest_byte_size << "\n";
-      
-      dest_tensor->data.data = source_tensor->data.data;
-      // memcpy(data_dest, data_source, dest_byte_size);
+    // Match tensor precision (quantize)
+    if(source_tensor->type == kTfLiteFloat32 &&
+          dest_tensor->type == kTfLiteUInt8){
+      std::cout << "quant int" << "\n";
+      auto data_dest = (uint8_t*)dest_tensor->data.data;
+      TfLiteAffineQuantization* new_quantization_params = new TfLiteAffineQuantization;
+      data_source = QuantizeGivenTensorandReturnBuffer(source_tensor,
+                                                       new_quantization_params);
+      int offset = source_data_size - dest_data_size;
+      memcpy(data_dest, data_source + offset, dest_data_size*(sizeof(uint8_t)));
+      free(data_source);           
       std::cout << "Copied intermediate data from main graph" << "\n";
-    }
+      dest_tensor->quantization.params = reinterpret_cast<void*>(new_quantization_params);
+      printf("%p \n", new_quantization_params);
+      std::cout << "Asdfa" << "\n";
+      dest_tensor->quantization.type = kTfLiteAffineQuantization;
+      printf("set scale %.6f, zp %d \n",
+        new_quantization_params->scale->data[0],
+        new_quantization_params->zero_point->data[0]);
+    }else{ 
+      std::cout << "no quant int" << "\n";
+      // Maybe consider memory footprint.
+      auto data_dest = (float*)dest_tensor->data.data;
+      auto data_source = (float*)source_tensor->data.data;
+      int offset = source_data_size - dest_data_size;
+      memcpy(data_dest, data_source + offset, dest_data_size*(sizeof(float)));
+      std::cout << "Copied intermediate data from main graph" << "\n";
+    }  
     return kTfLiteOk;
   };
-  Subgraph* prev_graph = subgraph->GetPrevSubgraph();
-  if (prev_graph != nullptr) {  // Need to copy output from previous graph.
-    if (connect(prev_graph, co_subgraph) != kTfLiteOk) {
+  std::cout << "Asdf" << "\n";
+  if (max_precision_subgraph_ != nullptr) {  // Need to copy output from previous graph.
+    if (connect(max_precision_subgraph_, min_precision_subgraph_) != kTfLiteOk) {
       std::cout << "Subgraph intermediate data copy failed"
                 << "\n";
       return;
     }
+    std::cout << "Asdf" << "\n";
   } else {  // if nulltpr returned
     return;
   }
   return;
 }
 
+// param : n_batch must be 1.
 void TfLiteRuntime::QuantizeFloats(const float* float_data_ptr, int n_batch,
                               int n_data, int8_t* quantized_data_ptr,
                               float* scaling_factors, int32_t* zero_points,
@@ -1439,39 +1483,43 @@ void TfLiteRuntime::QuantizeFloats(const float* float_data_ptr, int n_batch,
       float unused_min, unused_max;
       QuantizeSymFloats(
           float_data_ptr + offset, n_data, quantized_data_ptr + offset,
-          &unused_min, &unused_max, &scaling_factors[b]);
+          &unused_min, &unused_max, scaling_factors, zero_points);
     }
   }
 }
 
 void TfLiteRuntime::QuantizeSymFloats(const float* values, const int size,
-                                  int8_t* quantized_values, float* min_value,
-                                  float* max_value, float* scaling_factor){
+                                int8_t* quantized_values, float* min_value,
+              float* max_value, float* scaling_factor, int32_t* zero_points){
   auto minmax = std::minmax_element(values, values + size);
   *min_value = *minmax.first;
   *max_value = *minmax.second;
+  const int zero_point = 
+    std::round(((*max_value * 0) - (*min_value * 255))/(*max_value - *min_value));
   QuantizeSymFloatsMain(values, size, quantized_values, *min_value,
-                                  *max_value, scaling_factor);
+                            *max_value, scaling_factor, zero_points);
 }
 
+// Minsung
+// Fixed for uint8 quantization.
 void TfLiteRuntime::QuantizeSymFloatsMain(const float* values, const int size,
-                                int8_t* quantized_values, float min_value,
-                                float max_value, float* scaling_factor){
-  const int32_t kScale = 127;
-  const float range = std::max(std::abs(min_value), std::abs(max_value));
+                                    int8_t* quantized_values, float min_value,
+                float max_value, float* scaling_factor, int32_t * zero_points){
+  const int32_t kScale = 255;
+  const float range = max_value - min_value;
   if (range == 0) { //means given array is zero
     memset(quantized_values, 0, size * sizeof(int8_t));
     *scaling_factor = 1;
     return;
   }
   *scaling_factor = range / kScale;
-  const float scaling_factor_inv = kScale / range;
+  //zero_points =  
   for (int i = 0; i < size; ++i) {
     const int32_t quantized_value =
-        static_cast<int32_t>(TfLiteRound(values[i] * scaling_factor_inv));
+        static_cast<int32_t>(TfLiteRound(values[i] * *scaling_factor) + *zero_points);
     // Clamp: just in case some odd numeric offset.
     quantized_values[i] = static_cast<int8_t>(
-        std::min(kScale, std::max(-kScale, quantized_value)));
+        std::min(kScale, std::max(0, quantized_value)));
   }
 }
 
@@ -1532,7 +1580,8 @@ TfLiteStatus TfLiteRuntime::QuantizeGivenTensor(TfLiteTensor* tensor){
   return kTfLiteOk;
 }
 
-void* TfLiteRuntime::QuantizeGivenTensorandReturnBuffer(TfLiteTensor* tensor){
+void* TfLiteRuntime::QuantizeGivenTensorandReturnBuffer(TfLiteTensor* tensor,
+                                      TfLiteAffineQuantization* quant_params){
   TfLiteTensor* working_tensor = tensor;
   working_tensor->allocation_type = kTfLiteDynamic;
   int tensor_data_dims_size = working_tensor->dims->size-1; 
@@ -1544,25 +1593,22 @@ void* TfLiteRuntime::QuantizeGivenTensorandReturnBuffer(TfLiteTensor* tensor){
   }
   int8_t* quantized_values = (int8_t*)malloc(tensor_data_size);
   auto data_st_origin_float = (float*)working_tensor->data.data;
-  float* scaling_factors = new float;
-  int32_t* zero_points = new int32_t;
+  float scaling_factor = 0;
+  int32_t zero_point = 0;
   QuantizeFloats(data_st_origin_float, 1, tensor_data_size, quantized_values,
-                          scaling_factors, zero_points, false);
-  working_tensor->type = TfLiteType::kTfLiteInt8;
-  working_tensor->data.data = quantized_values;
-  working_tensor->bytes = tensor_data_size;
-  // TODO : Change TfLiteQuantizationParams to TfLiteAffineQuantization later.
-  TfLiteQuantizationParams* quant_params = new TfLiteQuantizationParams;
-  quant_params->scale = *scaling_factors;
-  quant_params->zero_point = *zero_points;
-  working_tensor->params.scale = *scaling_factors;
-  working_tensor->params.zero_point = *zero_points;
-  working_tensor->quantization.params = &quant_params;
-  working_tensor->quantization.type = TfLiteQuantizationType::kTfLiteAffineQuantization;
+                          &scaling_factor, &zero_point, false);
+
+  quant_params->scale = TfLiteFloatArrayCreate(1);
+  quant_params->zero_point = TfLiteIntArrayCreate(1);
+  quant_params->scale->data[0] = scaling_factor;
+  quant_params->zero_point->data[0] = zero_point;
+  quant_params->quantized_dimension = 1;
+  printf("set scale %.6f, zp %d \n",
+    quant_params->scale->data[0], quant_params->zero_point->data[0]);
+  printf("%p \n", quant_params);
   return quantized_values;
 }
 
-// !!!! AFTER DEQUANTIZE, RESTORE THE ORIGINAL BUFFER
 void* TfLiteRuntime::DequantizeGivenTensor(TfLiteTensor* tensor){
   TfLiteTensor* working_tensor = tensor;
   if(working_tensor->quantization.type != kTfLiteAffineQuantization &&\
@@ -1637,28 +1683,45 @@ void* TfLiteRuntime::DequantizeGivenTensorWithReference(
   }
   auto data_st_origin = (uint8_t*)tensor->data.data;
   auto dequantized_values = (float*)malloc(tensor_data_size * sizeof(float));
-  TfLiteAffineQuantization* params = CalcQuantizationParamsFromTensor(ref_tensor);
-  int quantized_dimension = params->quantized_dimension;
-  TfLiteFloatArray* scaling_factor = params->scale;
-  TfLiteIntArray* zero_point = params->zero_point;
-  std::vector<float> scaling_factors;
-  std::vector<int> zero_points;
-  for(int i=0; i<scaling_factor->size; ++i){
-    scaling_factors.push_back(scaling_factor->data[i]);
-  }
-  for(int i=0; i<zero_point->size; ++i){
-    zero_points.push_back(zero_point->data[i]);
-  }
-  printf("quantized_dimension : %d \n", quantized_dimension);
-  printf("scaling factor size: %d \n", scaling_factors.size());
-  printf("zero point size: %d \n", zero_points.size());
-  printf("scaling factor size: %0.6f \n", scaling_factors[0]);
-  printf("zero point size: %d \n", zero_points[0]);
-  std::cout << "tensor data byte : " << working_tensor->bytes << "\n";
-  std::cout << "tensor data size : " << tensor_data_size << "\n";
-  for(int i=0; i<tensor_data_size; ++i){
-    float temp = (static_cast<int>(data_st_origin[i]) - zero_points[0]) * scaling_factors[0];
-    dequantized_values[i] = temp;
+  if(ref_tensor->quantization.params != nullptr){
+    TfLiteAffineQuantization* params =
+      (TfLiteAffineQuantization*)ref_tensor->quantization.params;
+    float scale = params->scale->data[0];
+    int zero_point = params->zero_point->data[0];
+    printf("scaling factor : %0.6f \n", scale);
+    printf("zero point : %d \n", zero_point);
+    for(int i=0; i<tensor_data_size; ++i){
+      float temp = (static_cast<int>(data_st_origin[i]) - zero_point) * scale;
+      dequantized_values[i] = temp;
+    }
+    free(params->scale);
+    free(params->zero_point);
+    free(ref_tensor->quantization.params);
+    ref_tensor->quantization.type = kTfLiteNoQuantization;
+  }else{
+    TfLiteAffineQuantization* params = CalcQuantizationParamsFromTensor(ref_tensor);
+    int quantized_dimension = params->quantized_dimension;
+    TfLiteFloatArray* scaling_factor = params->scale;
+    TfLiteIntArray* zero_point = params->zero_point;
+    std::vector<float> scaling_factors;
+    std::vector<int> zero_points;
+    for(int i=0; i<scaling_factor->size; ++i){
+      scaling_factors.push_back(scaling_factor->data[i]);
+    }
+    for(int i=0; i<zero_point->size; ++i){
+      zero_points.push_back(zero_point->data[i]);
+    }
+    printf("quantized_dimension : %d \n", quantized_dimension);
+    printf("scaling factor size: %d \n", scaling_factors.size());
+    printf("zero point size: %d \n", zero_points.size());
+    printf("scaling factor : %0.6f \n", scaling_factors[0]);
+    printf("zero point : %d \n", zero_points[0]);
+    std::cout << "tensor data byte : " << working_tensor->bytes << "\n";
+    std::cout << "tensor data size : " << tensor_data_size << "\n";
+    for(int i=0; i<tensor_data_size; ++i){
+      float temp = (static_cast<int>(data_st_origin[i]) - zero_points[0]) * scaling_factors[0];
+      dequantized_values[i] = temp;
+    }
   }
   std::cout << "Dequnatize Done\n";
   // and return the new buffer

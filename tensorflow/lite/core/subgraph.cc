@@ -1312,7 +1312,7 @@ TfLiteStatus Subgraph::Invoke() {
       struct timespec begin, end;
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
-    std::cout << resource_type << " Opinvoke " << graph_id_ << "\n"; 
+    // std::cout << resource_type << " Opinvoke " << graph_id_ << "\n"; 
     if (OpInvoke(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
@@ -1330,7 +1330,10 @@ TfLiteStatus Subgraph::Invoke() {
     // if(execution_plan_index == 0){
     //   PrintWeightandBiasTensor(node);
     // }
-    // if(resource_type == ResourceType::CO_CPU)
+    // if(resource_type == ResourceType::GPU)
+    //   PrintTensor(*tensor(12));
+    //   // PrintInputTensor(node);
+    // if(resource_type == ResourceType::CO_GPU)
     //   PrintOutputTensor(node);
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
@@ -1939,6 +1942,14 @@ TfLiteIntArray* Subgraph::GetInputTensorIndices(){
   }
 }
 
+int Subgraph::GetFirstInputTensorIndex(){
+  if(execution_plan_.size() > 0){
+    int node_index = execution_plan_[0];
+    TfLiteNode& node = nodes_and_registration_[0].first;
+    return node.inputs->data[0];
+  }
+}
+
 int Subgraph::GetFirstOutputTensorIndex(){
   if(execution_plan_.size() > 0){
     int node_index = execution_plan_[execution_plan_.size() - 1];
@@ -1974,7 +1985,7 @@ void Subgraph::PrintInputTensor(TfLiteNode& node){
                                            << tensor_data_size << "\n";
   std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
 
-  PrintTensorSerial(*temp);
+  PrintTensor(*temp);
 }
 
 void Subgraph::PrintOutputTensor(TfLiteNode& node){
@@ -1996,7 +2007,7 @@ void Subgraph::PrintOutputTensor(TfLiteNode& node){
                                            << tensor_data_size << "\n";
   std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
 
-  PrintTensorSerial(*temp);  
+  PrintTensor(*temp);  
 }
 
 void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){

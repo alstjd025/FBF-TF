@@ -248,6 +248,11 @@ class Subgraph {
   // Minsung
   // Access to an output tensor (for multiple subgraphs and GPUdelegate)
   // Simply returns final node's output tensor in execution plan.
+  int GetFirstInputTensorIndex();
+
+  // Minsung
+  // Access to an output tensor (for multiple subgraphs and GPUdelegate)
+  // Simply returns final node's output tensor in execution plan.
   int GetFirstOutputTensorIndex();
 
   // Minsung
