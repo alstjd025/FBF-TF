@@ -1308,59 +1308,72 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     if(eType == UnitType::GPU0){
     }
   }
+  // HOON : after invoke. YOLO parsing 
   // -----------------------------------------------------------------------
   TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
-  printf("212 (classfication data): \n");
+  printf("\033[0;32m212 (classfication data):\033[0m \n");
   const float* output_data_2 = (float*)output_tensor_2->data.data; // only use data.data
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes_2);
-  // std::vector<float> boxes(num_boxes * 4);
   std::vector<float> classifications(num_boxes_2 * 80);
   for (int i = 0; i < num_boxes_2; ++i) {
   for (int j = 0; j < 80; ++j) {
     classifications[i * 80 + j] = output_data_2[i * 80 + j];
     }
   }
-  // Printing the classification information
   int conf_count = 0;
   int real_bbox_index = -1;
-  std::vector<int> real_bbox_vector;
-  // TfLiteTensor new_tensor;
+  std::vector<int> real_bbox_index_vector;
+  std::vector<std::vector<float>> real_bbox_cls_vector;
   for (int i = 0; i < num_boxes_2; ++i) {
-    // printf("Box %d:\n", i+1);
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
       if (classifications[i * 80 + j] > 0.1){
         box_per_conf_count +=1;
-        printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
+        // printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
       }
       else{
-        printf("%f ", classifications[i * 80 + j]);
+        // printf("%f ", classifications[i * 80 + j]);
       }
     }
+    std::vector<float>tmp;
     if(box_per_conf_count >0){
       conf_count +=1;
-      real_bbox_vector.push_back(i); //NOTE : should replace 2-dimension vector (like DOT)
+      real_bbox_index_vector.push_back(i); 
+      for (int j = 0; j < 80; ++j) {
+        tmp.push_back(classifications[i * 80 + j]);
+      }
+      real_bbox_cls_vector.push_back(tmp);
     }
-    printf("\n");
+    // printf("\n");
   }
-  printf("HOON : B_Boxes's real conf data num is : %d\n", conf_count );
-  // PrintTensor(*output_tensor, UnitType::CPU0);
-  printf("real_bbox_vector : ");
-  for(int i=0 ; i < real_bbox_vector.size(); i++){
-          std::cout << " " << real_bbox_vector[i];
+  printf("HOON : B_Boxes's real bbox num is : %d\n", conf_count );
+  printf("debugging real_bbox_index_vector --> real b_box's index is : ");
+  for(int i=0 ; i < real_bbox_index_vector.size(); i++){
+          std::cout << " " << real_bbox_index_vector[i];
   }
-  // SOFTMAX // 
-  //         //
-  //         //
   printf("\n");
-  // real_bbox_v //
-  //  append     //
-  //  conf_score & class_number //
+  printf("\033[0;33mdebugging real_bbox_cls_vector --> real b_box's cls data :\033[0m \n\n");
+  for (auto i : real_bbox_cls_vector) { 
+		for (auto j : i) { 
+      if (j > 0.1){
+        printf("\033[0;31m%.6f\033[0m ", j);
+      }
+      else{
+        printf("%.6f ", j);
+      }
+		}
+		std::cout << std::endl << std::endl;
+	}
+  // SOFTMAX 
+  // TODO
+  // std::vector<std::vector<float>> real_bbox_cls_vector = real_bbox_cls_vector;
+  // TODO 
   // ---------------------------------------------------------------------
-  TfLiteTensor* output_tensor = tensor(233); // 3rd method. simplest tool in subgraph
-  printf("233 (localization data): \n");
-  const float* output_data = (float*)output_tensor->data.data; // only use data.data
+  TfLiteTensor* output_tensor = tensor(233);
+  printf("\033[0;32m233 (localization data):\033[0m \n");
+  std::vector<std::vector<float>> real_bbox_loc_vector;
+  const float* output_data = (float*)output_tensor->data.data; 
   const int num_boxes = output_tensor->dims->data[1];
   std::vector<float> boxes(num_boxes * 4);
   for (int i = 0; i < num_boxes; ++i) {
@@ -1370,18 +1383,28 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     boxes[i * 4 + 3] = output_data[i * 4 + 3];
     }
   int bbox_count = 0;
-  printf("HOON : below data is real_bbox's localization data \n");
+  printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
   for (int i = 0; i < num_boxes; ++i) {
-      // if(boxes[i*4] + boxes[i * 4 + 1] + boxes[i * 4 + 2] + boxes[i * 4 + 3] > 0){
-      //   bbox_count +=1;
-      // }
-      for(int j=0 ; j < real_bbox_vector.size(); j++){
-          if(i == real_bbox_vector[j]){
-            printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
+      std::vector<float>tmp;
+      for(int j=0 ; j < real_bbox_index_vector.size(); j++){
+          if(i == real_bbox_index_vector[j]){
+            tmp.push_back(boxes[i*4]);
+            tmp.push_back(boxes[i*4+1]);
+            tmp.push_back(boxes[i*4+2]);
+            tmp.push_back(boxes[i*4+3]);
+            real_bbox_loc_vector.push_back(tmp);
+            // printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
           }
       }
   }
-  // Make fin_data for mAP  //
+  printf("\n");
+  for (auto i : real_bbox_loc_vector) { 
+	  for (auto j : i) { 
+      printf("%.6f ", j);
+	  }
+	  std::cout << std::endl << std::endl;
+	}
+  // Make fin_data for mAP  //e
   //                        //
   //                        //
   // TODO ~ 
