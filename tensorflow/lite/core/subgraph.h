@@ -473,7 +473,7 @@ class Subgraph {
   //Overloaded Invoke Function for while.cc ..etc
   TfLiteStatus Invoke(UnitType eType);
 
-
+  std::vector<int> get_cls_index(std::vector<std::vector<float>> real_bbox_cls_vector);
   void make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector);
   void make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_loc_vector);
   void SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector);

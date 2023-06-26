@@ -1313,16 +1313,41 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // -----------------------------------------------------------------------
   #ifdef YOLO
   std::vector<int> real_bbox_index_vector;
-  std::vector<std::vector<float>> real_bbox_cls_vector;
+  std::vector<std::vector<float>> real_bbox_cls_vector; //
   make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
   SOFTMAX(real_bbox_cls_vector);
-  std::vector<std::vector<float>> real_bbox_loc_vector;
+  std::vector<int> real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
+  std::vector<std::vector<float>> real_bbox_loc_vector; //
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
-  // real_bbox_cls_vector & real_bbox_loc_vector
+  // real_bbox_cls_vector & real_bbox_loc_vector & real_bbox_cls_index_vector
+  std::cout << "Successfully get cls_v & cls_index_v & loc_v !!!" << std::endl;
   #endif
   return status;
 }
 
+std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>> real_bbox_cls_vector){
+  std::vector<int> real_bbox_cls_index_vector;
+  float max=0;
+  int max_index = -1;
+  int index = 0;
+  for (auto i : real_bbox_cls_vector) { 
+    index = 0;
+		for (auto j : i) { 
+      if (j > max){
+        max = j;
+        max_index = index;
+      }
+      index+=1;
+		}
+    real_bbox_cls_index_vector.push_back(max_index);
+		// std::cout << std::endl << std::endl;
+	}
+  printf("real_bbox_cls_index vector : ");
+  for (auto i :real_bbox_cls_index_vector)
+    printf("\033[0;31m%d\033[0m ", i);
+  printf("\n\n");
+  return real_bbox_cls_index_vector;
+}
 
 void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
   // TfLiteTensor* output_tensor_2 = tensor(211);
@@ -1342,7 +1367,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
-      if (classifications[i * 80 + j] > 0.1){
+      if (classifications[i * 80 + j] > 0.15){
         box_per_conf_count +=1;
         // printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
       }
@@ -1370,7 +1395,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   printf("\033[0;33mdebugging real_bbox_cls_vector --> real b_box's cls data :\033[0m \n\n");
   for (auto i : real_bbox_cls_vector) { 
 		for (auto j : i) { 
-      if (j > 0.1){
+      if (j > 0.15){
         printf("\033[0;31m%.6f\033[0m ", j);
       }
       else{
@@ -1414,11 +1439,12 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
 	  for (auto j : i) { 
       printf("%.6f ", j);
 	  }
-	  std::cout << std::endl << std::endl;
+	  std::cout << std::endl;
 	}
+  std::cout<<std::endl;
 }
 void Subgraph::SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector){
-  printf("After SOFTMAX : \n");
+  printf("\033[0;33mAfter SOFTMAX :\033[0m \n");
   const float threshold = 0.999999; 
   for (auto& row : real_bbox_cls_vector) {
       float maxElement = *std::max_element(row.begin(), row.end());
@@ -1434,7 +1460,7 @@ void Subgraph::SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector){
   }
   for (auto i : real_bbox_cls_vector) {
       for (auto j : i) {
-          if (j > 0.1) {
+          if (j > 0.15) {
               printf("\033[0;31m%.6f\033[0m ", j);
           }
           else {
