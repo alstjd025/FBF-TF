@@ -890,7 +890,9 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   }
   std::cout << "\n";
 
-  stub_method(112, tensor_pair);
+
+  stub_method(144, tensor_pair);  // for ultra lane net
+  // stub_method(112, tensor_pair); for mobilenet v1
   // stub_method(224, tensor_pair);
 
   std::cout << "Height partitioning done" << "\n";

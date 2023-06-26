@@ -330,8 +330,8 @@ typedef struct TfLiteQuantization {
 // back to float using:
 //     real_value = scale * (quantized_value - zero_point)
 typedef struct TfLiteQuantizationParams {
-  float scale = 0;
-  int32_t zero_point = 0;
+  float scale;
+  int32_t zero_point;
 } TfLiteQuantizationParams;
 
 // Parameters for asymmetric quantization across a dimension (i.e per output

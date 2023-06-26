@@ -64,6 +64,21 @@ cc_library(
     ],
 )
 
+# build -c opt --config android_arm64 --copt -Os --copt -DTFLITE_GPU_BINARY_RELEASE --copt --linkopt -s --strip always :libtensorflowlite_gpu_delegate.so
+cc_binary(
+    name = "libxnnpack_delegate.so",
+    linkopts = [
+        "-Wl,-soname=libxnnpack_delegate.so",
+    ],
+    linkshared = 1,
+    linkstatic = 1,
+    tags = [
+        "nobuilder",
+        "notap",
+    ],
+    deps = [":xnnpack_delegate"],
+)
+
 ################################ Tester classes ################################
 
 cc_library(
