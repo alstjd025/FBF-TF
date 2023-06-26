@@ -870,7 +870,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       subgraph = quantized_interpreter->subgraph(subgraph_idx);
       if(main_execution_graph != nullptr)
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
-      std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      // std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
@@ -906,7 +906,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
-      std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      // std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
@@ -1178,16 +1178,16 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
   int max_precision_tensor_idx = max_precision_subgraph->GetFirstOutputTensorIndex();
   int dequant_reference_tensor_idx = 0;
   
-  std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
-                " max id : " << max_precision_subgraph->GetGraphid() << "\n";
-  std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-              << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
+  // std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
+  //               " max id : " << max_precision_subgraph->GetGraphid() << "\n";
+  // std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
+  //             << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* min_precision_tensor = 
                   min_precision_subgraph->tensor(min_precision_tensor_idx);
   TfLiteTensor* max_precision_tensor = 
                   max_precision_subgraph->tensor(max_precision_tensor_idx);
-  std::cout << "asdf1" << "\n";             
+             
   int quantization_param_tensor_idx =  
                   min_precision_subgraph->GetFirstInputTensorIndex();
   TfLiteTensor* dequant_reference_tensor = nullptr;
@@ -1198,7 +1198,7 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
     quantization_param_tensor_idx= max_precision_subgraph->GetFirstInputTensorIndex();
     dequant_reference_tensor = max_precision_subgraph->tensor(quantization_param_tensor_idx); 
   }
-  std::cout << "asdf" << "\n";             
+            
   if(dest_tensor == nullptr || min_precision_tensor == nullptr ||
       max_precision_tensor == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
@@ -1215,8 +1215,9 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
   // This flag means that the tensor is de-quantized temporary for merge.
   // Restore to the original buffer after merge.
   float* dequantized_buffer = nullptr;
-  std::cout << "DequantizeGivenTensorWithReference 1" << "\n";
-  if(min_precision_tensor->type == kTfLiteUInt8){
+
+  if(min_precision_tensor->type == kTfLiteUInt8 || 
+      min_precision_tensor->type == kTfLiteInt8 ){
     dequantized_buffer = (float*)DequantizeGivenTensorWithReference(
                                   min_precision_tensor, 
                                   dequant_reference_tensor);
@@ -1292,7 +1293,6 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
     for(int i=0; i<min_precision_tensor->dims->size; ++i){
       min_precision_data_size *= min_precision_tensor->dims->data[i];
     }
-
     // Need to drop padding data before merge if it's not fit with destination tensor.
     // Drop minimum precision data because it is dequantized and might drop accuracy.
     if((min_tensor_ht + max_tensor_ht) != dest_ht){
@@ -1310,7 +1310,6 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
               sizeof(float)*min_precision_data_size);
     }
   }
-  std::cout << "merge done " << "\n";
   return; 
 }
 
@@ -1658,21 +1657,17 @@ void* TfLiteRuntime::DequantizeGivenTensorWithReference(
   auto data_st_origin = (uint8_t*)tensor->data.data;
   auto dequantized_values = (float*)malloc(tensor_data_size * sizeof(float));
   if(ref_tensor->quantization.params != nullptr){
-    std::cout << " got TfLiteAffineQuantization" << "\n";
     TfLiteAffineQuantization* params =
       (TfLiteAffineQuantization*)ref_tensor->quantization.params;
     float scale = params->scale->data[0];
     int zero_point = params->zero_point->data[0];
     if(zero_point == 128)
       zero_point = 0;
-    printf("scaling factor : %0.6f \n", scale);
-    printf("zero point : %d \n", zero_point);
     for(int i=0; i<tensor_data_size; ++i){
       float temp = (static_cast<int>(data_st_origin[i]) - zero_point) * scale;
       dequantized_values[i] = temp;
     }
   }else{
-    std::cout << " got no TfLiteAffineQuantization" << "\n";
     TfLiteAffineQuantization* params = CalcQuantizationParamsFromTensor(ref_tensor);
     int quantized_dimension = params->quantized_dimension;
     TfLiteFloatArray* scaling_factor = params->scale;
@@ -1685,19 +1680,11 @@ void* TfLiteRuntime::DequantizeGivenTensorWithReference(
     for(int i=0; i<zero_point->size; ++i){
       zero_points.push_back(zero_point->data[i]);
     }
-    // printf("quantized_dimension : %d \n", quantized_dimension);
-    // printf("scaling factor size: %d \n", scaling_factors.size());
-    // printf("zero point size: %d \n", zero_points.size());
-    printf("scaling factor : %0.6f \n", scaling_factors[0]);
-    printf("zero point : %d \n", zero_points[0]);
-    // std::cout << "tensor data byte : " << working_tensor->bytes << "\n";
-    // std::cout << "tensor data size : " << tensor_data_size << "\n";
     for(int i=0; i<tensor_data_size; ++i){
       float temp = (static_cast<int>(data_st_origin[i]) - zero_points[0]) * scaling_factors[0];
       dequantized_values[i] = temp;
     }
   }
-  std::cout << "Dequnatize Done\n";
   // and return the new buffer
   return dequantized_values;
 }

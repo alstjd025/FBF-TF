@@ -583,11 +583,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         if(new_plan->resource_type == ResourceType::CO_CPU){
           SubgraphPartitioningPlan* new_plan_ = new SubgraphPartitioningPlan;          
           new_plan_->resource_type = ResourceType::CO_CPU;
-          new_plan_->partitioning_ratios = new int[46];
-          new_plan_->nodes = new int[46];
-          new_plan_->size = 46;
+          new_plan_->partitioning_ratios = new int[47];
+          new_plan_->nodes = new int[47];
+          new_plan_->size = 47;
           int j=0;
-          for(int i=1; i<47; ++i){
+          for(int i=1; i<48; ++i){
             new_plan_->nodes[j] = i;
             new_plan_->partitioning_ratios[j] = 15;
             j++;
