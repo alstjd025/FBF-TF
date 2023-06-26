@@ -473,6 +473,10 @@ class Subgraph {
   //Overloaded Invoke Function for while.cc ..etc
   TfLiteStatus Invoke(UnitType eType);
 
+
+  void make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector);
+  void make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_loc_vector);
+  void SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector);
   // Entry point for C node plugin API to report an error.
   void ReportError(const char* format, ...);
 

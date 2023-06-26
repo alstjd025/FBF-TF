@@ -177,7 +177,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
             //     if(value > 0.5)
             //         printf("label : %d, pre : %0.5f \n", i, value);
             // }
-            //PrintInterpreterState(interpreterCPU->get());
+            // PrintInterpreterState(interpreterCPU->get());
             std::cout << "\n";
             #endif
             if(!(*C_Counter % 1000))

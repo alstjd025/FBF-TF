@@ -36,7 +36,7 @@ limitations under the License.
 #include "tensorflow/lite/kmcontext.h"
 
 //#define debug
-
+#define YOLO
 
 
 
@@ -1308,8 +1308,24 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     if(eType == UnitType::GPU0){
     }
   }
+  // -----------------------------------------------------------------------
   // HOON : after invoke. YOLO parsing 
   // -----------------------------------------------------------------------
+  #ifdef YOLO
+  std::vector<int> real_bbox_index_vector;
+  std::vector<std::vector<float>> real_bbox_cls_vector;
+  make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
+  SOFTMAX(real_bbox_cls_vector);
+  std::vector<std::vector<float>> real_bbox_loc_vector;
+  make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
+  // real_bbox_cls_vector & real_bbox_loc_vector
+  #endif
+  return status;
+}
+
+
+void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
+  // TfLiteTensor* output_tensor_2 = tensor(211);
   TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
   printf("\033[0;32m212 (classfication data):\033[0m \n");
   const float* output_data_2 = (float*)output_tensor_2->data.data; // only use data.data
@@ -1323,8 +1339,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   }
   int conf_count = 0;
   int real_bbox_index = -1;
-  std::vector<int> real_bbox_index_vector;
-  std::vector<std::vector<float>> real_bbox_cls_vector;
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
@@ -1365,11 +1379,9 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 		}
 		std::cout << std::endl << std::endl;
 	}
-  // SOFTMAX 
-  // TODO
-  // std::vector<std::vector<float>> real_bbox_cls_vector = real_bbox_cls_vector;
-  // TODO 
-  // ---------------------------------------------------------------------
+  
+}
+void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_cls_vector){
   TfLiteTensor* output_tensor = tensor(233);
   printf("\033[0;32m233 (localization data):\033[0m \n");
   std::vector<std::vector<float>> real_bbox_loc_vector;
@@ -1404,14 +1416,35 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 	  }
 	  std::cout << std::endl << std::endl;
 	}
-  // Make fin_data for mAP  //e
-  //                        //
-  //                        //
-  // TODO ~ 
-  // NOTE : make real_bbox_vector containing loc & cls data
-  // printf("HOON : Real B_Box num is : %d\n", bbox_count );
-  return status;
 }
+void Subgraph::SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector){
+  printf("After SOFTMAX : \n");
+  const float threshold = 0.999999; 
+  for (auto& row : real_bbox_cls_vector) {
+      float maxElement = *std::max_element(row.begin(), row.end());
+      float sum = 0.0;
+      const float scalingFactor = 20.0;
+      for (auto& i : row)
+          sum += std::exp(scalingFactor * (i - maxElement));
+      for (int i = 0; i < row.size(); ++i) {
+          row[i] = std::exp(scalingFactor * (row[i] - maxElement)) / sum;
+          if (row[i] > threshold)
+              row[i] = threshold; 
+      }
+  }
+  for (auto i : real_bbox_cls_vector) {
+      for (auto j : i) {
+          if (j > 0.1) {
+              printf("\033[0;31m%.6f\033[0m ", j);
+          }
+          else {
+              printf("%.6f ", j);
+          }
+      }
+      std::cout << std::endl << std::endl;
+  }
+}
+
 
 //Minsung
 //Overloaded Invoke function for while.cc if.cc ... etc
