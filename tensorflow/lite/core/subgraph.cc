@@ -34,6 +34,7 @@ limitations under the License.
 #include "thread"
 #include "tensorflow/lite/kmdebug.h"
 #include "tensorflow/lite/kmcontext.h"
+#include <fstream> //HOON. for YOLO parsing
 
 //#define debug
 #define YOLO
@@ -1321,10 +1322,33 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
   // real_bbox_cls_vector & real_bbox_loc_vector & real_bbox_cls_index_vector
   std::cout << "Successfully get cls_v & cls_index_v & loc_v !!!" << std::endl;
+  saveDatatoFile(real_bbox_cls_vector, "cls");
+  saveDatatoFile(real_bbox_loc_vector, "loc");
+  // saveDatatoFile(real_bbox_cls_index_vector, "idx");
   #endif
   return status;
 }
-
+template <typename T>
+void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const char* mode) {
+    const char* filename = nullptr;
+    if (strcmp(mode, "cls") == 0) {
+        filename = "./mAP_TF/cls.txt";
+    } else if (strcmp(mode, "loc") == 0) {
+        filename = "./mAP_TF/loc.txt";
+    }
+    if (filename != nullptr) {
+        std::ofstream outFile(filename);
+        if (outFile.is_open()) {
+            for (const auto& row : data) {
+                for (const auto& value : row) {
+                    outFile << value << " ";
+                }
+                outFile << std::endl;
+            }
+            outFile.close();
+        }
+    }
+}
 std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>> real_bbox_cls_vector){
   std::vector<int> real_bbox_cls_index_vector;
   float max=0;
@@ -1406,10 +1430,9 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
 	}
   
 }
-void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_cls_vector){
+void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_loc_vector){
   TfLiteTensor* output_tensor = tensor(233);
   printf("\033[0;32m233 (localization data):\033[0m \n");
-  std::vector<std::vector<float>> real_bbox_loc_vector;
   const float* output_data = (float*)output_tensor->data.data; 
   const int num_boxes = output_tensor->dims->data[1];
   std::vector<float> boxes(num_boxes * 4);

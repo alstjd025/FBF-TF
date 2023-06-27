@@ -286,6 +286,8 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
 }
 #endif
 
+
+
 std::vector<double> b_delegation_optimizer; // HOON : vector for delegation optimizing test
 extern bool print_flag; // slave 
 
