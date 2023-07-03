@@ -1320,11 +1320,8 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   std::vector<int> real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
   std::vector<std::vector<float>> real_bbox_loc_vector; //
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
-  // real_bbox_cls_vector & real_bbox_loc_vector & real_bbox_cls_index_vector
-  std::cout << "Successfully get cls_v & cls_index_v & loc_v !!!" << std::endl;
-  saveDatatoFile(real_bbox_cls_vector, "cls");
-  saveDatatoFile(real_bbox_loc_vector, "loc");
-  // saveDatatoFile(real_bbox_cls_index_vector, "idx");
+  // saveDatatoFile(real_bbox_cls_vector, "cls");
+  // saveDatatoFile(real_bbox_loc_vector, "loc");
   #endif
   return status;
 }
@@ -1332,9 +1329,9 @@ template <typename T>
 void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const char* mode) {
     const char* filename = nullptr;
     if (strcmp(mode, "cls") == 0) {
-        filename = "./mAP_TF/cls.txt";
+        filename = "../mAP_TF/hoon/cls.txt";
     } else if (strcmp(mode, "loc") == 0) {
-        filename = "./mAP_TF/loc.txt";
+        filename = "../mAP_TF/hoon/loc.txt";
     }
     if (filename != nullptr) {
         std::ofstream outFile(filename);

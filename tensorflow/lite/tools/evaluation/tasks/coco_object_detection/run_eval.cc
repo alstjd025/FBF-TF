@@ -28,6 +28,8 @@ limitations under the License.
 #include "tensorflow/lite/tools/evaluation/utils.h"
 #include "tensorflow/lite/tools/logging.h"
 
+
+//HOONING : YOLO pasing code (mAP)
 namespace tflite {
 namespace evaluation {
 
