@@ -32,8 +32,8 @@ limitations under the License.
 
 #include <cmath>
 #include "thread"
-#include "tensorflow/lite/kmdebug.h"
-#include "tensorflow/lite/kmcontext.h"
+// #include "tensorflow/lite/kmdebug.h"
+// #include "tensorflow/lite/kmcontext.h"
 #include <fstream> //HOON. for YOLO parsing
 
 //#define debug
@@ -715,7 +715,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors(); 
-  KMCONTEXT(); // to use tflite->interpreter->subgraph  main structure ..
+  // KMCONTEXT(); // to use tflite->interpreter->subgraph  main structure ..
   return kTfLiteOk;
 }
 
@@ -1315,6 +1315,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   #ifdef YOLO
   std::vector<int> real_bbox_index_vector;
   std::vector<std::vector<float>> real_bbox_cls_vector; //
+  printf("\nHOON : after heuristic NMS... \n ");
   make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
   SOFTMAX(real_bbox_cls_vector);
   std::vector<int> real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
@@ -1425,8 +1426,8 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
 		}
 		std::cout << std::endl << std::endl;
 	}
-  
 }
+
 void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_loc_vector){
   TfLiteTensor* output_tensor = tensor(233);
   printf("\033[0;32m233 (localization data):\033[0m \n");

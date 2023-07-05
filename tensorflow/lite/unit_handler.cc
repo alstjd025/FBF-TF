@@ -2,8 +2,8 @@
 #include "kmcontext.h"
 #include <typeinfo>
 //#define MULTITHREAD
-#define GPUONLY
-// #define CPUONLY
+// #define GPUONLY
+#define CPUONLY
 #define yolo  //  Y / N
 
 #ifdef yolo

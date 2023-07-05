@@ -27,12 +27,17 @@ namespace tflite {
 namespace evaluation {
 namespace {
 
+
+// HOONING 
 TfLiteModelInfo GetTfliteModelInfo(const Interpreter& interpreter) {
   TfLiteModelInfo model_info;
   for (int i : interpreter.inputs()) {
+    std::cout << "input i " << i << "\n";
     model_info.inputs.push_back(interpreter.tensor(i));
   }
   for (int i : interpreter.outputs()) {
+    // HOONING
+    std::cout << "output i " << i << "\n";
     model_info.outputs.push_back(interpreter.tensor(i));
   }
   return model_info;

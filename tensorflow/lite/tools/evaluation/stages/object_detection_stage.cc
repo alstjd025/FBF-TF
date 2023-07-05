@@ -51,6 +51,7 @@ TfLiteStatus ObjectDetectionStage::Init(
   TF_LITE_ENSURE_STATUS(inference_stage_->Init(delegate_providers));
 
   // Validate model inputs.
+  printf("HOONING\n");
   const TfLiteModelInfo* model_info = inference_stage_->GetModelInfo();
   if (model_info->inputs.size() != 1 || model_info->outputs.size() != 4) {
     LOG(ERROR) << "Object detection model must have 1 input & 4 outputs";
@@ -104,6 +105,8 @@ TfLiteStatus ObjectDetectionStage::Run() {
   inference_stage_->SetInputs(data_ptrs);
   TF_LITE_ENSURE_STATUS(inference_stage_->Run());
 
+
+  // HOONING
   // Convert model output to ObjectsSet.
   predicted_objects_.Clear();
   const int class_offset =
