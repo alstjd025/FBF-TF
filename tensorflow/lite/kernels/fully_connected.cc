@@ -498,7 +498,7 @@ TfLiteStatus EvalQuantized(TfLiteContext* context, TfLiteNode* node,
                            const TfLiteTensor* input,
                            const TfLiteTensor* filter, const TfLiteTensor* bias,
                            TfLiteTensor* output) {
-  std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalQuantized()\n";
+  // std::cout << "tensorflow/lite/kernels/fully_connected.cc/EvalQuantized()\n";
   int32_t input_offset = -input->params.zero_point;
   int32_t filter_offset = -filter->params.zero_point;
   int32_t output_offset = output->params.zero_point;

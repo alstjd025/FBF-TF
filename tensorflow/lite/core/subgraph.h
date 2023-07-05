@@ -33,6 +33,7 @@ limitations under the License.
 #include <mutex>
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/channel_partitioner.h"
+#include <fstream>
 
 #define C_NRML "\033[0m"
 #define C_BLCK "\033[30m"
@@ -959,7 +960,6 @@ class Subgraph {
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap* resources_ = nullptr;
-
 
   // Minsung
   // Tensor allocation flag

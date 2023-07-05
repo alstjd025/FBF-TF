@@ -2851,9 +2851,10 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
         // CODE FOR FALLBACK TEST
-    //if(registration->builtin_code == 9){ //check if FC layer
-    if(false){ //check if FC layer
-        printf("FOUND A FC LAYER... MAKE FALLBACK\n");
+      
+    if(registration->builtin_code == 0 || registration->builtin_code == 18){ //check if ADD or mullayer
+    // if(false){ //check if ADD layer
+        printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
         return false;
     }else{
       if (!status.ok()) {

@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-// #define LATENCY_MEASURE
+#define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -851,7 +851,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     new_dims[1] = padd;
     new_dims[2] = w;
     new_dims[3] = i;
-    pointer_offset = o * (h - padd) * w;
     
     // TEST FOR FIRST NODE
     // TEST FOR FIRST NODE
@@ -859,6 +858,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     // Move the data pointer to proper point. (No need to move if CO_GPU)
     // moving data pointer isn't necessary for global input tensor.
     if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
+      new_dims[1] = (h - padd);
+      pointer_offset = o * (h - padd) * w;
       data_pointer += pointer_offset;
     }
     
@@ -891,8 +892,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   std::cout << "\n";
 
 
-  stub_method(144, tensor_pair);  // for ultra lane net
-  // stub_method(112, tensor_pair); for mobilenet v1
+  // stub_method(225, tensor_pair);  // for efficient l4
+  // stub_method(144, tensor_pair);  // for ultra lane net
+  stub_method(240, tensor_pair);  // for ultra lane net
+  // stub_method(180, tensor_pair);  // for mobilenet v1
   // stub_method(224, tensor_pair);
 
   std::cout << "Height partitioning done" << "\n";
@@ -1229,6 +1232,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 
 TfLiteStatus Subgraph::Invoke() {
   //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
+  std::vector<double> latency_per_node;
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
     return kTfLiteError;
@@ -1249,11 +1253,15 @@ TfLiteStatus Subgraph::Invoke() {
     // only need to modify the graph once upon the first invocation.
     applied_nnapi_delegate_ = true;
   }
+  // Minsung
+  // Latency debug
+  double response_time = 0;
 
   // Invocations are always done in node order.
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
+  
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     //std::cout << "Invoke inside" << "\n";
@@ -1310,7 +1318,6 @@ TfLiteStatus Subgraph::Invoke() {
     tensor_resized_since_op_invoke_ = false;
     // PrintInputTensor(node);
     #ifdef LATENCY_MEASURE
-      double response_time = 0;
       struct timespec begin, end;
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
@@ -1321,22 +1328,22 @@ TfLiteStatus Subgraph::Invoke() {
     }
     #ifdef LATENCY_MEASURE
       clock_gettime(CLOCK_MONOTONIC, &end);
-      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      if(resource_type == ResourceType::CO_CPU||
-                  resource_type == ResourceType::CPU)
-        printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
-      else if(resource_type == ResourceType::CO_GPU ||
-                  resource_type == ResourceType::GPU)
-        printf("%sInvoke Latency %.6f %s\n", C_BLUE, response_time, C_NRML);
+      if(strcmp(GetOpName(registration), "DELEGATE")){
+        response_time += (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      }else{
+        if(response_time)
+          latency_per_node.push_back(response_time);
+        response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        latency_per_node.push_back(response_time);
+        response_time = 0;
+      }
+      // if(resource_type == ResourceType::CO_CPU||
+      //             resource_type == ResourceType::CPU)
+      //   printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
+      // else if(resource_type == ResourceType::CO_GPU ||
+      //             resource_type == ResourceType::GPU)
+      //   printf("%sInvoke Latency %.6f %s\n", C_BLUE, response_time, C_NRML);
     #endif
-    // if(execution_plan_index == 0){
-    //   PrintWeightandBiasTensor(node);
-    // }
-    // if(resource_type == ResourceType::GPU)
-    //   PrintTensor(*tensor(12));
-    //   // PrintInputTensor(node);
-    // if(resource_type == ResourceType::CO_CPU)
-    //   PrintOutputTensor(node);
 
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
@@ -1358,6 +1365,20 @@ TfLiteStatus Subgraph::Invoke() {
       }
     }
   }
+  #ifdef LATENCY_MEASURE
+    std::ofstream latency_log;
+    latency_log.open("latency_per_node.txt", std::ios::app);
+    auto writeLog = [&](std::vector<double>& log){
+      if(latency_log.is_open()){
+        for(int i=0; i<log.size(); ++i)
+          latency_log << log[i] << " ";
+        latency_log << "\n";
+      }
+      return;
+    };
+    writeLog(latency_per_node);
+    latency_log.close();
+  #endif
   return status;
 }
 

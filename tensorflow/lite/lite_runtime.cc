@@ -933,7 +933,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       }
       else{
         main_execution_graph = nullptr;
-        //co_execution_graph = nullptr;
         WriteVectorLog(latency, 0);
         // std::cout << "Max precision graph invoke done" << "\n";
         // PrintyoloOutput(*(subgraph->tensor(109)));
@@ -1359,7 +1358,7 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
         // memcpy(data_dest, data_source, source_byte_size);
         dest_tensor->data.data = source_tensor->data.data;
       }
-      std::cout << "Copied intermediate data" << "\n";
+      // std::cout << "Copied intermediate data" << "\n";
     }
     return kTfLiteOk;
   };
@@ -1385,8 +1384,6 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
 void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision_subgraph_
                                               , Subgraph* max_precision_subgraph_) {
   auto connect = [&](Subgraph* source_subgraph, Subgraph* dest_subgraph) {
-    std::cout << "connect s : " << source_subgraph->GetGraphid() <<
-                  " d : " << dest_subgraph->GetGraphid() << "\n";
     int source_tensor_idx = source_subgraph->inputs()[0];
     int input_tensor_idx = dest_subgraph->GetFirstInputTensorIndex();
     TfLiteTensor* source_tensor = source_subgraph->tensor(source_tensor_idx);

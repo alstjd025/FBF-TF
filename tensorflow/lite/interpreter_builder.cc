@@ -580,23 +580,23 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
           }
         }
-        if(new_plan->resource_type == ResourceType::CO_CPU){
-          SubgraphPartitioningPlan* new_plan_ = new SubgraphPartitioningPlan;          
-          new_plan_->resource_type = ResourceType::CO_CPU;
-          new_plan_->partitioning_ratios = new int[114];
-          new_plan_->nodes = new int[114];
-          new_plan_->size = 114;
-          int j=0;
-          for(int i=1; i<115; ++i){
-            new_plan_->nodes[j] = i;
-            new_plan_->partitioning_ratios[j] = 15;
-            j++;
-          }
-          master_partitioning_plan.push_back(new_plan_);
-        }else{
-          master_partitioning_plan.push_back(new_plan);
-        }
-      // master_partitioning_plan.push_back(new_plan);
+        // if(new_plan->resource_type == ResourceType::CO_CPU){
+        //   SubgraphPartitioningPlan* new_plan_ = new SubgraphPartitioningPlan;          
+        //   new_plan_->resource_type = ResourceType::CO_CPU;
+        //   new_plan_->partitioning_ratios = new int[46];
+        //   new_plan_->nodes = new int[46];
+        //   new_plan_->size = 46;
+        //   int j=0;
+        //   for(int i=1; i<47; ++i){
+        //     new_plan_->nodes[j] = i;
+        //     new_plan_->partitioning_ratios[j] = 15;
+        //     j++;
+        //   }
+        //   master_partitioning_plan.push_back(new_plan_);
+        // }else{
+        //   master_partitioning_plan.push_back(new_plan);
+        // }
+      master_partitioning_plan.push_back(new_plan);
       }
       return;
     };
