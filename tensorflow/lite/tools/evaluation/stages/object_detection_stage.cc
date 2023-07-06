@@ -55,7 +55,7 @@ TfLiteStatus ObjectDetectionStage::Init(
   const TfLiteModelInfo* model_info = inference_stage_->GetModelInfo();
   if (model_info->inputs.size() != 1 || model_info->outputs.size() != 4) {
     LOG(ERROR) << "Object detection model must have 1 input & 4 outputs";
-    return kTfLiteError;
+    // return kTfLiteError;
   }
   TfLiteType input_type = model_info->inputs[0]->type;
   auto* input_shape = model_info->inputs[0]->dims;
@@ -130,6 +130,58 @@ TfLiteStatus ObjectDetectionStage::Run() {
                          class_offset);
     // Score
     object->set_score(detected_label_probabilities[i]);
+  }
+
+  // AP Evaluation.
+  eval_stage_->SetEvalInputs(predicted_objects_, *ground_truth_objects_);
+  TF_LITE_ENSURE_STATUS(eval_stage_->Run());
+
+  return kTfLiteOk;
+}
+
+int ObjectDetectionStage::counter = 0;
+
+TfLiteStatus ObjectDetectionStage::Run_hoon() {
+  std::cout << "Count : " << counter << std::endl;
+  counter +=1;
+  if (image_path_.empty()) {
+    LOG(ERROR) << "Input image not set";
+    return kTfLiteError;
+  }
+
+  // Preprocessing.
+  preprocessing_stage_->SetImagePath(&image_path_);
+  TF_LITE_ENSURE_STATUS(preprocessing_stage_->Run());
+
+  // Inference.
+  std::vector<void*> data_ptrs = {};
+  data_ptrs.push_back(preprocessing_stage_->GetPreprocessedImageData());
+  inference_stage_->SetInputs(data_ptrs);
+  TF_LITE_ENSURE_STATUS(inference_stage_->Run());
+
+
+  // HOONING 
+  // Convert model output to ObjectsSet. 
+  predicted_objects_.Clear();
+  const int class_offset =
+      config_.specification().object_detection_params().class_offset();
+  const std::vector<void*>* outputs = inference_stage_->GetOutputs();
+  // TODO POINT : how to get num_detections
+  int num_detections = static_cast<int>(*static_cast<float*>(outputs->at(1)));
+  float* detected_label_boxes = static_cast<float*>(outputs->at(0));
+  float* detected_label_scores = static_cast<float*>(outputs->at(1));
+  for (int i = 0; i < num_detections; ++i) {
+    const int bounding_box_offset = i * 4;
+    auto* object = predicted_objects_.add_objects();
+    // Bounding box
+    auto* bbox = object->mutable_bounding_box();
+    bbox->set_normalized_top(detected_label_boxes[bounding_box_offset + 0]);
+    bbox->set_normalized_left(detected_label_boxes[bounding_box_offset + 1]);
+    bbox->set_normalized_bottom(detected_label_boxes[bounding_box_offset + 2]);
+    bbox->set_normalized_right(detected_label_boxes[bounding_box_offset + 3]);
+    // Score
+    object->set_score(detected_label_scores[i]);
+    // Class ID can be set if available in the output tensors or from config.
   }
 
   // AP Evaluation.

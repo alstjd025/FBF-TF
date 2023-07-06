@@ -32,6 +32,7 @@ namespace {
 TfLiteModelInfo GetTfliteModelInfo(const Interpreter& interpreter) {
   TfLiteModelInfo model_info;
   for (int i : interpreter.inputs()) {
+    // HOONING
     std::cout << "input i " << i << "\n";
     model_info.inputs.push_back(interpreter.tensor(i));
   }

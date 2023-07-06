@@ -60,7 +60,7 @@ TfLiteStatus ObjectDetectionAveragePrecisionStage::Run() {
   for (int i = 0; i < ground_truth_objects_.objects_size(); ++i) {
     const int class_id = ground_truth_objects_.objects(i).class_id();
     if (class_id >= num_classes_) {
-      LOG(ERROR) << "Encountered invalid class ID: " << class_id;
+      LOG(ERROR) << " !!!! Encountered invalid class ID: " << class_id;
       return kTfLiteError;
     }
 
@@ -71,7 +71,8 @@ TfLiteStatus ObjectDetectionAveragePrecisionStage::Run() {
   for (int i = 0; i < predicted_objects_.objects_size(); ++i) {
     const int class_id = predicted_objects_.objects(i).class_id();
     if (class_id >= num_classes_) {
-      LOG(ERROR) << "Encountered invalid class ID: " << class_id;
+
+      LOG(ERROR) << " DEBUGHING ... Encountered invalid class ID: " << class_id;
       return kTfLiteError;
     }
 

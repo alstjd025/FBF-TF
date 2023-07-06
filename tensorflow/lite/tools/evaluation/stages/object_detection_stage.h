@@ -48,6 +48,8 @@ class ObjectDetectionStage : public EvaluationStage {
   TfLiteStatus Init(const DelegateProviders* delegate_providers);
 
   TfLiteStatus Run() override;
+  TfLiteStatus Run_hoon();
+  static int counter;
 
   EvaluationStageMetrics LatestMetrics() override;
 
