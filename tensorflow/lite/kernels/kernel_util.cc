@@ -26,6 +26,9 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/cppmath.h"
 #include "tensorflow/lite/kernels/internal/quantization_util.h"
 
+
+#include <iostream>
+
 namespace tflite {
 
 namespace {

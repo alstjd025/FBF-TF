@@ -318,6 +318,7 @@ TfLiteStatus Prepare(KernelType kernel_type, TfLiteContext* context,
   // Check number of inputs/outputs
   TF_LITE_ENSURE(context, has_bias || node->inputs->size == 2);
   TF_LITE_ENSURE_EQ(context, node->outputs->size, 1);
+
   TfLiteTensor* output;
   TF_LITE_ENSURE_OK(context, GetOutputSafe(context, node, 0, &output));
   const TfLiteTensor* input;

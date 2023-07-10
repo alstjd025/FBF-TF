@@ -571,10 +571,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         default:
           break;
         }
-        for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers
-          new_plan->nodes[j] = profile->layer_subsets[i][j];
-          std::cout << "Pushed node " << new_plan->nodes[j] << "\n";
-          // TODO : Consider better implementation for partitioning ratio per layer.
+        for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers 
+          new_plan->nodes[j] = profile->layer_subsets[i][j]; 
+          std::cout << "Pushed node " << new_plan->nodes[j] << "\n"; 
+          // TODO : Consider better implementation for partitioning ratio per layer. 
           //        This code applies same partitiong ratio in a whole single subgraph. 
           if(profile->partitioning_ratios[i][j] != 0){
             new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
