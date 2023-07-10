@@ -30,6 +30,8 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
 #include "tensorflow/lite/kernels/kernel_util.h"
 
+
+// HOONING : [TFLite's custom operator] (detection model output parsing) 
 namespace tflite {
 namespace ops {
 namespace custom {

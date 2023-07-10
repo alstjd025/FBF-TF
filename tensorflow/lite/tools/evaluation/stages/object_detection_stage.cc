@@ -89,7 +89,10 @@ TfLiteStatus ObjectDetectionStage::Init(
   return kTfLiteOk;
 }
 
+//----------------------------------------------------------------
 TfLiteStatus ObjectDetectionStage::Run() {
+  std::cout << "Count : " << counter << std::endl;
+  counter +=1;
   if (image_path_.empty()) {
     LOG(ERROR) << "Input image not set";
     return kTfLiteError;
@@ -138,6 +141,7 @@ TfLiteStatus ObjectDetectionStage::Run() {
 
   return kTfLiteOk;
 }
+//----------------------------------------------------------------
 
 int ObjectDetectionStage::counter = 0;
 

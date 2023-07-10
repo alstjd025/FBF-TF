@@ -1,7 +1,7 @@
 #include "unit.h"
 #include "algorithm"
-// #define GPUONLY
-#define CPUONLY
+#define GPUONLY
+// #define CPUONLY
 //#define MULTITHREAD
 //#define quantize
 //#define MONITORING
@@ -87,6 +87,8 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
 }
 #endif
 
+#define yolo_size 416
+#define SSD_size 320
 #ifndef MULTITHREAD
 TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
                             std::mutex& mtx_lock_,
@@ -101,23 +103,27 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             std::cout << "CPU " << *C_Counter << "\n";
+            // for (int i=0; i<SSD_size; i++){
+            //     for (int j=0; j<SSD_size; j++){
+            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i*SSD_size + j*3] = \
+            //             ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;
+            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i*SSD_size + j*3+1] = \
+            //             ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
+            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i*SSD_size + j*3+2] = \
+            //             ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+            //     }
+            // } 
             #ifdef yolo
-            for (int i=0; i<416; i++){
-                for (int j=0; j<416; j++){
-                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*416 + j*3] = \
+            for (int i=0; i<yolo_size; i++){
+                for (int j=0; j<yolo_size; j++){
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*yolo_size + j*3] = \
                         ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;
-                        // printf("%0.6f ",(float)input[0].at<cv::Vec3b>(i, j)[0]/255.0);     
-                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*416 + j*3+1] = \
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*yolo_size + j*3+1] = \
                         ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
-                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*416 + j*3+2] = \
+                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*yolo_size + j*3+2] = \
                         ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
-                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[0]);
-                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[1]);
-                        // printf("%0.6f\n",(float)input[0].at<cv::Vec3b>(i, j)[2]);
                 }
-                // printf("\n");
             } 
-
             // auto input_pointer = interpreterCPU->get()->typed_input_tensor<float>(0);
             // memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
            

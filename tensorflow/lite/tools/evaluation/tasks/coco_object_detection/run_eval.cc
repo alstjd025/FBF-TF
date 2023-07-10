@@ -152,8 +152,8 @@ absl::optional<EvaluationStageMetrics> CocoObjectDetection::RunImpl() {
 
     const std::string image_name = GetNameFromPath(image_paths[i]);
     eval.SetInputs(image_paths[i], ground_truth_map[image_name]);
-    // if (eval.Run() != kTfLiteOk) return absl::nullopt;
-    if (eval.Run_hoon() != kTfLiteOk) return absl::nullopt;
+    if (eval.Run() != kTfLiteOk) return absl::nullopt;
+    // if (eval.Run_hoon() != kTfLiteOk) return absl::nullopt;
 
 
     if (debug_mode_) {
