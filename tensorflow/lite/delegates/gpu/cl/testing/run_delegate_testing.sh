@@ -59,6 +59,8 @@ fi
 SHELL_DIR=$(dirname "$0")
 BINARY_NAME=delegate_testing
 
+
+#HOONING
 if [[ "$host" == "HOST" ]]
 then
 bazel build -c opt --copt -DCL_DELEGATE_NO_GL //"$SHELL_DIR":"$BINARY_NAME"

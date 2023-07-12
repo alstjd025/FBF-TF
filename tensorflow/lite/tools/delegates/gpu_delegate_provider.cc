@@ -156,6 +156,7 @@ TfLiteDelegatePtr GpuDelegateProvider::CreateTfLiteDelegate(
     delegate = TfLiteDelegatePtr(TFLGpuDelegateCreate(&gpu_opts),
                                  &TFLGpuDelegateDelete);
 #else
+    // HOONING : make gl delegation right before subgraph::invoke?
     TFLITE_LOG(WARN) << "The GPU delegate compile options are only supported "
                         "on Android or iOS platforms or when the tool was "
                         "built with -DCL_DELEGATE_NO_GL.";
