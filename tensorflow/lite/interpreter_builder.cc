@@ -1170,7 +1170,7 @@ TfLiteStatus InterpreterBuilder::operator()(
       return cleanup_and_error();
     if (ParseTensors(buffers, tensors, modified_subgraph) != kTfLiteOk)
       return cleanup_and_error();
-
+    std::cout << std::endl <<"use same 'interpreterbuilder' api" << std::endl;
     std::vector<int> variables;
     for (int i = 0; i < modified_subgraph->tensors_size(); ++i) {
       auto* tensor = modified_subgraph->tensor(i);

@@ -113,18 +113,21 @@ TfLiteStatus TfliteInferenceStage::Init(
     LOG(ERROR) << "Model file not found";
     return kTfLiteError;
   }
-
+  std::cout << "\033[0;33m1. Load model from flatbuffer & build\033[0m" << std::endl;
   model_ = FlatBufferModel::BuildFromFile(params.model_file_path().c_str());
   resolver_.reset(new ops::builtin::BuiltinOpResolver);
+  // HOON : same api 
+  std::cout << "\033[0;33m2. Start InterpreterBuilder\033[0m" << std::endl;
   InterpreterBuilder(*model_, *resolver_)(&interpreter_);
   if (!interpreter_) {
     LOG(ERROR) << "Could not build interpreter";
     return kTfLiteError;
   }
   interpreter_->SetNumThreads(params.num_threads());
-
+  std::cout << "\033[0;33m3. Create delegate class [IF NEEDED] [This API is different from past]\033[0m" << std::endl;
   if (!delegate_providers) {
     std::string error_message;
+    // HOON : different api 
     auto delegate = CreateTfLiteDelegate(params, &error_message);
     if (delegate) {
       delegates_.push_back(std::move(delegate));
@@ -133,17 +136,20 @@ TfLiteStatus TfliteInferenceStage::Init(
     } else {
       LOG(WARNING) << error_message;
     }
-  } else {
+  } 
+  else {
     auto delegates = delegate_providers->CreateAllDelegates(params);
     for (auto& one : delegates) delegates_.push_back(std::move(one));
   }
-
+  std::cout << "\033[0;33m4. Modify subgraph [IF NEEDED]\033[0m" << std::endl;
+  // HOON : same api 
   for (int i = 0; i < delegates_.size(); ++i) {
     if (interpreter_->ModifyGraphWithDelegate(delegates_[i].get()) !=
         kTfLiteOk) {
       LOG(FATAL) << "Failed to apply delegate " << i;
     }
   }
+  std::cout << "\033[0;33m5. Run Interpreter -> AllocateTensor\033[0m" << std::endl;
   interpreter_->AllocateTensors();
   UpdateModelInfo();
 

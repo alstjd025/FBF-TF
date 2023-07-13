@@ -16,6 +16,7 @@ limitations under the License.
 #include "tensorflow/lite/tools/evaluation/tasks/task_executor.h"
 #include "tensorflow/lite/tools/logging.h"
 
+// HOONING : work as main func in coco_eval binary in bazel-build
 // This could serve as the main function for all eval tools.
 int main(int argc, char* argv[]) {
   auto task_executor = tflite::evaluation::CreateTaskExecutor();

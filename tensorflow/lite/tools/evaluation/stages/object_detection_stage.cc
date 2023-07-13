@@ -48,10 +48,12 @@ TfLiteStatus ObjectDetectionStage::Init(
   *tflite_inference_config.mutable_specification()
        ->mutable_tflite_inference_params() = params.inference_params();
   inference_stage_.reset(new TfliteInferenceStage(tflite_inference_config));
+
+  // HOON : MAIN stage (model build, create interpreter & subgraph, modify subgraph)
+  std::cout << "Go to tflite_inference_stage::init" << std::endl;
   TF_LITE_ENSURE_STATUS(inference_stage_->Init(delegate_providers));
 
   // Validate model inputs.
-  printf("HOONING\n");
   const TfLiteModelInfo* model_info = inference_stage_->GetModelInfo();
   if (model_info->inputs.size() != 1 || model_info->outputs.size() != 4) {
     LOG(ERROR) << "Object detection model must have 1 input & 4 outputs";

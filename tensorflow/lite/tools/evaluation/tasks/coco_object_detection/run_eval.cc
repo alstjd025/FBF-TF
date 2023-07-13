@@ -110,6 +110,7 @@ std::vector<Flag> CocoObjectDetection::GetFlags() {
   return flag_list;
 }
 
+
 absl::optional<EvaluationStageMetrics> CocoObjectDetection::RunImpl() {
   // Process images in filename-sorted order.
   std::vector<std::string> image_paths;
@@ -139,12 +140,17 @@ absl::optional<EvaluationStageMetrics> CocoObjectDetection::RunImpl() {
     PopulateGroundTruth(ground_truth_proto_file_, &ground_truth_map);
   }
 
+  // HOON : create objectDetectionstage class instance
+  std::cout << "Create objectDetectionstage class-instance" << std::endl;
   ObjectDetectionStage eval(eval_config);
-
   eval.SetAllLabels(model_labels);
-  if (eval.Init(&delegate_providers_) != kTfLiteOk) return absl::nullopt;
 
+  // HOON : initialize objectDetectionstage class instance 
+  std::cout << "\033[0;31mStart MAIN STAGE (model build, create interpreter & subgraph, modify subgraph with delegation option)\033[0m" << std::endl;
+  if (eval.Init(&delegate_providers_) != kTfLiteOk) return absl::nullopt;
+  std::cout << "\033[0;31mEnd MAIN STAGE (model build, create interpreter & subgraph, modify subgraph with delegation option)\033[0m" << std::endl;
   const int step = image_paths.size() / 100;
+  std::cout  << "\033[0;33mStart evaluate mAP\033[0m" << std::endl;
   for (int i = 0; i < image_paths.size(); ++i) {
     if (step > 1 && i % step == 0) {
       TFLITE_LOG(INFO) << "Finished: " << i / step << "%";
@@ -226,6 +232,12 @@ void CocoObjectDetection::OutputResult(
                    << precision_metrics.overall_mean_average_precision();
 }
 
+
+// HOON : This could serve as the main function for all eval tools.
+//        due to linking //tensorflow/lite/tools/evaluation/tasks:task_executor_main 
+//        in "deps" option in Bazel-BUILD
+// 1. create "coco object detection" TaskExecutor class
+// 2. run CocoObjectDetection::RunImpl()
 std::unique_ptr<TaskExecutor> CreateTaskExecutor() {
   return std::unique_ptr<TaskExecutor>(new CocoObjectDetection());
 }

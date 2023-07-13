@@ -1309,6 +1309,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     if(eType == UnitType::GPU0){
     }
   }
+  std::cout << "\033[0;32mHOONING : end of subgraph::invoke\033[0m" << std::endl;
   // -----------------------------------------------------------------------
   // HOON : after invoke. YOLO parsing 
   // -----------------------------------------------------------------------

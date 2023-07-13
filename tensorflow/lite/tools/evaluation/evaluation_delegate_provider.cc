@@ -46,11 +46,13 @@ TfLiteDelegatePtr CreateTfLiteDelegate(const TfliteInferenceParams& params,
       return p;
     }
     case TfliteInferenceParams::GPU: {
+      std::cout<<"HOONING ---------- GPU" << std::endl;
       auto p = CreateGPUDelegate();
       if (!p && error_msg) *error_msg = "GPU delegate not supported.";
       return p;
     }
     case TfliteInferenceParams::HEXAGON: {
+      std::cout<<"HOONING ------------ Hexa" << std::endl;
       auto p = CreateHexagonDelegate(/*library_directory_path=*/"",
                                      /*profiling=*/false);
       if (!p && error_msg) {
@@ -61,18 +63,22 @@ TfLiteDelegatePtr CreateTfLiteDelegate(const TfliteInferenceParams& params,
       return p;
     }
     case TfliteInferenceParams::XNNPACK: {
+      std::cout<<"HOONING -------------- XNNPACK" << std::endl;
       auto p = CreateXNNPACKDelegate(params.num_threads());
       if (!p && error_msg) *error_msg = "XNNPACK delegate not supported.";
       return p;
     }
-    case TfliteInferenceParams::NONE:
-      return TfLiteDelegatePtr(nullptr, [](TfLiteDelegate*) {});
+    case TfliteInferenceParams::NONE:{
+      std::cout<<"HOONING -------------- NONE" << std::endl;
+      return TfLiteDelegatePtr(nullptr, [](TfLiteDelegate*) {});    
+    }
     default:
       if (error_msg) {
         *error_msg = "Creation of delegate type: " +
                      TfliteInferenceParams::Delegate_Name(type) +
                      " not supported yet.";
       }
+      std::cout<<"HOONING -------------- DEFAULT" << std::endl;
       return TfLiteDelegatePtr(nullptr, [](TfLiteDelegate*) {});
   }
 }
@@ -109,6 +115,7 @@ bool DelegateProviders::InitFromCmdlineArgs(int* argc, const char** argv) {
 TfLiteDelegatePtr DelegateProviders::CreateDelegate(
     const std::string& name) const {
   const auto it = delegates_map_.find(name);
+  // std::cout<< "CHECKPOINT" << std::endl; // ??
   if (it == delegates_map_.end()) {
     return TfLiteDelegatePtr(nullptr, [](TfLiteDelegate*) {});
   }
