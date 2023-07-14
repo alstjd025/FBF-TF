@@ -50,3 +50,4 @@ cc_binary(
         "//tensorflow/lite/tools/evaluation/tasks:task_executor_main",
     ],
 )
+

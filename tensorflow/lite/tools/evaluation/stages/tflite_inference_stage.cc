@@ -125,8 +125,9 @@ TfLiteStatus TfliteInferenceStage::Init(
   }
   interpreter_->SetNumThreads(params.num_threads());
   std::cout << "\033[0;33m3. Create delegate class [IF NEEDED] [This API is different from past]\033[0m" << std::endl;
-  if (!delegate_providers) {
+  if (!delegate_providers) {   // if (!delegate_providers)
     std::string error_message;
+    std::cout << "Dont' have delegate_provider\n";
     // HOON : different api 
     auto delegate = CreateTfLiteDelegate(params, &error_message);
     if (delegate) {
@@ -138,6 +139,7 @@ TfLiteStatus TfliteInferenceStage::Init(
     }
   } 
   else {
+    std::cout << "have delegate_provider\n";
     auto delegates = delegate_providers->CreateAllDelegates(params);
     for (auto& one : delegates) delegates_.push_back(std::move(one));
   }

@@ -22,11 +22,13 @@ limitations under the License.
 #include <vector>
 
 //HOONING
-// #define TFLITE_SUPPORTS_GPU_DELEGATE 1
+// #define TFLITE_SUPPORTS_GPU_DELEGATE
 // #define CL_DELEGATE_NO_GL
+// #define HOON
+// #include "tensorflow/lite/delegates/gpu/delegate.h"
 
-
-#if defined(__ANDROID__) || defined(CL_DELEGATE_NO_GL)
+//HOONING : Experimental. TO use OpenGL toolkit::delegation
+#if defined(__ANDROID__) || defined(CL_DELEGATE_NO_GL) || defined(CL_DELEGATE_ALLOW_GL)
 #define TFLITE_SUPPORTS_GPU_DELEGATE 1
 #endif
 

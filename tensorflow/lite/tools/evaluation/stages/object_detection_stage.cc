@@ -104,23 +104,29 @@ TfLiteStatus ObjectDetectionStage::Run() {
   preprocessing_stage_->SetImagePath(&image_path_);
   TF_LITE_ENSURE_STATUS(preprocessing_stage_->Run());
 
+
+  
   // Inference.
   std::vector<void*> data_ptrs = {};
   data_ptrs.push_back(preprocessing_stage_->GetPreprocessedImageData());
   inference_stage_->SetInputs(data_ptrs);
+  std::cout << "\033[0;33m1.invoke\033[0m\n";
   TF_LITE_ENSURE_STATUS(inference_stage_->Run());
 
-
+  std::cout  << "\033[0;33m2.output parsing\033[0m\n";
   // HOONING
+  std::cout << "TODO point(change yolo's output tensor 2->4)\n";
   // Convert model output to ObjectsSet.
   predicted_objects_.Clear();
   const int class_offset =
       config_.specification().object_detection_params().class_offset();
   const std::vector<void*>* outputs = inference_stage_->GetOutputs();
   int num_detections = static_cast<int>(*static_cast<float*>(outputs->at(3)));
+  // int num_detections = 3;
   float* detected_label_boxes = static_cast<float*>(outputs->at(0));
   float* detected_label_indices = static_cast<float*>(outputs->at(1));
   float* detected_label_probabilities = static_cast<float*>(outputs->at(2));
+  // float* detected_label_probabilities = SOFTMAX(detected_label_indices);
   for (int i = 0; i < num_detections; ++i) {
     const int bounding_box_offset = i * 4;
     auto* object = predicted_objects_.add_objects();
@@ -139,11 +145,41 @@ TfLiteStatus ObjectDetectionStage::Run() {
 
   // AP Evaluation.
   eval_stage_->SetEvalInputs(predicted_objects_, *ground_truth_objects_);
+  std::cout  << "\033[0;33m3.evaluate each data\033[0m\n";
   TF_LITE_ENSURE_STATUS(eval_stage_->Run());
-
   return kTfLiteOk;
 }
 //----------------------------------------------------------------
+
+
+void ObjectDetectionStage::SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector){
+  printf("\033[0;33mAfter SOFTMAX :\033[0m \n");
+  const float threshold = 0.999999; 
+  for (auto& row : real_bbox_cls_vector) {
+      float maxElement = *std::max_element(row.begin(), row.end());
+      float sum = 0.0;
+      const float scalingFactor = 20.0;
+      for (auto& i : row)
+          sum += std::exp(scalingFactor * (i - maxElement));
+      for (int i = 0; i < row.size(); ++i) {
+          row[i] = std::exp(scalingFactor * (row[i] - maxElement)) / sum;
+          if (row[i] > threshold)
+              row[i] = threshold; 
+      }
+  }
+  for (auto i : real_bbox_cls_vector) {
+      for (auto j : i) {
+          if (j > 0.15) {
+              printf("\033[0;31m%.6f\033[0m ", j);
+          }
+          else {
+              printf("%.6f ", j);
+          }
+      }
+      std::cout << std::endl << std::endl;
+  }
+}
+
 
 int ObjectDetectionStage::counter = 0;
 

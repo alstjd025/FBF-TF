@@ -116,6 +116,7 @@ TfLiteDelegatePtr CreateNNAPIDelegate(StatefulNnApiDelegate::Options options) {
 #endif  // defined(__ANDROID__)
 }
 
+//-------------------------------------------------------------------------------------
 #if TFLITE_SUPPORTS_GPU_DELEGATE
 TfLiteDelegatePtr CreateGPUDelegate(TfLiteGpuDelegateOptionsV2* options) {
   return TfLiteDelegatePtr(TfLiteGpuDelegateV2Create(options),
@@ -135,6 +136,7 @@ TfLiteDelegatePtr CreateGPUDelegate() {
   return CreateNullDelegate();
 #endif  // TFLITE_SUPPORTS_GPU_DELEGATE
 }
+//-------------------------------------------------------------------------------------
 
 TfLiteDelegatePtr CreateHexagonDelegate(
     const std::string& library_directory_path, bool profiling) {

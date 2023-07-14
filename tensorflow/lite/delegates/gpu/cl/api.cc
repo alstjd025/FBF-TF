@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "tensorflow/lite/delegates/gpu/cl/api.h"
 
+
+//HOONING
 #ifndef CL_DELEGATE_NO_GL
 #define CL_DELEGATE_ALLOW_GL
 #endif

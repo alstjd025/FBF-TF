@@ -27,7 +27,7 @@ limitations under the License.
 #include "tensorflow/lite/tools/evaluation/tasks/task_executor.h"
 #include "tensorflow/lite/tools/evaluation/utils.h"
 #include "tensorflow/lite/tools/logging.h"
-
+// #include "tensorflow/lite/delegates/gpu/delegate.h" //h
 
 //HOONING : YOLO pasing code (mAP)
 namespace tflite {
@@ -146,11 +146,11 @@ absl::optional<EvaluationStageMetrics> CocoObjectDetection::RunImpl() {
   eval.SetAllLabels(model_labels);
 
   // HOON : initialize objectDetectionstage class instance 
-  std::cout << "\033[0;31mStart MAIN STAGE (model build, create interpreter & subgraph, modify subgraph with delegation option)\033[0m" << std::endl;
+  std::cout << "\n\033[0;31m#Start MAIN STAGE (model build, create interpreter & subgraph, modify subgraph with delegation option)\033[0m" << std::endl;
   if (eval.Init(&delegate_providers_) != kTfLiteOk) return absl::nullopt;
-  std::cout << "\033[0;31mEnd MAIN STAGE (model build, create interpreter & subgraph, modify subgraph with delegation option)\033[0m" << std::endl;
+  std::cout << "\033[0;31m#End MAIN STAGE (model build, create interpreter & subgraph, modify subgraph with delegation option)\033[0m" << std::endl;
   const int step = image_paths.size() / 100;
-  std::cout  << "\033[0;33mStart evaluate mAP\033[0m" << std::endl;
+  std::cout  << "\n\033[0;31m#Start to get mAP (invoke & output parsing & evaluate for each image)\033[0m" << std::endl;
   for (int i = 0; i < image_paths.size(); ++i) {
     if (step > 1 && i % step == 0) {
       TFLITE_LOG(INFO) << "Finished: " << i / step << "%";
@@ -194,7 +194,7 @@ absl::optional<EvaluationStageMetrics> CocoObjectDetection::RunImpl() {
         ->mutable_object_detection_metrics()
         ->clear_average_precision_metrics();
   }
-
+  std::cout  << "\n\033[0;31m#End to get mAP (calculate result datas)\033[0m" << std::endl;
   OutputResult(latest_metrics);
   return absl::make_optional(latest_metrics);
 }

@@ -27,7 +27,7 @@ limitations under the License.
 #include "tensorflow/lite/tools/evaluation/stages/image_preprocessing_stage.h"
 #include "tensorflow/lite/tools/evaluation/stages/object_detection_average_precision_stage.h"
 #include "tensorflow/lite/tools/evaluation/stages/tflite_inference_stage.h"
-
+// #include "tensorflow/lite/delegates/gpu/delegate.h" //h
 namespace tflite {
 namespace evaluation {
 
@@ -49,6 +49,7 @@ class ObjectDetectionStage : public EvaluationStage {
 
   TfLiteStatus Run() override;
   TfLiteStatus Run_hoon();
+  void SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector);
   static int counter;
 
   EvaluationStageMetrics LatestMetrics() override;
