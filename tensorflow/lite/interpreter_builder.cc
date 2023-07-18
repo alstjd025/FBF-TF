@@ -532,81 +532,87 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::vector<int>* tensors_ = new std::vector<int>;
     std::vector<SubgraphPartitioningPlan*> master_partitioning_plan;
     
-    auto CreatePartitioningPlanFromProfile = [&](const ProfileData* profile){
-      for(int i=0; i<profile->layer_subsets.size(); ++i){ //graphs
-        std::cout << "Create new subgraph plan "  << "\n";
-        SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
-        new_plan->size = profile->layer_subsets[i].size();
-        new_plan->nodes = new int[new_plan->size];
+    auto CreatePartitioningPlanFromProfile = 
+        [&](const std::vector<ProfileData*>& profile){
+      for(int k=0; k<profile.size(); ++k){
+        for(int i=0; i<profile[k]->layer_subsets.size(); ++i){ //graphs
+          std::cout << "Create new subgraph plan "  << "\n";
+          SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
+          new_plan->size = profile[k]->layer_subsets[i].size();
+          new_plan->nodes = new int[new_plan->size];
 
-        // Consider better implementation. (memory waste)
-        new_plan->partitioning_ratios = new int[new_plan->size];
+          // Consider better implementation. (memory waste)
+          new_plan->partitioning_ratios = new int[new_plan->size];
 
-        // Set the resource type of subgraph.        
-        // check if subset resource is Co_execution
-        // if so, check this interpreterbuilder if it is co-execution builder.
-        // co-execution builder : build cpu subgraphs for co-execution.
-        // not co-execution builder : build gpu subgraphs for co-execution.
-        // !! take care of redundant creation of subgraphs.
-        switch (profile->subset_resource[i])
-        {
-        case TF_P_PLAN_CPU:
-          if(is_sub_interpreter){
-            // Don't create subgraph if sub-interprter. 
-            new_plan->resource_type = ResourceType::NONE;
+          // Set the resource type of subgraph.        
+          // check if subset resource is Co_execution
+          // if so, check this interpreterbuilder if it is co-execution builder.
+          // co-execution builder : build cpu subgraphs for co-execution.
+          // not co-execution builder : build gpu subgraphs for co-execution.
+          // !! take care of redundant creation of subgraphs.
+          switch (profile[k]->subset_resource[i])
+          {
+          case TF_P_PLAN_CPU:
+            if(is_sub_interpreter){
+              // Don't create subgraph if sub-interprter. 
+              new_plan->resource_type = ResourceType::NONE;
+              break;
+            }
+            new_plan->resource_type = ResourceType::CPU;
+            break;
+          case TF_P_PLAN_GPU:
+            if(is_sub_interpreter){
+              // Don't create subgraph if sub-interprter. 
+              new_plan->resource_type = ResourceType::NONE;
+              break;
+            }
+            new_plan->resource_type = ResourceType::GPU;
+            break;
+          case TF_P_PLAN_CO_E:
+            if(is_sub_interpreter){
+              new_plan->resource_type = ResourceType::CO_CPU;
+              break;
+            }
+            else
+              new_plan->resource_type = ResourceType::CO_GPU;
+            break;
+          default:
             break;
           }
-          new_plan->resource_type = ResourceType::CPU;
-          break;
-        case TF_P_PLAN_GPU:
-          if(is_sub_interpreter){
-            // Don't create subgraph if sub-interprter. 
-            new_plan->resource_type = ResourceType::NONE;
-            break;
+          for(int j=0; j<profile[k]->layer_subsets[i].size(); ++j){ //layers 
+            new_plan->nodes[j] = profile[k]->layer_subsets[i][j]; 
+            std::cout << "Pushed node " << new_plan->nodes[j] << "\n"; 
+            // TODO : Consider better implementation for partitioning ratio per layer. 
+            //        This code applies same partitiong ratio in a whole single subgraph. 
+            if(profile[k]->partitioning_ratios[i][j] != 0){
+              new_plan->partitioning_ratios[j] = profile[k]->partitioning_ratios[i][j];
+            }
           }
-          new_plan->resource_type = ResourceType::GPU;
-          break;
-        case TF_P_PLAN_CO_E:
-          if(is_sub_interpreter){
-            new_plan->resource_type = ResourceType::CO_CPU;
-            break;
-          }
-          else
-            new_plan->resource_type = ResourceType::CO_GPU;
-          break;
-        default:
-          break;
+          // if(new_plan->resource_type == ResourceType::CO_CPU){
+          //   SubgraphPartitioningPlan* new_plan_ = new SubgraphPartitioningPlan;          
+          //   new_plan_->resource_type = ResourceType::CO_CPU;
+          //   new_plan_->partitioning_ratios = new int[46];
+          //   new_plan_->nodes = new int[46];
+          //   new_plan_->size = 46;
+          //   int j=0;
+          //   for(int i=1; i<47; ++i){
+          //     new_plan_->nodes[j] = i;
+          //     new_plan_->partitioning_ratios[j] = 15;
+          //     j++;
+          //   }
+          //   master_partitioning_plan.push_back(new_plan_);
+          // }else{
+          //   master_partitioning_plan.push_back(new_plan);
+          // }
+          master_partitioning_plan.push_back(new_plan);
         }
-        for(int j=0; j<profile->layer_subsets[i].size(); ++j){ //layers 
-          new_plan->nodes[j] = profile->layer_subsets[i][j]; 
-          std::cout << "Pushed node " << new_plan->nodes[j] << "\n"; 
-          // TODO : Consider better implementation for partitioning ratio per layer. 
-          //        This code applies same partitiong ratio in a whole single subgraph. 
-          if(profile->partitioning_ratios[i][j] != 0){
-            new_plan->partitioning_ratios[j] = profile->partitioning_ratios[i][j];
-          }
-        }
-        // if(new_plan->resource_type == ResourceType::CO_CPU){
-        //   SubgraphPartitioningPlan* new_plan_ = new SubgraphPartitioningPlan;          
-        //   new_plan_->resource_type = ResourceType::CO_CPU;
-        //   new_plan_->partitioning_ratios = new int[46];
-        //   new_plan_->nodes = new int[46];
-        //   new_plan_->size = 46;
-        //   int j=0;
-        //   for(int i=1; i<47; ++i){
-        //     new_plan_->nodes[j] = i;
-        //     new_plan_->partitioning_ratios[j] = 15;
-        //     j++;
-        //   }
-        //   master_partitioning_plan.push_back(new_plan_);
-        // }else{
-        //   master_partitioning_plan.push_back(new_plan);
-        // }
-      master_partitioning_plan.push_back(new_plan);
       }
       return;
     };
-    CreatePartitioningPlanFromProfile(dummy_profile_);
+    CreatePartitioningPlanFromProfile(dummy_profiles_);
+
+    // legacy : for single partitioning plan
+    // CreatePartitioningPlanFromProfile(dummy_profile_);
 
     // Initialize variables for profiling
     std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
