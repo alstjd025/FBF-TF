@@ -117,6 +117,7 @@ TfLiteDelegatePtr CreateNNAPIDelegate(StatefulNnApiDelegate::Options options) {
 }
 
 //-------------------------------------------------------------------------------------
+// [CASE 1] : have delegate_provider & success
 #if TFLITE_SUPPORTS_GPU_DELEGATE
 TfLiteDelegatePtr CreateGPUDelegate(TfLiteGpuDelegateOptionsV2* options) {
   return TfLiteDelegatePtr(TfLiteGpuDelegateV2Create(options),
@@ -124,6 +125,9 @@ TfLiteDelegatePtr CreateGPUDelegate(TfLiteGpuDelegateOptionsV2* options) {
 }
 #endif  // TFLITE_SUPPORTS_GPU_DELEGATE
 
+// [CASE 2] : have delegate_provider & failed  
+//                                    OR 
+//                                       don't have delegate_provider
 TfLiteDelegatePtr CreateGPUDelegate() {
 #if TFLITE_SUPPORTS_GPU_DELEGATE
   TfLiteGpuDelegateOptionsV2 options = TfLiteGpuDelegateOptionsV2Default();

@@ -125,6 +125,8 @@ TfLiteStatus TfliteInferenceStage::Init(
   }
   interpreter_->SetNumThreads(params.num_threads());
   std::cout << "\033[0;33m3. Create delegate class [IF NEEDED] [This API is different from past]\033[0m" << std::endl;
+  // NOTE : try to use tflite:delegate , not toolkit::delegate .. FAILED
+  //        cause of complex depedency ,,, now try to use toolkit::delegate with OpenGL
   if (!delegate_providers) {   // if (!delegate_providers)
     std::string error_message;
     std::cout << "Dont' have delegate_provider\n";
