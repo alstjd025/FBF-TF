@@ -377,16 +377,20 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
 TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   std::vector<std::vector<int>> raw_plan;
   for(int i=0; i<TF_P_PLAN_LENGTH; ++i){
-    raw_plan.push_back(std::vector<int>());
-    if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
-      raw_plan[i].push_back(TF_P_END_PLAN);
-      break;
+    while(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_MASTER){
+      raw_plan.push_back(std::vector<int>());
+      if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
+        raw_plan[i].push_back(TF_P_END_PLAN);
+        break;
+      }
+      for(int j=0; j<TF_P_PLAN_SIZE; ++j){ // third idx means processor.
+        raw_plan[i].push_back(partitioning_plan[i][j]);
+      }
     }
-    for(int j=0; j<TF_P_PLAN_SIZE; ++j){ // third idx means processor.
-      raw_plan[i].push_back(partitioning_plan[i][j]);
-    }
+    interpreter_builder->CopyRawPartitioningPlan(raw_plan);
+    std::cout << "Runtime : CopyRawPartitioningPlan" << "\n";
+    raw_plan.clear();
   } 
-  interpreter_builder->CopyRawPartitioningPlan(raw_plan);
   Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
   if(origin_subgraph == nullptr){
     std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 
@@ -1277,10 +1281,6 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
     int tensor_dest_data_size = 1;
     int min_precision_data_size = 1;
     int max_precision_data_size = 1;
-    ////////////////////////
-    // TODO AFTER DINNER
-    // MERGE FIX
-    // SYNCHRONIZATION FIX
 
     // Calculate data size to copy.
     for(int i=0; i<dest_tensor->dims->size; ++i){
@@ -1295,9 +1295,13 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
     // Need to drop padding data before merge if it's not fit with destination tensor.
     // Drop minimum precision data because it is dequantized and might drop accuracy.
     if((min_tensor_ht + max_tensor_ht) != dest_ht){
-      int drop_height = (dest_ht - (min_tensor_ht + max_tensor_ht))/(-2);
+      float drop_height = (dest_ht - (min_tensor_ht + max_tensor_ht))/(-2);
       if(drop_height < 0){
-        std::cout << "Wrong drop in HW merging ERROR " << "\n";
+        std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
+        std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<
+              " h: " << min_tensor_ht << 
+              " max sub: " << max_precision_subgraph->GetGraphid() << 
+              " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
         return;
       }
       memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);

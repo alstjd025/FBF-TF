@@ -228,6 +228,8 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
       break;
     }
   }
+  // Minsung : for multiple partitioning plans
+  dummy_profiles_.push_back(dummy_profile_);
 }
 
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping(
@@ -481,6 +483,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   return kTfLiteOk;
 }
 
+TfLiteStatus InterpreterBuilder::CreateSubgraphForStress(){
+  
+}
+
 TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
                                       tflite::Subgraph* profiled_subgraph){
   if(!profiled_subgraph->IsProfiled()){
@@ -634,7 +640,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       case ResourceType::CPU:
         // Set this sugraph for cpu subgraph
         new_subgraph->SetResourceType(ResourceType::CPU);
-        new_subgraph->context()->recommended_num_threads = 6;     
+        new_subgraph->context()->recommended_num_threads = 1;     
         break;
       case ResourceType::GPU:
         // Set this sugraph for gpu subgraph
@@ -648,7 +654,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);
-        new_subgraph->context()->recommended_num_threads = 6;     
+        new_subgraph->context()->recommended_num_threads = 1;     
         break;
       case ResourceType::CO_GPU:
         new_subgraph->SetResourceType(ResourceType::CO_GPU);
@@ -800,7 +806,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
 TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
-    std::cout << "delegate "<< new_subgraph->GetGraphid() << "\n";
     if(new_subgraph->GetResourceType() == ResourceType::GPU ||
         new_subgraph->GetResourceType() == ResourceType::CO_GPU){
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
@@ -816,7 +821,6 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
 TfLiteStatus InterpreterBuilder::PartitionChannels(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
-    std::cout << "Partition channel-wise "<< new_subgraph->GetGraphid() << "\n";
     if(new_subgraph->GetResourceType() == ResourceType::CO_CPU){
       if(new_subgraph->PartitionChannel() != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"

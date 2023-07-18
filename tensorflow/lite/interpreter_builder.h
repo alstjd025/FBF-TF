@@ -104,6 +104,10 @@ class InterpreterBuilder {
   // that the scheduler can handle them.
   TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph);
 
+  // Minsung
+  // Creates a subgraph for stress test.
+  TfLiteStatus CreateSubgraphForStress();
+
   TfLiteStatus DelegateSubgraphs(std::vector<tflite::Subgraph*>& new_subgraphs);
 
   // Minsung
@@ -193,6 +197,7 @@ class InterpreterBuilder {
   // flag for sub interpreter.
   bool is_sub_interpreter = false;
   ProfileData* dummy_profile_;
+  std::vector<ProfileData*> dummy_profiles_;
 
   tflite::Interpreter* interpreter_;
 };

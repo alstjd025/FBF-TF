@@ -322,6 +322,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
         return kTfLiteError;
       }
       if(subgraph->GetPartitioningType() == PartitioningType::HEIGHT_PARTITIONING){
+        std::cout << "Height partition on subgraph " << subgraph->GetGraphid() << "\n"; 
         if(subgraph->PartitionHeightTest() != kTfLiteOk){
           std::cout << "Height partitioning TEST returned ERROR" << "\n";
           return kTfLiteError;
@@ -370,15 +371,9 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                   else{
                     // MUST FIX. REDUNDUNT INPUT, OUTPUT TENSOR!!
                     // MUST FIX. REDUNDUNT INPUT, OUTPUT TENSOR!!
-                    std::cout << "resize tensor " << base_tensor << " graph " <<  working_subgraph << "\n";
-                    for(int p=0; p<match_dims.size(); ++p){
-                      std::cout << match_dims[p] << " ";
-                    }
-                    std::cout << "\n";
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
                     subgraph_id(working_subgraph)->PushToInputs(base_tensor);
                   }
-                  std::cout << "allocate subgraph1 : " << working_subgraph << "\n";
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
                   if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
@@ -407,7 +402,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
         return kTfLiteError;
       }
       if(!working_subgraph->IsInvokable()){
-        std::cout << "allocate subgraph3 : " << working_subgraph_id << "\n";
         if(working_subgraph->AllocateTensors() != kTfLiteOk)
           return kTfLiteError;        
       }
@@ -799,11 +793,6 @@ TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job){
 
 TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph){
   subgraphs_.emplace_back(new_subgraph);
-  std::cout << "Interpreter: New subgraph, now size:" << subgraphs_.size() << "\n";
-  for(int i=0; i<subgraphs_.size(); ++i){
-    std::cout << "id : " << subgraphs_[i]->GetGraphid();
-  }
-  std::cout << "\n";
   return kTfLiteOk;
 }
 

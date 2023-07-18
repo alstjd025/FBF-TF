@@ -45,6 +45,9 @@ limitations under the License.
 // packet partitioning plan end flag
 #define TF_P_END_PLAN       -1
 
+// packet master partitioning plan end flag
+#define TF_P_END_MASTER        -2
+
 // packet predefines
 
 #include <memory>

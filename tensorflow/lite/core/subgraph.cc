@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-#define LATENCY_MEASURE
+// #define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -707,7 +707,6 @@ TfLiteStatus Subgraph::AllocateTensors() {
       // be kStateUninvokable.
       memory_planner_->AcquireNonPersistentMemory();
     }
-    std::cout << GetGraphid() << " no need to allocated" << "\n";
     return kTfLiteOk;
   }
   next_execution_plan_index_to_prepare_ = 0;
@@ -829,6 +828,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     TfLiteTensor* input_tensor;
     TfLiteTensor* output_tensor;
     int input_tensor_idx = tensor_pair[0].first;
+    std::cout << "changed height for tensor " << input_tensor_idx << "\n";
     int output_tensor_idx = tensor_pair[0].second; 
     std::vector<int> new_dims;
     input_tensor = tensor(input_tensor_idx);
@@ -872,6 +872,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     TfLiteTensor* input_tensor;
     TfLiteTensor* output_tensor;
     int input_tensor_idx = tensor_pair[0].first;
+    std::cout << "changed height for tensor " << input_tensor_idx << "\n";
     int output_tensor_idx = tensor_pair[0].second; 
     std::vector<int> new_dims;
     input_tensor = tensor(input_tensor_idx);
@@ -892,14 +893,35 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     
     padd = int(h * 0.1 * padd);
     new_dims[1] = padd;
+    
     // Move the data pointer to proper point. (No need to move if CO_GPU)
     // moving data pointer isn't necessary for global input tensor.
     if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
-      new_dims[1] = (h - padd)*2;
-      pointer_offset = o * (h - padd)*2 * w;
+    //   int padd_with_dummy = 0;
+    //   switch (GetGraphid())
+    //   {
+    //   case 1:
+    //     padd_with_dummy = 80;
+    //     break;
+    //   case 2:
+    //     padd_with_dummy = 45;
+    //     break;
+    //   case 3:
+    //     padd_with_dummy = 25;
+    //     break;
+    //   case 4:
+    //     padd_with_dummy = 13;
+    //     break;
+    //   default:
+    //     padd_with_dummy = 0;
+    //     break;
+    //   }
+      int padd_with_dummy = (h - padd) + int((h - padd) * 0.2);
+      new_dims[1] = padd_with_dummy;
+      pointer_offset = o * padd_with_dummy * w;
       data_pointer += pointer_offset;
     }
-    
+    std::cout << "changed dims : " << new_dims[1] << "\n";
     // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
     ResizeInputTensor(input_tensor_idx, new_dims);
   };
@@ -923,10 +945,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     tensor_pair.push_back(std::pair<int, int>(input_tensor, output_tensor));
   }
   std::vector<int> partitioning_plan = GetPartitioningRatio();
-  for(int i=0; i<partitioning_plan.size(); ++i){
-    std::cout << "partitioning_plan : " << partitioning_plan[i] << " ";
-  }
-  std::cout << "\n";
+  
 
   stub_method_p(partitioning_plan[0], tensor_pair);
   // stub_method(225, tensor_pair);  // for efficient l4
@@ -1175,19 +1194,21 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
         TfLiteTensor* input_r = tensor(input_tensors[1]);
         std::vector<int> new_dims;
         if(input_l->dims->data[1] < input_r->dims->data[1]){
-          // The input of concatelayer b,h,w,c,
+          // In the input of concatenation b,h,w,c,
           // b,h,w must equal in both input tensors.
           for(int i=0; i<input_l->dims->size-1; ++i){
             new_dims.push_back(input_l->dims->data[i]);
           }
           new_dims.push_back(input_r->dims->data[3]);
           ResizeInputTensor(input_tensors[1], new_dims);
+          std::cout << "Resized input tensor " << input_tensors[1] << "\n";
         }else if(input_l->dims->data[1] > input_r->dims->data[1]){
           for(int i=0; i<input_r->dims->size-1; ++i){
             new_dims.push_back(input_r->dims->data[i]);
           }
           new_dims.push_back(input_l->dims->data[3]);
           ResizeInputTensor(input_tensors[0], new_dims);
+          std::cout << "Resized input tensor " << input_tensors[0] << "\n";
         }
       }
     }
@@ -1240,39 +1261,12 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
     next_original_execution_plan_index_to_prepare_ =
         last_original_exec_plan_index_prepared + 1;
   }
-  if(GetGraphid() == 7){
-      std::cout << "tensor 117 -" << "\n";
-      std::cout << tensor(117)->dims->data[0] << " "; 
-      std::cout << tensor(117)->dims->data[1] << " "; 
-      std::cout << tensor(117)->dims->data[2] << " "; 
-      std::cout << tensor(117)->dims->data[3] << " "; 
-      std::cout << "\n";
-      std::cout << "tensor 36" << "\n";
-      std::cout << tensor(36)->dims->data[0] << " "; 
-      std::cout << tensor(36)->dims->data[1] << " "; 
-      std::cout << tensor(36)->dims->data[2] << " "; 
-      std::cout << tensor(36)->dims->data[3] << " "; 
-      std::cout << "\n";
-  }
   int last_exec_plan_index_prepared = 0;
   TF_LITE_ENSURE_STATUS(
       PrepareOpsStartingAt(next_execution_plan_index_to_prepare_,
                            execution_plan_, &last_exec_plan_index_prepared));
   next_execution_plan_index_to_prepare_ = last_exec_plan_index_prepared + 1;
-  if(GetGraphid() == 7){
-      std::cout << "tensor 117 --" << "\n";
-      std::cout << tensor(117)->dims->data[0] << " "; 
-      std::cout << tensor(117)->dims->data[1] << " "; 
-      std::cout << tensor(117)->dims->data[2] << " "; 
-      std::cout << tensor(117)->dims->data[3] << " "; 
-      std::cout << "\n";
-      std::cout << "tensor 36" << "\n";
-      std::cout << tensor(36)->dims->data[0] << " "; 
-      std::cout << tensor(36)->dims->data[1] << " "; 
-      std::cout << tensor(36)->dims->data[2] << " "; 
-      std::cout << tensor(36)->dims->data[3] << " "; 
-      std::cout << "\n";
-  }
+  
   // Execute arena allocations.
   TF_LITE_ENSURE_STATUS(memory_planner_->ExecuteAllocations(
       next_execution_plan_index_to_plan_allocation_,
@@ -1388,7 +1382,6 @@ TfLiteStatus Subgraph::Invoke() {
       struct timespec begin, end;
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
-    // std::cout << resource_type << " Opinvoke " << graph_id_ << "\n"; 
     if (OpInvoke(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
