@@ -209,27 +209,28 @@ InterpreterBuilder::~InterpreterBuilder() {}
 
 void InterpreterBuilder::CopyRawPartitioningPlan(
                                     std::vector<std::vector<int>>& raw_plan){
+  ProfileData* dummy_profile = new ProfileData;
   for(int i=0; i<raw_plan.size(); ++i){
     if(raw_plan[i][TF_P_IDX_START] != TF_P_END_PLAN){
-      dummy_profile_->layer_subsets.push_back(std::vector<int>());
-      dummy_profile_->partitioning_ratios.push_back(std::vector<int>());
+      dummy_profile->layer_subsets.push_back(std::vector<int>());
+      dummy_profile->partitioning_ratios.push_back(std::vector<int>());
       for(int j=raw_plan[i][TF_P_IDX_START]; j<raw_plan[i][TF_P_IDX_END]; ++j){
-        dummy_profile_->layer_subsets[i].push_back(j);
+        dummy_profile->layer_subsets[i].push_back(j);
       }
       // MUST FIX TO SUPPORT CO_EXECUTION CPU AND GPU
-      dummy_profile_->subset_resource.push_back(
+      dummy_profile->subset_resource.push_back(
                               static_cast<ResourceType>(raw_plan[i][TF_P_IDX_RESOURCE]));
       if(raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E){ // if subset is co-exetution subset
-        dummy_profile_->partitioning_ratios[i].push_back(raw_plan[i][TF_P_IDX_RATIO]);
+        dummy_profile->partitioning_ratios[i].push_back(raw_plan[i][TF_P_IDX_RATIO]);
       }else{
-        dummy_profile_->partitioning_ratios[i].push_back(0);
+        dummy_profile->partitioning_ratios[i].push_back(0);
       }
     }else{
       break;
     }
   }
   // Minsung : for multiple partitioning plans
-  dummy_profiles_.push_back(dummy_profile_);
+  dummy_profiles_.push_back(dummy_profile);
 }
 
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping(
@@ -536,7 +537,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         [&](const std::vector<ProfileData*>& profile){
       for(int k=0; k<profile.size(); ++k){
         for(int i=0; i<profile[k]->layer_subsets.size(); ++i){ //graphs
-          std::cout << "Create new subgraph plan "  << "\n";
           SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
           new_plan->size = profile[k]->layer_subsets[i].size();
           new_plan->nodes = new int[new_plan->size];

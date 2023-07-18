@@ -377,7 +377,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
 TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   std::vector<std::vector<int>> raw_plan;
   for(int i=0; i<TF_P_PLAN_LENGTH; ++i){
-    while(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_MASTER){
+    while(partitioning_plan[i][TF_P_IDX_START] != TF_P_END_MASTER){
       raw_plan.push_back(std::vector<int>());
       if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
         raw_plan[i].push_back(TF_P_END_PLAN);
@@ -427,18 +427,27 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
 
 TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::vector<std::vector<int>> raw_plan;
+  int inner_plan_idx = 0;
+
   for(int i=0; i<TF_P_PLAN_LENGTH; ++i){
     raw_plan.push_back(std::vector<int>());
+    inner_plan_idx = raw_plan.size() - 1;
     if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
-      raw_plan[i].push_back(TF_P_END_PLAN);
+      raw_plan[inner_plan_idx].push_back(TF_P_END_PLAN);
+      interpreter_builder->CopyRawPartitioningPlan(raw_plan);
+      quantized_builder->CopyRawPartitioningPlan(raw_plan);
+      raw_plan.clear();
+      inner_plan_idx = 0;
+      raw_plan.push_back(std::vector<int>());
+      i++;
+    }
+    if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_MASTER)
       break;
-    }
     for(int j=0; j<TF_P_PLAN_SIZE; ++j){ // third idx means processor.
-      raw_plan[i].push_back(partitioning_plan[i][j]);
+      raw_plan[inner_plan_idx].push_back(partitioning_plan[i][j]);
     }
-  }  
-  // Create subgraphs of float model
-  interpreter_builder->CopyRawPartitioningPlan(raw_plan);
+  }
+
   Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
   if(origin_subgraph == nullptr){
     std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 
@@ -453,7 +462,6 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::cout << "Full precision subgraph created" << "\n";
   std::cout << "===============================" << "\n";
   // Create subgraphs of quantized model
-  quantized_builder->CopyRawPartitioningPlan(raw_plan);
   Subgraph* origin_quantized_subgraph = quantized_interpreter->returnProfiledOriginalSubgraph(0);
   if(origin_quantized_subgraph == nullptr){
     std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 

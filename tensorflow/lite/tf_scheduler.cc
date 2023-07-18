@@ -395,6 +395,13 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[8][TF_P_IDX_START]    = TF_P_END_PLAN;
     
+    tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
+    tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
+    tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
+    
+    tx_p.partitioning_plan[11][TF_P_IDX_START]    = TF_P_END_MASTER;
 
     //
   }
