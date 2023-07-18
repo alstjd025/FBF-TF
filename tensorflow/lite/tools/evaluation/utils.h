@@ -28,7 +28,7 @@ limitations under the License.
 // #include "tensorflow/lite/delegates/gpu/delegate.h"
 
 //HOONING : Experimental. TO use OpenGL toolkit::delegation
-#if defined(__ANDROID__) || defined(CL_DELEGATE_NO_GL) || defined(CL_DELEGATE_ALLOW_GL)
+#if defined(__ANDROID__) || defined(CL_DELEGATE_NO_GL) 
 #define TFLITE_SUPPORTS_GPU_DELEGATE 1
 #endif
 

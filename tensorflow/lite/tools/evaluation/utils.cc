@@ -127,7 +127,7 @@ TfLiteDelegatePtr CreateGPUDelegate(TfLiteGpuDelegateOptionsV2* options) {
 
 // [CASE 2] : have delegate_provider & failed  
 //                                    OR 
-//                                       don't have delegate_provider
+//                                      don't have delegate_provider
 TfLiteDelegatePtr CreateGPUDelegate() {
 #if TFLITE_SUPPORTS_GPU_DELEGATE
   TfLiteGpuDelegateOptionsV2 options = TfLiteGpuDelegateOptionsV2Default();
