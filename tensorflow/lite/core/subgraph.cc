@@ -37,7 +37,7 @@ limitations under the License.
 #include <fstream> //HOON. for YOLO parsing
 
 //#define debug
-// #define YOLO
+#define YOLO
 
 
 
@@ -1324,6 +1324,17 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
   // saveDatatoFile(real_bbox_cls_vector, "cls");
   // saveDatatoFile(real_bbox_loc_vector, "loc");
+  // ------------------------------------------------------------------------
+  // GO TO mAP_TF   (out of tflite)
+  // 1. preprocessing
+  // 2. evaluate 
+  // ------------------------------------------------------------------------
+  // TODO
+  // 1. load coco dataset (or 100 datas)
+  // 2. make cls & loc data per data
+  // 3. preprocessing (mAP_TF)
+  // 4. evaluate      (mAP_TF)
+  // ------------------------------------------------------------------------  
   #endif
   return status;
 }

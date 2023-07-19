@@ -1,7 +1,7 @@
 #include "unit.h"
 #include "algorithm"
-#define GPUONLY
-// #define CPUONLY
+// #define GPUONLY
+#define CPUONLY
 //#define MULTITHREAD
 //#define quantize
 //#define MONITORING
@@ -12,7 +12,7 @@
 #define yolo  // Y/N
 
 #ifdef yolo
-#define SEQ 100   // debugging
+#define SEQ 1   // debugging
 #define OUT_SEQ 1
 #endif
 
