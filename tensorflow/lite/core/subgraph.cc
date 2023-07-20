@@ -35,7 +35,7 @@ limitations under the License.
 // #include "tensorflow/lite/kmdebug.h"
 // #include "tensorflow/lite/kmcontext.h"
 #include <fstream> //HOON. for YOLO parsing
-
+#include "tensorflow/lite/hoon.h"
 //#define debug
 #define YOLO
 
@@ -1315,15 +1315,17 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // -----------------------------------------------------------------------
   #ifdef YOLO
   std::vector<int> real_bbox_index_vector;
-  std::vector<std::vector<float>> real_bbox_cls_vector; //
+  // std::vector<std::vector<float>> real_bbox_cls_vector; //
   printf("\nHOON : after heuristic NMS... \n ");
   make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
   SOFTMAX(real_bbox_cls_vector);
-  std::vector<int> real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
-  std::vector<std::vector<float>> real_bbox_loc_vector; //
+  // std::vector<int> real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
+  real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
+  // std::vector<std::vector<float>> real_bbox_loc_vector; //
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
-  // saveDatatoFile(real_bbox_cls_vector, "cls");
-  // saveDatatoFile(real_bbox_loc_vector, "loc");
+  // move_data_from_FBF_TF_to_mAP_TF(real_bbox_cls_index_vector, real_bbox_cls_vector, real_bbox_loc_vector);
+  saveDatatoFile(real_bbox_cls_vector, "cls");
+  saveDatatoFile(real_bbox_loc_vector, "loc");
   // ------------------------------------------------------------------------
   // GO TO mAP_TF   (out of tflite)
   // 1. preprocessing
@@ -1338,13 +1340,37 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   #endif
   return status;
 }
+
+std::vector<std::vector<float>> Subgraph::real_bbox_cls_vector; //
+std::vector<int> Subgraph::real_bbox_cls_index_vector;
+std::vector<std::vector<float>> Subgraph::real_bbox_loc_vector;
+
+void Subgraph::move_data_from_FBF_TF_to_mAP_TF(const std::vector<int>& real_bbox_cls_index_vector, \
+  const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<float>>& real_bbox_loc_vector)
+  {
+    // const char* filename = nullptr;
+    // filename = "../mAP_TF/input/detection-results/";
+    // if (filename != nullptr) {
+    //     std::ofstream outFile(filename);
+    //     if (outFile.is_open()) {
+    //         for (const auto& row : data) {
+    //             for (const auto& value : row) {
+    //                 outFile << value << " ";
+    //             }
+    //             outFile << std::endl;
+    //         }
+    //         outFile.close();
+    //     }
+    // }
+  }
+
 template <typename T>
 void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const char* mode) {
     const char* filename = nullptr;
     if (strcmp(mode, "cls") == 0) {
-        filename = "../mAP_TF/hoon/cls.txt";
+        filename = "../mAP_TF/input/detection-results/cls.txt";
     } else if (strcmp(mode, "loc") == 0) {
-        filename = "../mAP_TF/hoon/loc.txt";
+        filename = "../mAP_TF/input/detection-results/loc.txt";
     }
     if (filename != nullptr) {
         std::ofstream outFile(filename);
@@ -1503,6 +1529,7 @@ void Subgraph::SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector){
       std::cout << std::endl << std::endl;
   }
 }
+
 
 
 //Minsung
