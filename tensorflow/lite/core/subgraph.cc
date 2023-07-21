@@ -1315,28 +1315,14 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // -----------------------------------------------------------------------
   #ifdef YOLO
   std::vector<int> real_bbox_index_vector;
-  // std::vector<std::vector<float>> real_bbox_cls_vector; //
   printf("\nHOON : after heuristic NMS... \n ");
   make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
   SOFTMAX(real_bbox_cls_vector);
-  // std::vector<int> real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
   real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
-  // std::vector<std::vector<float>> real_bbox_loc_vector; //
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
   // move_data_from_FBF_TF_to_mAP_TF(real_bbox_cls_index_vector, real_bbox_cls_vector, real_bbox_loc_vector);
-  saveDatatoFile(real_bbox_cls_vector, "cls");
-  saveDatatoFile(real_bbox_loc_vector, "loc");
-  // ------------------------------------------------------------------------
-  // GO TO mAP_TF   (out of tflite)
-  // 1. preprocessing
-  // 2. evaluate 
-  // ------------------------------------------------------------------------
-  // TODO
-  // 1. load coco dataset (or 100 datas)
-  // 2. make cls & loc data per data
-  // 3. preprocessing (mAP_TF)
-  // 4. evaluate      (mAP_TF)
-  // ------------------------------------------------------------------------  
+  // saveDatatoFile(real_bbox_cls_vector, "cls");
+  // saveDatatoFile(real_bbox_loc_vector, "loc");
   #endif
   return status;
 }
@@ -1344,25 +1330,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 std::vector<std::vector<float>> Subgraph::real_bbox_cls_vector; //
 std::vector<int> Subgraph::real_bbox_cls_index_vector;
 std::vector<std::vector<float>> Subgraph::real_bbox_loc_vector;
-
-void Subgraph::move_data_from_FBF_TF_to_mAP_TF(const std::vector<int>& real_bbox_cls_index_vector, \
-  const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<float>>& real_bbox_loc_vector)
-  {
-    // const char* filename = nullptr;
-    // filename = "../mAP_TF/input/detection-results/";
-    // if (filename != nullptr) {
-    //     std::ofstream outFile(filename);
-    //     if (outFile.is_open()) {
-    //         for (const auto& row : data) {
-    //             for (const auto& value : row) {
-    //                 outFile << value << " ";
-    //             }
-    //             outFile << std::endl;
-    //         }
-    //         outFile.close();
-    //     }
-    // }
-  }
 
 template <typename T>
 void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const char* mode) {

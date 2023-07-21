@@ -484,7 +484,7 @@ class Subgraph {
   void SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector);
   template <typename T>
   void saveDatatoFile(const std::vector<std::vector<T>>& data,const char* mode);
-  void move_data_from_FBF_TF_to_mAP_TF(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<float>>& real_bbox_loc_vector);
+  // void move_data_from_FBF_TF_to_mAP_TF(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<float>>& real_bbox_loc_vector);
 
   // Entry point for C node plugin API to report an error.
   void ReportError(const char* format, ...);
