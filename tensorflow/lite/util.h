@@ -255,8 +255,8 @@ typedef struct tf_packet{
   int cur_graph_resource; // 0 for cpu, 1 for gpu
   int partitioning_plan[1000][4];
   float latency[1000];
-  int gpu_utilization;
-  int cpu_utilization[8];
+  float gpu_utilization;
+  float cpu_utilization;
 }tf_packet;
 
 }  // namespace tflite

@@ -17,6 +17,7 @@
 #include "thread"
 #include "future"
 #include "tensorflow/lite/util.h"
+#include "tensorflow/lite/monitor.h"
 
 namespace tflite{
 
@@ -44,6 +45,8 @@ namespace tflite{
 
       void Work();
 
+      void SysMonitor();
+
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
       
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
@@ -61,6 +64,10 @@ namespace tflite{
       ~TfScheduler();
     
     private:
+
+    LiteSysMonitor* monitor;
+    std::thread monitoring_thread;
+
     int scheduler_fd;
     size_t addr_size;
     struct sockaddr_un scheduler_addr;
@@ -76,6 +83,13 @@ namespace tflite{
     bool cpgpu_usage_flag = false;
     std::queue<int> rr_cpu_queue;
     std::queue<int> rr_gpu_queue;
+
+    // current GPU utlization ratio.
+    float gpu_util;
+    
+    // current CPU utlization ratio(average).
+    float cpu_util;
+  
   };
 
 }

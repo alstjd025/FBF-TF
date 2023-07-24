@@ -44,7 +44,17 @@ int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
   return v;
 }
 
+void TfScheduler::SysMonitor(){
+  std::cout << "[Scheduler] System monitoring started" << "\n";
+  // std::thread cpu_monitor_daemon, gpu_monitor_daemon;
+  // cpu_monitor_daemon = std::thread(&GetCPUUtilization, cpu_util);
+  // gpu_monitor_daemon = std::thread(&GetGPUUtilization, gpu_util);
+  // cpu_monitor_daemon.join();
+  // gpu_monitor_daemon.join();
+}
+
 void TfScheduler::Work(){
+  // monitor = new LiteSysMonitor(cpu_util, gpu_util);
   while(1){
     tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
@@ -141,6 +151,7 @@ void TfScheduler::Work(){
       break;
     }
   }
+  monitoring_thread.join();
 }
 
 bool TfScheduler::CheckAllRuntimesReady(){
@@ -299,7 +310,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[1][TF_P_IDX_START]    = 27;
     tx_p.partitioning_plan[1][TF_P_IDX_END]      = 29;
     tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 18; // partitioning ratio
+    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 8; // partitioning ratio
     tx_p.partitioning_plan[2][TF_P_IDX_START]    = 29;
     tx_p.partitioning_plan[2][TF_P_IDX_END]      = 31;
     tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
