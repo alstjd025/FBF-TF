@@ -405,6 +405,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
   tx_packet.runtime_id = runtime_id;
+  
   tx_packet.runtime_current_state = state;
   if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
     return kTfLiteError;
