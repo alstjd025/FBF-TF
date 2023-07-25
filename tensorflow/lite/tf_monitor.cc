@@ -35,7 +35,7 @@ float LiteSysMonitor::CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev)
   const unsigned long long workingtime = now.workingtime - prev.workingtime;
   const unsigned long long alltime = workingtime + (now.idletime - prev.idletime);
   // they are divided by themselves - so the unit does not matter.
-  printf("CPU Usage: %.0Lf%%\n", (long double)workingtime / alltime * 100.0L);
+  // printf("CPU Usage: %.0Lf%%\n", (long double)workingtime / alltime * 100.0L);
   return (float)(workingtime / alltime * 100.0L);
 }
 
