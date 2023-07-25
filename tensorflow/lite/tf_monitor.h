@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <vector>
 
+namespace tflite{
+
 struct cpuusage {
   char name[20];
   // Absolute values since last reboot.
@@ -23,11 +25,11 @@ struct cpustat {
 class LiteSysMonitor{
   public:
     LiteSysMonitor();
-    LiteSysMonitor(float& cpu_util, float& gpu_util);
+    LiteSysMonitor(float* cpu_util, float* gpu_util);
     ~LiteSysMonitor();
 
-    void GetCPUUtilization(float& util);
-    void GetGPUUtilization(float& util);
+    void GetCPUUtilization();
+    void GetGPUUtilization();
 
     struct cpuusage GetCPUusageFromCpustat(struct cpustat s);
     float CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev);
@@ -38,5 +40,10 @@ class LiteSysMonitor{
   // FILE gpu_stream;
   // FILE cpu_stream;
 
+  float* cpu_util_;
+  float* gpu_util_;
+
 };
+
+} // namespace tflite
 

@@ -1,15 +1,19 @@
-#include "tensorflow/lite/monitor.h"
+#include "tensorflow/lite/tf_monitor.h"
+
+namespace tflite{
 
 LiteSysMonitor::LiteSysMonitor(){
   std::cout << "Init system monitoring" << "\n";
 }
 
-LiteSysMonitor::LiteSysMonitor(float& cpu_util, float& gpu_util){
+LiteSysMonitor::LiteSysMonitor(float* cpu_util, float* gpu_util){
+  cpu_util_ = cpu_util;
+  gpu_util_ = gpu_util;
   std::cout << "System monitoring started" << "\n";
-  // CPU_daemon = std::thread(&LiteSysMonitor::GetCPUUtilization, this, cpu_util);
-  // GPU_daemon = std::thread(&LiteSysMonitor::GetGPUUtilization, this, gpu_util);
-  // CPU_daemon.detach();
-  // GPU_daemon.detach();
+  CPU_daemon = std::thread(&LiteSysMonitor::GetCPUUtilization, this);
+  GPU_daemon = std::thread(&LiteSysMonitor::GetGPUUtilization, this);
+  CPU_daemon.detach();
+  GPU_daemon.detach();
 }
 
 LiteSysMonitor::~LiteSysMonitor(){
@@ -31,11 +35,12 @@ float LiteSysMonitor::CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev)
   const unsigned long long workingtime = now.workingtime - prev.workingtime;
   const unsigned long long alltime = workingtime + (now.idletime - prev.idletime);
   // they are divided by themselves - so the unit does not matter.
-  printf("Usage: %.0Lf%%\n", (long double)workingtime / alltime * 100.0L);
+  printf("CPU Usage: %.0Lf%%\n", (long double)workingtime / alltime * 100.0L);
+  return (float)(workingtime / alltime * 100.0L);
 }
 
 // Simply parses /proc/stat.
-void LiteSysMonitor::GetCPUUtilization(float& util) {
+void LiteSysMonitor::GetCPUUtilization() {
   struct cpuusage prev = {0};
   const int stat = open("/proc/stat", O_RDONLY);
   assert(stat != -1);
@@ -49,7 +54,7 @@ void LiteSysMonitor::GetCPUUtilization(float& util) {
     assert(readed != -1);
     buffer[readed] = '\0';
     // Read the values from the readed buffer/
-    FILE *f = fmemopen(buffer, readed, "r");
+    FILE* f = fmemopen(buffer, readed, "r");
     // Uch, so much borign typing.
     struct cpustat c = {0};
     while (fscanf(f, "%19s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu", c.name, &c.user, &c.nice,
@@ -58,7 +63,7 @@ void LiteSysMonitor::GetCPUUtilization(float& util) {
       // Just an example for first cpu core.
       if (strcmp(c.name, "cpu") == 0) {
         struct cpuusage now = GetCPUusageFromCpustat(c);
-        util = CpuUsageGetDiff(now, prev);
+        *cpu_util_ = CpuUsageGetDiff(now, prev);
         prev = now;
         break;
       }
@@ -70,13 +75,12 @@ void LiteSysMonitor::GetCPUUtilization(float& util) {
 
 // For jetson platforms only.
 // Uses tegrastats
-void LiteSysMonitor::GetGPUUtilization(float& util){
+void LiteSysMonitor::GetGPUUtilization(){
   std::string data, cmd;
   cmd = "tegrastats --interval 10";
-  FILE * stream;
+  FILE* stream;
   const int max_buffer = 512;
   char buffer[max_buffer];
-  std::vector<int> cpu_util;
   stream = popen(cmd.c_str(), "r");
   if (stream) {
     while (!feof(stream)) {
@@ -85,12 +89,17 @@ void LiteSysMonitor::GetGPUUtilization(float& util){
       }
       int delimiter = data.find("GR3D_FREQ");
       std::string front = data.substr(delimiter+5);
-      int delimiter_ = front.find('%');
-      front = front.substr(0, delimiter_);
-      util = std::stoi(front);
-      std::cout << util << "\n"; 
+      delimiter = front.find('%');
+      front = front.substr(0, delimiter);
+      delimiter = front.find(' ');
+      front = front.substr(delimiter+1);
+      // std::cout << "GPU : " << front << "\n";
+      *gpu_util_ = std::stoi(front);
+      // std::cout << "GPU Usage: "<< *gpu_util_ << "% \n"; 
       data.clear();
     }
     pclose(stream);
   }
 }
+
+} // namespace tflite

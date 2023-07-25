@@ -17,7 +17,7 @@
 #include "thread"
 #include "future"
 #include "tensorflow/lite/util.h"
-#include "tensorflow/lite/monitor.h"
+#include "tensorflow/lite/tf_monitor.h"
 
 namespace tflite{
 

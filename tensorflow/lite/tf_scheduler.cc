@@ -54,7 +54,7 @@ void TfScheduler::SysMonitor(){
 }
 
 void TfScheduler::Work(){
-  // monitor = new LiteSysMonitor(cpu_util, gpu_util);
+  monitor = new LiteSysMonitor(&cpu_util, &gpu_util);
   while(1){
     tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
