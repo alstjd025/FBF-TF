@@ -478,7 +478,7 @@ class Subgraph {
   static std::vector<int> real_bbox_cls_index_vector;
   static std::vector<std::vector<float>> real_bbox_loc_vector;
 
-  std::vector<int> get_cls_index(std::vector<std::vector<float>> real_bbox_cls_vector);
+  std::vector<int> get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector);
   void make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector);
   void make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_loc_vector);
   void SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector);

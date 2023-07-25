@@ -1315,7 +1315,11 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // -----------------------------------------------------------------------
   #ifdef YOLO
   std::vector<int> real_bbox_index_vector;
-  printf("\nHOON : after heuristic NMS... \n ");
+  real_bbox_index_vector.clear();
+  real_bbox_cls_index_vector.clear();
+  real_bbox_cls_vector.clear();
+  real_bbox_loc_vector.clear();
+  // printf("\nHOON : after heuristic NMS... \n ");
   make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
   SOFTMAX(real_bbox_cls_vector);
   real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
@@ -1352,8 +1356,8 @@ void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const cha
         }
     }
 }
-std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>> real_bbox_cls_vector){
-  std::vector<int> real_bbox_cls_index_vector;
+std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
+  // std::vector<int> real_bbox_cls_index_vector;
   float max=0;
   int max_index = -1;
   int index = 0;
@@ -1366,8 +1370,11 @@ std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>> real_bb
       }
       index+=1;
 		}
+    // std::cout << "HH : " << max_index << std::endl;
     real_bbox_cls_index_vector.push_back(max_index);
 		// std::cout << std::endl << std::endl;
+    max = 0;
+    max_index = -1;
 	}
   printf("real_bbox_cls_index vector : ");
   for (auto i :real_bbox_cls_index_vector)
@@ -1384,6 +1391,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes_2);
   std::vector<float> classifications(num_boxes_2 * 80);
+  float cls_thresh = 0.05; //////////////////////////////////////// 0.02
   for (int i = 0; i < num_boxes_2; ++i) {
   for (int j = 0; j < 80; ++j) {
     classifications[i * 80 + j] = output_data_2[i * 80 + j];
@@ -1394,7 +1402,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
-      if (classifications[i * 80 + j] > 0.15){
+      if (classifications[i * 80 + j] > cls_thresh){  // hyper-param 0.04
         box_per_conf_count +=1;
         // printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
       }
@@ -1411,6 +1419,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
       }
       real_bbox_cls_vector.push_back(tmp);
     }
+    tmp.clear(); //
     // printf("\n");
   }
   printf("HOON : B_Boxes's real bbox num is : %d\n", conf_count );
@@ -1422,7 +1431,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   printf("\033[0;33mdebugging real_bbox_cls_vector --> real b_box's cls data :\033[0m \n\n");
   for (auto i : real_bbox_cls_vector) { 
 		for (auto j : i) { 
-      if (j > 0.15){
+      if (j > cls_thresh){
         printf("\033[0;31m%.6f\033[0m ", j);
       }
       else{
@@ -1446,19 +1455,52 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
     boxes[i * 4 + 3] = output_data[i * 4 + 3];
     }
   int bbox_count = 0;
+  // TODO (230725) also parsing "LOC" data !!!
   printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
   for (int i = 0; i < num_boxes; ++i) {
       std::vector<float>tmp;
       for(int j=0 ; j < real_bbox_index_vector.size(); j++){
           if(i == real_bbox_index_vector[j]){
-            tmp.push_back(boxes[i*4]);
-            tmp.push_back(boxes[i*4+1]);
-            tmp.push_back(boxes[i*4+2]);
-            tmp.push_back(boxes[i*4+3]);
+            // ------------------------------------
+            // float x_center_norm = boxes[i*4];
+            // float y_center_norm = boxes[i*4+1];
+            // float width_norm = boxes[i*4+2];
+            // float height_norm = boxes[i*4+3];
+            // int img_size = 416;
+            // float actual_width = width_norm * img_size;
+            // float actual_height = height_norm * img_size;
+            // float actual_x_center = x_center_norm * img_size;
+            // float actual_y_center = y_center_norm * img_size;
+            // int x_min = int(actual_x_center - actual_width / 2);
+            // int y_min = int(actual_y_center - actual_height / 2);
+            // int x_max = int(actual_x_center + actual_width / 2);
+            // int y_max = int(actual_y_center + actual_height / 2);
+            // x_min = std::max(0, x_min);
+            // y_min = std::max(0, y_min);
+            // x_max = std::max(0, x_max);
+            // y_max = std::max(0, y_max);
+            // tmp.push_back(x_min);
+            // tmp.push_back(y_min);
+            // tmp.push_back(x_max);
+            // tmp.push_back(y_max);
+            // -------------------------------------------
+            float left, top, width, height, right, bottom;
+            left = boxes[i*4];
+            top = boxes[i*4+1];
+            width = boxes[i*4+2];
+            height = boxes[i*4+3];
+            right = left + width;
+            bottom = top + height;
+            tmp.push_back(left);
+            tmp.push_back(top);
+            tmp.push_back(right);
+            tmp.push_back(bottom);
             real_bbox_loc_vector.push_back(tmp);
+            // TODO : Not enough loc data. [230726]
             // printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
           }
       }
+      tmp.clear(); //HH
   }
   printf("\n");
   for (auto i : real_bbox_loc_vector) { 
