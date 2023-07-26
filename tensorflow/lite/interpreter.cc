@@ -778,8 +778,6 @@ void Interpreter::PrintSubgraphInfo(){
   for(int i=0; i<subgraphs_.size(); ++i){
     std::cout << "id : " << subgraphs_[i]->GetGraphid() << " model : " <<
       subgraphs_[i]->GetModelid() << "\n";
-    // std::cout << "id : " << subgraph(i)->GetGraphid() << " model : " <<
-    //   subgraph(i)->GetModelid() << "\n";
   }
 }
 
@@ -946,8 +944,9 @@ TfLiteStatus Interpreter::DoInvoke(){
 }
 
 tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id){
-  for(auto subgraph_subset : subgraph_subsets){
-    for(auto graph_id : subgraph_subset.second){
+  for(int i=0; i<subgraph_subsets.size(); ++i){
+    for(int j=0; j<subgraph_subsets[i].second.size(); ++j){
+      int graph_id = subgraph_subsets[i].second[j];
       Subgraph* working_graph = subgraph_id(graph_id);
       if(working_graph == nullptr){
         std::cout << "Cannot get pointer to subgraph " << graph_id
@@ -956,14 +955,20 @@ tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id){
       }
       if(working_graph->GetModelid() != id)
         continue;
-      if(working_graph->IsOriginalSubgraph() &&
-          !working_graph->IsProfiled()){
+      if(working_graph->IsOriginalSubgraph()){
         working_graph->SetProfiled();
         return working_graph;
       }
     }
   }
   return nullptr; // no more profiled original subgraph
+}
+
+void Interpreter::GetTotalSubgraphID(std::vector<int>& graph_ids){
+    graph_ids.clear();
+  for(int i=0; i<subgraphs_.size(); ++i){
+    graph_ids.push_back(subgraphs_[i]->GetGraphid());
+  }
 }
 
 bool Interpreter::IsJobQueueEmpty(){

@@ -549,7 +549,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           // if so, check this interpreterbuilder if it is co-execution builder.
           // co-execution builder : build cpu subgraphs for co-execution.
           // not co-execution builder : build gpu subgraphs for co-execution.
-          // !! take care of redundant creation of subgraphs.
+          // !! be carefull of redundant subgraphs.
           switch (profile[k]->subset_resource[i])
           {
           case TF_P_PLAN_CPU:
@@ -581,29 +581,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           }
           for(int j=0; j<profile[k]->layer_subsets[i].size(); ++j){ //layers 
             new_plan->nodes[j] = profile[k]->layer_subsets[i][j]; 
-            std::cout << "Pushed node " << new_plan->nodes[j] << "\n"; 
-            // TODO : Consider better implementation for partitioning ratio per layer. 
-            //        This code applies same partitiong ratio in a whole single subgraph. 
-            if(profile[k]->partitioning_ratios[i][j] != 0){
-              new_plan->partitioning_ratios[j] = profile[k]->partitioning_ratios[i][j];
+            if(profile[k]->partitioning_ratios[i][0] != 0){
+              new_plan->partitioning_ratios[j] = profile[k]->partitioning_ratios[i][0];
             }
           }
-          // if(new_plan->resource_type == ResourceType::CO_CPU){
-          //   SubgraphPartitioningPlan* new_plan_ = new SubgraphPartitioningPlan;          
-          //   new_plan_->resource_type = ResourceType::CO_CPU;
-          //   new_plan_->partitioning_ratios = new int[46];
-          //   new_plan_->nodes = new int[46];
-          //   new_plan_->size = 46;
-          //   int j=0;
-          //   for(int i=1; i<47; ++i){
-          //     new_plan_->nodes[j] = i;
-          //     new_plan_->partitioning_ratios[j] = 15;
-          //     j++;
-          //   }
-          //   master_partitioning_plan.push_back(new_plan_);
-          // }else{
-          //   master_partitioning_plan.push_back(new_plan);
-          // }
           master_partitioning_plan.push_back(new_plan);
         }
       }
@@ -611,10 +592,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     };
     CreatePartitioningPlanFromProfile(dummy_profiles_);
 
-    // legacy : for single partitioning plan
-    // CreatePartitioningPlanFromProfile(dummy_profile_);
-
-    // Initialize variables for profiling
+    // Initialize variables for graph & tensor profiling.
     std::vector<std::pair<int, std::vector<int>>> subgraph_and_tensors;
     std::vector<std::pair<int, std::vector<int>>> shared_info;
     int shared_tensor_bucket[tensors->size()][master_partitioning_plan.size()];
@@ -640,7 +618,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
-    
+      
       switch (master_partitioning_plan[partition_itr]->resource_type)
       {
       case ResourceType::CPU:
@@ -677,7 +655,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       // Now setup nodes and tensors for new subgraph
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
-        std::cout << "Working op " << working_op << "\n";
+        std::cout << "Working op " << working_op << "\n";        
         const auto* op = operators->Get(working_op);
         int op_index = op->opcode_index();
         /// get every tensor indices of all nodes
@@ -731,16 +709,19 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     }// Partitioning iteration ends
     // "Job is deprecated"
     tflite::Job* new_job = new tflite::Job;
+    std::cout << "11" << "\n";
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "BindSubgraphWithJob ERROR" << "\n";
       return kTfLiteError;
     }
+    std::cout << "22" << "\n";
     if(RegisterJobAndSubgraphs(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
       return kTfLiteError;
     }
+    std::cout << "33" << "\n";
     interpreter_->PrintSubgraphInfo(); 
     std::cout << "RegisterJobAndSubgraphs" << "\n";
     // Fill shared tensor bucket  
@@ -834,7 +815,7 @@ TfLiteStatus InterpreterBuilder::PartitionChannels(
           return kTfLiteError;
       }
     }
-  } 
+  }
   return kTfLiteOk;                  
 }
 

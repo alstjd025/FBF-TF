@@ -944,10 +944,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     }
     tensor_pair.push_back(std::pair<int, int>(input_tensor, output_tensor));
   }
-  std::vector<int> partitioning_plan = GetPartitioningRatio();
+  int partitioning_plan_ratio = GetPartitioningRatio();
   
 
-  stub_method_p(partitioning_plan[0], tensor_pair);
+  stub_method_p(partitioning_plan_ratio, tensor_pair);
   // stub_method(225, tensor_pair);  // for efficient l4
   // stub_method(144, tensor_pair);  // for ultra lane net
   // stub_method(240, tensor_pair);  // for ultra lane net
@@ -1884,11 +1884,11 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     int last_execution_plan_index_prepared;
     if(resource_type == ResourceType::CO_GPU){
       // Runtime filter modification for co-execution
-      std::vector<int> partitioning_ratio = GetPartitioningRatio();
-      if(partitioning_ratio[0] < 10){  
+      int partitioning_ratio = GetPartitioningRatio();
+      if(partitioning_ratio < 10){  
         // channel-wise partitioning
         int conv_filter_before_modification = 0;
-        int partitioning_plan = partitioning_ratio[0];
+        int partitioning_plan = partitioning_ratio;
         for (int node_index = 0;
           node_index < nodes_and_registration_.size(); node_index++) {
           TfLiteNode& node = nodes_and_registration_[node_index].first;

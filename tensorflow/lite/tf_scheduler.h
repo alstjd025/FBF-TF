@@ -21,6 +21,20 @@
 
 namespace tflite{
 
+
+  typedef struct subgraph_node{
+    int id;
+    subgraph_node* next =  nullptr;
+    subgraph_node* prev =  nullptr;
+    subgraph_node* up   =  nullptr;
+    subgraph_node* down =  nullptr;
+  }subgraph_node;
+
+  typedef struct subgraph_root{
+    subgraph_node* root;
+    int model_id;
+  }subgraph_root;
+
   typedef struct runtime_{
     int id;
     RuntimeState state;
@@ -66,7 +80,6 @@ namespace tflite{
     private:
 
     LiteSysMonitor* monitor;
-    std::thread monitoring_thread;
 
     int scheduler_fd;
     size_t addr_size;

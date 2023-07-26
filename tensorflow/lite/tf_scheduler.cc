@@ -69,6 +69,7 @@ void TfScheduler::Work(){
     switch (rx_packet.runtime_current_state)
     {
     case RuntimeState::INITIALIZE :{ 
+      std::cout << "runtime init" << "\n";
       for(auto runtime : runtimes){
         if(runtime->id == rx_packet.runtime_id){
           std::cout << "Runtime " << runtime->id << " already registered." << "\n"; 
@@ -99,6 +100,7 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::NEED_PROFILE :{
+      std::cout << "runtime need profile" << "\n";
       tf_packet tx_packet;
       RefreshRuntimeState(rx_packet);
       CreatePartitioningPlan(rx_packet, tx_packet);
@@ -114,13 +116,37 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::SUBGRAPH_CREATE :{
+      std::cout << "runtime subgraph create" << "\n";
       RefreshRuntimeState(rx_packet);
       // What to do here???
       // maybe schedulability check?
       tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
-      tx_packet.runtime_next_state = RuntimeState::INVOKE_;
+
+      // TODO(28caeaf) : Read the subgraph ids from packet and make it as linked-list?
+      // int idx = 0;
+      std::cout << "full prec " << "\n";
+      for(int i=0; i<100; ++i){
+        std::cout << rx_packet.subgraph_ids[0][i] << " ";
+      }
+      std::cout << "min prec " << "\n";
+      for(int i=0; i<100; ++i){
+        std::cout << rx_packet.subgraph_ids[1][i] << " ";
+      }
+      std::cout << "\n";
+      // while(rx_packet.subgraph_ids[0][idx] != -1){
+      //   std::cout << rx_packet.subgraph_ids[0][idx] << " ";
+      //   idx++;
+      // }
       
+      // idx = 0;
+      // std::cout << "min prec " << "\n";
+      // while(rx_packet.subgraph_ids[1][idx] != -1){
+      //   std::cout << rx_packet.subgraph_ids[1][idx] << " ";
+      //   idx++;
+      // }
+      
+      tx_packet.runtime_next_state = RuntimeState::INVOKE_;
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
         printf("errno : %d \n", errno);
@@ -129,6 +155,7 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::INVOKE_ :{
+      std::cout << "runtime invoke" << "\n";
       RefreshRuntimeState(rx_packet);
       tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
@@ -151,7 +178,6 @@ void TfScheduler::Work(){
       break;
     }
   }
-  monitoring_thread.join();
 }
 
 bool TfScheduler::CheckAllRuntimesReady(){
@@ -374,8 +400,8 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
     tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15; // partitioning ratio
     tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
     tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
     tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
@@ -405,14 +431,15 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[8][TF_P_IDX_START]    = TF_P_END_PLAN;
+    tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_MASTER;
     
-    tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
+    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
+    // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
+    // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    // tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
     
-    tx_p.partitioning_plan[11][TF_P_IDX_START]    = TF_P_END_MASTER;
+    // tx_p.partitioning_plan[11][TF_P_IDX_START]    = TF_P_END_MASTER;
 
     //
   }

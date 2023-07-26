@@ -251,6 +251,10 @@ class Interpreter {
     return primary_subgraph().execution_plan();
   }
 
+  // Minsung
+  // Returns the whole subgraphs id in vector 
+  void GetTotalSubgraphID(std::vector<int>& graph_ids);
+
 #ifndef DOXYGEN_
   /// WARNING: Experimental interface, subject to change
   /// Overrides execution plan. This bounds checks indices sent in.

@@ -186,11 +186,11 @@ class Subgraph {
 
   // Minsung
   // Pushs partitioning ratio to partitioning_ratio_vector of current subgraph.
-  void PushPartitioningRatio(int r) { partitioning_ratios.push_back(r); }
+  void PushPartitioningRatio(int r) { partitioning_ratio = r; }
 
   // Minsung
   // Returns partitioning ratio vector of current subgraph.
-  std::vector<int>& GetPartitioningRatio() { return partitioning_ratios; }
+  int GetPartitioningRatio() { return partitioning_ratio; }
 
   // Minsung
   // Sets partitioning type of current subgraph.
@@ -971,9 +971,14 @@ class Subgraph {
 
   // Minsung
   // Experimental api 
-  // Using subgraph like linked-list?
+  // Using subgraph like linked-list
   tflite::Subgraph* next_subgraph = nullptr;
   tflite::Subgraph* prev_subgraph = nullptr;
+  
+  // clone subgraph 
+  tflite::Subgraph* next_clone_subgraph = nullptr;
+  tflite::Subgraph* prev_clone_subgraph = nullptr;
+  
   std::vector<int> actual_input;
   std::vector<int> actual_output;
   
@@ -981,6 +986,7 @@ class Subgraph {
   // Flag for co-execution of cpu/gpu (layer partitioning)
   tflite::Subgraph* co_subgraph = nullptr;
   std::vector<int> partitioning_ratios;
+  int partitioning_ratio = 0;
 
   // Minsung
   // Flag for profiling

@@ -245,7 +245,6 @@ typedef enum INPUT_TYPE{
 }INPUT_TYPE;
 
 
-
 // TODO : Consider including partitioning ratios per layer.
 typedef struct tf_packet{
   short runtime_id;
@@ -254,6 +253,7 @@ typedef struct tf_packet{
   int cur_subgraph;
   int cur_graph_resource; // 0 for cpu, 1 for gpu
   int partitioning_plan[1000][4];
+  int subgraph_ids[2][100];
   float latency[1000];
   float gpu_utilization;
   float cpu_utilization;

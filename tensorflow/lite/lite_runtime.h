@@ -109,8 +109,6 @@ class TfLiteRuntime{
     // Merge output(which is intermediate in the view of whole task)
     // data from full precision subgraph.
     void CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph);
-
-    
     
     // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
     void MergeCoExecutionData(Subgraph* min_precision_subgraph
