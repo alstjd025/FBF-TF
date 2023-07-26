@@ -107,6 +107,7 @@ void TfScheduler::Work(){
       
       tx_packet.runtime_id = rx_packet.runtime_id;
       tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
+      // CreateGraphofSubgraphs(tx_packet);
       
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
@@ -120,32 +121,9 @@ void TfScheduler::Work(){
       RefreshRuntimeState(rx_packet);
       // What to do here???
       // maybe schedulability check?
+
       tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
-
-      // TODO(28caeaf) : Read the subgraph ids from packet and make it as linked-list?
-      // int idx = 0;
-      std::cout << "full prec " << "\n";
-      for(int i=0; i<100; ++i){
-        std::cout << rx_packet.subgraph_ids[0][i] << " ";
-      }
-      std::cout << "min prec " << "\n";
-      for(int i=0; i<100; ++i){
-        std::cout << rx_packet.subgraph_ids[1][i] << " ";
-      }
-      std::cout << "\n";
-      // while(rx_packet.subgraph_ids[0][idx] != -1){
-      //   std::cout << rx_packet.subgraph_ids[0][idx] << " ";
-      //   idx++;
-      // }
-      
-      // idx = 0;
-      // std::cout << "min prec " << "\n";
-      // while(rx_packet.subgraph_ids[1][idx] != -1){
-      //   std::cout << rx_packet.subgraph_ids[1][idx] << " ";
-      //   idx++;
-      // }
-      
       tx_packet.runtime_next_state = RuntimeState::INVOKE_;
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
@@ -176,6 +154,53 @@ void TfScheduler::Work(){
     }
     default:
       break;
+    }
+  }
+}
+
+
+void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
+  int runtime_id = rx_packet.runtime_id;
+  // TODO(28caeaf) : Read the subgraph ids from packet and make it as linked-list?
+  // int idx = 0;
+  std::cout << "full prec " << "\n";
+  for(int i=0; i<100; ++i){
+    std::cout << rx_packet.subgraph_ids[0][i] << " ";
+  }
+  std::cout << "min prec " << "\n";
+  for(int i=0; i<100; ++i){
+    std::cout << rx_packet.subgraph_ids[1][i] << " ";
+  }
+  std::cout << "\n";
+  // while(rx_packet.subgraph_ids[0][idx] != -1){
+  //   std::cout << rx_packet.subgraph_ids[0][idx] << " ";
+  //   idx++;
+  // }
+  
+  // idx = 0;
+  // std::cout << "min prec " << "\n";
+  // while(rx_packet.subgraph_ids[1][idx] != -1){
+  //   std::cout << rx_packet.subgraph_ids[1][idx] << " ";
+  //   idx++;
+  // }
+}
+
+void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet){
+  for(int runtime_idx=0; runtimes.size(); ++runtime_idx){
+    if(runtimes[runtime_idx]->id == tx_packet.runtime_id){
+      runtime_* working_runtime = runtimes[runtime_idx];
+      if(working_runtime->graph != nullptr){
+        std::cout << "Scheudler: Runtime " << working_runtime->id << 
+                     " already has graph." << "\n";
+        exit(-1);
+      }
+      working_runtime->graph = new subgraph_root;
+      int p_idx = 0;
+      while(tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] != TF_P_END_MASTER){
+        
+        
+        p_idx++;
+      }
     }
   }
 }
@@ -400,7 +425,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
     tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
     tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15; // partitioning ratio
     tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
     tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
@@ -431,15 +456,57 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[8][TF_P_IDX_START]    = TF_P_END_PLAN;
-    tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_MASTER;
+    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_MASTER;
     
-    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
-    // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    // tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
+    tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
+    tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
+    tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    tx_p.partitioning_plan[11][TF_P_IDX_START]    = 9;
+    tx_p.partitioning_plan[11][TF_P_IDX_END]      = 20;
+    tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[11][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[12][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    tx_p.partitioning_plan[13][TF_P_IDX_START]    = 21;
+    tx_p.partitioning_plan[13][TF_P_IDX_END]      = 32;
+    tx_p.partitioning_plan[13][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[13][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[14][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    tx_p.partitioning_plan[15][TF_P_IDX_START]    = 33;
+    tx_p.partitioning_plan[15][TF_P_IDX_END]      = 55;
+    tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[16][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    tx_p.partitioning_plan[17][TF_P_IDX_START]    = 0;
+    tx_p.partitioning_plan[17][TF_P_IDX_END]      = 8;
+    tx_p.partitioning_plan[17][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[17][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    tx_p.partitioning_plan[18][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    tx_p.partitioning_plan[19][TF_P_IDX_START]    = 9;
+    tx_p.partitioning_plan[19][TF_P_IDX_END]      = 20;
+    tx_p.partitioning_plan[19][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[19][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    tx_p.partitioning_plan[20][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    tx_p.partitioning_plan[21][TF_P_IDX_START]    = 21;
+    tx_p.partitioning_plan[21][TF_P_IDX_END]      = 32;
+    tx_p.partitioning_plan[21][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[21][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    tx_p.partitioning_plan[22][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+    // tx_p.partitioning_plan[23][TF_P_IDX_START]    = 33;
+    // tx_p.partitioning_plan[23][TF_P_IDX_END]      = 55;
+    // tx_p.partitioning_plan[23][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    // tx_p.partitioning_plan[23][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    // tx_p.partitioning_plan[24][TF_P_IDX_START]    = TF_P_END_PLAN;
     
-    // tx_p.partitioning_plan[11][TF_P_IDX_START]    = TF_P_END_MASTER;
+    tx_p.partitioning_plan[25][TF_P_IDX_START]    = TF_P_END_MASTER;
 
     //
   }

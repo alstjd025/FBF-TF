@@ -327,7 +327,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
           std::cout << "Height partitioning TEST returned ERROR" << "\n";
           return kTfLiteError;
         }
-        std::cout << "allocate subgraph2 : " << subgraph->GetGraphid() << "\n";
         if(subgraph->AllocateTensors() != kTfLiteOk){
           std::cout << "AllocateTensors after HeightPartitioning returned ERROR" << "\n";
           return kTfLiteError;
@@ -363,9 +362,10 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                 for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
                   int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
                   if(j == 0){
-                    // std::cout << "working subgraph : " << working_subgraph << "\n";
+                    std::cout << "working subgraph : " << working_subgraph << "\n";
                     subgraph_id(working_subgraph)->PushToOutputs(base_tensor);
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
+                    std::cout << "working tensor : " << base_tensor << "\n";
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
@@ -376,6 +376,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                   }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
+                  std::cout << "base tensor : " << base_tensor << "\n";
                   if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
                     subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
                     std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";

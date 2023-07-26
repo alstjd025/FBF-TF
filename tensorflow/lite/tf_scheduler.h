@@ -23,7 +23,11 @@ namespace tflite{
 
 
   typedef struct subgraph_node{
-    int id;
+    int subgraph_id;
+    int co_subgraph_id;
+    int node_start;
+    int node_end;
+    ResourceType type;
     subgraph_node* next =  nullptr;
     subgraph_node* prev =  nullptr;
     subgraph_node* up   =  nullptr;
@@ -31,11 +35,12 @@ namespace tflite{
   }subgraph_node;
 
   typedef struct subgraph_root{
-    subgraph_node* root;
-    int model_id;
+    subgraph_node* root = nullptr;
+    int runtime_id;
   }subgraph_root;
 
   typedef struct runtime_{
+    subgraph_root* graph = nullptr;
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
@@ -70,6 +75,11 @@ namespace tflite{
 
       void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
 
+      // Create a graph of subgraphs.
+      void CreateGraphofSubgraphs(tf_packet& tx_packet);
+
+      void PrepareRuntime(tf_packet& rx_packet);
+
       bool CheckAllRuntimesReady();
 
       bool RoundRobin(ResourceType type, int runtime_id);
@@ -102,7 +112,6 @@ namespace tflite{
     
     // current CPU utlization ratio(average).
     float cpu_util;
-  
   };
 
 }

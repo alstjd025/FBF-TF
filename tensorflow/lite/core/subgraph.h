@@ -228,6 +228,7 @@ class Subgraph {
 
   void SetNextSubgraph(tflite::Subgraph* n) { next_subgraph= n; }
   void SetPrevSubgraph(tflite::Subgraph* p) { prev_subgraph = p; }
+  void SetCoSubgraph(tflite::Subgraph* p) { co_subgraph = p; }
 
   void SetOriginalSubgraph() { is_original = true; }
   bool IsOriginalSubgraph() { return is_original; }

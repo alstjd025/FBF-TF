@@ -479,7 +479,7 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::cout << "===============================" << "\n";
   std::cout << "Minimal precision subgraph created" << "\n";
   std::cout << "===============================" << "\n";
-
+  
 
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
@@ -492,21 +492,15 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   interpreter->GetTotalSubgraphID(full_prec_subgraphs);
   quantized_interpreter->GetTotalSubgraphID(min_prec_subgraphs);
   
-  std::cout << "full_prec_subgraphs.size() : " << full_prec_subgraphs.size() <<"\n";
   for(int i=0; i<full_prec_subgraphs.size(); ++i){
-    std::cout << "id : " << full_prec_subgraphs[i] << " ";
     tx_packet.subgraph_ids[0][i] = full_prec_subgraphs[i];
   }
   tx_packet.subgraph_ids[0][full_prec_subgraphs.size()] = -1;
-  std::cout << "\n";
-  std::cout << "min_prec_subgraphs.size() : " << min_prec_subgraphs.size() <<"\n";
-  for(int i=0; i<min_prec_subgraphs.size(); ++i){
-    std::cout << "id : " << min_prec_subgraphs[i] << " ";
+  for(int i=0; i<min_prec_subgraphs.size(); ++i){  
     tx_packet.subgraph_ids[1][i] = min_prec_subgraphs[i];
   }
   tx_packet.subgraph_ids[1][min_prec_subgraphs.size()] = -1;
-  std::cout << "\n";
-
+  
   if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
@@ -529,10 +523,10 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   
   std::cout << "=====================" << "\n";
   std::cout << "MAX precicion interpreter state" << "\n";
-  // PrintInterpreterStateV3(interpreter);
+  PrintInterpreterStateV3(interpreter);
   std::cout << "=====================" << "\n";
   std::cout << "MIN precicion interpreter state" << "\n";
-  // PrintInterpreterStateV3(quantized_interpreter);
+  PrintInterpreterStateV3(quantized_interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
   return kTfLiteOk;
@@ -566,6 +560,14 @@ TfLiteStatus TfLiteRuntime::PrepareCoExecution(){
       co_subgraph_idx++;
     } 
   }
+
+  // for(int subgraph_idx=0; subgraph_idx < quantized_interpreter->subgraphs_size();
+  //      ++subgraph_idx){
+  //   Subgraph* co_subgraph = quantized_interpreter->subgraph(subgraph_idx);
+  //   if(co_subgraph->GetPartitioningType() != PartitioningType::NO_PARTITIONING){
+      
+  //   }
+  // }
   return kTfLiteOk;
 }
 
@@ -898,102 +900,6 @@ TfLiteStatus TfLiteRuntime::DebugCoInvoke(){
 // TODO : 1. Get subgraph id to invoke from Graphselector.
 //        2. Get system monitoring info from scheduler at each invoke.
 ////////////////////////////////////////////////////////////////////////////////
-// void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
-//   // For prototye, invoke first layer only with HW-partitioning and merge them.
-//   Subgraph* subgraph; 
-//   int subgraph_idx = 0; 
-//   double response_time = 0; 
-//   std::vector<double> latency; 
-//   struct timespec begin, end; 
-//   while(true){
-//     if(type == PrecisionType::MINIMAL_PRECISION){
-//       if(quantized_interpreter->subgraphs_size() < 1){
-//         // std::cout << "No invokable subgraph for cpu" << "\n";
-//         break;
-//       }
-//       // sync with gpu here (notified by gpu)
-//       std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-//       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
-//       invoke_cpu = false;
-//       subgraph = quantized_interpreter->subgraph(subgraph_idx);
-//       if(main_execution_graph != nullptr)
-//         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
-//       // std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
-//       clock_gettime(CLOCK_MONOTONIC, &begin);
-//       if(subgraph->Invoke() != kTfLiteOk){
-//         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
-//         return;
-//       }
-//       clock_gettime(CLOCK_MONOTONIC, &end);
-//       response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-//       latency.push_back(response_time);
-//       // sync with gpu here (wake gpu)
-//       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
-//       is_execution_done = true;
-//       co_execution_graph = subgraph;
-//       data_sync_cv.notify_one();
-//       if(subgraph->GetNextSubgraph() != nullptr)
-//         subgraph_idx++;
-//       else{
-//         WriteVectorLog(latency, 1);
-//         // std::cout << "Minimal precision graph invoke done" << "\n";
-//         break;
-//       }
-//     }else if(type == PrecisionType::MAX_PRECISION){
-//       subgraph = interpreter->subgraph(subgraph_idx);
-//       if(subgraph->GetResourceType() == CO_GPU){
-//         // wake cpu thread here
-//         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-//         invoke_cpu = true;
-//         if(subgraph->GetPrevSubgraph() != nullptr)
-//           main_execution_graph = subgraph;
-//         invoke_sync_cv.notify_one();
-//       }else{ // if not co-execution, it needs additional imtermediate data copy.
-//         if(subgraph->GetPrevSubgraph() != nullptr &&
-//             subgraph->GetPrevSubgraph()->GetResourceType() != ResourceType::CO_GPU){
-//           CopyIntermediateDataIfNeeded(subgraph);
-//         }
-//       }
-//       // std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
-//       clock_gettime(CLOCK_MONOTONIC, &begin);
-//       if(subgraph->Invoke() != kTfLiteOk){
-//         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
-//         return;
-//       }
-//       clock_gettime(CLOCK_MONOTONIC, &end);
-//       response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-//       latency.push_back(response_time);
-//       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
-//         // sync with cpu here
-//         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
-//         data_sync_cv.wait(lock_data, [&]{ return is_execution_done; });
-//         is_execution_done = false;
-//         // data merge here
-//         if(co_execution_graph != nullptr){
-//           MergeCoExecutionData(co_execution_graph, subgraph);
-//           co_execution_graph = nullptr;
-//           // int input_tensor = subgraph->GetNextSubgraph()->GetInputTensorIndex();
-//           // PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
-//         }
-//       }
-//       if(subgraph->GetNextSubgraph() != nullptr){
-//         subgraph_idx++;
-//       }
-//       else{
-//         main_execution_graph = nullptr;
-//         WriteVectorLog(latency, 0);
-//         // std::cout << "Max precision graph invoke done" << "\n";
-//         // PrintyoloOutput(*(subgraph->tensor(109)));
-//         global_output_tensor = subgraph->tensor(subgraph->GetFirstOutputTensorIndex());
-//         break;
-//       }
-//     }
-//   }
-//   return;
-// }
-//////////////////////////////////////////////////////////////////////
-
-// Before modification (original one)
 void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
@@ -1036,6 +942,13 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         break;
       }
     }else if(type == PrecisionType::MAX_PRECISION){
+
+      // Send packet to scheduler (ask for which subgraph to invoke)
+      
+      
+      // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
+      // TODO : Modify interpreterbuilder to link co-execution subgraphs together.
+
       subgraph = interpreter->subgraph(subgraph_idx);
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
