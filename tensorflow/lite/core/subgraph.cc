@@ -1391,7 +1391,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes_2);
   std::vector<float> classifications(num_boxes_2 * 80);
-  float cls_thresh = 0.05; //////////////////////////////////////// 0.02
+  float cls_thresh = 0.3; //////////////////////////////////////// 0.02
   for (int i = 0; i < num_boxes_2; ++i) {
   for (int j = 0; j < 80; ++j) {
     classifications[i * 80 + j] = output_data_2[i * 80 + j];
@@ -1402,6 +1402,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
+      // SOFTMAX 
       if (classifications[i * 80 + j] > cls_thresh){  // hyper-param 0.04
         box_per_conf_count +=1;
         // printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
@@ -1447,7 +1448,7 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
   printf("\033[0;32m233 (localization data):\033[0m \n");
   const float* output_data = (float*)output_tensor->data.data; 
   const int num_boxes = output_tensor->dims->data[1];
-  std::vector<float> boxes(num_boxes * 4);
+  std::vector<float> boxes(num_boxes * 4); // get loc'bbox's vector
   for (int i = 0; i < num_boxes; ++i) {
     boxes[i * 4] = output_data[i * 4];
     boxes[i * 4 + 1] = output_data[i * 4 + 1];
@@ -1461,36 +1462,24 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
       std::vector<float>tmp;
       for(int j=0 ; j < real_bbox_index_vector.size(); j++){
           if(i == real_bbox_index_vector[j]){
-            // ------------------------------------
-            // float x_center_norm = boxes[i*4];
-            // float y_center_norm = boxes[i*4+1];
-            // float width_norm = boxes[i*4+2];
-            // float height_norm = boxes[i*4+3];
-            // int img_size = 416;
-            // float actual_width = width_norm * img_size;
-            // float actual_height = height_norm * img_size;
-            // float actual_x_center = x_center_norm * img_size;
-            // float actual_y_center = y_center_norm * img_size;
-            // int x_min = int(actual_x_center - actual_width / 2);
-            // int y_min = int(actual_y_center - actual_height / 2);
-            // int x_max = int(actual_x_center + actual_width / 2);
-            // int y_max = int(actual_y_center + actual_height / 2);
-            // x_min = std::max(0, x_min);
-            // y_min = std::max(0, y_min);
-            // x_max = std::max(0, x_max);
-            // y_max = std::max(0, y_max);
-            // tmp.push_back(x_min);
-            // tmp.push_back(y_min);
-            // tmp.push_back(x_max);
-            // tmp.push_back(y_max);
-            // -------------------------------------------
+            // TODO
+            std::cout << "real_bbox_index_vector element : " << i << std::endl; //HG
+            float first, second, third, fourth;
+            first = boxes[i*4];
+            second = boxes[i*4+1];
+            third = boxes[i*4+2];
+            fourth = boxes[i*4+3];
+            std::cout << "[0] , [1], [2], [3] : " << first << " " <<second << " " << third << " " << fourth << std::endl;
             float left, top, width, height, right, bottom;
-            left = boxes[i*4];
-            top = boxes[i*4+1];
-            width = boxes[i*4+2];
-            height = boxes[i*4+3];
-            right = left + width;
-            bottom = top + height;
+            left = first;
+            top = second;
+            right = first + third;
+            bottom = second + fourth;
+            int image_size = 416;
+            left = std::max(0.0f, std::min(static_cast<float>(image_size), left));
+            top = std::max(0.0f, std::min(static_cast<float>(image_size), top));
+            right = std::max(0.0f, std::min(static_cast<float>(image_size), right));
+            bottom = std::max(0.0f, std::min(static_cast<float>(image_size), bottom));
             tmp.push_back(left);
             tmp.push_back(top);
             tmp.push_back(right);

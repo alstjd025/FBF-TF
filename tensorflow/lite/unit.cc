@@ -193,6 +193,7 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     time = time / (SEQ * OUT_SEQ);
     printf("Average elepsed time : %.6fs \n", time);
     std::cout << "\n" << "CPU All Jobs Done" << "\n";
+    interpreterCPU->get()->~Interpreter(); // Interpreter clear !!!!
     return kTfLiteOk;
 }
 #endif
@@ -434,6 +435,7 @@ TfLiteStatus UnitGPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     //
     if(print_flag) PrintTest(b_delegation_optimizer);
     //interpreterGPU memory delete
+    interpreterGPU->get()->~Interpreter(); // interpreter clear
     return kTfLiteOk;
 }
 #endif
