@@ -1383,6 +1383,10 @@ std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_b
   return real_bbox_cls_index_vector;
 }
 
+
+
+
+
 void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
   // TfLiteTensor* output_tensor_2 = tensor(211);
   TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
@@ -1391,7 +1395,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes_2);
   std::vector<float> classifications(num_boxes_2 * 80);
-  float cls_thresh = 0.3; //////////////////////////////////////// 0.02
+  float cls_thresh = 0.1; //////////////////////////////////////// should  0.02 < thesh < 0.2
   for (int i = 0; i < num_boxes_2; ++i) {
   for (int j = 0; j < 80; ++j) {
     classifications[i * 80 + j] = output_data_2[i * 80 + j];
@@ -1402,7 +1406,8 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
-      // SOFTMAX 
+      // TODO
+      // do SOFTMAX, and then take cls_thresh 
       if (classifications[i * 80 + j] > cls_thresh){  // hyper-param 0.04
         box_per_conf_count +=1;
         // printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
