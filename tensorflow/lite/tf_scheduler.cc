@@ -107,8 +107,10 @@ void TfScheduler::Work(){
       
       tx_packet.runtime_id = rx_packet.runtime_id;
       tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
-      // CreateGraphofSubgraphs(tx_packet);
       
+      // Not done
+      CreateGraphofSubgraphs(tx_packet);
+      std::cout << "CreateGraphofSubgraphs" << "\n";
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
         printf("errno : %d \n", errno);
@@ -119,12 +121,14 @@ void TfScheduler::Work(){
     case RuntimeState::SUBGRAPH_CREATE :{
       std::cout << "runtime subgraph create" << "\n";
       RefreshRuntimeState(rx_packet);
-      // What to do here???
-      // maybe schedulability check?
 
       tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
       tx_packet.runtime_next_state = RuntimeState::INVOKE_;
+      
+      // not done
+      PrepareRuntime(rx_packet);
+      PrintGraph(rx_packet.runtime_id);
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
         printf("errno : %d \n", errno);
@@ -161,28 +165,49 @@ void TfScheduler::Work(){
 
 void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
   int runtime_id = rx_packet.runtime_id;
+  runtime_* runtime = nullptr;
+  for(int i=0; i<runtimes.size(); ++i){
+    if(runtimes[i]->id == runtime_id)
+      runtime = runtimes[i];
+  }
   // TODO(28caeaf) : Read the subgraph ids from packet and make it as linked-list?
-  // int idx = 0;
-  std::cout << "full prec " << "\n";
-  for(int i=0; i<100; ++i){
-    std::cout << rx_packet.subgraph_ids[0][i] << " ";
+  if(runtime == nullptr){
+    std::cout << "Cannot find matching runtime" << "\n";
+    return;
   }
-  std::cout << "min prec " << "\n";
-  for(int i=0; i<100; ++i){
-    std::cout << rx_packet.subgraph_ids[1][i] << " ";
+  std::vector<int> subgraph_ids;
+  int idx = 0;
+  int co_ex_idx = 0;
+
+  while(rx_packet.subgraph_ids[0][idx] != -1){
+    subgraph_ids.push_back(rx_packet.subgraph_ids[0][idx]);
+    idx++;
   }
-  std::cout << "\n";
-  // while(rx_packet.subgraph_ids[0][idx] != -1){
-  //   std::cout << rx_packet.subgraph_ids[0][idx] << " ";
-  //   idx++;
-  // }
+
+  idx = 0;
   
-  // idx = 0;
-  // std::cout << "min prec " << "\n";
-  // while(rx_packet.subgraph_ids[1][idx] != -1){
-  //   std::cout << rx_packet.subgraph_ids[1][idx] << " ";
-  //   idx++;
-  // }
+  while(rx_packet.subgraph_ids[1][idx] != -1){
+    subgraph_ids.push_back(rx_packet.subgraph_ids[1][idx]);
+    idx++;
+    co_ex_idx = idx;
+  }
+  
+  for(int i=0; i<runtime->graph->nodes.size() - co_ex_idx; ++i){
+    runtime->graph->nodes[i]->subgraph_id = subgraph_ids[i];
+  }
+
+  for(int i=runtime->graph->nodes.size() - co_ex_idx; 
+          i<runtime->graph->nodes.size(); ++i){
+    runtime->graph->nodes[i]->subgraph_id = subgraph_ids[i];
+  }
+
+  if((subgraph_ids.size() - co_ex_idx) != runtime->graph->nodes.size()){
+    std::cout << "Subgraph ids from runtime and existing graph"
+              << " does not match" << "\n";
+    return;
+  }
+
+
 }
 
 void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet){
@@ -194,14 +219,106 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet){
                      " already has graph." << "\n";
         exit(-1);
       }
-      working_runtime->graph = new subgraph_root;
-      int p_idx = 0;
-      while(tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] != TF_P_END_MASTER){
-        
-        
-        p_idx++;
+      // Create new graph structure for current runtime.
+      working_runtime->graph = new subgraph_graph;
+      working_runtime->graph->runtime_id = tx_packet.runtime_id;
+      if(tx_packet.partitioning_plan[0][TF_P_IDX_START] != TF_P_END_MASTER){
+        // Insert first subgraph(root) to graph
+        subgraph_node* new_node = new subgraph_node;
+        new_node->node_start = tx_packet.partitioning_plan[0][TF_P_IDX_START];
+        new_node->node_end = tx_packet.partitioning_plan[0][TF_P_IDX_END];
+        new_node->resource_type = tx_packet.partitioning_plan[0][TF_P_IDX_RESOURCE];
+        new_node->rank = 0;
+        working_runtime->graph->root = new_node;
+        working_runtime->graph->nodes.push_back(new_node);
       }
+      int p_idx = 1;
+      while(tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] != TF_P_END_MASTER){
+        if(tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] == TF_P_END_PLAN){
+          p_idx++;
+          continue;
+        }
+        else{
+          // Add new subgraph node
+          if(!AddSubgraphtoGraph(working_runtime->graph,
+                    tx_packet.partitioning_plan[p_idx][TF_P_IDX_START],
+                    tx_packet.partitioning_plan[p_idx][TF_P_IDX_END],
+                    tx_packet.partitioning_plan[p_idx][TF_P_IDX_RESOURCE])) {
+            std::cout << "AddSubgraphtoGraph ERROR" << "\n";
+            return;
+          }
+          p_idx++;
+        }
+      }
+      return;
     }
+  }
+}
+
+bool TfScheduler::AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
+                                                 int resource_type){
+  subgraph_node* pointer = graph->root;
+  subgraph_node* new_node;  
+  int new_rank = 0;
+  pointer = SearchAndReturnBaseNode(pointer, s_node, e_node, new_rank);
+
+  new_node = new subgraph_node;
+  new_node->node_start = s_node;
+  new_node->node_end   = e_node;
+  new_node->resource_type = resource_type;
+  if(new_rank == 0){ // if rank is 0, just add node at the end of graph. (left to right)
+    pointer->right = new_node; 
+    new_node->left = pointer;
+    new_node->rank = new_rank;
+  }else{                              
+    pointer->down = new_node;         
+    new_node->up = pointer;           
+    new_node->rank = new_rank; 
+  }
+  graph->nodes.push_back(new_node);
+  return true;
+}
+
+// Search the graph structure down to up & left to right.
+subgraph_node* TfScheduler::SearchAndReturnBaseNode(subgraph_node* node, int s_node,
+                                                          int e_node, int& new_rank){ 
+  std::queue<subgraph_node*> node_q;  
+  node_q.push(node);
+  while(!node_q.empty()){
+    if(node->down == nullptr && node->node_start == s_node && node->node_end == e_node){
+      new_rank++;
+      return node;
+    }
+    while(node->down != nullptr){
+      node = node->down;
+      new_rank++;
+      if(node->down == nullptr && node->node_start == s_node && node->node_end == e_node){
+        new_rank++;
+        return node; 
+      }   
+    }     
+    node = node_q.front();
+    node_q.pop();
+    if(node->right != nullptr){
+      node = node->right;
+      new_rank = node->rank;
+      node_q.push(node);
+    }else{
+      return node;
+    }
+  }
+}
+
+void TfScheduler::PrintGraph(int runtime_id){
+  runtime_* runtime = nullptr;
+  for(int i=0; i<runtimes.size(); ++i){
+    if(runtimes[i]->id == runtime_id)
+      runtime = runtimes[i];
+  }
+  std::cout << "Prints subgraphs in runtime " << runtime->graph->runtime_id << "\n";
+  for(int i=0; i<runtime->graph->nodes.size(); ++i){
+    std::cout << "ID " << runtime->graph->nodes[i]->subgraph_id << " ";
+    std::cout << "RANK " << runtime->graph->nodes[i]->rank << "\n";
   }
 }
 
@@ -462,43 +579,38 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
     tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
 
-    tx_p.partitioning_plan[11][TF_P_IDX_START]    = 9;
-    tx_p.partitioning_plan[11][TF_P_IDX_END]      = 20;
+    tx_p.partitioning_plan[10][TF_P_IDX_START]    = 9;
+    tx_p.partitioning_plan[10][TF_P_IDX_END]      = 20;
+    tx_p.partitioning_plan[10][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[10][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+
+    tx_p.partitioning_plan[11][TF_P_IDX_START]    = 21;
+    tx_p.partitioning_plan[11][TF_P_IDX_END]      = 32;
     tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[11][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[12][TF_P_IDX_START]    = TF_P_END_PLAN;
 
-    tx_p.partitioning_plan[13][TF_P_IDX_START]    = 21;
-    tx_p.partitioning_plan[13][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[13][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[13][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[14][TF_P_IDX_START]    = TF_P_END_PLAN;
+    tx_p.partitioning_plan[12][TF_P_IDX_START]    = 33;
+    tx_p.partitioning_plan[12][TF_P_IDX_END]      = 55;
+    tx_p.partitioning_plan[12][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[12][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[13][TF_P_IDX_START]    = TF_P_END_PLAN;
 
-    tx_p.partitioning_plan[15][TF_P_IDX_START]    = 33;
-    tx_p.partitioning_plan[15][TF_P_IDX_END]      = 55;
-    tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[16][TF_P_IDX_START]    = TF_P_END_PLAN;
+    tx_p.partitioning_plan[14][TF_P_IDX_START]    = 0;
+    tx_p.partitioning_plan[14][TF_P_IDX_END]      = 8;
+    tx_p.partitioning_plan[14][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[14][TF_P_IDX_RATIO]    = 15; // partitioning ratio
 
-    tx_p.partitioning_plan[17][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[17][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[17][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[17][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    tx_p.partitioning_plan[18][TF_P_IDX_START]    = TF_P_END_PLAN;
+    tx_p.partitioning_plan[15][TF_P_IDX_START]    = 9;
+    tx_p.partitioning_plan[15][TF_P_IDX_END]      = 20;
+    tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 15; // partitioning ratio
 
-    tx_p.partitioning_plan[19][TF_P_IDX_START]    = 9;
-    tx_p.partitioning_plan[19][TF_P_IDX_END]      = 20;
-    tx_p.partitioning_plan[19][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[19][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    tx_p.partitioning_plan[20][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    tx_p.partitioning_plan[21][TF_P_IDX_START]    = 21;
-    tx_p.partitioning_plan[21][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[21][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[21][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    tx_p.partitioning_plan[22][TF_P_IDX_START]    = TF_P_END_PLAN;
+    tx_p.partitioning_plan[16][TF_P_IDX_START]    = 21;
+    tx_p.partitioning_plan[16][TF_P_IDX_END]      = 32;
+    tx_p.partitioning_plan[16][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[16][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    tx_p.partitioning_plan[17][TF_P_IDX_START]    = TF_P_END_PLAN;
 
     // tx_p.partitioning_plan[23][TF_P_IDX_START]    = 33;
     // tx_p.partitioning_plan[23][TF_P_IDX_END]      = 55;
@@ -506,7 +618,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     // tx_p.partitioning_plan[23][TF_P_IDX_RATIO]    = 15; // partitioning ratio
     // tx_p.partitioning_plan[24][TF_P_IDX_START]    = TF_P_END_PLAN;
     
-    tx_p.partitioning_plan[25][TF_P_IDX_START]    = TF_P_END_MASTER;
+    tx_p.partitioning_plan[18][TF_P_IDX_START]    = TF_P_END_MASTER;
 
     //
   }

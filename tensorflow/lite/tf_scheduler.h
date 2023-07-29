@@ -23,24 +23,39 @@ namespace tflite{
 
 
   typedef struct subgraph_node{
-    int subgraph_id;
-    int co_subgraph_id;
-    int node_start;
-    int node_end;
-    ResourceType type;
-    subgraph_node* next =  nullptr;
-    subgraph_node* prev =  nullptr;
+    /* id of subgraph */
+    int subgraph_id = -1;      
+    
+    /* id of co-execution subgraph (if exists) */
+    int co_subgraph_id = -1;   
+    
+    /* start node of subgraph */
+    int node_start = -1;       
+    
+    /* end node of subgraph */
+    int node_end = -1;         
+    
+    /* resource type of subgraph (CPU, GPU, CO-EX) */
+    int resource_type = -1;    
+
+    /* rank of subgraph in 'graph' (need for maintaining the graph struct)*/
+    int rank = -1;   
+
+    subgraph_node* right =  nullptr;
+    subgraph_node* left =  nullptr;
     subgraph_node* up   =  nullptr;
     subgraph_node* down =  nullptr;
+
   }subgraph_node;
 
-  typedef struct subgraph_root{
+  typedef struct subgraph_graph{
+    std::vector<subgraph_node*> nodes;
     subgraph_node* root = nullptr;
     int runtime_id;
-  }subgraph_root;
+  }subgraph_graph;
 
   typedef struct runtime_{
-    subgraph_root* graph = nullptr;
+    subgraph_graph* graph = nullptr;
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
@@ -78,6 +93,21 @@ namespace tflite{
       // Create a graph of subgraphs.
       void CreateGraphofSubgraphs(tf_packet& tx_packet);
 
+      // Add new graph node to graph.
+      bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
+                              int resource_type);
+
+      // Graph search functions.
+      subgraph_node* SearchAndReturnBaseNode(subgraph_node* node, int s_node,
+                                                    int e_node, int& new_rank);
+      
+      void PrintGraph(int runtime_id);
+
+      // Search and return the subgraph's id to invoke.    
+      std::pair<int, int>& SearchNextSubgraphtoInvoke(int runtime_id);
+
+      // Refresh the whole graph structure of current runtime and finally add
+      // 'id' in them.
       void PrepareRuntime(tf_packet& rx_packet);
 
       bool CheckAllRuntimesReady();
