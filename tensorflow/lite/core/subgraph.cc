@@ -732,7 +732,8 @@ TfLiteStatus Subgraph::AllocateTensors() {
   return kTfLiteOk;
 }
 
-// TODO : Consider better logic for choosing hight, channel partitioning.
+// TODO : Consider better logic for choosing hight, channel partitioning. (CPU)
+// if i use multi delegate, when execute xnnpack weight(30), bias(29) have to be 200 channels (current 1001)
 TfLiteStatus Subgraph::PartitionChannel(){
 	std::vector<int> partitioning_plan;
 	std::vector<float> ratios;
@@ -742,13 +743,13 @@ TfLiteStatus Subgraph::PartitionChannel(){
     if(partitioning_ratios[0] >= 10) // this subgraph is hw
       return kTfLiteOk;
   }
+  std::cout << "execution plan size : " <<execution_plan_.size() << "\n";
 	for (int execution_plan_index = 0;
 			execution_plan_index < execution_plan_.size(); execution_plan_index++) {
 		int node_index = execution_plan_[execution_plan_index];
 		
 		TfLiteNode& node = nodes_and_registration_[node_index].first;
 		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-		
 		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
 			partitioning_plan.push_back(execution_plan_index);
       if(!partitioning_ratios.empty())
@@ -768,13 +769,12 @@ TfLiteStatus Subgraph::PartitionChannel(){
 		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
 
 		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
-			for (int n = 1; n < node.inputs->size; ++n) { //change weight tensor 
+			for (int n = 1; n < node.inputs->size; ++n) { //change weight tensor
 				int tensor_index = node.inputs->data[n];
 				TfLiteTensor& tensor = context_.tensors[tensor_index];
 				void** data = &tensor.data.data;
 				size_t bytes = tensor.bytes;
 				int* dims = (int*)tensor.dims;
-				
 				if (n == 1) {
 					int o = *(dims + 1);
 					int w = *(dims + 2);
@@ -1292,7 +1292,6 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 }
 
 TfLiteStatus Subgraph::Invoke() {
-  //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
   std::vector<double> latency_per_node;
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
@@ -1886,7 +1885,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
       // Runtime filter modification for co-execution
       std::vector<int> partitioning_ratio = GetPartitioningRatio();
       if(partitioning_ratio[0] < 10){  
-        // channel-wise partitioning
+        // channel-wise partitioning(GPU)
         int conv_filter_before_modification = 0;
         int partitioning_plan = partitioning_ratio[0];
         for (int node_index = 0;

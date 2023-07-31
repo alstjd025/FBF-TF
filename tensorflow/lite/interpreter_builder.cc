@@ -449,7 +449,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
     (*interpreter_).lazy_delegate_providers_ =
         op_resolver_.GetDelegates(default_thread);
   }
-
+  
   // Minsung
   // Is this necessary?
   if (ApplyDelegates(interpreter_, default_thread) != kTfLiteOk)
@@ -646,7 +646,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       case ResourceType::CPU:
         // Set this sugraph for cpu subgraph
         new_subgraph->SetResourceType(ResourceType::CPU);
-        new_subgraph->context()->recommended_num_threads = 1;     
+        new_subgraph->context()->recommended_num_threads = 6;    
         break;
       case ResourceType::GPU:
         // Set this sugraph for gpu subgraph
@@ -660,7 +660,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);
-        new_subgraph->context()->recommended_num_threads = 1;     
+        new_subgraph->context()->recommended_num_threads = 6;
         break;
       case ResourceType::CO_GPU:
         new_subgraph->SetResourceType(ResourceType::CO_GPU);
@@ -786,13 +786,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
   }
-  std::cout << "Allocated tensors" << "\n";
-  // Delegate and Partitions-in-channel subgraphs 
-  if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
-    std::cout << "DelegateOldSubgraphs ERROR" << "\n";
-    return kTfLiteError;
-  }
   if(is_sub_interpreter){ // If Co-execution CPU InterpreterBuilder
+  // sj
+  // When do Co-execution, XNNPACK's 2nd subgraph has different weight, bias
     if(PartitionChannels((subgraphs_created)) != kTfLiteOk){
       std::cout << "Partition channel-wise for cpu ERROR" << "\n";
       return kTfLiteError;
@@ -804,6 +800,26 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       return kTfLiteError; // TEST
     }
   }
+  std::cout << "Allocated tensors" << "\n";
+  // Delegate and Partitions-in-channel subgraphs 
+  if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
+    std::cout << "DelegateOldSubgraphs ERROR" << "\n";
+    return kTfLiteError;
+  }
+  // if(is_sub_interpreter){ // If Co-execution CPU InterpreterBuilder
+  // // sj
+  // // When do Co-execution, XNNPACK's 2nd subgraph has different weight, bias
+  //   if(PartitionChannels((subgraphs_created)) != kTfLiteOk){
+  //     std::cout << "Partition channel-wise for cpu ERROR" << "\n";
+  //     return kTfLiteError;
+  //   }
+  //   // need to reallocate if tensor shapes are changed.
+  //   // BUT NEED CHECK
+  //   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){ 
+  //     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
+  //     return kTfLiteError; // TEST
+  //   }
+  // }
   std::cout << "Delegate tensors" << "\n";
   std::cout << "Interpreterbuilder: Subgraphs created" << "\n";
   return kTfLiteOk;
@@ -813,7 +829,10 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
     if(new_subgraph->GetResourceType() == ResourceType::GPU ||
-        new_subgraph->GetResourceType() == ResourceType::CO_GPU){
+        new_subgraph->GetResourceType() == ResourceType::CO_GPU ||
+        // sj, consider for subgraph's resource type
+        new_subgraph->GetResourceType() == ResourceType::CPU ||
+        new_subgraph->GetResourceType() == ResourceType::CO_CPU){
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
@@ -827,7 +846,9 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
 TfLiteStatus InterpreterBuilder::PartitionChannels(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
-    if(new_subgraph->GetResourceType() == ResourceType::CO_CPU){
+    if(new_subgraph->GetResourceType() == ResourceType::CO_CPU ||
+        // sj
+        new_subgraph->GetResourceType() == ResourceType::CPU){
       if(new_subgraph->PartitionChannel() != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
                    << " Partition in channel-wise" << "\n";

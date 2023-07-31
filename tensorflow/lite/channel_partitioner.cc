@@ -61,7 +61,7 @@ void KmContext::channelPartitioning(std::vector<int>& partitioning_plan, std::ve
 		}
 
 		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
-			for (int n = 1; n < node.inputs->size; ++n) { //change weight tensor 
+			for (int n = 1; n < node.inputs->size; ++n) {
 				int tensor_index = node.inputs->data[n];
 				TfLiteTensor& tensor = context_->tensors[tensor_index];
 				void** data = &tensor.data.data;

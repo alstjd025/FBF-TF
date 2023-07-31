@@ -489,6 +489,13 @@ class Interpreter {
   // Currently only one deldegate.
   TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate);
 
+  // sj
+  // overloading
+  TfLiteStatus RegisterDelegate(std::vector<TfLiteDelegate*> delegate);
+
+  // sj
+  std::vector<TfLiteDelegate*> delegate_provided_v;
+
   // Owning handle to a TfLiteDelegate instance.
   using TfLiteDelegatePtr =
       std::unique_ptr<TfLiteDelegate, void (*)(TfLiteDelegate*)>;
@@ -874,6 +881,10 @@ class Interpreter {
   // GPU Delegate
   bool is_gpu_delegate_prepared = false;
 
+  // sj
+  // XNNPACK Delegate
+  bool is_xnn_delegate_prepared = false;
+
   // Minsung
   // Jobs
   // these two variable shares same job's pointer
@@ -899,6 +910,7 @@ class Interpreter {
   // Minsung
   // Delegate
   TfLiteDelegate* delegate_provided_ = nullptr;
+
   int test_value = 0;
   // Minsung
   // Subgraphs

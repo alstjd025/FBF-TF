@@ -2854,7 +2854,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
       
     if(registration->builtin_code == 0 || registration->builtin_code == 18){ //check if ADD or mullayer
     // if(false){ //check if ADD layer
-        printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
+        printf("FOUND AN ADD or MUL or SQUEEZE LAYER... MAKE FALLBACK\n");
         return false;
     }else{
       if (!status.ok()) {
