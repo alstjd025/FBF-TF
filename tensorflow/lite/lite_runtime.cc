@@ -903,6 +903,7 @@ TfLiteStatus TfLiteRuntime::DebugCoInvoke(){
 void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
+  Subgraph* prev_subgraph;
   int subgraph_idx = 0;
   double response_time = 0; 
   std::vector<double> latency;
@@ -919,7 +920,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
       invoke_cpu = false;
-      subgraph = quantized_interpreter->subgraph(subgraph_idx);
+      subgraph = quantized_interpreter->subgraph(co_subgraph_id);
       if(main_execution_graph != nullptr)
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
       // std::cout << "[Minimal precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
@@ -944,7 +945,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         break;
       }
     }else if(type == PrecisionType::MAX_PRECISION){
-
       // TODO(dff3f) : Send packet to scheduler (ask for which subgraph to invoke)
       tf_packet tx_packet;
       memset(&tx_packet, 0, sizeof(tf_packet));
@@ -958,10 +958,15 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
         return;
       }
-      
+      subgraph_id = rx_packet.subgraph_ids[0][0];
+      if(rx_packet.subgraph_ids[0][1] != -1)
+        co_subgraph_id = rx_packet.subgraph_ids[0][1];
+      std::cout << "Got id " << subgraph_id << " " << co_subgraph_id << " from scheduler" << "\n";
 
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
-      subgraph = interpreter->subgraph(subgraph_idx);
+      subgraph = interpreter->subgraph_id(subgraph_id);
+      
+      // subgraph = interpreter->subgraph(subgraph_idx);
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
@@ -975,7 +980,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           CopyIntermediateDataIfNeeded(subgraph);
         }
       }
-      // std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";

@@ -69,7 +69,7 @@ void LiteSysMonitor::GetCPUUtilization() {
       }
     }
     fclose(f);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 }
 
@@ -77,7 +77,7 @@ void LiteSysMonitor::GetCPUUtilization() {
 // Uses tegrastats
 void LiteSysMonitor::GetGPUUtilization(){
   std::string data, cmd;
-  cmd = "tegrastats --interval 10";
+  cmd = "tegrastats --interval 1";
   FILE* stream;
   const int max_buffer = 512;
   char buffer[max_buffer];

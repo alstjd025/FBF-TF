@@ -143,16 +143,18 @@ void TfScheduler::Work(){
       RefreshRuntimeState(rx_packet);
       tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
+      tx_packet.runtime_next_state = RuntimeState::INVOKE_;
 
       std::pair<int, int> next_subgraph_to_invoke;
       next_subgraph_to_invoke = SearchNextSubgraphtoInvoke(rx_packet);
+      tx_packet.subgraph_ids[0][0] = next_subgraph_to_invoke.first;
+      tx_packet.subgraph_ids[1][0] = next_subgraph_to_invoke.second;
 
-      
-      // if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
-      //   std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
-      //   printf("errno : %d \n", errno);
-      //   return;
-      // }
+      if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
+        std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
+        printf("errno : %d \n", errno);
+        return;
+      }
       break;
     }
     default:
@@ -161,7 +163,7 @@ void TfScheduler::Work(){
   }
 }
 
-std::pair<int, int>& TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet){
+std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet){
   std::pair<int, int> next_subgraphs_to_invoke;
   int runtime_id = rx_packet.runtime_id;
   runtime_* runtime = nullptr;
@@ -180,11 +182,11 @@ std::pair<int, int>& TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packe
   subgraph_node* root_graph = runtime->graph->root;
   subgraph_node* prev_invoked_subgraph = nullptr;
   subgraph_node* prev_base_subgraph = nullptr;
+    printf("cpu : %f \n", *cpu_util);
+    printf("gpu : %f \n", *gpu_util);
   if(rx_packet.cur_subgraph == -1){ // first invoke
     // search graph struct for optimal invokable subgraph.
     // and return it. 
-    printf("cpu : %f \n", *cpu_util);
-    printf("gpu : %f \n", *gpu_util);
     // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization ratio raises shortly.
     
     // Set root graph for first graph.
@@ -196,41 +198,54 @@ std::pair<int, int>& TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packe
     prev_base_subgraph = prev_invoked_subgraph;
     while(prev_base_subgraph->up != nullptr){
       prev_base_subgraph = prev_invoked_subgraph->up;
-    }
+    } 
   }
   
   subgraph_node* next_base_subgraph = nullptr;
   subgraph_node* next_subgraph_to_invoke = nullptr;
 
-  if(prev_base_subgraph->right == nullptr){ // case of final subgraph.
+  // case of final or first subgraph.
+  if(prev_base_subgraph->right == nullptr || rx_packet.cur_subgraph == -1){ 
     next_base_subgraph = root_graph; 
   }else{
     next_base_subgraph = prev_base_subgraph->right;
   }
-
+  
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
+  // ISSUE ,MUST FIX (07b4f) : Consider he gpu utilization ratio delay.  
+  std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
+  std::cout << "set next_subgraph_to_invoke resource_type " << next_subgraph_to_invoke->resource_type << "\n";
   while(next_subgraph_to_invoke != nullptr){
     if(*gpu_util > gpu_thresh && *cpu_util < cpu_thresh){
       // Use CPU
+      std::cout << "Use cpu" << "\n";
       next_resource_plan = TF_P_PLAN_CPU;
     }else if(*gpu_util < gpu_thresh && *cpu_util > cpu_thresh){
       // Use GPU
       next_resource_plan = TF_P_PLAN_GPU;
+      std::cout << "Use gpu" << "\n";
     }else if(*gpu_util > gpu_thresh && *cpu_util > cpu_thresh){
       // Use Co-execution
       next_resource_plan = TF_P_PLAN_CO_E;
+      std::cout << "Use CO execution" << "\n";
     }else{
       // base plan
+      std::cout << "base plan" << "\n";
       next_resource_plan = next_base_subgraph->resource_type;
     }
+  
     if(next_subgraph_to_invoke->resource_type == next_resource_plan)
       break;
+  
     if(next_subgraph_to_invoke->down != nullptr)
       next_subgraph_to_invoke = next_subgraph_to_invoke->down;
+  
   }
+  
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
+  
   return next_subgraphs_to_invoke;
 }
 
