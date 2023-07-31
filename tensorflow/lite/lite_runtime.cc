@@ -945,8 +945,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       }
     }else if(type == PrecisionType::MAX_PRECISION){
 
-      // Send packet to scheduler (ask for which subgraph to invoke)
-      // Working on 55adb8
+      // TODO(dff3f) : Send packet to scheduler (ask for which subgraph to invoke)
       tf_packet tx_packet;
       memset(&tx_packet, 0, sizeof(tf_packet));
       tx_packet.runtime_id = runtime_id;
@@ -962,8 +961,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       
 
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
-      // TODO : Modify interpreterbuilder to link co-execution subgraphs together.
-
       subgraph = interpreter->subgraph(subgraph_idx);
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
@@ -1384,6 +1381,8 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
   return; 
 }
 
+
+// TODO (dff3f) : Must change to get previous subgraph with graph id.
 void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
   // use source_graph_id, dest_graph_id
   auto connect = [&](int source_subgraph, int dest_subgraph) {

@@ -98,9 +98,14 @@ namespace tflite{
                               int resource_type);
 
       // Graph search functions.
+      // Search the graph structure down to up & left to right.
+      // This function returns pointer of 'base node'....
       subgraph_node* SearchAndReturnBaseNode(subgraph_node* node, int s_node,
                                                     int e_node, int& new_rank);
       
+      // Search and return pointer of subgraph_node with given id and root. 
+      subgraph_node* SearchAndReturnNodeWithID(subgraph_node* root, int id);
+
       void PrintGraph(int runtime_id);
 
       // Search and return the subgraph's id to invoke.    
@@ -138,10 +143,10 @@ namespace tflite{
     std::queue<int> rr_gpu_queue;
 
     // current GPU utlization ratio.
-    float gpu_util;
+    float* gpu_util;
     
     // current CPU utlization ratio(average).
-    float cpu_util;
+    float* cpu_util;
   };
 
 }

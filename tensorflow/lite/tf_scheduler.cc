@@ -25,6 +25,8 @@ TfScheduler::TfScheduler(const char* uds_file_name) {
     std::cout << "Socket bind ERROR" << "\n";
     exit(-1);
   }
+  cpu_util = new float;
+  gpu_util = new float;
   std::cout << "Scheduler initializaing done" << "\n";
 };
 
@@ -54,7 +56,7 @@ void TfScheduler::SysMonitor(){
 }
 
 void TfScheduler::Work(){
-  monitor = new LiteSysMonitor(&cpu_util, &gpu_util);
+  monitor = new LiteSysMonitor(cpu_util, gpu_util);
   while(1){
     tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
@@ -146,11 +148,11 @@ void TfScheduler::Work(){
       next_subgraph_to_invoke = SearchNextSubgraphtoInvoke(rx_packet);
 
       
-      if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
-        std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
-        printf("errno : %d \n", errno);
-        return;
-      }
+      // if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
+      //   std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
+      //   printf("errno : %d \n", errno);
+      //   return;
+      // }
       break;
     }
     default:
@@ -160,6 +162,7 @@ void TfScheduler::Work(){
 }
 
 std::pair<int, int>& TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet){
+  std::pair<int, int> next_subgraphs_to_invoke;
   int runtime_id = rx_packet.runtime_id;
   runtime_* runtime = nullptr;
   for(int i=0; i<runtimes.size(); ++i){
@@ -171,10 +174,64 @@ std::pair<int, int>& TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packe
               << "\n";
     exit(-1);
   }
+
+  int gpu_thresh = 70;
+  int cpu_thresh = 70;
+  subgraph_node* root_graph = runtime->graph->root;
+  subgraph_node* prev_invoked_subgraph = nullptr;
+  subgraph_node* prev_base_subgraph = nullptr;
   if(rx_packet.cur_subgraph == -1){ // first invoke
     // search graph struct for optimal invokable subgraph.
     // and return it. 
+    printf("cpu : %f \n", *cpu_util);
+    printf("gpu : %f \n", *gpu_util);
+    // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization ratio raises shortly.
+    
+    // Set root graph for first graph.
+    prev_invoked_subgraph = root_graph;
+    prev_base_subgraph = root_graph;
+  }else{
+    // Search and return prev invoked subgraph with it's id.
+    prev_invoked_subgraph = SearchAndReturnNodeWithID(root_graph, rx_packet.cur_subgraph);
+    prev_base_subgraph = prev_invoked_subgraph;
+    while(prev_base_subgraph->up != nullptr){
+      prev_base_subgraph = prev_invoked_subgraph->up;
+    }
   }
+  
+  subgraph_node* next_base_subgraph = nullptr;
+  subgraph_node* next_subgraph_to_invoke = nullptr;
+
+  if(prev_base_subgraph->right == nullptr){ // case of final subgraph.
+    next_base_subgraph = root_graph; 
+  }else{
+    next_base_subgraph = prev_base_subgraph->right;
+  }
+
+  int next_resource_plan = -1;
+  next_subgraph_to_invoke = next_base_subgraph;
+  while(next_subgraph_to_invoke != nullptr){
+    if(*gpu_util > gpu_thresh && *cpu_util < cpu_thresh){
+      // Use CPU
+      next_resource_plan = TF_P_PLAN_CPU;
+    }else if(*gpu_util < gpu_thresh && *cpu_util > cpu_thresh){
+      // Use GPU
+      next_resource_plan = TF_P_PLAN_GPU;
+    }else if(*gpu_util > gpu_thresh && *cpu_util > cpu_thresh){
+      // Use Co-execution
+      next_resource_plan = TF_P_PLAN_CO_E;
+    }else{
+      // base plan
+      next_resource_plan = next_base_subgraph->resource_type;
+    }
+    if(next_subgraph_to_invoke->resource_type == next_resource_plan)
+      break;
+    if(next_subgraph_to_invoke->down != nullptr)
+      next_subgraph_to_invoke = next_subgraph_to_invoke->down;
+  }
+  next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
+  next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
+  return next_subgraphs_to_invoke;
 }
 
 
@@ -324,6 +381,25 @@ subgraph_node* TfScheduler::SearchAndReturnBaseNode(subgraph_node* node, int s_n
       return node;
     }
   }
+}
+
+subgraph_node* TfScheduler::SearchAndReturnNodeWithID(subgraph_node* root, int id){
+  std::queue<subgraph_node*> node_q;  
+  node_q.push(root);
+  subgraph_node* node = nullptr;
+  while(!node_q.empty()){
+    node = node_q.front();
+    node_q.pop();
+    if(node->right != nullptr)
+      node_q.push(node->right);
+    while(node != nullptr){
+      if(node->subgraph_id == id)
+        return node;
+      node = node->down;
+    }
+  }
+  std::cout << "Cannot find matching subgraph in graph" << "\n";
+  return nullptr;
 }
 
 void TfScheduler::PrintGraph(int runtime_id){

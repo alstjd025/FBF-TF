@@ -88,13 +88,13 @@ void LiteSysMonitor::GetGPUUtilization(){
         data.append(buffer);
       }
       int delimiter = data.find("GR3D_FREQ");
-      std::string front = data.substr(delimiter+5);
-      delimiter = front.find('%');
-      front = front.substr(0, delimiter);
-      delimiter = front.find(' ');
-      front = front.substr(delimiter+1);
-      // std::cout << "GPU : " << front << "\n";
-      *gpu_util_ = std::stoi(front);
+      std::string front = data.substr(delimiter+5); 
+      delimiter = front.find('%'); 
+      front = front.substr(0, delimiter); 
+      delimiter = front.find(' '); 
+      front = front.substr(delimiter+1); 
+      // std::cout << "GPU : " << front << "\n"; 
+      *gpu_util_ = std::stoi(front); 
       // std::cout << "GPU Usage: "<< *gpu_util_ << "% \n"; 
       data.clear();
     }
