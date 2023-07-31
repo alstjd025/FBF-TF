@@ -204,8 +204,13 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
   subgraph_node* next_base_subgraph = nullptr;
   subgraph_node* next_subgraph_to_invoke = nullptr;
 
-  // case of final or first subgraph.
-  if(prev_base_subgraph->right == nullptr || rx_packet.cur_subgraph == -1){ 
+  // case of final subgraph
+  if(prev_base_subgraph->right == nullptr){
+    next_subgraphs_to_invoke.first = -1;
+    next_subgraphs_to_invoke.second = -1;
+    return next_subgraphs_to_invoke;
+  } // case of first subgraph
+  else if(rx_packet.cur_subgraph == -1){
     next_base_subgraph = root_graph; 
   }else{
     next_base_subgraph = prev_base_subgraph->right;
@@ -213,34 +218,34 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
   
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
-  // ISSUE ,MUST FIX (07b4f) : Consider he gpu utilization ratio delay.  
+  // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.  
   std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
   std::cout << "set next_subgraph_to_invoke resource_type " << next_subgraph_to_invoke->resource_type << "\n";
-  while(next_subgraph_to_invoke != nullptr){
-    if(*gpu_util > gpu_thresh && *cpu_util < cpu_thresh){
-      // Use CPU
-      std::cout << "Use cpu" << "\n";
-      next_resource_plan = TF_P_PLAN_CPU;
-    }else if(*gpu_util < gpu_thresh && *cpu_util > cpu_thresh){
-      // Use GPU
-      next_resource_plan = TF_P_PLAN_GPU;
-      std::cout << "Use gpu" << "\n";
-    }else if(*gpu_util > gpu_thresh && *cpu_util > cpu_thresh){
-      // Use Co-execution
-      next_resource_plan = TF_P_PLAN_CO_E;
-      std::cout << "Use CO execution" << "\n";
-    }else{
-      // base plan
-      std::cout << "base plan" << "\n";
-      next_resource_plan = next_base_subgraph->resource_type;
-    }
   
+  if(*gpu_util > gpu_thresh && *cpu_util < cpu_thresh){
+    // Use CPU
+    std::cout << "Use cpu" << "\n";
+    next_resource_plan = TF_P_PLAN_CPU;
+  }else if(*gpu_util < gpu_thresh && *cpu_util > cpu_thresh){
+    // Use GPU
+    std::cout << "Use gpu" << "\n";
+    next_resource_plan = TF_P_PLAN_GPU;
+  }else if(*gpu_util > gpu_thresh && *cpu_util > cpu_thresh){
+    // Use Co-execution
+    std::cout << "Use Co-execution" << "\n";
+    next_resource_plan = TF_P_PLAN_CO_E;
+  }else{
+    // base plan
+    std::cout << "base plan" << "\n";
+    next_resource_plan = next_base_subgraph->resource_type;
+  }
+  
+  // Search for matching subgraph.
+  while(next_subgraph_to_invoke != nullptr){
     if(next_subgraph_to_invoke->resource_type == next_resource_plan)
       break;
-  
     if(next_subgraph_to_invoke->down != nullptr)
       next_subgraph_to_invoke = next_subgraph_to_invoke->down;
-  
   }
   
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;

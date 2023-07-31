@@ -459,7 +459,7 @@ class InferenceRunnerImpl : public InferenceRunner {
     #ifdef latency_measure
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
-
+    
     RETURN_IF_ERROR(runtime_->command_queue()->Flush());
     if (output_to_cpu_) {
       RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());

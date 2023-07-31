@@ -903,13 +903,14 @@ TfLiteStatus TfLiteRuntime::DebugCoInvoke(){
 void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
-  Subgraph* prev_subgraph;
+  
   int subgraph_idx = 0;
   double response_time = 0; 
   std::vector<double> latency;
   struct timespec begin, end;
   int subgraph_id = -1;
   int co_subgraph_id = -1;
+  int prev_subgraph_id = -1;
   while(true){
     if(type == PrecisionType::MINIMAL_PRECISION){
       if(quantized_interpreter->subgraphs_size() < 1){
@@ -945,7 +946,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         break;
       }
     }else if(type == PrecisionType::MAX_PRECISION){
-      // TODO(dff3f) : Send packet to scheduler (ask for which subgraph to invoke)
       tf_packet tx_packet;
       memset(&tx_packet, 0, sizeof(tf_packet));
       tx_packet.runtime_id = runtime_id;
@@ -958,11 +958,14 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
         return;
       }
+      if(rx_packet.subgraph_ids[0][1] == -1){
+        std::cout << "Max precision graph invoke done" << "\n";
+        break;
+      }
       subgraph_id = rx_packet.subgraph_ids[0][0];
       if(rx_packet.subgraph_ids[0][1] != -1)
         co_subgraph_id = rx_packet.subgraph_ids[0][1];
       std::cout << "Got id " << subgraph_id << " " << co_subgraph_id << " from scheduler" << "\n";
-
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
       
@@ -975,9 +978,10 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           main_execution_graph = subgraph;
         invoke_sync_cv.notify_one();
       }else{ // if not co-execution, it needs additional imtermediate data copy.
-        if(subgraph->GetPrevSubgraph() != nullptr &&
-            subgraph->GetPrevSubgraph()->GetResourceType() != ResourceType::CO_GPU){
-          CopyIntermediateDataIfNeeded(subgraph);
+        // TODO (f4a6e): change to use subgraph id.
+        if(prev_subgraph_id != -1 && 
+           subgraph->GetPrevSubgraph()->GetResourceType() != ResourceType::CO_GPU){
+          CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id);
         }
       }
       std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
@@ -987,7 +991,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         return;
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
-      response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
       latency.push_back(response_time);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
@@ -1002,6 +1006,8 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           // PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
         }
       }
+      prev_subgraph_id = subgraph_id;
+      // TODO (f4a6e): change to use subgraph id.
       if(subgraph->GetNextSubgraph() != nullptr){
         subgraph_idx++;
       }
@@ -1386,8 +1392,6 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
   return; 
 }
 
-
-// TODO (dff3f) : Must change to get previous subgraph with graph id.
 void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
   // use source_graph_id, dest_graph_id
   auto connect = [&](int source_subgraph, int dest_subgraph) {
@@ -1450,6 +1454,67 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
   } else {  // if nulltpr returned
     return;
   }
+  return;
+}
+
+void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_subgraph_id) {
+  // use source_graph_id, dest_graph_id
+  auto connect = [&](int source_subgraph, int dest_subgraph) {
+    Subgraph* source_graph = interpreter->subgraph_id(source_subgraph);
+    Subgraph* dest_graph = interpreter->subgraph_id(dest_subgraph);
+    std::vector<int> dest_tensor_indices; 
+    TfLiteIntArray* source_tensor_idx = source_graph->GetOutputTensorIndices();
+    TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
+    for(int i=0; i<input_tensor_indices->size; ++i){
+      for(int j=0; j<source_tensor_idx->size; ++j){
+        if(source_tensor_idx->data[j] == input_tensor_indices->data[i])
+          dest_tensor_indices.push_back(input_tensor_indices->data[i]);
+      }
+    }
+    if(dest_tensor_indices.empty()){
+      std::cout << "Output tensor of subgraph [" << source_subgraph << "] cannot"
+                << " found a matching input tensor in subgraph ["
+                << dest_subgraph << "]\n";
+      return kTfLiteError;
+    }
+    for(int i=0; i<dest_tensor_indices.size(); ++i){
+      TfLiteTensor* source_tensor = source_graph->tensor(dest_tensor_indices[i]);
+      TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_indices[i]);
+      size_t source_byte_size = source_tensor->bytes;
+      size_t dest_byte_size = dest_tensor->bytes;
+      if (source_byte_size != dest_byte_size) {
+        std::cout << "Source tensor[" << dest_tensor_indices[i] << "] size "
+                  << static_cast<int>(source_byte_size) << " and Dest tensor["
+                  << dest_tensor_indices[i] << "] size "
+                  << static_cast<int>(dest_byte_size) << " missmatch!"
+                  << "\n";
+        return kTfLiteError;
+      }
+      // PrintTensorSerial(*dest_tensor);
+      
+      if(source_tensor->type == kTfLiteFloat32 && dest_tensor->type == kTfLiteFloat32){
+        // auto data_source = (float*)source_tensor->data.data;
+        // auto data_dest = (float*)dest_tensor->data.data;
+        // memcpy(data_dest, data_source, source_byte_size);
+        dest_tensor->data.data = source_tensor->data.data;
+      }else if(source_tensor->type == kTfLiteInt8 && dest_tensor->type == kTfLiteInt8){
+        // auto data_source = (int8_t*)source_tensor->data.data;
+        // auto data_dest = (int8_t*)dest_tensor->data.data;
+        // memcpy(data_dest, data_source, source_byte_size);
+        dest_tensor->data.data = source_tensor->data.data;
+      }
+      // std::cout << "Copied intermediate data" << "\n";
+    }
+    return kTfLiteOk;
+  };
+  int source_graph_id = prev_subgraph_id;
+  int dest_graph_id = subgraph->GetGraphid();
+  if (connect(source_graph_id, dest_graph_id) != kTfLiteOk) {
+    std::cout << "Subgraph intermediate data copy failed"
+              << "\n";
+    return;
+  }
+
   return;
 }
 

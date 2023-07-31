@@ -106,6 +106,11 @@ class TfLiteRuntime{
     // Merge output(which is intermediate in the view of whole task)
     // data from previous subgraph.
     void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
+    
+    
+    // Merge output(which is intermediate in the view of whole task)
+    // data from previous subgraph (with id).
+    void CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_subgraph_id);
 
     // Merge output(which is intermediate in the view of whole task)
     // data from full precision subgraph.
