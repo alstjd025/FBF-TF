@@ -141,14 +141,11 @@ void TfScheduler::Work(){
       RefreshRuntimeState(rx_packet);
       tf_packet tx_packet;
       tx_packet.runtime_id = rx_packet.runtime_id;
-      if(RoundRobin(static_cast<ResourceType>(rx_packet.cur_graph_resource), rx_packet.runtime_id)){
-        // resource available
-        tx_packet.runtime_next_state = RuntimeState::INVOKE_;
-        std::cout << "Give resource to runtime " << rx_packet.runtime_id << "\n";
-      }else{ // resource not available
-        tx_packet.runtime_next_state = RuntimeState::BLOCKED_;
-        std::cout << "Block runtime " << rx_packet.runtime_id << "\n";
-      }
+
+      std::pair<int, int> next_subgraph_to_invoke;
+      next_subgraph_to_invoke = SearchNextSubgraphtoInvoke(rx_packet);
+
+      
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
         printf("errno : %d \n", errno);
@@ -162,6 +159,24 @@ void TfScheduler::Work(){
   }
 }
 
+std::pair<int, int>& TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet){
+  int runtime_id = rx_packet.runtime_id;
+  runtime_* runtime = nullptr;
+  for(int i=0; i<runtimes.size(); ++i){
+    if(runtimes[i]->id == runtime_id)
+      runtime = runtimes[i];
+  }
+  if(runtime == nullptr){
+    std::cout << "Cannot find matching runtime in SearchNextSubgraphtoInvoke()"
+              << "\n";
+    exit(-1);
+  }
+  if(rx_packet.cur_subgraph == -1){ // first invoke
+    // search graph struct for optimal invokable subgraph.
+    // and return it. 
+  }
+}
+
 
 void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
   int runtime_id = rx_packet.runtime_id;
@@ -172,12 +187,12 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
   }
   // TODO(28caeaf) : Read the subgraph ids from packet and make it as linked-list?
   if(runtime == nullptr){
-    std::cout << "Cannot find matching runtime" << "\n";
-    return;
+    std::cout << "Cannot find matching runtime in PrepareRuntime()" << "\n";
+    exit(-1);
   }
   std::vector<int> subgraph_ids;
   int idx = 0;
-  int co_ex_idx = 0;
+  int num_co_subs = 0;
 
   while(rx_packet.subgraph_ids[0][idx] != -1){
     subgraph_ids.push_back(rx_packet.subgraph_ids[0][idx]);
@@ -189,19 +204,21 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
   while(rx_packet.subgraph_ids[1][idx] != -1){
     subgraph_ids.push_back(rx_packet.subgraph_ids[1][idx]);
     idx++;
-    co_ex_idx = idx;
+    num_co_subs++;
   }
-  
-  for(int i=0; i<runtime->graph->nodes.size() - co_ex_idx; ++i){
+  // Register main subgraphs
+  for(int i=0; i<subgraph_ids.size()-num_co_subs; ++i){
     runtime->graph->nodes[i]->subgraph_id = subgraph_ids[i];
   }
 
-  for(int i=runtime->graph->nodes.size() - co_ex_idx; 
-          i<runtime->graph->nodes.size(); ++i){
-    runtime->graph->nodes[i]->subgraph_id = subgraph_ids[i];
+
+  // Register Co subgraphs
+  for(int i=subgraph_ids.size() - num_co_subs; 
+          i<subgraph_ids.size(); ++i){
+    runtime->graph->nodes[i - num_co_subs]->co_subgraph_id = subgraph_ids[i];
   }
 
-  if((subgraph_ids.size() - co_ex_idx) != runtime->graph->nodes.size()){
+  if((subgraph_ids.size() - num_co_subs) != runtime->graph->nodes.size()){
     std::cout << "Subgraph ids from runtime and existing graph"
               << " does not match" << "\n";
     return;
@@ -315,9 +332,11 @@ void TfScheduler::PrintGraph(int runtime_id){
     if(runtimes[i]->id == runtime_id)
       runtime = runtimes[i];
   }
+  
   std::cout << "Prints subgraphs in runtime " << runtime->graph->runtime_id << "\n";
   for(int i=0; i<runtime->graph->nodes.size(); ++i){
-    std::cout << "ID " << runtime->graph->nodes[i]->subgraph_id << " ";
+    std::cout << "Main subgraph ID " << runtime->graph->nodes[i]->subgraph_id << " ";
+    std::cout << "Co subgraph ID " << runtime->graph->nodes[i]->co_subgraph_id << " ";
     std::cout << "RANK " << runtime->graph->nodes[i]->rank << "\n";
   }
 }

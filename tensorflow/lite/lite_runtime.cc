@@ -907,6 +907,8 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   double response_time = 0; 
   std::vector<double> latency;
   struct timespec begin, end;
+  int subgraph_id = -1;
+  int co_subgraph_id = -1;
   while(true){
     if(type == PrecisionType::MINIMAL_PRECISION){
       if(quantized_interpreter->subgraphs_size() < 1){
@@ -944,8 +946,21 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
     }else if(type == PrecisionType::MAX_PRECISION){
 
       // Send packet to scheduler (ask for which subgraph to invoke)
+      // Working on 55adb8
+      tf_packet tx_packet;
+      memset(&tx_packet, 0, sizeof(tf_packet));
+      tx_packet.runtime_id = runtime_id;
+      tx_packet.runtime_current_state = state;
+      tx_packet.cur_subgraph = subgraph_id;
+      if(SendPacketToScheduler(tx_packet) != kTfLiteOk){ // Request invoke permission to scheduler
+        return;
+      }
+      tf_packet rx_packet;
+      if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
+        return;
+      }
       
-      
+
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       // TODO : Modify interpreterbuilder to link co-execution subgraphs together.
 
