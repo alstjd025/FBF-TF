@@ -853,6 +853,7 @@ class Interpreter {
   // Subgraphs
   std::vector<std::unique_ptr<Subgraph>> subgraphs_;
   std::vector<std::shared_ptr<Subgraph>> subgraphs_shared;
+  std::unique_ptr<Subgraph> primary_subgraph_;
 
   // Minsung
   // Subgraph subsets

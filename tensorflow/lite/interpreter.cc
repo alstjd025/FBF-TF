@@ -369,6 +369,8 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
           if(shared_tensor_and_graph_->model_id == model_id){
             for(int i=0; i<shared_tensor_and_graph_->pair_tensor_graph.size(); ++i){
               int base_tensor = shared_tensor_and_graph_->pair_tensor_graph[i].first;
+              std::cout << "base_tensor : " << base_tensor << "\n";
+              std::cout << input_tensor_begin_idx << " " << input_tensor_end_idx << "\n";
               if(base_tensor >= input_tensor_begin_idx && base_tensor <= input_tensor_end_idx){
                 TfLiteTensor* working_tensor;
                 std::vector<int> match_dims;
@@ -377,7 +379,8 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                   if(j == 0){
                     subgraph_id(working_subgraph)->PushToOutputs(base_tensor);
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
-                    std::cout << "got working tensor " << base_tensor << " on graph " << working_subgraph << "\n"; 
+                    std::cout << "subgraph " << working_subgraph << 
+                          "push to outputs : " << base_tensor << "\n";
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
@@ -385,9 +388,12 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                     // MUST FIX. REDUNDUNT INPUT, OUTPUT TENSOR!!
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
                     subgraph_id(working_subgraph)->PushToInputs(base_tensor);
+                    std::cout << "subgraph " << working_subgraph << 
+                               "push to inputs : " << base_tensor << "\n";
                   }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
+                  // Subject to change (14540) : no more use ReplaceBufferofSameDims().
                   // if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
                   //   subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
                   //   std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";
@@ -427,13 +433,14 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id
   TfLiteIntArray* execution_plan = TfLiteIntArrayCreate(0);
   int input_subgraph_id;
   int last_subgraph_id;
-  for(auto subset : subgraph_subsets){
-    if(subset.first == model_id){
-      subgraph_id(subset.second[0])->GetExecutionPlanSafe(&execution_plan);
-      input_subgraph_id = subset.second[0];
-      last_subgraph_id = subset.second.back();
-    }
-  }
+  // for(auto subset : subgraph_subsets){
+  //   if(subset.first == model_id){
+  //     subgraph_id(subset.second[0])->GetExecutionPlanSafe(&execution_plan);
+  //     input_subgraph_id = subset.second[0];
+  //     last_subgraph_id = subset.second.back();
+  //   }
+  // }
+  primary_subgraph_->GetExecutionPlanSafe(&execution_plan);
   if(execution_plan->size < 0){
     std::cout << "[ERROR] Execution Plan size < 0 in subgraph 0" << "\n";
     return kTfLiteError;
@@ -442,7 +449,7 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id
   TfLiteRegistration* registration;
   // First, get first node's output tensor index.
   int first_execution_plan = execution_plan->data[0];
-  if(subgraph_id(input_subgraph_id)->GetNodeAndRegistration(
+  if(primary_subgraph_->GetNodeAndRegistration(
         first_execution_plan, &node, &registration) != kTfLiteOk)
     return kTfLiteError;
   *begin = node->outputs->data[0];  
@@ -454,16 +461,16 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(int model_id
   // idices are in ascending order, we can get intermediate tensors range.
   if(subgraphs_size() > 1){   // If interpreter has more than one subgraph.
     TfLiteIntArray* execution_plan;
-    subgraph_id(last_subgraph_id)->GetExecutionPlanSafe(&execution_plan);
+    primary_subgraph_->GetExecutionPlanSafe(&execution_plan);
     int last_execution_plan = execution_plan->data[execution_plan->size - 1];
-    if(subgraph_id(last_subgraph_id)->GetNodeAndRegistration(
+    if(primary_subgraph_->GetNodeAndRegistration(
         last_execution_plan, &node, &registration) != kTfLiteOk)
               return kTfLiteError;
     *end = node->outputs->data[0];
     TfLiteIntArrayFree(execution_plan);
   }else{  // Or interpreter has only one subgraph
     int last_execution_plan = execution_plan->data[execution_plan->size - 1];
-    if(subgraph_id(input_subgraph_id)->GetNodeAndRegistration(
+    if(primary_subgraph_->GetNodeAndRegistration(
           last_execution_plan, &node, &registration) != kTfLiteOk)
       return kTfLiteError;
     *end = node->outputs->data[0];
@@ -843,7 +850,7 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id){
   LockJobs();
   for(size_t i=0; i<subgraphs_.size(); ++i){
     if(subgraphs_[i]->GetGraphid() == subgraph_id){
-      std::cout << "Delete subgraph of id " << subgraphs_[i]->GetGraphid() << "\n"; 
+      primary_subgraph_ = std::move(subgraphs_[i]);
       subgraphs_.erase(subgraphs_.begin()+i);
     }
   }

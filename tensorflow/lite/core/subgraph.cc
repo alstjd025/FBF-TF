@@ -958,6 +958,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   return kTfLiteOk;
 }
 
+// This function is deprecated.
+// No more use. 
 TfLiteStatus Subgraph::ReplaceBufferofSameDims(TfLiteTensor* source,
                                               TfLiteTensor* dest){
   if(source->dims->size != dest->dims->size){
@@ -1386,12 +1388,12 @@ TfLiteStatus Subgraph::Invoke() {
       struct timespec begin, end;
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
-    std::cout << "OpInvoke " << GetOpName(registration) << "\n";
+    // std::cout << "OpInvoke " << GetOpName(registration) << "\n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-    std::cout << "OpInvoke Done" << "\n";
+  
     #ifdef LATENCY_MEASURE
       clock_gettime(CLOCK_MONOTONIC, &end);
       if(strcmp(GetOpName(registration), "DELEGATE")){

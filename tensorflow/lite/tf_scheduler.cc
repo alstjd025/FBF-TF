@@ -251,6 +251,11 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
       next_subgraph_to_invoke = next_subgraph_to_invoke->down;
       std::cout << "2next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
       std::cout << "2next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
+    }else{
+      next_subgraph_to_invoke = next_base_subgraph;
+      std::cout << "3next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
+      std::cout << "3next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
+      break;
     }
   }
   

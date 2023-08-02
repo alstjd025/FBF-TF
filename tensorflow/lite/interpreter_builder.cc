@@ -758,7 +758,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     temp->model_id = model_id_;
     (interpreter_)->shared_tensor_and_graph.push_back(temp);
   }
-  // Delete old subgraphs 
+  // Delete old subgraph and move it to interpreter's primary subgraph.
   if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
       != kTfLiteOk){
     std::cout << "DeleteSubgraph ERROR" << "\n";
