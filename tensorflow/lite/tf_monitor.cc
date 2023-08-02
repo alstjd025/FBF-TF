@@ -73,33 +73,60 @@ void LiteSysMonitor::GetCPUUtilization() {
   }
 }
 
-// For jetson platforms only.
-// Uses tegrastats
-void LiteSysMonitor::GetGPUUtilization(){
-  std::string data, cmd;
-  cmd = "tegrastats --interval 1";
-  FILE* stream;
-  const int max_buffer = 512;
-  char buffer[max_buffer];
-  stream = popen(cmd.c_str(), "r");
-  if (stream) {
-    while (!feof(stream)) {
-      if (fgets(buffer, max_buffer, stream) != NULL) {
-        data.append(buffer);
-      }
-      int delimiter = data.find("GR3D_FREQ");
-      std::string front = data.substr(delimiter+5); 
-      delimiter = front.find('%'); 
-      front = front.substr(0, delimiter); 
-      delimiter = front.find(' '); 
-      front = front.substr(delimiter+1); 
-      // std::cout << "GPU : " << front << "\n"; 
-      *gpu_util_ = std::stoi(front); 
-      // std::cout << "GPU Usage: "<< *gpu_util_ << "% \n"; 
-      data.clear();
+void LiteSysMonitor::GetGPUUtilization() {
+  struct cpuusage prev = {0};
+  const int stat = open("/sys/devices/gpu.0/load", O_RDONLY);
+  assert(stat != -1);
+  fcntl(stat, F_SETFL, O_NONBLOCK);
+  while (1) {
+    // let's read everything in one call so it's nicely synced.
+    int r = lseek(stat, SEEK_SET, 0);
+    assert(r != -1);
+    char buffer[8];
+    const ssize_t readed = read(stat, buffer, sizeof(buffer) - 1);
+    assert(readed != -1);
+    buffer[readed] = '\0';
+    // Read the values from the readed buffer/
+    FILE* f = fmemopen(buffer, readed, "r");
+    // Uch, so much borign typing.
+    int percentage = 0;
+    while (fscanf(f, "%llu", &percentage)) {
+      *gpu_util_ = percentage / 10;
+      // std::cout << "GPU Usage: " << *gpu_util_ << "% \n"; 
+      break;
     }
-    pclose(stream);
+    fclose(f);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 }
+
+// For jetson platforms only.
+// Uses tegrastats
+// void LiteSysMonitor::GetGPUUtilization(){
+//   std::string data, cmd;
+//   cmd = "tegrastats --interval 1";
+//   FILE* stream;
+//   const int max_buffer = 512;
+//   char buffer[max_buffer];
+//   stream = popen(cmd.c_str(), "r");
+//   if (stream) {
+//     while (!feof(stream)) {
+//       if (fgets(buffer, max_buffer, stream) != NULL) {
+//         data.append(buffer);
+//       }
+//       int delimiter = data.find("GR3D_FREQ");
+//       std::string front = data.substr(delimiter+5); 
+//       delimiter = front.find('%'); 
+//       front = front.substr(0, delimiter); 
+//       delimiter = front.find(' '); 
+//       front = front.substr(delimiter+1); 
+//       // std::cout << "GPU : " << front << "\n"; 
+//       *gpu_util_ = std::stoi(front); 
+//       std::cout << "GPU Usage: "<< *gpu_util_ << "% \n"; 
+//       data.clear();
+//     }
+//     pclose(stream);
+//   }
+// }
 
 } // namespace tflite

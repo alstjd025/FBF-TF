@@ -971,7 +971,11 @@ TfLiteStatus Subgraph::ReplaceBufferofSameDims(TfLiteTensor* source,
       return kTfLiteError;
     } 
   } 
+  printf("dest : %p ", dest->data.data);
+  printf("source : %p \n", source->data.data);
   dest->data.data = source->data.data;
+  printf("dest : %p ", dest->data.data);
+  printf("source : %p \n", source->data.data);
   return kTfLiteOk;
 }
 
@@ -1382,10 +1386,12 @@ TfLiteStatus Subgraph::Invoke() {
       struct timespec begin, end;
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
+    std::cout << "OpInvoke " << GetOpName(registration) << "\n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
+    std::cout << "OpInvoke Done" << "\n";
     #ifdef LATENCY_MEASURE
       clock_gettime(CLOCK_MONOTONIC, &end);
       if(strcmp(GetOpName(registration), "DELEGATE")){

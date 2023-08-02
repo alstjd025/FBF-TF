@@ -709,19 +709,16 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     }// Partitioning iteration ends
     // "Job is deprecated"
     tflite::Job* new_job = new tflite::Job;
-    std::cout << "11" << "\n";
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "BindSubgraphWithJob ERROR" << "\n";
       return kTfLiteError;
     }
-    std::cout << "22" << "\n";
     if(RegisterJobAndSubgraphs(subgraphs_created, new_job) !=
         kTfLiteOk){
       std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
       return kTfLiteError;
     }
-    std::cout << "33" << "\n";
     interpreter_->PrintSubgraphInfo(); 
     std::cout << "RegisterJobAndSubgraphs" << "\n";
     // Fill shared tensor bucket  
@@ -746,6 +743,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       if(sharing_subgraph_id.size() > 1){
         pair_tensor_graph.first = t;        // tensor index
         pair_tensor_graph.second = sharing_subgraph_id; // subgraph id
+        std::cout << "make shared tensor and subgraph" << "\n";
+        std::cout << "tensor : " << pair_tensor_graph.first << "\n";
+        std::cout << "subgraph : ";
+        for(int v=0; v<pair_tensor_graph.second.size(); ++v)
+          std::cout << pair_tensor_graph.second[v] << " ";
+        std::cout << "\n";
         shared_info.push_back(pair_tensor_graph);
       }
       sharing_subgraph_id.clear();

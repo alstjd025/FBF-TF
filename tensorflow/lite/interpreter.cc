@@ -352,6 +352,19 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
           std::cout << "GetIntermediateTensorRangeWithGraphSubset ERROR" << "\n";
           return kTfLiteError;
         }
+        // Debug print
+        // for(int k=0; k<shared_tensor_and_graph.size(); ++k){
+        //   if(shared_tensor_and_graph[k]->model_id == model_id){
+        //     for(int i=0; i<shared_tensor_and_graph[k]->pair_tensor_graph.size(); ++i){
+        //       std::cout << "tensor : " << shared_tensor_and_graph[k]->pair_tensor_graph[i].first << "\n";
+        //       std::cout << "subgraphs : ";
+        //       for(int j=0; j<shared_tensor_and_graph[k]->pair_tensor_graph[i].second.size(); ++j){
+        //         std::cout << shared_tensor_and_graph[k]->pair_tensor_graph[i].second[j] << " ";
+        //       }
+        //       std::cout << "\n";
+        //     }
+        //   }
+        // }
         for(auto shared_tensor_and_graph_ : shared_tensor_and_graph){
           if(shared_tensor_and_graph_->model_id == model_id){
             for(int i=0; i<shared_tensor_and_graph_->pair_tensor_graph.size(); ++i){
@@ -362,10 +375,9 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                 for(int j=0; j<shared_tensor_and_graph_->pair_tensor_graph[i].second.size(); ++j){
                   int working_subgraph = shared_tensor_and_graph_->pair_tensor_graph[i].second[j];
                   if(j == 0){
-                    std::cout << "working subgraph : " << working_subgraph << "\n";
                     subgraph_id(working_subgraph)->PushToOutputs(base_tensor);
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
-                    std::cout << "working tensor : " << base_tensor << "\n";
+                    std::cout << "got working tensor " << base_tensor << " on graph " << working_subgraph << "\n"; 
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
@@ -376,12 +388,11 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                   }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
-                  std::cout << "base tensor : " << base_tensor << "\n";
-                  if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
-                    subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
-                    std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";
-                    return kTfLiteError;
-                  }
+                  // if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
+                  //   subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
+                  //   std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";
+                  //   return kTfLiteError;
+                  // }
                 }
                 working_tensor = nullptr;
                 match_dims.clear();

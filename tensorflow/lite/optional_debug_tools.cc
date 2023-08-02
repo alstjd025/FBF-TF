@@ -294,6 +294,7 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
            TensorTypeName(tensor->type),
            AllocTypeName(tensor->allocation_type), tensor->bytes,
            (static_cast<float>(tensor->bytes) / (1 << 20)));
+      printf("%p ", tensor->data.data);
       PrintTfLiteIntVector(tensor->dims);
     }
     printf("\n");

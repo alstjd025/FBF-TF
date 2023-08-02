@@ -202,6 +202,7 @@ class TfLiteRuntime{
 
     // must do readonly works on this object.
     Subgraph* co_execution_graph = nullptr;
+    int co_subgraph_id = -1;
 
     // must do readonly works on this object.
     Subgraph* main_execution_graph = nullptr;

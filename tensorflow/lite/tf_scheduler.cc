@@ -182,8 +182,6 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
   subgraph_node* root_graph = runtime->graph->root;
   subgraph_node* prev_invoked_subgraph = nullptr;
   subgraph_node* prev_base_subgraph = nullptr;
-    printf("cpu : %f \n", *cpu_util);
-    printf("gpu : %f \n", *gpu_util);
   if(rx_packet.cur_subgraph == -1){ // first invoke
     // search graph struct for optimal invokable subgraph.
     // and return it. 
@@ -219,9 +217,9 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.  
-  std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
-  std::cout << "set next_subgraph_to_invoke resource_type " << next_subgraph_to_invoke->resource_type << "\n";
-  
+  // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  printf("cpu : %f \n", *cpu_util);
+  printf("gpu : %f \n", *gpu_util);
   if(*gpu_util > gpu_thresh && *cpu_util < cpu_thresh){
     // Use CPU
     std::cout << "Use cpu" << "\n";
@@ -240,14 +238,26 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
     next_resource_plan = next_base_subgraph->resource_type;
   }
   
+  // TODO (f85fa) : Fix graph searching, especially in co-execution.
   // Search for matching subgraph.
   while(next_subgraph_to_invoke != nullptr){
-    if(next_subgraph_to_invoke->resource_type == next_resource_plan)
+    std::cout << "while.." << "\n";
+    if(next_subgraph_to_invoke->resource_type == next_resource_plan){
+      std::cout << "1next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
+      std::cout << "1next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
       break;
-    if(next_subgraph_to_invoke->down != nullptr)
+    }
+    if(next_subgraph_to_invoke->down != nullptr){
       next_subgraph_to_invoke = next_subgraph_to_invoke->down;
+      std::cout << "2next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
+      std::cout << "2next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
+    }
   }
   
+  std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
+  std::cout << "set next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
+  std::cout << "set next_subgraph_to_invoke resource_type " << next_subgraph_to_invoke->resource_type << "\n";
+  next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
   
@@ -288,7 +298,6 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
     runtime->graph->nodes[i]->subgraph_id = subgraph_ids[i];
   }
 
-
   // Register Co subgraphs
   for(int i=subgraph_ids.size() - num_co_subs; 
           i<subgraph_ids.size(); ++i){
@@ -300,7 +309,6 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
               << " does not match" << "\n";
     return;
   }
-
 
 }
 
@@ -404,6 +412,7 @@ subgraph_node* TfScheduler::SearchAndReturnBaseNode(subgraph_node* node, int s_n
 }
 
 subgraph_node* TfScheduler::SearchAndReturnNodeWithID(subgraph_node* root, int id){
+  std::cout << "search for " << id << " sub" << "\n";
   std::queue<subgraph_node*> node_q;  
   node_q.push(root);
   subgraph_node* node = nullptr;
