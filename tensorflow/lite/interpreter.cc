@@ -380,7 +380,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                     subgraph_id(working_subgraph)->PushToOutputs(base_tensor);
                     working_tensor = subgraph_id(working_subgraph)->tensor(base_tensor);
                     std::cout << "subgraph " << working_subgraph << 
-                          "push to outputs : " << base_tensor << "\n";
+                          " push to outputs : " << base_tensor << "\n";
                     match_dims = subgraph_id(working_subgraph)->GetTensorShape(base_tensor);
                   }
                   else{
@@ -389,7 +389,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                     subgraph_id(working_subgraph)->ResizeInputTensor(base_tensor, match_dims);
                     subgraph_id(working_subgraph)->PushToInputs(base_tensor);
                     std::cout << "subgraph " << working_subgraph << 
-                               "push to inputs : " << base_tensor << "\n";
+                               " push to inputs : " << base_tensor << "\n";
                   }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;

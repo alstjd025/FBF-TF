@@ -959,7 +959,9 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       }
       if(rx_packet.subgraph_ids[0][0] == -1){
         std::cout << "Max precision graph invoke done" << "\n";
-        break;
+        subgraph_id = -1;
+        prev_subgraph_id = -1;
+        continue;
       }
       subgraph_id = rx_packet.subgraph_ids[0][0];
       if(rx_packet.subgraph_ids[1][0] != -1)
@@ -968,17 +970,14 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
       
-      // subgraph = interpreter->subgraph(subgraph_idx);
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
-        // TODO (f4a6e): change to use subgraph id.
         if(prev_subgraph_id != -1)
           main_execution_graph = subgraph;
         invoke_sync_cv.notify_one();
       }else{ // if not co-execution, it needs additional imtermediate data copy.
-        // TODO (f4a6e): change to use subgraph id.
         if(prev_subgraph_id != -1 && 
            interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() != ResourceType::CO_GPU){
           std::cout << "CopyIntermediateDataIfNeeded" << "\n";

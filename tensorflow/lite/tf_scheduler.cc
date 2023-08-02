@@ -234,34 +234,27 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
     next_resource_plan = TF_P_PLAN_CO_E;
   }else{
     // base plan
-    std::cout << "base plan" << "\n";
+    std::cout << "Use base plan" << "\n";
     next_resource_plan = next_base_subgraph->resource_type;
   }
   
   // TODO (f85fa) : Fix graph searching, especially in co-execution.
   // Search for matching subgraph.
   while(next_subgraph_to_invoke != nullptr){
-    std::cout << "while.." << "\n";
     if(next_subgraph_to_invoke->resource_type == next_resource_plan){
-      std::cout << "1next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
-      std::cout << "1next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
       break;
     }
     if(next_subgraph_to_invoke->down != nullptr){
       next_subgraph_to_invoke = next_subgraph_to_invoke->down;
-      std::cout << "2next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
-      std::cout << "2next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
     }else{
       next_subgraph_to_invoke = next_base_subgraph;
-      std::cout << "3next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
-      std::cout << "3next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
       break;
     }
   }
   
-  std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
-  std::cout << "set next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
-  std::cout << "set next_subgraph_to_invoke resource_type " << next_subgraph_to_invoke->resource_type << "\n";
+  // std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
+  // std::cout << "set next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
+  // std::cout << "set next_subgraph_to_invoke resource_type " << next_subgraph_to_invoke->resource_type << "\n";
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
