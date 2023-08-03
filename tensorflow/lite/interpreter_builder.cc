@@ -831,7 +831,7 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
     if(new_subgraph->GetResourceType() == ResourceType::GPU ||
         new_subgraph->GetResourceType() == ResourceType::CO_GPU ||
         // sj, consider for subgraph's resource type
-        new_subgraph->GetResourceType() == ResourceType::CPU ||
+        // new_subgraph->GetResourceType() == ResourceType::CPU ||
         new_subgraph->GetResourceType() == ResourceType::CO_CPU){
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){

@@ -673,18 +673,36 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id){
         if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
             subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
           status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
-        else status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(1));
         break;
       case 2:
         if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
             subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
           status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
-        else status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(1));
-        break;
       case 3:
-        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CPU)
-          status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(1));
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
+            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
+          status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
+      case 4:
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
+            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
+          status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
+      case 5:
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
+            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
+          status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
         break;
+      case 6:
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
+            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
+          status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
+      case 7:
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
+            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
+          status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
+      case 8:
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
+            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
+          status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
       default:
         break;
     } 
@@ -694,17 +712,15 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id){
     std::cout << "resource type : " << subgraph_id(graph_id)->GetResourceType() <<"\n";
     switch(graph_id){
       case 1:
-        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CPU ||
-            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_CPU)
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_CPU)
           status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
         break;
       case 2:
-        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CPU ||
-            subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_CPU)
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_CPU)
           status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
         break;
       case 3:
-        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CPU)
+        if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_CPU)
           status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
         break;
       default:

@@ -3,8 +3,8 @@
 #include "tensorflow/lite/lite_scheduler.h"
 
 // #define cpu
-#define gpu
-// #define dynamic
+// #define gpu
+#define dynamic
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"

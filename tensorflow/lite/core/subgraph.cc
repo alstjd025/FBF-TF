@@ -916,7 +916,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     //     padd_with_dummy = 0;
     //     break;
     //   }
-      int padd_with_dummy = (h - padd) + int((h - padd) * 0.2);
+      int padd_with_dummy = (h - padd) + int((h - padd) * 0.4);
       new_dims[1] = padd_with_dummy;
       pointer_offset = o * padd_with_dummy * w;
       data_pointer += pointer_offset;
