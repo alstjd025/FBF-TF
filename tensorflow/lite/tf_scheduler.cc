@@ -409,7 +409,10 @@ subgraph_node* TfScheduler::SearchAndReturnBaseNode(subgraph_node* node, int s_n
   }
 }
 
+// TODO(d9a62) : Search for 13,14 sub?
+
 subgraph_node* TfScheduler::SearchAndReturnNodeWithID(subgraph_node* root, int id){
+  std::cout << "got root " << root->subgraph_id << "\n";
   std::cout << "search for " << id << " sub" << "\n";
   std::queue<subgraph_node*> node_q;  
   node_q.push(root);
