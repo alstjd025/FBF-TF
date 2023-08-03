@@ -120,6 +120,12 @@ class TfLiteRuntime{
     void MergeCoExecutionData(Subgraph* min_precision_subgraph
                             , Subgraph* max_precision_subgraph);
 
+    
+    // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
+    void MergeCoExecutionData(int prev_sub_subgraph
+                            , int prev_main_subgraph
+                            , int dest_subgraph_);
+
     // Quantize given tensor
     // (This function changes the entire metadata to uint8)
     TfLiteStatus QuantizeGivenTensor(TfLiteTensor* tensor);

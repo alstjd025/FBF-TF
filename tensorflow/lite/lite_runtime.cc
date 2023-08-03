@@ -910,6 +910,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   struct timespec begin, end;
   int subgraph_id = -1;
   int prev_subgraph_id = -1;
+  int prev_co_subgraph_id = -1;
   while(true){
     if(type == PrecisionType::MINIMAL_PRECISION){
       if(quantized_interpreter->subgraphs_size() < 1){
@@ -964,6 +965,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         std::cout << "Max precision graph invoke done" << "\n";
         subgraph_id = -1;
         prev_subgraph_id = -1;
+        prev_co_subgraph_id = -1;
         main_execution_graph = nullptr;
         continue;
       }
@@ -973,6 +975,14 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       std::cout << "Got id " << subgraph_id << " " << co_subgraph_id << " from scheduler" << "\n";
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
+      
+      // if previous subgraph was co-execution, merge co-exectuion data here?
+      if(prev_subgraph_id != subgraph_id && prev_subgraph_id != -1 &&
+          interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() == CO_GPU){
+        std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id << 
+                  " " << subgraph_id << "\n";
+        MergeCoExecutionData(prev_subgraph_id, prev_co_subgraph_id, subgraph_id);
+      }
       
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
@@ -1004,10 +1014,12 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         data_sync_cv.wait(lock_data, [&]{ return is_execution_done; });
         is_execution_done = false;
         // data merge here
+        // TODO (8bbac0) : Must refactor merge logic. (to use subgraph id)
         if(co_execution_graph != nullptr){
-          std::cout << "MergeCoExecutionData" << "\n";
-          MergeCoExecutionData(co_execution_graph, subgraph);
-          std::cout << "MergeCoExecutionData Done" << "\n";
+          prev_co_subgraph_id = co_subgraph_id;
+          // std::cout << "MergeCoExecutionData" << "\n";
+          // MergeCoExecutionData(co_execution_graph, subgraph);
+          // std::cout << "MergeCoExecutionData Done" << "\n";
           co_execution_graph = nullptr;
           // int input_tensor = subgraph->GetNextSubgraph()->GetInputTensorIndex();
           // PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
@@ -1249,6 +1261,163 @@ void TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
   Subgraph* dest_subgraph;
   // TODO (d9a62d) : Fix to use subgraph id.
   dest_subgraph = max_precision_subgraph->GetNextSubgraph();
+  if(dest_subgraph == nullptr){
+    std::cout << "MergeCoExecutionData ERROR" << "\n";
+    std::cout << "dest_subgraph nullptr." << "\n";
+    return;
+  }
+  std::vector<int> dest_tensor_indicies = 
+                              dest_subgraph->inputs();
+
+  int dest_tensor_idx = dest_subgraph->GetInputTensorIndex();
+  int min_precision_tensor_idx = min_precision_subgraph->GetFirstOutputTensorIndex(); // for uint model
+  int max_precision_tensor_idx = max_precision_subgraph->GetFirstOutputTensorIndex();
+  int dequant_reference_tensor_idx = 0;
+  
+  // std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
+  //               " max id : " << max_precision_subgraph->GetGraphid() << "\n";
+  // std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
+  //             << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
+  TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
+  TfLiteTensor* min_precision_tensor = 
+                  min_precision_subgraph->tensor(min_precision_tensor_idx);
+  TfLiteTensor* max_precision_tensor = 
+                  max_precision_subgraph->tensor(max_precision_tensor_idx);
+             
+  int quantization_param_tensor_idx =  
+                  min_precision_subgraph->GetFirstInputTensorIndex();
+  TfLiteTensor* dequant_reference_tensor = nullptr;
+  if(min_precision_subgraph->tensor(quantization_param_tensor_idx)->quantization.type
+    == kTfLiteAffineQuantization){
+    dequant_reference_tensor = min_precision_subgraph->tensor(quantization_param_tensor_idx);
+  }else{
+    quantization_param_tensor_idx= max_precision_subgraph->GetFirstInputTensorIndex();
+    dequant_reference_tensor = max_precision_subgraph->tensor(quantization_param_tensor_idx); 
+  }
+            
+  if(dest_tensor == nullptr || min_precision_tensor == nullptr ||
+      max_precision_tensor == nullptr){
+    std::cout << "MergeCoExecutionData ERROR" << "\n";
+    std::cout << "Tensor NULLPTR" << "\n";
+    return;
+  }
+
+  if(dest_tensor->dims->size < 4 || min_precision_tensor->dims->size < 4 ||
+      max_precision_tensor->dims->size < 4){
+    std::cout << "MergeCoExecutionData ERROR" << "\n";
+    std::cout << "Tensor rank must 4" << "\n";
+    return;
+  }
+  // This flag means that the tensor is de-quantized temporary for merge.
+  // Restore to the original buffer after merge.
+  float* dequantized_buffer = nullptr;
+
+  if(min_precision_tensor->type == kTfLiteUInt8 || 
+      min_precision_tensor->type == kTfLiteInt8 ){
+    dequantized_buffer = (float*)DequantizeGivenTensorWithReference(
+                                  min_precision_tensor, 
+                                  dequant_reference_tensor);
+    if(dequantized_buffer == nullptr){
+      std::cout << "DeQuantizeGivenTensor returned nullptr ERROR" << "\n";
+      return;
+    }
+  }
+  // minimum precision side data buffer.
+  float* data_min; 
+  if(dequantized_buffer != nullptr){
+    data_min = dequantized_buffer;
+  }else{
+    data_min = (float*)min_precision_tensor->data.data;
+  }
+  // max precision side data buffer.
+  float* data_max = (float*)max_precision_tensor->data.data;
+  
+  // destination buffer.
+  float* data_dest = (float*)dest_tensor->data.data;
+
+  // check dims 
+  if(dest_tensor->dims->data[3] == 
+      min_precision_tensor->dims->data[3] + max_precision_tensor->dims->data[3]){
+    // Merge CW-partitioned data 
+    int dest_ch, min_tensor_ch, max_tensor_ch;
+    dest_ch = dest_tensor->dims->data[3];
+    min_tensor_ch = min_precision_tensor->dims->data[3];
+    max_tensor_ch = max_precision_tensor->dims->data[3];
+    // std::cout << "min_tensor_ch " << min_tensor_ch << " max_tensor_ch " << max_tensor_ch << "\n";
+    if((min_tensor_ch + max_tensor_ch) != dest_ch){
+      std::cout << "Tensor dim [OCH] min_prec + max_prec != dest ERROR" << "\n";
+      return;
+    }
+    int tensor_data_size = 1;
+    for(int i=0; i<dest_tensor->dims->size; ++i){
+      tensor_data_size *= dest_tensor->dims->data[i];
+    }
+    // WRONG MERGE
+    // WRONG MERGE
+    // WRONG MERGE
+    // Note : max pricision side is front channel.
+    int tensor_data_per_ch = tensor_data_size / dest_ch;
+    for(int i=0; i<tensor_data_per_ch; ++i){ //copy minimum precision side data
+      memcpy(data_dest + (dest_ch * i), data_max + (max_tensor_ch * i),
+              max_tensor_ch * sizeof(float));
+    }
+    
+    for(int i=0; i<tensor_data_per_ch; ++i){ //copy minimum precision side data
+      memcpy(data_dest + max_tensor_ch + (dest_ch * i), data_min + (min_tensor_ch * i),
+              min_tensor_ch * sizeof(float));
+    }
+    
+  }else{ // Merge HW-partitioned data
+    int dest_ht = dest_tensor->dims->data[1];
+    int min_tensor_ht = min_precision_tensor->dims->data[1];
+    int max_tensor_ht = max_precision_tensor->dims->data[1];
+    int tensor_dest_data_size = 1;
+    int min_precision_data_size = 1;
+    int max_precision_data_size = 1;
+
+    // Calculate data size to copy.
+    for(int i=0; i<dest_tensor->dims->size; ++i){
+      tensor_dest_data_size *= dest_tensor->dims->data[i];
+    }
+    for(int i=0; i<max_precision_tensor->dims->size; ++i){
+      max_precision_data_size *= max_precision_tensor->dims->data[i];
+    }
+    for(int i=0; i<min_precision_tensor->dims->size; ++i){
+      min_precision_data_size *= min_precision_tensor->dims->data[i];
+    }
+    // Need to drop padding data before merge if it's not fit with destination tensor.
+    // Drop minimum precision data because it is dequantized and might drop accuracy.
+    if((min_tensor_ht + max_tensor_ht) != dest_ht){
+      float drop_height = (dest_ht - (min_tensor_ht + max_tensor_ht))/(-2);
+      if(drop_height < 0){
+        std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
+        std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<
+              " h: " << min_tensor_ht << 
+              " max sub: " << max_precision_subgraph->GetGraphid() << 
+              " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
+        return;
+      }
+      memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);
+      memcpy(data_dest+max_precision_data_size, data_min, 
+              sizeof(float)*(tensor_dest_data_size - min_precision_data_size));
+    }else{  // No need to drop (fits with destination tensor).
+      memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);
+      memcpy(data_dest+max_precision_data_size, data_min, 
+              sizeof(float)*min_precision_data_size);
+    }
+  }
+  return; 
+}
+
+
+void TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
+                                        , int prev_main_subgraph
+                                        , int dest_subgraph_){
+  // std::cout << "Merge" << "\n";
+  Subgraph* min_precision_subgraph = interpreter->subgraph_id(prev_sub_subgraph);
+  Subgraph* max_precision_subgraph = interpreter->subgraph_id(prev_main_subgraph);
+  Subgraph* dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
+  // TODO (d9a62d) : Fix to use subgraph id.
   if(dest_subgraph == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
     std::cout << "dest_subgraph nullptr." << "\n";

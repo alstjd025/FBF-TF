@@ -194,8 +194,8 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
     // Search and return prev invoked subgraph with it's id.
     prev_invoked_subgraph = SearchAndReturnNodeWithID(root_graph, rx_packet.cur_subgraph);
     prev_base_subgraph = prev_invoked_subgraph;
-    while(prev_base_subgraph->up != nullptr){
-      prev_base_subgraph = prev_invoked_subgraph->up;
+    while(prev_base_subgraph->up != nullptr){ 
+      prev_base_subgraph = prev_base_subgraph->up;
     } 
   }
   
@@ -409,11 +409,7 @@ subgraph_node* TfScheduler::SearchAndReturnBaseNode(subgraph_node* node, int s_n
   }
 }
 
-// TODO(d9a62) : Search for 13,14 sub?
-
 subgraph_node* TfScheduler::SearchAndReturnNodeWithID(subgraph_node* root, int id){
-  std::cout << "got root " << root->subgraph_id << "\n";
-  std::cout << "search for " << id << " sub" << "\n";
   std::queue<subgraph_node*> node_q;  
   node_q.push(root);
   subgraph_node* node = nullptr;
