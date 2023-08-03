@@ -1321,7 +1321,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   real_bbox_loc_vector.clear();
   // printf("\nHOON : after heuristic NMS... \n ");
   make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
-  SOFTMAX(real_bbox_cls_vector);
+  // SOFTMAX_2(real_bbox_cls_vector);
   real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
   // move_data_from_FBF_TF_to_mAP_TF(real_bbox_cls_index_vector, real_bbox_cls_vector, real_bbox_loc_vector);
@@ -1383,10 +1383,8 @@ std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_b
   return real_bbox_cls_index_vector;
 }
 
-
-
-
-
+// TODO : 230730~31 --> do SOFTMAM and then take threshold
+//                      should change below func
 void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
   // TfLiteTensor* output_tensor_2 = tensor(211);
   TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
@@ -1395,7 +1393,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes_2);
   std::vector<float> classifications(num_boxes_2 * 80);
-  float cls_thresh = 0.1; //////////////////////////////////////// should  0.02 < thesh < 0.2
+  float cls_thresh = 0.05; //////////////////////////////////////// should  0.02 < thesh < 0.2
   for (int i = 0; i < num_boxes_2; ++i) {
   for (int j = 0; j < 80; ++j) {
     classifications[i * 80 + j] = output_data_2[i * 80 + j];
@@ -1403,30 +1401,28 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   }
   int conf_count = 0;
   int real_bbox_index = -1;
+  std::vector<float> raw_vector;
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
-      // TODO
-      // do SOFTMAX, and then take cls_thresh 
-      if (classifications[i * 80 + j] > cls_thresh){  // hyper-param 0.04
-        box_per_conf_count +=1;
-        // printf("\033[0;31m%f\033[0m ", classifications[i * 80 + j]);
-      }
-      else{
-        // printf("%f ", classifications[i * 80 + j]);
-      }
+      raw_vector.push_back(classifications[i * 80 + j]); 
     }
-    std::vector<float>tmp;
+    SOFTMAX(raw_vector);
+    for (int j = 0; j < 80; ++j) {
+      // HHHHH
+      if (raw_vector[j] > cls_thresh){  // hyper-param 0.04
+        box_per_conf_count +=1;
+      }
+      // if (classifications[i * 80 + j] > cls_thresh){  // hyper-param 0.04
+      //   box_per_conf_count +=1;
+      // }
+    }
     if(box_per_conf_count >0){
       conf_count +=1;
       real_bbox_index_vector.push_back(i); 
-      for (int j = 0; j < 80; ++j) {
-        tmp.push_back(classifications[i * 80 + j]);
-      }
-      real_bbox_cls_vector.push_back(tmp);
+      real_bbox_cls_vector.push_back(raw_vector);
     }
-    tmp.clear(); //
-    // printf("\n");
+    raw_vector.clear();
   }
   printf("HOON : B_Boxes's real bbox num is : %d\n", conf_count );
   printf("debugging real_bbox_index_vector --> real b_box's index is : ");
@@ -1505,7 +1501,9 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
 	}
   std::cout<<std::endl;
 }
-void Subgraph::SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector){
+
+
+void Subgraph::SOFTMAX_2(std::vector<std::vector<float>>& real_bbox_cls_vector){
   printf("\033[0;33mAfter SOFTMAX :\033[0m \n");
   const float threshold = 0.999999; 
   for (auto& row : real_bbox_cls_vector) {
@@ -1531,6 +1529,29 @@ void Subgraph::SOFTMAX(std::vector<std::vector<float>>& real_bbox_cls_vector){
       }
       std::cout << std::endl << std::endl;
   }
+}
+
+void Subgraph::SOFTMAX(std::vector<float>& row) {
+    const float threshold = 0.999999; 
+    float maxElement = *std::max_element(row.begin(), row.end());
+    float sum = 0.0;
+    const float scalingFactor = 20.0; //20
+    for (auto& i : row)
+        sum += std::exp(scalingFactor * (i - maxElement));
+    for (int i = 0; i < row.size(); ++i) {
+        row[i] = std::exp(scalingFactor * (row[i] - maxElement)) / sum;
+        if (row[i] > threshold)
+            row[i] = threshold; 
+    }
+   for (auto j : row){
+      if (j > 0.15) {
+              // printf("\033[0;31m%.6f\033[0m ", j);
+      }
+      else {
+              // printf("%.6f ", j);
+      }
+   }
+
 }
 
 
