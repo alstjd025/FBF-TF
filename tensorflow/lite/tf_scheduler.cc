@@ -56,7 +56,7 @@ void TfScheduler::SysMonitor(){
 }
 
 void TfScheduler::Work(){
-  monitor = new LiteSysMonitor(cpu_util, gpu_util);
+  monitor = new LiteSysMonitor();
   while(1){
     tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
@@ -220,15 +220,17 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
   // std::this_thread::sleep_for(std::chrono::milliseconds(10));
   // printf("cpu : %f \n", *cpu_util);
   // printf("gpu : %f \n", *gpu_util);
-  if(*gpu_util > gpu_thresh && *cpu_util < cpu_thresh){
+  float gpu_util = monitor->GetGPUUtil();
+  float cpu_util = monitor->GetCPUUtil();
+  if(gpu_util > gpu_thresh && cpu_util < cpu_thresh){
     // Use CPU
     // std::cout << "Use cpu" << "\n";
     next_resource_plan = TF_P_PLAN_CPU;
-  }else if(*gpu_util < gpu_thresh && *cpu_util > cpu_thresh){
+  }else if(gpu_util < gpu_thresh && cpu_util > cpu_thresh){
     // Use GPU
     // std::cout << "Use gpu" << "\n";
     next_resource_plan = TF_P_PLAN_GPU;
-  }else if(*gpu_util > gpu_thresh && *cpu_util > cpu_thresh){
+  }else if(gpu_util > gpu_thresh && cpu_util > cpu_thresh){
     // Use Co-execution
     // std::cout << "Use Co-execution" << "\n";
     next_resource_plan = TF_P_PLAN_CO_E;

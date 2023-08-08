@@ -1666,7 +1666,7 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_su
       size_t source_byte_size = source_tensor->bytes;
       size_t dest_byte_size = dest_tensor->bytes;
       if (source_byte_size != dest_byte_size) {
-        std::cout << "Source tensor[" << dest_tensor_indices[i] << "] size "
+        std::cout << "Source tensor[" << dest_tensor_indices[i] << "] size " 
                   << static_cast<int>(source_byte_size) << " and Dest tensor["
                   << dest_tensor_indices[i] << "] size "
                   << static_cast<int>(dest_byte_size) << " missmatch!" 

@@ -1,24 +1,46 @@
 #include "tensorflow/lite/tf_monitor.h"
 
+#define MONITORING_PERIOD_MS 1
+
 namespace tflite{
 
 LiteSysMonitor::LiteSysMonitor(){
-  std::cout << "Init system monitoring" << "\n";
-}
-
-LiteSysMonitor::LiteSysMonitor(float* cpu_util, float* gpu_util){
-  cpu_util_ = cpu_util;
-  gpu_util_ = gpu_util;
+  log_File.open("utilization.txt");
+  
   std::cout << "System monitoring started" << "\n";
   CPU_daemon = std::thread(&LiteSysMonitor::GetCPUUtilization, this);
   GPU_daemon = std::thread(&LiteSysMonitor::GetGPUUtilization, this);
+  debugger_daemon = std::thread(&LiteSysMonitor::usage_debugger, this);
   CPU_daemon.detach();
   GPU_daemon.detach();
+  debugger_daemon.detach();
 }
 
 LiteSysMonitor::~LiteSysMonitor(){
   // must terminate CPU_daemon & GPU_daemon here.
   std::cout << "System monitoring terminated" << "\n";
+}
+
+float LiteSysMonitor::GetCPUUtil(){
+  return cpu_util_ratio;
+}
+
+float LiteSysMonitor::GetGPUUtil(){
+  return gpu_util_ratio;
+}
+
+void LiteSysMonitor::usage_debugger(){
+  if(log_File.is_open()){
+    struct timespec now;
+    log_File << "t CPU GPU" << "\n";
+    while(1){
+      std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      log_File << now.tv_sec << "." << now.tv_nsec << " ";
+      log_File << cpu_util_ratio << " " << gpu_util_ratio << "\n";
+      // logFile << 
+    }
+  }
 }
 
 struct cpuusage LiteSysMonitor::GetCPUusageFromCpustat(struct cpustat s) {
@@ -29,6 +51,8 @@ struct cpuusage LiteSysMonitor::GetCPUusageFromCpustat(struct cpustat s) {
   r.workingtime = s.user + s.nice + s.system + s.irq + s.softirq;
   return r;
 }
+
+
 
 float LiteSysMonitor::CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev) {
   // the number of ticks that passed by since the last measurement.
@@ -63,13 +87,14 @@ void LiteSysMonitor::GetCPUUtilization() {
       // Just an example for first cpu core.
       if (strcmp(c.name, "cpu") == 0) {
         struct cpuusage now = GetCPUusageFromCpustat(c);
-        *cpu_util_ = CpuUsageGetDiff(now, prev);
+        cpu_util_ratio = CpuUsageGetDiff(now, prev);
+        // std::cout << "CPU Usage: " << *cpu_util_ << "% \n";
         prev = now;
         break;
       }
     }
     fclose(f);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
   }
 }
 
@@ -91,12 +116,12 @@ void LiteSysMonitor::GetGPUUtilization() {
     // Uch, so much borign typing.
     int percentage = 0;
     while (fscanf(f, "%llu", &percentage)) {
-      *gpu_util_ = percentage / 10;
+      gpu_util_ratio = percentage / 10;
       // std::cout << "GPU Usage: " << *gpu_util_ << "% \n"; 
       break;
     }
     fclose(f);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
   }
 }
 
