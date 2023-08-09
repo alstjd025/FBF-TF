@@ -32,10 +32,6 @@ limitations under the License.
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/util.h"
 
-// #define cpu
-// #define gpu
-#define dynamic
-
 // TODO(b/139446230): Move to portable platform header.
 #if defined(__ANDROID__)
 #define TFLITE_IS_MOBILE_PLATFORM
