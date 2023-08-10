@@ -925,7 +925,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         // std::cout << "Minimal precision graph invoke done" << "\n";
         return;
       }
-      std::cout << "[Minimal precision] get subgraph " << co_subgraph_id << "\n";
+      // std::cout << "[Minimal precision] get subgraph " << co_subgraph_id << "\n";
       subgraph = quantized_interpreter->subgraph_id(co_subgraph_id);
       if(main_execution_graph != nullptr){
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
@@ -951,7 +951,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         break;
       }
     }else if(type == PrecisionType::MAX_PRECISION){
-      std::cout << "Asdfasdf " << "\n";
       // TODO (d9a62) : Make this part to an individual function.
       tf_packet tx_packet;
       memset(&tx_packet, 0, sizeof(tf_packet));
@@ -966,7 +965,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         return;
       }
       if(rx_packet.subgraph_ids[0][0] == -1){
-        std::cout << "Max precision graph invoke done" << "\n";
+        // std::cout << "Max precision graph invoke done" << "\n";
         subgraph_id = -1;
         prev_subgraph_id = -1;
         prev_co_subgraph_id = -1;
@@ -981,7 +980,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       subgraph_id = rx_packet.subgraph_ids[0][0];
       if(rx_packet.subgraph_ids[1][0] != -1)
         co_subgraph_id = rx_packet.subgraph_ids[1][0];
-      std::cout << "Got id " << subgraph_id << " " << co_subgraph_id << " from scheduler" << "\n";
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
       
@@ -990,7 +988,8 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() == CO_GPU){
         // std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id << 
         //           " " << subgraph_id << "\n";
-        MergeCoExecutionData(prev_subgraph_id, prev_co_subgraph_id, subgraph_id);
+        MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id, subgraph_id);
+        // std::cout << "merge done " << "\n";
       }
       
       if(subgraph->GetResourceType() == CO_GPU){
@@ -1008,7 +1007,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           // std::cout << "CopyIntermediateDataIfNeeded Done" << "\n";
         }
       }
-      std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      // std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
@@ -1423,10 +1422,9 @@ void TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
                                         , int prev_main_subgraph
                                         , int dest_subgraph_){
   // std::cout << "Merge" << "\n";
-  Subgraph* min_precision_subgraph = interpreter->subgraph_id(prev_sub_subgraph);
+  Subgraph* min_precision_subgraph = quantized_interpreter->subgraph_id(prev_sub_subgraph);
   Subgraph* max_precision_subgraph = interpreter->subgraph_id(prev_main_subgraph);
   Subgraph* dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
-  // TODO (d9a62d) : Fix to use subgraph id.
   if(dest_subgraph == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
     std::cout << "dest_subgraph nullptr." << "\n";
@@ -1443,7 +1441,7 @@ void TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   // std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
   //               " max id : " << max_precision_subgraph->GetGraphid() << "\n";
   // std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-  //             << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
+              // << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* min_precision_tensor = 
                   min_precision_subgraph->tensor(min_precision_tensor_idx);
@@ -1692,12 +1690,13 @@ void TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_su
   };
   int source_graph_id = prev_subgraph_id;
   int dest_graph_id = subgraph->GetGraphid();
-  std::cout << "Copy " << source_graph_id << " " << dest_graph_id << " \n";
+  // std::cout << "Copy " << source_graph_id << " " << dest_graph_id << " \n";
   if (connect(source_graph_id, dest_graph_id) != kTfLiteOk) {
     std::cout << "Subgraph intermediate data copy failed"
               << "\n";
     return;
   }
+  // std::cout << "copy done"
 
   return;
 }
