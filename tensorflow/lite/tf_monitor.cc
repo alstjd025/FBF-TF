@@ -1,6 +1,6 @@
 #include "tensorflow/lite/tf_monitor.h"
 
-#define MONITORING_PERIOD_MS 1
+#define MONITORING_PERIOD_MS 5 // < 5 is not stable.
 
 namespace tflite{
 
@@ -88,7 +88,7 @@ void LiteSysMonitor::GetCPUUtilization() {
       if (strcmp(c.name, "cpu") == 0) {
         struct cpuusage now = GetCPUusageFromCpustat(c);
         cpu_util_ratio = CpuUsageGetDiff(now, prev);
-        // std::cout << "CPU Usage: " << *cpu_util_ << "% \n";
+        // std::cout << "CPU Usage: " << cpu_util_ratio << "% \n";
         prev = now;
         break;
       }
