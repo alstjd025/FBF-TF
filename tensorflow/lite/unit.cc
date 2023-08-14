@@ -103,16 +103,6 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
     for(int o_loop=0; o_loop<OUT_SEQ; o_loop++){
         for(int k=0; k<SEQ; k++){
             std::cout << "CPU " << *C_Counter << "\n";
-            // for (int i=0; i<SSD_size; i++){
-            //     for (int j=0; j<SSD_size; j++){
-            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i*SSD_size + j*3] = \
-            //             ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;
-            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i*SSD_size + j*3+1] = \
-            //             ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
-            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i*SSD_size + j*3+2] = \
-            //             ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
-            //     }
-            // } 
             #ifdef yolo
             for (int i=0; i<yolo_size; i++){
                 for (int j=0; j<yolo_size; j++){

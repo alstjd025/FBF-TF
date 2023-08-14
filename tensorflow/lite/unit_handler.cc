@@ -133,8 +133,8 @@ TfLiteStatus UnitHandler::CreateUnitCPU(UnitType eType,
         return kTfLiteError;  
     }
     #endif
-    std::cout << "[CPU INTERETER STATE] \n";
-    // tflite::PrintInterpreterState(interpreter->get());
+    // std::cout << "[CPU INTERETER STATE] \n";
+    // tflite::PrintInterpreterState(interpreter->get()); //
     return kTfLiteOk;
 }
 

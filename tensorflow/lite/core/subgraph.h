@@ -476,17 +476,18 @@ class Subgraph {
   //HOON : for mAP parsing [FBF-TF --> mAP-TF]
   static std::vector<std::vector<float>> real_bbox_cls_vector; 
   static std::vector<int> real_bbox_cls_index_vector;
-  static std::vector<std::vector<float>> real_bbox_loc_vector;
+  static std::vector<std::vector<int>> real_bbox_loc_vector;
 
   std::vector<int> get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector);
   void make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector);
-  void make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_loc_vector);
+  void make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector);
   void SOFTMAX(std::vector<float>& real_bbox_cls_vector);
   void SOFTMAX_2(std::vector<std::vector<float>>& real_bbox_cls_vector);
   template <typename T>
   void saveDatatoFile(const std::vector<std::vector<T>>& data,const char* mode);
   // void move_data_from_FBF_TF_to_mAP_TF(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<float>>& real_bbox_loc_vector);
 
+  void NMS(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<int>>& real_bbox_loc_vector);
   // Entry point for C node plugin API to report an error.
   void ReportError(const char* format, ...);
 

@@ -1327,13 +1327,18 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // move_data_from_FBF_TF_to_mAP_TF(real_bbox_cls_index_vector, real_bbox_cls_vector, real_bbox_loc_vector);
   // saveDatatoFile(real_bbox_cls_vector, "cls");
   // saveDatatoFile(real_bbox_loc_vector, "loc");
+  NMS(real_bbox_cls_index_vector, real_bbox_cls_vector, real_bbox_loc_vector);
   #endif
   return status;
 }
 
 std::vector<std::vector<float>> Subgraph::real_bbox_cls_vector; //
 std::vector<int> Subgraph::real_bbox_cls_index_vector;
-std::vector<std::vector<float>> Subgraph::real_bbox_loc_vector;
+std::vector<std::vector<int>> Subgraph::real_bbox_loc_vector;
+
+void Subgraph::NMS(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<int>>& real_bbox_loc_vector){
+  //
+}
 
 template <typename T>
 void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const char* mode) {
@@ -1386,8 +1391,9 @@ std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_b
 // TODO : 230730~31 --> do SOFTMAM and then take threshold
 //                      should change below func
 void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
-  // TfLiteTensor* output_tensor_2 = tensor(211);
   TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
+  // PrintTensor(*output_tensor_2, UnitType::CPU0);
+  std::cout << output_tensor_2->dims->size << std::endl;
   printf("\033[0;32m212 (classfication data):\033[0m \n");
   const float* output_data_2 = (float*)output_tensor_2->data.data; // only use data.data
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
@@ -1395,9 +1401,10 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   std::vector<float> classifications(num_boxes_2 * 80);
   float cls_thresh = 0.05; //////////////////////////////////////// should  0.02 < thesh < 0.2
   for (int i = 0; i < num_boxes_2; ++i) {
-  for (int j = 0; j < 80; ++j) {
-    classifications[i * 80 + j] = output_data_2[i * 80 + j];
-    }
+    for (int j = 0; j < 80; ++j) {
+      classifications[i * 80 + j] = output_data_2[i*80 + j];  // --> not working 0808
+      // classifications.push_back(output_data_2[i*80 + j]);  // --> not working 0808
+      }
   }
   int conf_count = 0;
   int real_bbox_index = -1;
@@ -1408,14 +1415,11 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
       raw_vector.push_back(classifications[i * 80 + j]); 
     }
     SOFTMAX(raw_vector);
-    for (int j = 0; j < 80; ++j) {
+    for (int k = 0; k < 80; ++k) {
       // HHHHH
-      if (raw_vector[j] > cls_thresh){  // hyper-param 0.04
+      if (raw_vector[k] > cls_thresh){
         box_per_conf_count +=1;
       }
-      // if (classifications[i * 80 + j] > cls_thresh){  // hyper-param 0.04
-      //   box_per_conf_count +=1;
-      // }
     }
     if(box_per_conf_count >0){
       conf_count +=1;
@@ -1424,6 +1428,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
     }
     raw_vector.clear();
   }
+  classifications.clear();
   printf("HOON : B_Boxes's real bbox num is : %d\n", conf_count );
   printf("debugging real_bbox_index_vector --> real b_box's index is : ");
   for(int i=0 ; i < real_bbox_index_vector.size(); i++){
@@ -1444,64 +1449,131 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
 	}
 }
 
-void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<float>>& real_bbox_loc_vector){
+
+void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector){
   TfLiteTensor* output_tensor = tensor(233);
+  // PrintTensor(*output_tensor, UnitType::CPU0);
   printf("\033[0;32m233 (localization data):\033[0m \n");
   const float* output_data = (float*)output_tensor->data.data; 
-  const int num_boxes = output_tensor->dims->data[1];
-  std::vector<float> boxes(num_boxes * 4); // get loc'bbox's vector
+  const int num_boxes = output_tensor->dims->data[1]; // 2535
+  const int num_columns = output_tensor->dims->data[2]; // 4
+  std::cout << num_boxes << "  " << num_columns << " "<<std::endl;
+  std::vector<float> boxes(num_boxes * num_columns);
+  // CASE 1 
+  // for (int i = 0; i < num_columns; ++i) {
+  //   for (int j = 0; j < num_boxes; ++j) {
+  //       boxes[i * num_boxes + j] = output_data[j * num_columns + i];
+  //   }
+  // }
+  // CASE 2 (Vanilla)
   for (int i = 0; i < num_boxes; ++i) {
-    boxes[i * 4] = output_data[i * 4];
-    boxes[i * 4 + 1] = output_data[i * 4 + 1];
-    boxes[i * 4 + 2] = output_data[i * 4 + 2];
-    boxes[i * 4 + 3] = output_data[i * 4 + 3];
-    }
+       for (int j = 0; j < num_columns; ++j) {
+           boxes[i * num_columns + j] = output_data[i * num_columns + j];
+       }
+  }
   int bbox_count = 0;
-  // TODO (230725) also parsing "LOC" data !!!
+  int image_size = 416; // Image size
+  printf("num boxes : %d\n", num_boxes);
   printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
+  // CASE 2
   for (int i = 0; i < num_boxes; ++i) {
-      std::vector<float>tmp;
+      std::vector<int>tmp;
       for(int j=0 ; j < real_bbox_index_vector.size(); j++){
           if(i == real_bbox_index_vector[j]){
-            // TODO
-            std::cout << "real_bbox_index_vector element : " << i << std::endl; //HG
-            float first, second, third, fourth;
-            first = boxes[i*4];
-            second = boxes[i*4+1];
-            third = boxes[i*4+2];
-            fourth = boxes[i*4+3];
-            std::cout << "[0] , [1], [2], [3] : " << first << " " <<second << " " << third << " " << fourth << std::endl;
-            float left, top, width, height, right, bottom;
-            left = first;
-            top = second;
-            right = first + third;
-            bottom = second + fourth;
-            int image_size = 416;
-            left = std::max(0.0f, std::min(static_cast<float>(image_size), left));
-            top = std::max(0.0f, std::min(static_cast<float>(image_size), top));
-            right = std::max(0.0f, std::min(static_cast<float>(image_size), right));
-            bottom = std::max(0.0f, std::min(static_cast<float>(image_size), bottom));
+            float first = boxes[i * num_columns];
+            float second = boxes[i * num_columns + 1];
+            float third = boxes[i * num_columns + 2];
+            float fourth = boxes[i * num_columns + 3];
+            std::cout << "HOONING " << int(first) << " " <<int(second) << " "<< int(third) << " "<< int(fourth) << std::endl;
+            int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
+            int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
+            int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
+            int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
             tmp.push_back(left);
             tmp.push_back(top);
             tmp.push_back(right);
             tmp.push_back(bottom);
             real_bbox_loc_vector.push_back(tmp);
-            // TODO : Not enough loc data. [230726]
-            // printf("%f, %f, %f, %f\n", boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]);
+            break; //..!!
           }
       }
       tmp.clear(); //HH
   }
+  // CASE 1
+  // for (int i = 0; i < num_boxes; ++i) {
+  //   std::vector<int> tmp;
+  //   for (int j = 0; j < real_bbox_index_vector.size(); j++) {
+  //       if (i == real_bbox_index_vector[j]) {
+  //           float first = boxes[i * num_boxes + 0]; // 가로 인덱스 0
+  //           float second = boxes[i * num_boxes + 1]; // 가로 인덱스 1
+  //           float third = boxes[i * num_boxes + 2]; // 가로 인덱스 2
+  //           float fourth = boxes[i * num_boxes + 3]; // 가로 인덱스 3
+  //           // 나머지 부분은 그대로 유지
+  //           std::cout << "HOONING " << int(first) << " " << int(second) << " " << int(third) << " " << int(fourth) << std::endl;
+  //           int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
+  //           int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
+  //           int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
+  //           int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
+  //           tmp.push_back(left);
+  //           tmp.push_back(top);
+  //           tmp.push_back(right);
+  //           tmp.push_back(bottom);
+  //           real_bbox_loc_vector.push_back(tmp);
+  //           break; //..!!
+  //       }
+  //   }
+  //   tmp.clear(); //HH
+  // }
   printf("\n");
   for (auto i : real_bbox_loc_vector) { 
 	  for (auto j : i) { 
-      printf("%.6f ", j);
+      printf("%.d ", j);
 	  }
 	  std::cout << std::endl;
 	}
   std::cout<<std::endl;
 }
 
+
+// void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<int>>& real_bbox_loc_vector) {
+//   TfLiteTensor* output_tensor = tensor(233);
+//   printf("\033[0;32m233 (localization data):\033[0m \n");
+//   const float* output_data = (float*)output_tensor->data.data;
+//   const int num_boxes = output_tensor->dims->data[1]; // 1
+//   const int num_columns = output_tensor->dims->data[2]; // 2535
+//   std::cout << num_boxes << "  " << num_columns << " " << std::endl;
+
+//   int image_size = 416; // Image size
+
+//   printf("num boxes : %d\n", num_boxes);
+//   printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
+//   for (int i = 0; i < num_boxes; ++i) {
+//     if (std::find(real_bbox_index_vector.begin(), real_bbox_index_vector.end(), i) != real_bbox_index_vector.end()) {
+//       float first = output_data[i * num_columns];
+//       float second = output_data[i * num_columns + 1];
+//       float third = output_data[i * num_columns + 2];
+//       float fourth = output_data[i * num_columns + 3];
+
+//       int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
+//       int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
+//       int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
+//       int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
+
+//       std::vector<int> tmp = { left, top, right, bottom };
+//       real_bbox_loc_vector.push_back(tmp);
+//     }
+//   }
+
+//   // Print the results for debugging
+//   printf("\n");
+//   for (auto i : real_bbox_loc_vector) { 
+//     for (auto j : i) { 
+//       printf("%.d ", j);
+//     }
+//     std::cout << std::endl;
+//   }
+//   std::cout << std::endl;
+// }
 
 void Subgraph::SOFTMAX_2(std::vector<std::vector<float>>& real_bbox_cls_vector){
   printf("\033[0;33mAfter SOFTMAX :\033[0m \n");
