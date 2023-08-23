@@ -117,41 +117,12 @@ void LiteSysMonitor::GetGPUUtilization() {
     int percentage = 0;
     while (fscanf(f, "%llu", &percentage)) {
       gpu_util_ratio = percentage / 10;
-      // std::cout << "GPU Usage: " << *gpu_util_ << "% \n"; 
+      // std::cout << "GPU Usage: " << gpu_util_ratio << "% \n"; 
       break;
     }
     fclose(f);
     std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
   }
 }
-
-// For jetson platforms only.
-// Uses tegrastats
-// void LiteSysMonitor::GetGPUUtilization(){
-//   std::string data, cmd;
-//   cmd = "tegrastats --interval 1";
-//   FILE* stream;
-//   const int max_buffer = 512;
-//   char buffer[max_buffer];
-//   stream = popen(cmd.c_str(), "r");
-//   if (stream) {
-//     while (!feof(stream)) {
-//       if (fgets(buffer, max_buffer, stream) != NULL) {
-//         data.append(buffer);
-//       }
-//       int delimiter = data.find("GR3D_FREQ");
-//       std::string front = data.substr(delimiter+5); 
-//       delimiter = front.find('%'); 
-//       front = front.substr(0, delimiter); 
-//       delimiter = front.find(' '); 
-//       front = front.substr(delimiter+1); 
-//       // std::cout << "GPU : " << front << "\n"; 
-//       *gpu_util_ = std::stoi(front); 
-//       std::cout << "GPU Usage: "<< *gpu_util_ << "% \n"; 
-//       data.clear();
-//     }
-//     pclose(stream);
-//   }
-// }
 
 } // namespace tflite

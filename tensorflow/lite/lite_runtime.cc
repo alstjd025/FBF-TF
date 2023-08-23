@@ -922,10 +922,11 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
       invoke_cpu = false;
       if(co_subgraph_id == -1){
+        WriteVectorLog(latency, 1);
         // std::cout << "Minimal precision graph invoke done" << "\n";
         return;
       }
-      // std::cout << "[Minimal precision] get subgraph " << co_subgraph_id << "\n";
+      // std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
       subgraph = quantized_interpreter->subgraph_id(co_subgraph_id);
       if(main_execution_graph != nullptr){
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
@@ -947,7 +948,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       
       if(false){ // TODO (f85fa) : Need terminal condition.
         WriteVectorLog(latency, 1);
-        std::cout << "Minimal precision graph invoke done" << "\n";
+        // std::cout << "Minimal precision graph invoke done" << "\n";
         break;
       }
     }else if(type == PrecisionType::MAX_PRECISION){
@@ -974,6 +975,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
+        WriteVectorLog(latency, 0);
         return;
         // break;
       }
@@ -982,7 +984,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         co_subgraph_id = rx_packet.subgraph_ids[1][0];
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
-      
+      // std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
       // if previous subgraph was co-execution, merge co-exectuion data here?
       if(prev_subgraph_id != subgraph_id && prev_subgraph_id != -1 &&
           interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() == CO_GPU){
@@ -994,10 +996,10 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
-        std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-        invoke_cpu = true;
         if(prev_subgraph_id != -1)
           main_execution_graph = subgraph;
+        std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
+        invoke_cpu = true;
         invoke_sync_cv.notify_one();
       }else{ // if not co-execution, it needs additional imtermediate data copy.
         if(prev_subgraph_id != -1 && 
@@ -1007,7 +1009,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           // std::cout << "CopyIntermediateDataIfNeeded Done" << "\n";
         }
       }
-      // std::cout << "[Max precision] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      // std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
@@ -1025,12 +1027,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         // TODO (8bbac0) : Must refactor merge logic. (to use subgraph id)
         if(co_execution_graph != nullptr){
           prev_co_subgraph_id = co_subgraph_id;
-          // std::cout << "MergeCoExecutionData" << "\n";
-          // MergeCoExecutionData(co_execution_graph, subgraph);
-          // std::cout << "MergeCoExecutionData Done" << "\n";
           co_execution_graph = nullptr;
-          // int input_tensor = subgraph->GetNextSubgraph()->GetInputTensorIndex();
-          // PrintTensorSerial(*(subgraph->GetNextSubgraph()->tensor(input_tensor)));
         }
       }
       prev_subgraph_id = subgraph_id;
@@ -1554,11 +1551,11 @@ void TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     if((min_tensor_ht + max_tensor_ht) != dest_ht){
       float drop_height = (dest_ht - (min_tensor_ht + max_tensor_ht))/(-2);
       if(drop_height < 0){
-        std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
-        std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<
-              " h: " << min_tensor_ht << 
-              " max sub: " << max_precision_subgraph->GetGraphid() << 
-              " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
+        // std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
+        // std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<
+        //       " h: " << min_tensor_ht << 
+        //       " max sub: " << max_precision_subgraph->GetGraphid() << 
+        //       " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
         return;
       }
       memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);

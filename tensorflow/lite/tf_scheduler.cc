@@ -233,26 +233,22 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.  
+  // How about measuring via sending small GL kernel?
   // std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  // printf("cpu : %f \n", *cpu_util);
-  // printf("gpu : %f \n", *gpu_util);
+  
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
   if(gpu_util > gpu_thresh && cpu_util < cpu_thresh){
     // Use CPU
-    // std::cout << "Use cpu" << "\n";
     next_resource_plan = TF_P_PLAN_CPU;
   }else if(gpu_util < gpu_thresh && cpu_util > cpu_thresh){
     // Use GPU
-    // std::cout << "Use gpu" << "\n";
     next_resource_plan = TF_P_PLAN_GPU;
   }else if(gpu_util > gpu_thresh && cpu_util > cpu_thresh){
     // Use Co-execution
-    // std::cout << "Use Co-execution" << "\n";
     next_resource_plan = TF_P_PLAN_CO_E;
   }else{
     // base plan
-    // std::cout << "Use base plan" << "\n";
     next_resource_plan = next_base_subgraph->resource_type;
   }
   
@@ -293,6 +289,7 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
     std::cout << "Cannot find matching runtime in PrepareRuntime()" << "\n";
     exit(-1);
   }
+  std::queue<int> co_subgraph_ids;
   std::vector<int> subgraph_ids;
   int idx = 0;
   int num_co_subs = 0;
@@ -303,22 +300,31 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
   }
 
   idx = 0;
-  
   while(rx_packet.subgraph_ids[1][idx] != -1){
-    subgraph_ids.push_back(rx_packet.subgraph_ids[1][idx]);
     idx++;
     num_co_subs++;
+    co_subgraph_ids.push(rx_packet.subgraph_ids[1][idx]);
   }
   // Register main subgraphs
-  for(int i=0; i<subgraph_ids.size()-num_co_subs; ++i){
+  for(int i=0; i<subgraph_ids.size(); ++i){
     runtime->graph->nodes[i]->subgraph_id = subgraph_ids[i];
   }
 
   // Register Co subgraphs
-  for(int i=subgraph_ids.size() - num_co_subs; 
-          i<subgraph_ids.size(); ++i){
-    runtime->graph->nodes[i - num_co_subs]->co_subgraph_id = subgraph_ids[i];
+  // MUST FIX(b6582) : co-subgraph does not always exist at the end of whole graph structure.
+  idx = 0;
+  while(!co_subgraph_ids.empty()){
+    if(runtime->graph->nodes[idx]->resource_type == 2){
+      runtime->graph->nodes[idx]->co_subgraph_id = co_subgraph_ids.front();
+      co_subgraph_ids.pop();
+    }
+    idx++;
   }
+  // for(int i=subgraph_ids.size() - num_co_subs; 
+  //         i<subgraph_ids.size(); ++i){
+      
+  //   runtime->graph->nodes[i - num_co_subs]->co_subgraph_id = subgraph_ids[i];
+  // }
 
   if((subgraph_ids.size() - num_co_subs) != runtime->graph->nodes.size()){
     std::cout << "Subgraph ids from runtime and existing graph"
@@ -682,75 +688,81 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     
     tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
     tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 17; // partitioning ratio
     tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
     tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
     tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[2][TF_P_IDX_START]    = 9;
     tx_p.partitioning_plan[2][TF_P_IDX_END]      = 20;
-    tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 17; // partitioning ratio
     tx_p.partitioning_plan[3][TF_P_IDX_START]    = 20;
     tx_p.partitioning_plan[3][TF_P_IDX_END]      = 21;
     tx_p.partitioning_plan[3][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[3][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[4][TF_P_IDX_START]    = 21;
     tx_p.partitioning_plan[4][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 17; // partitioning ratio
     tx_p.partitioning_plan[5][TF_P_IDX_START]    = 32;
     tx_p.partitioning_plan[5][TF_P_IDX_END]      = 33;
     tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[6][TF_P_IDX_START]    = 33; // problem on node 52
     tx_p.partitioning_plan[6][TF_P_IDX_END]      = 55; // 102?
-    tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 0; // partitioning ratio 17
+    tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 17; // partitioning ratio 17
     tx_p.partitioning_plan[7][TF_P_IDX_START]    = 55;
     tx_p.partitioning_plan[7][TF_P_IDX_END]      = 152;
     tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
     tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[8][TF_P_IDX_START]    = TF_P_END_PLAN;
-    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_MASTER;
+    tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_MASTER;
     
-    tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
+    // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
+    // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 55;
+    // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 152;
+    // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    // tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
+    // tx_p.partitioning_plan[11][TF_P_IDX_START]    = TF_P_END_MASTER;
 
-    tx_p.partitioning_plan[10][TF_P_IDX_START]    = 9;
-    tx_p.partitioning_plan[10][TF_P_IDX_END]      = 20;
-    tx_p.partitioning_plan[10][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[10][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    // tx_p.partitioning_plan[10][TF_P_IDX_START]    = 9;
+    // tx_p.partitioning_plan[10][TF_P_IDX_END]      = 20;
+    // tx_p.partitioning_plan[10][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    // tx_p.partitioning_plan[10][TF_P_IDX_RATIO]    = 0; // partitioning ratio
 
-    tx_p.partitioning_plan[11][TF_P_IDX_START]    = 21;
-    tx_p.partitioning_plan[11][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[11][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    // tx_p.partitioning_plan[11][TF_P_IDX_START]    = 21;
+    // tx_p.partitioning_plan[11][TF_P_IDX_END]      = 32;
+    // tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    // tx_p.partitioning_plan[11][TF_P_IDX_RATIO]    = 0; // partitioning ratio
 
-    tx_p.partitioning_plan[12][TF_P_IDX_START]    = 33;
-    tx_p.partitioning_plan[12][TF_P_IDX_END]      = 55;
-    tx_p.partitioning_plan[12][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[12][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[13][TF_P_IDX_START]    = TF_P_END_PLAN;
+    // tx_p.partitioning_plan[12][TF_P_IDX_START]    = 33;
+    // tx_p.partitioning_plan[12][TF_P_IDX_END]      = 55;
+    // tx_p.partitioning_plan[12][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    // tx_p.partitioning_plan[12][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+    // tx_p.partitioning_plan[13][TF_P_IDX_START]    = TF_P_END_PLAN;
 
-    tx_p.partitioning_plan[14][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[14][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[14][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[14][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    // tx_p.partitioning_plan[14][TF_P_IDX_START]    = 0;
+    // tx_p.partitioning_plan[14][TF_P_IDX_END]      = 8;
+    // tx_p.partitioning_plan[14][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    // tx_p.partitioning_plan[14][TF_P_IDX_RATIO]    = 17; // partitioning ratio
 
-    tx_p.partitioning_plan[15][TF_P_IDX_START]    = 9;
-    tx_p.partitioning_plan[15][TF_P_IDX_END]      = 20;
-    tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+    // tx_p.partitioning_plan[15][TF_P_IDX_START]    = 9;
+    // tx_p.partitioning_plan[15][TF_P_IDX_END]      = 20;
+    // tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    // tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 17; // partitioning ratio
 
-    tx_p.partitioning_plan[16][TF_P_IDX_START]    = 21;
-    tx_p.partitioning_plan[16][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[16][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[16][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    tx_p.partitioning_plan[17][TF_P_IDX_START]    = TF_P_END_PLAN;
+    // tx_p.partitioning_plan[16][TF_P_IDX_START]    = 21;
+    // tx_p.partitioning_plan[16][TF_P_IDX_END]      = 32;
+    // tx_p.partitioning_plan[16][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    // tx_p.partitioning_plan[16][TF_P_IDX_RATIO]    = 16; // partitioning ratio
+    // tx_p.partitioning_plan[17][TF_P_IDX_START]    = TF_P_END_PLAN;
 
     // tx_p.partitioning_plan[23][TF_P_IDX_START]    = 33;
     // tx_p.partitioning_plan[23][TF_P_IDX_END]      = 55;
@@ -758,7 +770,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
     // tx_p.partitioning_plan[23][TF_P_IDX_RATIO]    = 15; // partitioning ratio
     // tx_p.partitioning_plan[24][TF_P_IDX_START]    = TF_P_END_PLAN;
     
-    tx_p.partitioning_plan[18][TF_P_IDX_START]    = TF_P_END_MASTER;
+    // tx_p.partitioning_plan[18][TF_P_IDX_START]    = TF_P_END_MASTER;
 
     //
   }
