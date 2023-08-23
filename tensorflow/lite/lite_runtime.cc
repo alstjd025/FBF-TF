@@ -983,11 +983,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
       co_execution_graph = subgraph;
       data_sync_cv.notify_one();
       
-      if(false){ // TODO (f85fa) : Need terminal condition.
-        WriteVectorLog(latency, 1);
-        // std::cout << "Minimal precision graph invoke done" << "\n";
-        break;
-      }
     }else if(type == PrecisionType::MAX_PRECISION){
       // TODO (d9a62) : Make this part to an individual function.
       tf_packet tx_packet;
