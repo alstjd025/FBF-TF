@@ -1,6 +1,9 @@
 #include "tensorflow/lite/lite_runtime.h"
 
 #include "tensorflow/lite/lite_scheduler.h"
+// #define cpu
+// #define gpu
+#define dynamic
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -111,6 +114,10 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;
   TfLiteDelegate* MyDelegate = NULL;
+  // sj
+  TfLiteDelegate* xnn_delegate = NULL;
+  int32_t num_threads;
+  #ifdef gpu
   const TfLiteGpuDelegateOptionsV2 options = {
       .is_precision_loss_allowed = 0,
       .inference_preference =
@@ -125,6 +132,36 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   };
   MyDelegate = TfLiteGpuDelegateV2Create(&options);
   interpreter->RegisterDelegate(MyDelegate);
+  #endif
+
+  #ifdef dynamic
+  const TfLiteGpuDelegateOptionsV2 options = {
+      .is_precision_loss_allowed = 0,
+      .inference_preference =
+          TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
+      //.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED,
+      .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
+      //.inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
+      .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
+      .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
+      .experimental_flags = 1,
+      .max_delegated_partitions = 1000,
+  };
+  MyDelegate = TfLiteGpuDelegateV2Create(&options);
+  delegate.push_back(MyDelegate);
+
+  num_threads = 6;
+	TfLiteXNNPackDelegateOptions xnnpack_options =
+		TfLiteXNNPackDelegateOptionsDefault();
+	xnnpack_options.num_threads = num_threads;
+  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
+  delegate.push_back(xnn_delegate);
+  quantized_delegate.push_back(xnn_delegate);
+
+  interpreter->RegisterDelegate(delegate);
+  quantized_interpreter->RegisterDelegate(quantized_delegate);
+  #endif
+
   if(InitializeUDS() != kTfLiteOk){
     std::cout << "UDS socker init ERROR" << "\n";
     exit(-1);
@@ -372,8 +409,8 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
     return kTfLiteError;
   }
   std::cout << "Successfully registered model to scheduler" << "\n";
-  interpreter->PrintSubgraphInfo();
-  quantized_interpreter->PrintSubgraphInfo();
+  // interpreter->PrintSubgraphInfo();
+  // quantized_interpreter->PrintSubgraphInfo();
   return kTfLiteOk;
 }
 

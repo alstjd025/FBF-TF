@@ -26,6 +26,7 @@ limitations under the License.
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include <fp16.h>
 #include <xnnpack.h>
@@ -70,12 +71,19 @@ class Delegate {
 
  private:
   TfLiteDelegate delegate_ = {
-      reinterpret_cast<void*>(this),  // .data_
-      DelegatePrepare,                // .Prepare
-      nullptr,                        // .CopyFromBufferHandle
-      nullptr,                        // .CopyToBufferHandle
-      nullptr,                        // .FreeBufferHandle
-      kTfLiteDelegateFlagsNone,       // .flags
+      // reinterpret_cast<void*>(this),  // .data_
+      // DelegatePrepare,                // .Prepare
+      // nullptr,                        // .CopyFromBufferHandle
+      // nullptr,                        // .CopyToBufferHandle
+      // nullptr,                        // .FreeBufferHandle
+      // kTfLiteDelegateFlagsNone,       // .flags
+
+      .data_ = reinterpret_cast<void*>(this),
+      .Prepare = DelegatePrepare,
+      .CopyFromBufferHandle = nullptr,
+      .CopyToBufferHandle = nullptr,
+      .FreeBufferHandle = nullptr,
+      .flags = kTfLiteDelegateFlagsNone,
   };
 
   // Unpacked data for quasi-static tensors, i.e. tensors produced by
@@ -3049,7 +3057,12 @@ TfLiteIntArray* Delegate::PrepareOpsToDelegate(TfLiteContext* context) {
             &execution_plan->data[execution_plan->size],
             &nodes_to_delegate->data[0]);
 #endif
-
+  std::cout << "nodes_to_delegate" << "\n";
+  for(int i=0; i<nodes_to_delegate->size; ++i){
+    std::cout << nodes_to_delegate->data[i] << " ";
+    if(nodes_to_delegate->data[i] == 28) std::cout << "\n";
+  }
+  std::cout << "\n";
   return nodes_to_delegate;
 }
 

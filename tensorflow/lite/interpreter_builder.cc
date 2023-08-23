@@ -765,11 +765,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     return kTfLiteError;
   }
   std::cout << "Allocated tensors" << "\n";
-  // Delegate and Partitions-in-channel subgraphs 
-  if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
-    std::cout << "DelegateOldSubgraphs ERROR" << "\n";
-    return kTfLiteError;
-  }
   if(is_sub_interpreter){ // If Co-execution CPU InterpreterBuilder
     if(PartitionChannels((subgraphs_created)) != kTfLiteOk){
       std::cout << "Partition channel-wise for cpu ERROR" << "\n";
@@ -782,6 +777,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       return kTfLiteError; // TEST
     }
   }
+  // Delegate and Partitions-in-channel subgraphs 
+  if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
+    std::cout << "DelegateOldSubgraphs ERROR" << "\n";
+    return kTfLiteError;
+  }
   std::cout << "Delegate tensors" << "\n";
   std::cout << "Interpreterbuilder: Subgraphs created" << "\n";
   return kTfLiteOk;
@@ -790,14 +790,21 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
 TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
-    if(new_subgraph->GetResourceType() == ResourceType::GPU ||
-        new_subgraph->GetResourceType() == ResourceType::CO_GPU){
-      if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
-        != kTfLiteOk){
-          std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
-                   << " Delegate" << "\n";
+    if(new_subgraph->GetGraphid()!=12 && new_subgraph->GetGraphid()!=8){
+      if(new_subgraph->GetResourceType() == ResourceType::GPU ||
+        new_subgraph->GetResourceType() == ResourceType::CO_GPU 
+        // sj, consider for subgraph's resource type
+        || new_subgraph->GetResourceType() == ResourceType::CPU
+        || new_subgraph->GetResourceType() == ResourceType::CO_CPU
+        ){
+        if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
+          != kTfLiteOk){
+            std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
+                    << " Delegate" << "\n";
+        }
       }
     }
+    
   }
   return kTfLiteOk;
 }
@@ -805,7 +812,9 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
 TfLiteStatus InterpreterBuilder::PartitionChannels(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
-    if(new_subgraph->GetResourceType() == ResourceType::CO_CPU){
+   if(new_subgraph->GetResourceType() == ResourceType::CO_CPU ||
+        // sj
+        new_subgraph->GetResourceType() == ResourceType::CPU){
       if(new_subgraph->PartitionChannel() != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
                    << " Partition in channel-wise" << "\n";

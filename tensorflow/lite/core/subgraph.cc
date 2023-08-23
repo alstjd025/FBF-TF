@@ -1901,7 +1901,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
       // Runtime filter modification for co-execution
       int partitioning_ratio = GetPartitioningRatio();
       if(partitioning_ratio < 10){  
-        // channel-wise partitioning
+        // channel-wise partitioning(GPU)
         int conv_filter_before_modification = 0;
         int partitioning_plan = partitioning_ratio;
         for (int node_index = 0;

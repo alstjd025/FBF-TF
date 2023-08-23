@@ -493,6 +493,13 @@ class Interpreter {
   // Currently only one deldegate.
   TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate);
 
+  // sj
+  // overloading
+  TfLiteStatus RegisterDelegate(std::vector<TfLiteDelegate*> delegate);
+
+  // sj
+  std::vector<TfLiteDelegate*> delegate_provided_v;
+
   // Owning handle to a TfLiteDelegate instance.
   using TfLiteDelegatePtr =
       std::unique_ptr<TfLiteDelegate, void (*)(TfLiteDelegate*)>;

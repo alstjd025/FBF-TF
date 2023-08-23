@@ -64,7 +64,7 @@ cc_library(
     ],
 )
 
-# build -c opt --config android_arm64 --copt -Os --copt -DTFLITE_GPU_BINARY_RELEASE --copt --linkopt -s --strip always :libtensorflowlite_gpu_delegate.so
+# build -c opt --config android_arm64 --copt -Os --copt -DTFLITE_GPU_BINARY_RELEASE --copt --linkopt -s --strip always :libxnnpack_delegate.so
 cc_binary(
     name = "libxnnpack_delegate.so",
     linkopts = [

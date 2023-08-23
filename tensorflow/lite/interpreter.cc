@@ -679,8 +679,25 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
 
 TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id){
   TfLiteStatus status = kTfLiteOk;
-  if(delegate_provided_ != nullptr)
+  std::cout << "graph_id : " << graph_id <<"\n";
+  // for main_interpreter
+  if(!delegate_provided_v.empty() && delegate_provided_v.size() == 2){
+    std::cout << "resource type : " << subgraph_id(graph_id)->GetResourceType() <<"\n";
+    if(subgraph_id(graph_id)->GetResourceType() == ResourceType::GPU ||
+        subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_GPU)
+      status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
+    else status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(1));
+  }
+  // for quantized_interpreter
+  else if(!delegate_provided_v.empty() && delegate_provided_v.size() == 1){
+    std::cout << "resource type : " << subgraph_id(graph_id)->GetResourceType() <<"\n";
+    if(subgraph_id(graph_id)->GetResourceType() == ResourceType::CPU ||
+        subgraph_id(graph_id)->GetResourceType() == ResourceType::CO_CPU)
+      status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_v.at(0));
+  }
+  else if(delegate_provided_ != nullptr){
     status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_);
+  }
   else{
     std::cout << "No delegate exists in this interpreter" << "\n";
     return kTfLiteError;
@@ -689,9 +706,17 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id){
     return status;
   return status;
 }
-
+// Minsung
 TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* delegate){
   delegate_provided_ = delegate;
+  is_gpu_delegate_prepared = true;
+  return kTfLiteOk;
+}
+
+// sj
+// multi delegate
+TfLiteStatus Interpreter::RegisterDelegate(std::vector<TfLiteDelegate*> delegate){
+  delegate_provided_v = delegate;
   is_gpu_delegate_prepared = true;
   return kTfLiteOk;
 }

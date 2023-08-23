@@ -21,6 +21,7 @@
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/optional_debug_tools.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/kernels/internal/cppmath.h"
 #include "thread"
@@ -217,6 +218,10 @@ class TfLiteRuntime{
     // Subgraph partitioning
     int partitioning_plan[1000][4];
 
+        // sj
+    std::vector<TfLiteDelegate*> delegate;
+    std::vector<TfLiteDelegate*> quantized_delegate;
+    
     // IPC
     char* uds_runtime_filename;
     char* uds_scheduler_filename;
