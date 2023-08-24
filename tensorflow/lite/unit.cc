@@ -104,16 +104,60 @@ TfLiteStatus UnitCPU::Invoke(UnitType eType, std::mutex& mtx_lock,
         for(int k=0; k<SEQ; k++){
             std::cout << "CPU " << *C_Counter << "\n";
             #ifdef yolo
-            for (int i=0; i<yolo_size; i++){
-                for (int j=0; j<yolo_size; j++){
-                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*yolo_size + j*3] = \
-                        ((float)input[0].at<cv::Vec3b>(i, j)[0])/255.0;
-                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*yolo_size + j*3+1] = \
-                        ((float)input[0].at<cv::Vec3b>(i, j)[1])/255.0;
-                        interpreterCPU->get()->typed_input_tensor<float>(0)[i*yolo_size + j*3+2] = \
-                        ((float)input[0].at<cv::Vec3b>(i, j)[2])/255.0;
+            // -----------------------------------------------------------------------------------------------
+            // for (int i=0; i<yolo_size; i++){
+            //     // for (int j=0; j<int(yolo_size/3); j++){   // j<yolo_size ERROR_Point
+            //     for (int j=0; j<yolo_size; j++){   // j<yolo_size ERROR_Point
+            //             // TODO(issue about wrong loc&cls data contrast to tflite::python::mAP_API)
+            //             cv::Vec3b pixel = input[0].at<cv::Vec3b>(i, j);
+            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i * yolo_size + j * 3] = \
+            //             ((float)pixel[0])/255.0; // R 2
+            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i * yolo_size + j * 3 + 1] = \
+            //             ((float)pixel[1])/255.0; // G 1
+            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i * yolo_size + j * 3 + 2] = \
+            //             ((float)pixel[2])/255.0; // B 0      
+            //     }
+            // } 
+
+            // Baseline (RGB linear)
+            // auto input_pointer = (float *)interpreterCPU->get()->subgraph(0)->tensor(0)->data.data;
+            // for (int i=0; i<416; i++){
+            //     for (int j=0; j<416; j++){   // j<yolo_size ERROR_Point
+            //             // TODO(issue about wrong loc&cls data contrast to tflite::python::mAP_API)
+            //             cv::Vec3b pixel = input[0].at<cv::Vec3b>(i, j);
+            //             *(input_pointer + i * 416 + j * 3) = ((float)pixel[0])/255.0;
+            //             *(input_pointer + i * 416 + j * 3 + 1) = ((float)pixel[1])/255.0;
+            //             *(input_pointer + i * 416 + j * 3 + 2) = ((float)pixel[2])/255.0;
+            //     }
+            // }
+
+            // Modified (pixel-wise linear) 
+            auto input_pointer = (float *)interpreterCPU->get()->subgraph(0)->tensor(0)->data.data;
+            for (int c=0;c<3;c++)
+            {
+                for (int i=0; i<416; i++){
+                    for (int j=0; j<416; j++){   
+                        cv::Vec3b pixel = input[0].at<cv::Vec3b>(i, j);
+                        *(input_pointer + c*416*416 + i * 416 + j) = ((float)pixel[c])/255.0;
+                    }
                 }
-            } 
+            }
+            // std::cout << "\n";
+
+            // -----------------------------------------------------------------------------------------------
+            // for (int i=0; i<yolo_size; i++){
+            //     // for (int j=0; j<int(yolo_size/3); j++){   // j<yolo_size ERROR_Point
+            //     for (int j=0; j<yolo_size; j++){   // j<yolo_size ERROR_Point
+            //             // TODO(issue about wrong loc&cls data contrast to tflite::python::mAP_API)
+            //             cv::Vec3b pixel = input[0].at<cv::Vec3b>(i, j);
+            //             interpreterCPU->get()->typed_input_tensor<float>(0)[i * yolo_size + j] = \
+            //             ((float)pixel[0])/255.0; // R 2
+            //             interpreterCPU->get()->typed_input_tensor<float>(1)[i * yolo_size + j] = \
+            //             ((float)pixel[1])/255.0; // G 1
+            //             interpreterCPU->get()->typed_input_tensor<float>(2)[i * yolo_size + j] = \
+            //             ((float)pixel[2])/255.0; // B 0      
+            //     }
+            // } 
             // auto input_pointer = interpreterCPU->get()->typed_input_tensor<float>(0);
             // memcpy(input_pointer, input[0].data, input[0].total() * input[0].elemSize());
            

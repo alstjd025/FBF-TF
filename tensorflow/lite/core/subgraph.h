@@ -477,7 +477,6 @@ class Subgraph {
   static std::vector<std::vector<float>> real_bbox_cls_vector; 
   static std::vector<int> real_bbox_cls_index_vector;
   static std::vector<std::vector<int>> real_bbox_loc_vector;
-
   std::vector<int> get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector);
   void make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector);
   void make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector);
@@ -487,10 +486,96 @@ class Subgraph {
   void saveDatatoFile(const std::vector<std::vector<T>>& data,const char* mode);
   // void move_data_from_FBF_TF_to_mAP_TF(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<float>>& real_bbox_loc_vector);
 
+  // -----------------------------------------------------------
   void NMS(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<int>>& real_bbox_loc_vector);
-  // Entry point for C node plugin API to report an error.
-  void ReportError(const char* format, ...);
+  // -----------------------------------------------------------
+  // NMS toolkit
+  struct BoundingBox {
+    float left, top, right, bottom;
+    float score;
+    int class_id;
+  };
+  static std::vector<Subgraph::BoundingBox> result_boxes;
+  static bool CompareBoxesByScore(const BoundingBox& box1, const BoundingBox& box2) {
+    return box1.score > box2.score; }   // should be static func.
+  float CalculateIoU(const BoundingBox& box1, const BoundingBox& box2) {
+    // Calculate the intersection coordinates (top-left and bottom-right)
+    float x1 = std::max(box1.left, box2.left);
+    float y1 = std::max(box1.top, box2.top);
+    float x2 = std::min(box1.right, box2.right);
+    float y2 = std::min(box1.bottom, box2.bottom);
 
+    // Calculate the areas of the two boxes and the intersection area
+    float area_box1 = (box1.right - box1.left) * (box1.bottom - box1.top);
+    float area_box2 = (box2.right - box2.left) * (box2.bottom - box2.top);
+    float intersection_area = std::max(0.0f, x2 - x1) * std::max(0.0f, y2 - y1);
+
+    // Calculate the union area
+    float union_area = area_box1 + area_box2 - intersection_area;
+
+    // Calculate and return the IoU
+    if (union_area > 0.0f) {
+        return intersection_area / union_area;
+    } else {
+        return 0.0f; // Avoid division by zero
+    }
+  }
+  void NonMaximumSuppression(std::vector<BoundingBox>& boxes, float iou_threshold) {
+    std::sort(boxes.begin(), boxes.end(), CompareBoxesByScore);
+    std::vector<BoundingBox> selected_boxes;
+
+    while (!boxes.empty()) {
+        BoundingBox current_box = boxes[0];
+        selected_boxes.push_back(current_box);
+        boxes.erase(boxes.begin());
+
+        for (auto it = boxes.begin(); it != boxes.end();) {
+            float iou = CalculateIoU(current_box, *it);
+            if (iou > iou_threshold) {
+                it = boxes.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    boxes = selected_boxes;
+  }
+  void PerformNMSUsingResults(
+    const std::vector<int>& real_bbox_index_vector,
+    const std::vector<std::vector<float>>& real_bbox_cls_vector,
+    const std::vector<std::vector<int>>& real_bbox_loc_vector,
+    float iou_threshold, const std::vector<int> real_bbox_cls_index_vector)
+  {
+    std::vector<BoundingBox> bounding_boxes;
+
+    for (size_t i = 0; i < real_bbox_index_vector.size(); ++i) {
+        BoundingBox box;
+        box.left = static_cast<float>(real_bbox_loc_vector[i][0]);
+        box.top = static_cast<float>(real_bbox_loc_vector[i][1]);
+        box.right = static_cast<float>(real_bbox_loc_vector[i][2]);
+        box.bottom = static_cast<float>(real_bbox_loc_vector[i][3]);
+        box.score = static_cast<float>(real_bbox_cls_vector[i][real_bbox_cls_index_vector[i]]); // Using the class score
+        box.class_id = real_bbox_cls_index_vector[i];
+        bounding_boxes.push_back(box);
+    }
+
+    NonMaximumSuppression(bounding_boxes, iou_threshold);
+
+    printf("\033[0;32mAfter NMS:\033[0m \n");
+    std::cout << "Number of bounding boxes after NMS: " << bounding_boxes.size() << std::endl;
+    result_boxes = bounding_boxes;
+    bounding_boxes.clear();
+    for (const BoundingBox& box : result_boxes) {
+    std::cout << "Left: " << box.left << ", Top: " << box.top << ", Right: " << box.right << ", Bottom: " << box.bottom << ", Score: " << box.score << ", Class ID: " << box.class_id << std::endl;
+    }
+    //
+    
+  }
+  // -----------------------------------------------------------
+
+// Entry point for C node plugin API to report an error.
+  void ReportError(const char* format, ...);
+  
   void UseNNAPI(bool enable);
 
   // Return the subgraph specific context.

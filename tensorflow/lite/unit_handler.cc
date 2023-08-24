@@ -227,7 +227,7 @@ TfLiteStatus UnitHandler::CreateUnitGPU(UnitType eType,
     PrintMsg("GPU Interpreter Pre Invoke State");
     if (loop_num ==0)
     {
-        tflite::PrintInterpreterStateV2(interpreter->get());    
+        // tflite::PrintInterpreterStateV2(interpreter->get());    
     }
     return kTfLiteOk;
 }

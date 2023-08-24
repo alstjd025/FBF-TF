@@ -1165,6 +1165,35 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 	  return kTfLiteError;
     }
 
+    // if(node_index == 0){
+    //   auto input_pointer = (float *)tensor(0)->data.data;
+    //   for (int i=0; i<416; i++){
+    //       for (int j=0; j<416; j++){   // j<yolo_size ERROR_Point
+    //           std::cout << *(input_pointer + i * 416 + j * 3) << " ";
+    //           std::cout << *(input_pointer + i * 416 + j * 3 + 1) << " ";
+    //           std::cout << *(input_pointer + i * 416 + j * 3 + 2) << " ";
+    //           std::cout << std::endl;
+    //       }
+    //   }
+    //   // std::cout << "\n";
+    //   // std::cout << "\n";
+    //   // for (int i=0; i<416; i++){
+    //   //     for (int j=0; j<416; j++){   // j<yolo_size ERROR_Point
+    //   //         std::cout << *(input_pointer + i * 416 + j * 3 + 1) << " ";
+    //   //     }
+    //   // }
+    //   // std::cout << "\n";
+    //   // std::cout << "\n";
+    //   // for (int i=0; i<416; i++){
+    //   //     for (int j=0; j<416; j++){   // j<yolo_size ERROR_Point
+    //   //         std::cout << *(input_pointer + i * 416 + j * 3 + 2) << " ";
+    //   //     }
+    //   // }
+    //   // std::cout << "\n";
+    //   // std::cout << "\n";
+    //   // PrintTensor(*tensor(0), UnitType::CPU0);  // Do not use
+    // }
+
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
     //=============== INVOKE =============== 
@@ -1179,9 +1208,6 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 
     //std::cout << "==================================" << "\n";
     //PrintNodeInfo(node_index, node, registration);
-    if(node_index == 0){
-      // PrintInputTensor(node, eType);  
-    }
     // PrintInputTensor(node, eType);
     if (OpInvoke(registration, &node) != kTfLiteOk) {	
       return ReportOpError(&context_, node, registration, node_index,
@@ -1204,7 +1230,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
         ((clock_measure_data->time_ary[1].tv_sec - clock_measure_data->time_ary[0].tv_sec) + \
         ((clock_measure_data->time_ary[1].tv_nsec - clock_measure_data->time_ary[0].tv_nsec) / 1000000000.0));
     }
-
+    use_distribute_strategy = false; //HH
     if(use_distribute_strategy){
       
       if(use_detailed_latency_measure){
@@ -1319,26 +1345,21 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   real_bbox_cls_index_vector.clear();
   real_bbox_cls_vector.clear();
   real_bbox_loc_vector.clear();
-  // printf("\nHOON : after heuristic NMS... \n ");
+  result_boxes.clear();
   make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
-  // SOFTMAX_2(real_bbox_cls_vector);
-  real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); //
+  real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); 
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
-  // move_data_from_FBF_TF_to_mAP_TF(real_bbox_cls_index_vector, real_bbox_cls_vector, real_bbox_loc_vector);
-  // saveDatatoFile(real_bbox_cls_vector, "cls");
-  // saveDatatoFile(real_bbox_loc_vector, "loc");
-  NMS(real_bbox_cls_index_vector, real_bbox_cls_vector, real_bbox_loc_vector);
+  float iou_threshold = 0.5;
+  PerformNMSUsingResults(real_bbox_index_vector, real_bbox_cls_vector, real_bbox_loc_vector, iou_threshold,real_bbox_cls_index_vector);
   #endif
   return status;
 }
 
+std::vector<Subgraph::BoundingBox> Subgraph::result_boxes;
 std::vector<std::vector<float>> Subgraph::real_bbox_cls_vector; //
 std::vector<int> Subgraph::real_bbox_cls_index_vector;
 std::vector<std::vector<int>> Subgraph::real_bbox_loc_vector;
 
-void Subgraph::NMS(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<int>>& real_bbox_loc_vector){
-  //
-}
 
 template <typename T>
 void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const char* mode) {
@@ -1362,7 +1383,6 @@ void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const cha
     }
 }
 std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
-  // std::vector<int> real_bbox_cls_index_vector;
   float max=0;
   int max_index = -1;
   int index = 0;
@@ -1388,33 +1408,47 @@ std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_b
   return real_bbox_cls_index_vector;
 }
 
-// TODO : 230730~31 --> do SOFTMAM and then take threshold
-//                      should change below func
 void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
-  TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph
+  TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph  
   // PrintTensor(*output_tensor_2, UnitType::CPU0);
+  // Print 212 tensor
+  std::cout << "Debugging 212 (cls) tensor data : <<<<<<<<<<<<<<<<<" << std::endl;
+  // .................................
+  // auto input_pointer = (float *)tensor(212)->data.data;
+  // for (int i=0; i<2535; i++){
+  //     for (int j=0; j<80; j++){   // j<yolo_size ERROR_Point
+  //         std::cout << *(input_pointer + i *80 + j) << " ";
+  //     }
+  //     std::cout << "\n";
+  // }
+  // std::cout << "\n";
+  // .................................
   std::cout << output_tensor_2->dims->size << std::endl;
   printf("\033[0;32m212 (classfication data):\033[0m \n");
   const float* output_data_2 = (float*)output_tensor_2->data.data; // only use data.data
+  // output_data_2 handling ??? ex .,.. resize...reshape....
+  //  To oooo Doooooooo oo
+  // ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes_2);
   std::vector<float> classifications(num_boxes_2 * 80);
-  float cls_thresh = 0.05; //////////////////////////////////////// should  0.02 < thesh < 0.2
+  float cls_thresh = 0.06; //////////////////////////////////////// should  0.02 < thesh < 0.2
   for (int i = 0; i < num_boxes_2; ++i) {
     for (int j = 0; j < 80; ++j) {
-      classifications[i * 80 + j] = output_data_2[i*80 + j];  // --> not working 0808
-      // classifications.push_back(output_data_2[i*80 + j]);  // --> not working 0808
-      }
+        // classifications.push_back(output_data_2[i*80 + j]);  // use push_back (0)
+        classifications[i*80 + j] = (output_data_2[i*80 + j]);  // not use push_back (4)
+       }
   }
   int conf_count = 0;
   int real_bbox_index = -1;
-  std::vector<float> raw_vector;
+  std::vector<float> raw_vector(80);
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
       raw_vector.push_back(classifications[i * 80 + j]); 
+      // raw_vector[j] = classifications[i * 80 + j]; // Not use push_back
     }
-    SOFTMAX(raw_vector);
+    // SOFTMAX(raw_vector); //TODO
     for (int k = 0; k < 80; ++k) {
       // HHHHH
       if (raw_vector[k] > cls_thresh){
@@ -1423,11 +1457,13 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
     }
     if(box_per_conf_count >0){
       conf_count +=1;
-      real_bbox_index_vector.push_back(i); 
+      printf(" Cls Bbox's index : %d\n",i);
+      real_bbox_index_vector.push_back(i); // TODO
       real_bbox_cls_vector.push_back(raw_vector);
     }
     raw_vector.clear();
   }
+  // ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
   classifications.clear();
   printf("HOON : B_Boxes's real bbox num is : %d\n", conf_count );
   printf("debugging real_bbox_index_vector --> real b_box's index is : ");
@@ -1450,14 +1486,28 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
 }
 
 
+// should change 2077, 813, 830, 1537, 2068 
+//           to 1749, 1775, 1776, 2123, 2135, 2136, 2350
 void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector){
   TfLiteTensor* output_tensor = tensor(233);
-  // PrintTensor(*output_tensor, UnitType::CPU0);
+  ///
+  std::cout << "Debugging 233 (loc) tensor data : <<<<<<<<<<<<<<<<<" << std::endl;
+  auto input_pointer = (float *)tensor(233)->data.data;
+  // Print 233 tensor
+  // .................................
+  // for (int i=0; i<2535; i++){
+  //     for (int j=0; j<4; j++){   // j<yolo_size ERROR_Point
+  //         std::cout << *(input_pointer + i *4 + j) << " ";
+  //     }
+  //     std::cout << "\n";
+  // }
+  // std::cout << "\n";
+  // .................................
   printf("\033[0;32m233 (localization data):\033[0m \n");
   const float* output_data = (float*)output_tensor->data.data; 
   const int num_boxes = output_tensor->dims->data[1]; // 2535
   const int num_columns = output_tensor->dims->data[2]; // 4
-  std::cout << num_boxes << "  " << num_columns << " "<<std::endl;
+  std::cout << num_boxes << "  " << num_columns << " " <<std::endl;
   std::vector<float> boxes(num_boxes * num_columns);
   // CASE 1 
   // for (int i = 0; i < num_columns; ++i) {
@@ -1466,29 +1516,51 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
   //   }
   // }
   // CASE 2 (Vanilla)
-  for (int i = 0; i < num_boxes; ++i) {
-       for (int j = 0; j < num_columns; ++j) {
-           boxes[i * num_columns + j] = output_data[i * num_columns + j];
+  // std::vector<int> rr;
+  for (int i = 0; i < 2535; ++i) {
+       for (int j = 0; j < 4; ++j) {
+          //  boxes[i * 4 + j] = output_data[i * 4 + j];  
+           boxes[i * 4 + j] = *(input_pointer + i *4 + j);  //SAME
+          //  std::cout << boxes[i*4+j] << " ";  // Okay (0822)
        }
+      //  if(i == 1749 || i == 1775 || i == 1776 || i == 2123 || i == 2135 ){
+        // rr.push_back(i); // DEbugging
+      //  }
+      //  if(i == 2077 || i == 813 || i == 830 || i == 1537 || i == 2068 ){
+      //   // std::cout << "jj ";
+      //  }
+      //  std::cout << std::endl;
   }
   int bbox_count = 0;
   int image_size = 416; // Image size
-  printf("num boxes : %d\n", num_boxes);
+  printf("num boxes : %d\n", 2535);
   printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
-  // CASE 2
-  for (int i = 0; i < num_boxes; ++i) {
+  for (int i = 0; i < 2535; ++i) {
       std::vector<int>tmp;
       for(int j=0 ; j < real_bbox_index_vector.size(); j++){
-          if(i == real_bbox_index_vector[j]){
-            float first = boxes[i * num_columns];
-            float second = boxes[i * num_columns + 1];
-            float third = boxes[i * num_columns + 2];
-            float fourth = boxes[i * num_columns + 3];
-            std::cout << "HOONING " << int(first) << " " <<int(second) << " "<< int(third) << " "<< int(fourth) << std::endl;
-            int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
-            int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
-            int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
-            int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
+      // for(int j=0 ; j < rr.size(); j++){
+          if(i == real_bbox_index_vector[j])
+          // if(i == rr[j])
+          {
+            std::cout << "LOC index is :   " << real_bbox_index_vector[j]<< " ... " << i << std::endl;
+            float first = boxes[i * 4];      // 0   ????
+            float second = boxes[i * 4 + 1];  // 8
+            float third = boxes[i * 4 + 2];   //  2
+            float fourth = boxes[i* 4 + 3];   // 0
+            // float x_c = second;
+            // float y_c = first;
+            // float width = fourth;
+            // float height = third;
+            std::cout << "Bbox's loc raw data :  " << int(first) << " " <<int(second) << " "<< int(third) << " "<< int(fourth) << std::endl;
+            // int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
+            // int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
+            // int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
+            // int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
+            int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first - third/2)));
+            int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second - fourth/2)));
+            int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third/2)));
+            int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth/2)));
+            // std::cout << std::endl << left <<std::endl;
             tmp.push_back(left);
             tmp.push_back(top);
             tmp.push_back(right);
@@ -1499,35 +1571,11 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
       }
       tmp.clear(); //HH
   }
-  // CASE 1
-  // for (int i = 0; i < num_boxes; ++i) {
-  //   std::vector<int> tmp;
-  //   for (int j = 0; j < real_bbox_index_vector.size(); j++) {
-  //       if (i == real_bbox_index_vector[j]) {
-  //           float first = boxes[i * num_boxes + 0]; // 가로 인덱스 0
-  //           float second = boxes[i * num_boxes + 1]; // 가로 인덱스 1
-  //           float third = boxes[i * num_boxes + 2]; // 가로 인덱스 2
-  //           float fourth = boxes[i * num_boxes + 3]; // 가로 인덱스 3
-  //           // 나머지 부분은 그대로 유지
-  //           std::cout << "HOONING " << int(first) << " " << int(second) << " " << int(third) << " " << int(fourth) << std::endl;
-  //           int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
-  //           int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
-  //           int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
-  //           int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
-  //           tmp.push_back(left);
-  //           tmp.push_back(top);
-  //           tmp.push_back(right);
-  //           tmp.push_back(bottom);
-  //           real_bbox_loc_vector.push_back(tmp);
-  //           break; //..!!
-  //       }
-  //   }
-  //   tmp.clear(); //HH
-  // }
   printf("\n");
   for (auto i : real_bbox_loc_vector) { 
+    std::cout << "Bbox's loc modified data : ";
 	  for (auto j : i) { 
-      printf("%.d ", j);
+      std::cout << j << " ";
 	  }
 	  std::cout << std::endl;
 	}
@@ -2325,19 +2373,18 @@ void Subgraph::PrintOutputTensor(TfLiteNode& node, UnitType eType){
 }
 
 void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
-  std::cout << "[Print Tensor]" << "\n";
-  int tensor_data_dims_size = tensor.dims->size-1;
-  std::cout << "tensor_dims_size" << tensor.dims->size << std::endl;
-  int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+    std::cout << "[Print Tensor]" << "\n";
+  int tensor_channel_idx = tensor.dims->size-1;
+  int tensor_data_ch_size = tensor.dims->data[tensor_channel_idx];
   int tensor_data_size = 1;
   int tensor_axis;
   for(int i=0; i< tensor.dims->size; i++){
-    if(i == 1){
+    if(i == 2){
       tensor_axis = tensor.dims->data[i];
     }
     tensor_data_size *= tensor.dims->data[i]; 
   }
-  std::cout << " Nunber of data : " << tensor_data_size << "\n";
+  std::cout << " Number of data : " << tensor_data_size << "\n";
   std::cout << " Tensor DATA " << "\n";
   if(tensor.type == TfLiteType::kTfLiteFloat32){
     std::cout << "[FLOAT32 TENSOR]" << "\n";
@@ -2350,56 +2397,7 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
           printf("%0.6f ", data);
         }
         else if (data != 0) {
-          if(eType == UnitType::CPU0)
             printf("%s%0.6f%s ", C_GREN, data, C_NRML);
-          else if(eType == UnitType::GPU0)
-            printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
-        }
-        if (j % tensor_axis == tensor_axis-1) {
-          printf("\n");
-        }
-      }
-      std::cout << "\n";
-    }
-  }
-  else if(tensor.type == TfLiteType::kTfLiteInt8){
-    std::cout << "[INT8 TENSOR]" << "\n";
-    auto data_st = (int8_t*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
-      std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        int8_t data = *(data_st+(i+j*tensor_data_ch_size));
-        if (data == 0) {
-          printf("%d ", data);
-        }
-        else if (data != 0) {
-          if(eType == UnitType::CPU0)
-            printf("%s%d%s ", C_GREN, data, C_NRML);
-          else if(eType == UnitType::GPU0)
-            printf("%s%d%s ", C_YLLW, data, C_NRML);
-        }
-        if (j % tensor_axis == tensor_axis-1) {
-          printf("\n");
-        }
-      }
-    }
-    std::cout << "\n";
-  }
-  else if(tensor.type == TfLiteType::kTfLiteInt32){
-    std::cout << "[INT32 TENSOR]" << "\n";
-    auto data_st = (int*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
-      std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        int data = *(data_st+(i+j*tensor_data_ch_size));
-        if (data == 0) {
-          printf("%d ", data);
-        }
-        else if (data != 0) {
-          if(eType == UnitType::CPU0)
-            printf("%s%d%s ", C_GREN, data, C_NRML);
-          else if(eType == UnitType::GPU0)
-            printf("%s%d%s ", C_YLLW, data, C_NRML);
         }
         if (j % tensor_axis == tensor_axis-1) {
           printf("\n");
@@ -2409,6 +2407,91 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor, UnitType eType){
     }
   }
 }
+
+//   std::cout << "[Print Tensor]" << "\n";
+//   int tensor_data_dims_size = tensor.dims->size-1;
+//   std::cout << "tensor_dims_size" << tensor.dims->size << std::endl;
+//   int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
+//   int tensor_data_size = 1;
+//   int tensor_axis;
+//   for(int i=0; i< tensor.dims->size; i++){
+//     if(i == 1){
+//       tensor_axis = tensor.dims->data[i];
+//     }
+//     tensor_data_size *= tensor.dims->data[i]; 
+//   }
+//   std::cout << " Nunber of data : " << tensor_data_size << "\n";
+//   std::cout << " Tensor DATA " << "\n";
+//   if(tensor.type == TfLiteType::kTfLiteFloat32){
+//     std::cout << "[FLOAT32 TENSOR]" << "\n";
+//     auto data_st = (float*)tensor.data.data;
+//     for(int i=0; i<tensor_data_ch_size; i++){
+//       std::cout << "CH [" << i << "] \n";
+//       for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+//         float data = *(data_st+(i+j*tensor_data_ch_size));
+//         if (data == 0) {
+//           printf("%0.6f ", data);
+//         }
+//         else if (data != 0) {
+//           if(eType == UnitType::CPU0)
+//             printf("%s%0.6f%s ", C_GREN, data, C_NRML);
+//           else if(eType == UnitType::GPU0)
+//             printf("%s%0.6f%s ", C_YLLW, data, C_NRML);
+//         }
+//         if (j % tensor_axis == tensor_axis-1) {
+//           printf("\n");
+//         }
+//       }
+//       std::cout << "\n";
+//     }
+//   }
+//   else if(tensor.type == TfLiteType::kTfLiteInt8){
+//     std::cout << "[INT8 TENSOR]" << "\n";
+//     auto data_st = (int8_t*)tensor.data.data;
+//     for(int i=0; i<tensor_data_ch_size; i++){
+//       std::cout << "CH [" << i << "] \n";
+//       for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+//         int8_t data = *(data_st+(i+j*tensor_data_ch_size));
+//         if (data == 0) {
+//           printf("%d ", data);
+//         }
+//         else if (data != 0) {
+//           if(eType == UnitType::CPU0)
+//             printf("%s%d%s ", C_GREN, data, C_NRML);
+//           else if(eType == UnitType::GPU0)
+//             printf("%s%d%s ", C_YLLW, data, C_NRML);
+//         }
+//         if (j % tensor_axis == tensor_axis-1) {
+//           printf("\n");
+//         }
+//       }
+//     }
+//     std::cout << "\n";
+//   }
+//   else if(tensor.type == TfLiteType::kTfLiteInt32){
+//     std::cout << "[INT32 TENSOR]" << "\n";
+//     auto data_st = (int*)tensor.data.data;
+//     for(int i=0; i<tensor_data_ch_size; i++){
+//       std::cout << "CH [" << i << "] \n";
+//       for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
+//         int data = *(data_st+(i+j*tensor_data_ch_size));
+//         if (data == 0) {
+//           printf("%d ", data);
+//         }
+//         else if (data != 0) {
+//           if(eType == UnitType::CPU0)
+//             printf("%s%d%s ", C_GREN, data, C_NRML);
+//           else if(eType == UnitType::GPU0)
+//             printf("%s%d%s ", C_YLLW, data, C_NRML);
+//         }
+//         if (j % tensor_axis == tensor_axis-1) {
+//           printf("\n");
+//         }
+//       }
+//       std::cout << "\n";
+//     }
+//   }
+// }
 
 void Subgraph::PrintOutputTensorOfSubgraph(UnitType eType){
   int node_index = execution_plan_[execution_plan_.size()-1];
