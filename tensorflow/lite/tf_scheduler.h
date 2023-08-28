@@ -21,7 +21,8 @@
 
 namespace tflite{
 
-
+  // NEED_REFACTOR (02634) : Add obvious resource type (CPU, GPU, TPU,,.)
+  //                         and change resource_type to subgraph_type.
   typedef struct subgraph_node{
     /* id of subgraph */
     int subgraph_id = -1;      
@@ -36,7 +37,10 @@ namespace tflite{
     int node_end = -1;         
     
     /* resource type of subgraph (CPU, GPU, CO-EX) */
-    int resource_type = -1;    
+    int resource_type = -1;   
+
+    /* processor type of subgraph (CPU, GPU, CO-EX) */ 
+    int processor_type = -1;
 
     /* rank of subgraph in 'graph' (need for maintaining the graph struct)*/
     int rank = -1;   

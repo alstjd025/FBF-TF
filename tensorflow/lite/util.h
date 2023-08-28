@@ -42,7 +42,7 @@ limitations under the License.
 #define TF_P_PLAN_GPU        1
 #define TF_P_PLAN_CO_E       2
 #define TF_P_PLAN_CPU_XNN    3
-#define TF_P_PLAN_CO_E_XNN   3
+#define TF_P_PLAN_CO_E_XNN   4
 
 // packet partitioning plan end flag
 #define TF_P_END_PLAN       -1
@@ -189,6 +189,7 @@ typedef enum PartitioningType{
 } PartitioningType;
 
 // ResourceType for subgraph
+// NEED_REFACTOR (02634) : Use more clear name. (like SubgraphType)
 typedef enum ResourceType{
   CPU,
   GPU,
@@ -204,7 +205,7 @@ typedef enum ResourceType{
 // #define TF_P_PLAN_GPU        1
 // #define TF_P_PLAN_CO_E       2
 // #define TF_P_PLAN_CPU_XNN    3
-// #define TF_P_PLAN_CO_E_XNN   3
+// #define TF_P_PLAN_CO_E_XNN   4
 
 typedef enum RuntimeState{
   INITIALIZE,

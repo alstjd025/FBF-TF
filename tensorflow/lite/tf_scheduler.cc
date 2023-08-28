@@ -233,9 +233,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.  
-  // How about measuring via sending small GL kernel?
-  // std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  
+  // NEED_REFACTOR (02634) : Must change to use obvious resource type.
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
   if(gpu_util > gpu_thresh && cpu_util < cpu_thresh){
@@ -734,33 +732,33 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
 
     tx_p.partitioning_plan[10][TF_P_IDX_START]    = 9;
     tx_p.partitioning_plan[10][TF_P_IDX_END]      = 20;
-    tx_p.partitioning_plan[10][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[10][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
     tx_p.partitioning_plan[10][TF_P_IDX_RATIO]    = 0; // partitioning ratio
 
     tx_p.partitioning_plan[11][TF_P_IDX_START]    = 21;
     tx_p.partitioning_plan[11][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
     tx_p.partitioning_plan[11][TF_P_IDX_RATIO]    = 0; // partitioning ratio
 
     tx_p.partitioning_plan[12][TF_P_IDX_START]    = 33;
     tx_p.partitioning_plan[12][TF_P_IDX_END]      = 55;
-    tx_p.partitioning_plan[12][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+    tx_p.partitioning_plan[12][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
     tx_p.partitioning_plan[12][TF_P_IDX_RATIO]    = 0; // partitioning ratio
     tx_p.partitioning_plan[13][TF_P_IDX_START]    = TF_P_END_PLAN;
 
     tx_p.partitioning_plan[14][TF_P_IDX_START]    = 0;
     tx_p.partitioning_plan[14][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[14][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[14][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
     tx_p.partitioning_plan[14][TF_P_IDX_RATIO]    = 17; // partitioning ratio
 
     tx_p.partitioning_plan[15][TF_P_IDX_START]    = 9;
     tx_p.partitioning_plan[15][TF_P_IDX_END]      = 20;
-    tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
     tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 17; // partitioning ratio
 
     tx_p.partitioning_plan[16][TF_P_IDX_START]    = 21;
     tx_p.partitioning_plan[16][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[16][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+    tx_p.partitioning_plan[16][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
     tx_p.partitioning_plan[16][TF_P_IDX_RATIO]    = 16; // partitioning ratio
     tx_p.partitioning_plan[17][TF_P_IDX_START]    = TF_P_END_PLAN;
 
