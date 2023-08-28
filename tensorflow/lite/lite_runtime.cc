@@ -448,7 +448,6 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
 TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::vector<std::vector<int>> raw_plan;
   int inner_plan_idx = 0;
-
   for(int i=0; i<TF_P_PLAN_LENGTH; ++i){
     raw_plan.push_back(std::vector<int>());
     inner_plan_idx = raw_plan.size() - 1;
@@ -496,12 +495,12 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::cout << "Minimal precision subgraph created" << "\n";
   std::cout << "===============================" << "\n";
   
-  std::cout << "=====================" << "\n";
-  std::cout << "MAX precicion interpreter state" << "\n";
-  PrintInterpreterStateV3(interpreter);
-  std::cout << "=====================" << "\n";
-  std::cout << "MIN precicion interpreter state" << "\n";
-  PrintInterpreterStateV3(quantized_interpreter);
+  // std::cout << "=====================" << "\n";
+  // std::cout << "MAX precicion interpreter state" << "\n";
+  // PrintInterpreterStateV3(interpreter);
+  // std::cout << "=====================" << "\n";
+  // std::cout << "MIN precicion interpreter state" << "\n";
+  // PrintInterpreterStateV3(quantized_interpreter);
   
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
