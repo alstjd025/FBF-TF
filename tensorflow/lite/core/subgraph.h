@@ -473,7 +473,9 @@ class Subgraph {
   //Overloaded Invoke Function for while.cc ..etc
   TfLiteStatus Invoke(UnitType eType);
 
-  //HOON : for mAP parsing [FBF-TF --> mAP-TF]
+
+  ////////////////////////////////////////////////////////////////////////////////////////////
+  //HOON : for mAP parsing
   static std::vector<std::vector<float>> real_bbox_cls_vector; 
   static std::vector<int> real_bbox_cls_index_vector;
   static std::vector<std::vector<int>> real_bbox_loc_vector;
@@ -481,39 +483,28 @@ class Subgraph {
   void make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector);
   void make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector);
   void SOFTMAX(std::vector<float>& real_bbox_cls_vector);
-  void SOFTMAX_2(std::vector<std::vector<float>>& real_bbox_cls_vector);
-  template <typename T>
-  void saveDatatoFile(const std::vector<std::vector<T>>& data,const char* mode);
-  // void move_data_from_FBF_TF_to_mAP_TF(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<float>>& real_bbox_loc_vector);
-
-  // -----------------------------------------------------------
   void NMS(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<int>>& real_bbox_loc_vector);
-  // -----------------------------------------------------------
-  // NMS toolkit
+  
   struct BoundingBox {
     float left, top, right, bottom;
     float score;
     int class_id;
   };
   static std::vector<Subgraph::BoundingBox> result_boxes;
+
   static bool CompareBoxesByScore(const BoundingBox& box1, const BoundingBox& box2) {
-    return box1.score > box2.score; }   // should be static func.
+    return box1.score > box2.score; }   // should be static func
+
   float CalculateIoU(const BoundingBox& box1, const BoundingBox& box2) {
-    // Calculate the intersection coordinates (top-left and bottom-right)
     float x1 = std::max(box1.left, box2.left);
     float y1 = std::max(box1.top, box2.top);
     float x2 = std::min(box1.right, box2.right);
     float y2 = std::min(box1.bottom, box2.bottom);
-
-    // Calculate the areas of the two boxes and the intersection area
     float area_box1 = (box1.right - box1.left) * (box1.bottom - box1.top);
     float area_box2 = (box2.right - box2.left) * (box2.bottom - box2.top);
     float intersection_area = std::max(0.0f, x2 - x1) * std::max(0.0f, y2 - y1);
-
-    // Calculate the union area
     float union_area = area_box1 + area_box2 - intersection_area;
-
-    // Calculate and return the IoU
+  
     if (union_area > 0.0f) {
         return intersection_area / union_area;
     } else {
@@ -561,17 +552,16 @@ class Subgraph {
 
     NonMaximumSuppression(bounding_boxes, iou_threshold);
 
-    printf("\033[0;32mAfter NMS:\033[0m \n");
+    printf("\033[0;32mAfter NMS : \033[0m");
     std::cout << "Number of bounding boxes after NMS: " << bounding_boxes.size() << std::endl;
     result_boxes = bounding_boxes;
     bounding_boxes.clear();
-    for (const BoundingBox& box : result_boxes) {
-    std::cout << "Left: " << box.left << ", Top: " << box.top << ", Right: " << box.right << ", Bottom: " << box.bottom << ", Score: " << box.score << ", Class ID: " << box.class_id << std::endl;
-    }
-    //
-    
   }
-  // -----------------------------------------------------------
+  ////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
 
 // Entry point for C node plugin API to report an error.
   void ReportError(const char* format, ...);

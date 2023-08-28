@@ -1335,11 +1335,9 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
     if(eType == UnitType::GPU0){
     }
   }
-  // std::cout << "\033[0;32mHOONING : end of subgraph::invoke\033[0m" << std::endl;
-  // -----------------------------------------------------------------------
-  // HOON : after invoke. YOLO parsing 
-  // -----------------------------------------------------------------------
+  ////////////////////////////////////////////////////////////////////////////////////////////
   #ifdef YOLO
+  printf("\033[0;33mStart YOLO parsing\033[0m\n");
   std::vector<int> real_bbox_index_vector;
   real_bbox_index_vector.clear();
   real_bbox_cls_index_vector.clear();
@@ -1351,37 +1349,16 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
   float iou_threshold = 0.5;
   PerformNMSUsingResults(real_bbox_index_vector, real_bbox_cls_vector, real_bbox_loc_vector, iou_threshold,real_bbox_cls_index_vector);
+  printf("\033[0;33mEND YOLO parsing\033[0m\n");
   #endif
   return status;
 }
 
 std::vector<Subgraph::BoundingBox> Subgraph::result_boxes;
-std::vector<std::vector<float>> Subgraph::real_bbox_cls_vector; //
+std::vector<std::vector<float>> Subgraph::real_bbox_cls_vector; 
 std::vector<int> Subgraph::real_bbox_cls_index_vector;
 std::vector<std::vector<int>> Subgraph::real_bbox_loc_vector;
 
-
-template <typename T>
-void Subgraph::saveDatatoFile(const std::vector<std::vector<T>>& data, const char* mode) {
-    const char* filename = nullptr;
-    if (strcmp(mode, "cls") == 0) {
-        filename = "../mAP_TF/input/detection-results/cls.txt";
-    } else if (strcmp(mode, "loc") == 0) {
-        filename = "../mAP_TF/input/detection-results/loc.txt";
-    }
-    if (filename != nullptr) {
-        std::ofstream outFile(filename);
-        if (outFile.is_open()) {
-            for (const auto& row : data) {
-                for (const auto& value : row) {
-                    outFile << value << " ";
-                }
-                outFile << std::endl;
-            }
-            outFile.close();
-        }
-    }
-}
 std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
   float max=0;
   int max_index = -1;
@@ -1395,49 +1372,22 @@ std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_b
       }
       index+=1;
 		}
-    // std::cout << "HH : " << max_index << std::endl;
     real_bbox_cls_index_vector.push_back(max_index);
-		// std::cout << std::endl << std::endl;
     max = 0;
     max_index = -1;
 	}
-  printf("real_bbox_cls_index vector : ");
-  for (auto i :real_bbox_cls_index_vector)
-    printf("\033[0;31m%d\033[0m ", i);
-  printf("\n\n");
   return real_bbox_cls_index_vector;
 }
 
 void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
-  TfLiteTensor* output_tensor_2 = tensor(212); // 3rd method. simplest tool in subgraph  
-  // PrintTensor(*output_tensor_2, UnitType::CPU0);
-  // Print 212 tensor
-  std::cout << "Debugging 212 (cls) tensor data : <<<<<<<<<<<<<<<<<" << std::endl;
-  // .................................
-  // auto input_pointer = (float *)tensor(212)->data.data;
-  // for (int i=0; i<2535; i++){
-  //     for (int j=0; j<80; j++){   // j<yolo_size ERROR_Point
-  //         std::cout << *(input_pointer + i *80 + j) << " ";
-  //     }
-  //     std::cout << "\n";
-  // }
-  // std::cout << "\n";
-  // .................................
-  std::cout << output_tensor_2->dims->size << std::endl;
-  printf("\033[0;32m212 (classfication data):\033[0m \n");
-  const float* output_data_2 = (float*)output_tensor_2->data.data; // only use data.data
-  // output_data_2 handling ??? ex .,.. resize...reshape....
-  //  To oooo Doooooooo oo
-  // ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+  TfLiteTensor* output_tensor_2 = tensor(212);  
+  const float* output_data_2 = (float*)output_tensor_2->data.data;
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
-  printf("HOONING: num_boxes --> %d\n", num_boxes_2);
   std::vector<float> classifications;
-  // float cls_thresh = 0.25; //////////////////////////////////////// should  0.02 < thesh < 0.2
-  float cls_thresh = 0.15; //////////////////////////////////////// should  0.02 < thesh < 0.2
+  float cls_thresh = 0.05; // Hyperparam
   for (int i = 0; i < num_boxes_2; ++i) {
     for (int j = 0; j < 80; ++j) {
-        classifications.push_back(output_data_2[i*80 + j]);  // use push_back (0)
-        // classifications[i*80 + j] = (output_data_2[i*80 + j]);  // not use push_back (4)
+        classifications.push_back(output_data_2[i*80 + j]);  
        }
   }
   int conf_count = 0;
@@ -1447,198 +1397,63 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
       raw_vector.push_back(classifications[i * 80 + j]); 
-      // raw_vector[j] = classifications[i * 80 + j]; // Not use push_back
     }
-    //SOFTMAX(raw_vector); //TODO
+    // SOFTMAX(raw_vector); // Not use Softmax currently
     for (int k = 0; k < 80; ++k) {
-      // HHHHH
       if (raw_vector[k] > cls_thresh){
         box_per_conf_count +=1;
       }
     }
     if(box_per_conf_count >0){
       conf_count +=1;
-      printf(" Cls Bbox's index : %d\n",i);
-      real_bbox_index_vector.push_back(i); // TODO
+      real_bbox_index_vector.push_back(i); 
       real_bbox_cls_vector.push_back(raw_vector);
     }
     raw_vector.clear();
   }
-  // ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
   classifications.clear();
-  printf("HOON : B_Boxes's real bbox num is : %d\n", conf_count );
-  printf("debugging real_bbox_index_vector --> real b_box's index is : ");
-  for(int i=0 ; i < real_bbox_index_vector.size(); i++){
-          std::cout << " " << real_bbox_index_vector[i];
-  }
-  printf("\n");
-  printf("\033[0;33mdebugging real_bbox_cls_vector --> real b_box's cls data :\033[0m \n\n");
-  for (auto i : real_bbox_cls_vector) { 
-		for (auto j : i) { 
-      if (j > cls_thresh){
-        printf("\033[0;31m%.6f\033[0m ", j);
-      }
-      else{
-        printf("%.6f ", j);
-      }
-		}
-		std::cout << std::endl << std::endl;
-	}
+  printf("\033[0;32mBefore NMS : \033[0m");
+  std::cout << " Number of bounding boxes before NMS : " << real_bbox_index_vector.size() << std::endl;
 }
 
 
-// should have Bbox index [ 2421, 2438 ]
 void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector){
   TfLiteTensor* output_tensor = tensor(233);
-  ///
-  std::cout << "Debugging 233 (loc) tensor data : <<<<<<<<<<<<<<<<<" << std::endl;
   auto input_pointer = (float *)tensor(233)->data.data;
-  // Print 233 tensor
-  // .................................
-  // for (int i=0; i<2535; i++){
-  //     for (int j=0; j<4; j++){   // j<yolo_size ERROR_Point
-  //         std::cout << *(input_pointer + i *4 + j) << " ";
-  //     }
-  //     std::cout << "\n";
-  // }
-  // std::cout << "\n";
-  // .................................
-  printf("\033[0;32m233 (localization data):\033[0m \n");
   const float* output_data = (float*)output_tensor->data.data; 
   const int num_boxes = output_tensor->dims->data[1]; // 2535
   const int num_columns = output_tensor->dims->data[2]; // 4
-  std::cout << num_boxes << "  " << num_columns << " " <<std::endl;
   std::vector<float> boxes;
-  // CASE 2 (Vanilla)
-  // std::vector<int> rr;
   for (int i = 0; i < 2535; ++i) {
        for (int j = 0; j < 4; ++j) {
-          // boxes[i * 4 + j] = output_data[i * 4 + j];  
           boxes.push_back(output_data[i * 4 + j]);  
-          //  boxes[i * 4 + j] = *(input_pointer + i *4 + j);  //SAME
-          //  std::cout << boxes[i*4+j] << " ";  // Okay (0822)
-
        }
-      //  if (i == 2421 || i == 2438){
-        // rr.push_back(i);
-      //  }
   }
   int bbox_count = 0;
-  int image_size = 416; // Image size
-
-  
-  printf("num boxes : %d\n", 2535);
-  printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
+  int image_size = 416; 
   for (int i = 0; i < 2535; ++i) {
       std::vector<int>tmp;
       for(int j=0 ; j < real_bbox_index_vector.size(); j++){
-      // for(int j=0 ; j < rr.size(); j++){
-          if(i == real_bbox_index_vector[j])
-          // if(i == rr[j])
-          {
-            // std::cout << "LOC index is :   " << real_bbox_index_vector[j]<< " ... " << i << std::endl;
-            // Just loc parsing (converting) Error ...??
-            float first = boxes[i * 4];      // 0   ????
-            float second = boxes[i * 4 + 1];  // 8
-            float third = boxes[i * 4 + 2];   //  2
-            float fourth = boxes[i* 4 + 3];   // 0
-
-            std::cout << "RAW data :  " << int(first) << " " <<int(second) << " "<< int(third) << " "<< int(fourth) << std::endl;
+          if(i == real_bbox_index_vector[j]) {
+            float first = boxes[i * 4];      
+            float second = boxes[i * 4 + 1]; 
+            float third = boxes[i * 4 + 2]; 
+            float fourth = boxes[i* 4 + 3];   
             int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first - third/2)));
             int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second - fourth/2)));
             int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third/2)));
             int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth/2)));
-            // std::cout << "Converted data :  " << left << " " << top << " "<< right << " "<< bottom << std::endl;
             tmp.push_back(left);
             tmp.push_back(top);
             tmp.push_back(right);
             tmp.push_back(bottom);
             real_bbox_loc_vector.push_back(tmp);
-            break; //..!!
+            break;
           }
       }
-      tmp.clear(); //HH
-  }
-  printf("\n");
-  for (auto i : real_bbox_loc_vector) { 
-    std::cout << "Bbox's loc modified data : ";
-	  for (auto j : i) { 
-      std::cout << j << " ";
-	  }
-	  std::cout << std::endl;
-	}
-  std::cout<<std::endl;
-}
-
-
-// void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<int>>& real_bbox_loc_vector) {
-//   TfLiteTensor* output_tensor = tensor(233);
-//   printf("\033[0;32m233 (localization data):\033[0m \n");
-//   const float* output_data = (float*)output_tensor->data.data;
-//   const int num_boxes = output_tensor->dims->data[1]; // 1
-//   const int num_columns = output_tensor->dims->data[2]; // 2535
-//   std::cout << num_boxes << "  " << num_columns << " " << std::endl;
-
-//   int image_size = 416; // Image size
-
-//   printf("num boxes : %d\n", num_boxes);
-//   printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
-//   for (int i = 0; i < num_boxes; ++i) {
-//     if (std::find(real_bbox_index_vector.begin(), real_bbox_index_vector.end(), i) != real_bbox_index_vector.end()) {
-//       float first = output_data[i * num_columns];
-//       float second = output_data[i * num_columns + 1];
-//       float third = output_data[i * num_columns + 2];
-//       float fourth = output_data[i * num_columns + 3];
-
-//       int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
-//       int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
-//       int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
-//       int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
-
-//       std::vector<int> tmp = { left, top, right, bottom };
-//       real_bbox_loc_vector.push_back(tmp);
-//     }
-//   }
-
-//   // Print the results for debugging
-//   printf("\n");
-//   for (auto i : real_bbox_loc_vector) { 
-//     for (auto j : i) { 
-//       printf("%.d ", j);
-//     }
-//     std::cout << std::endl;
-//   }
-//   std::cout << std::endl;
-// }
-
-void Subgraph::SOFTMAX_2(std::vector<std::vector<float>>& real_bbox_cls_vector){
-  printf("\033[0;33mAfter SOFTMAX :\033[0m \n");
-  const float threshold = 0.999999; 
-  for (auto& row : real_bbox_cls_vector) {
-      float maxElement = *std::max_element(row.begin(), row.end());
-      float sum = 0.0;
-      const float scalingFactor = 20.0;
-      for (auto& i : row)
-          sum += std::exp(scalingFactor * (i - maxElement));
-      for (int i = 0; i < row.size(); ++i) {
-          row[i] = std::exp(scalingFactor * (row[i] - maxElement)) / sum;
-          if (row[i] > threshold)
-              row[i] = threshold; 
-      }
-  }
-  for (auto i : real_bbox_cls_vector) {
-      for (auto j : i) {
-          if (j > 0.15) {
-              printf("\033[0;31m%.6f\033[0m ", j);
-          }
-          else {
-              printf("%.6f ", j);
-          }
-      }
-      std::cout << std::endl << std::endl;
+      tmp.clear();
   }
 }
-
 void Subgraph::SOFTMAX(std::vector<float>& row) {
     const float threshold = 0.999999; 
     float maxElement = *std::max_element(row.begin(), row.end());
@@ -1651,16 +1466,8 @@ void Subgraph::SOFTMAX(std::vector<float>& row) {
         if (row[i] > threshold)
             row[i] = threshold; 
     }
-   for (auto j : row){
-      if (j > 0.15) {
-              // printf("\033[0;31m%.6f\033[0m ", j);
-      }
-      else {
-              // printf("%.6f ", j);
-      }
-   }
-
 }
+////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
