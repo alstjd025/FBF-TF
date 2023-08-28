@@ -27,6 +27,8 @@ std::ostream& operator<<(std::ostream& out, const tflite::ResourceType value){
     PROCESS_VAL(GPU);     
     PROCESS_VAL(CO_CPU);
     PROCESS_VAL(CO_GPU);
+    PROCESS_VAL(CPU_XNN);
+    PROCESS_VAL(CO_CPU_XNN);
     PROCESS_VAL(NONE);
   }
 #undef PROCESS_VAL

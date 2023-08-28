@@ -820,53 +820,8 @@ TfLiteStatus Subgraph::PartitionChannel(){
 }
 
 TfLiteStatus Subgraph::PartitionHeightTest(){
-  
-  auto stub_method = [&](int padding, std::vector<std::pair<int, int>>& tensor_pair){
-    // Resize the tensors 
-    // TEST FOR FIRST NODE
-    // TEST FOR FIRST NODE
-    TfLiteTensor* input_tensor;
-    TfLiteTensor* output_tensor;
-    int input_tensor_idx = tensor_pair[0].first;
-    std::cout << "changed height for tensor " << input_tensor_idx << "\n";
-    int output_tensor_idx = tensor_pair[0].second; 
-    std::vector<int> new_dims;
-    input_tensor = tensor(input_tensor_idx);
-    output_tensor = tensor(output_tensor_idx);
-    
-    // calculate paddings for inputs. (consider input, kernel size)
-    int padd = padding;
-    int pointer_offset = 0;
-    for(int i=0; i<input_tensor->dims->size; ++i){
-      new_dims.push_back(input_tensor->dims->data[i]);
-    }
-    // no padding for output. (consider input, kernel size)
-    auto data_pointer = *(&input_tensor->data.data);
-    int o = input_tensor->dims->data[0];
-    int h = input_tensor->dims->data[1];
-    int w = input_tensor->dims->data[2];
-    int i = input_tensor->dims->data[3];
-    new_dims[0] = o;
-    new_dims[1] = padd;
-    new_dims[2] = w;
-    new_dims[3] = i;
-    
-    // TEST FOR FIRST NODE
-    // TEST FOR FIRST NODE
 
-    // Move the data pointer to proper point. (No need to move if CO_GPU)
-    // moving data pointer isn't necessary for global input tensor.
-    if(resource_type == ResourceType::CO_CPU ||
-        resource_type == ResourceType::CO_CPU_XNN){ // move pointer to bottom. 
-      new_dims[1] = (h - padd);
-      pointer_offset = o * (h - padd) * w;
-      data_pointer += pointer_offset;
-    }
-    // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
-    ResizeInputTensor(input_tensor_idx, new_dims);
-  };
-
-  auto stub_method_p = [&](int p_ratio, std::vector<std::pair<int, int>>& tensor_pair){
+  auto stub_method = [&](int p_ratio, std::vector<std::pair<int, int>>& tensor_pair){
     // Resize the tensors 
     // TEST FOR FIRST NODE
     // TEST FOR FIRST NODE
@@ -918,7 +873,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     //     padd_with_dummy = 0;
     //     break;
     //   }
+
       int padd_with_dummy = (h - padd) + int((h - padd) * 0.5);
+      std::cout << "h " << h << " padd " << padd << "\n";
+      std::cout << "padd_with_dummy " << padd_with_dummy << "\n";
       if(w == 416){
         padd_with_dummy = 248;
         new_dims[1] = padd_with_dummy;
@@ -955,8 +913,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   }
   int partitioning_plan_ratio = GetPartitioningRatio();
   
-
-  stub_method_p(partitioning_plan_ratio, tensor_pair);
+  stub_method(partitioning_plan_ratio, tensor_pair);
   // stub_method(225, tensor_pair);  // for efficient l4
   // stub_method(144, tensor_pair);  // for ultra lane net
   // stub_method(240, tensor_pair);  // for ultra lane net
