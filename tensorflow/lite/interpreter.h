@@ -491,14 +491,8 @@ class Interpreter {
   // Minsung
   // Register given delegate object to this interpreter.
   // Currently only one deldegate.
-  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate);
-
-  // sj
-  // overloading
-  TfLiteStatus RegisterDelegate(std::vector<TfLiteDelegate*> delegate);
-
-  // sj
-  std::vector<TfLiteDelegate*> delegate_provided_v;
+  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2 = nullptr);
+  // TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2);
 
   // Owning handle to a TfLiteDelegate instance.
   using TfLiteDelegatePtr =
@@ -801,7 +795,7 @@ class Interpreter {
   friend class tflite::InterpreterTest;
   friend class tflite::TestDelegate;
   friend class tflite::delegates::InterpreterUtils;
-  
+
 
   /// Set the value of an external context.
   static void SetExternalContext(struct TfLiteContext* context,
@@ -911,6 +905,7 @@ class Interpreter {
   // Minsung
   // Delegate
   TfLiteDelegate* delegate_provided_ = nullptr;
+  TfLiteDelegate* delegate_provided_2 = nullptr;
   int test_value = 0;
   // Minsung
   // Subgraphs

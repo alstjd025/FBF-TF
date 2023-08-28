@@ -814,19 +814,20 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
 TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
   for(auto new_subgraph : new_subgraphs){
-    if(new_subgraph->GetGraphid()!=12 && new_subgraph->GetGraphid()!=8){
-      if(new_subgraph->GetResourceType() == ResourceType::GPU ||
-        new_subgraph->GetResourceType() == ResourceType::CO_GPU 
-        // sj, consider for subgraph's resource type
-        || new_subgraph->GetResourceType() == ResourceType::CPU
-        || new_subgraph->GetResourceType() == ResourceType::CO_CPU
-        ){
-        if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
-          != kTfLiteOk){
-            std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
-                    << " Delegate" << "\n";
-        }
+    // sj
+    // To check whether subgraphs need delegation
+    // if(new_subgraph->GetGraphid()!=12 && new_subgraph->GetGraphid()!=8){
+    if(new_subgraph->GetResourceType() == ResourceType::GPU ||
+      new_subgraph->GetResourceType() == ResourceType::CO_GPU
+      || new_subgraph->GetResourceType() == ResourceType::CPU_XNN
+      || new_subgraph->GetResourceType() == ResourceType::CO_CPU_XNN
+      ){
+      if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
+        != kTfLiteOk){
+          std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
+                  << " Delegate" << "\n";
       }
+      // }
     }
     
   }

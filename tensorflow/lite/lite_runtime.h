@@ -220,7 +220,6 @@ class TfLiteRuntime{
 
         // sj
     std::vector<TfLiteDelegate*> delegate;
-    std::vector<TfLiteDelegate*> quantized_delegate;
     
     // IPC
     char* uds_runtime_filename;
