@@ -139,7 +139,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 
 
   interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
-  quantized_interpreter->RegisterDelegate(xnn_delegate);
+  quantized_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
   
   if(InitializeUDS() != kTfLiteOk){
     std::cout << "UDS socker init ERROR" << "\n";
@@ -496,7 +496,13 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::cout << "Minimal precision subgraph created" << "\n";
   std::cout << "===============================" << "\n";
   
-
+  std::cout << "=====================" << "\n";
+  std::cout << "MAX precicion interpreter state" << "\n";
+  PrintInterpreterStateV3(interpreter);
+  std::cout << "=====================" << "\n";
+  std::cout << "MIN precicion interpreter state" << "\n";
+  PrintInterpreterStateV3(quantized_interpreter);
+  
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
   tx_packet.runtime_id = runtime_id;

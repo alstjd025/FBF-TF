@@ -673,6 +673,19 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);        
         break;
+      case ResourceType::CPU_XNN:
+        new_subgraph->SetResourceType(ResourceType::CPU_XNN);
+        new_subgraph->context()->recommended_num_threads = 6; 
+        break;
+      case ResourceType::CO_CPU_XNN:
+        new_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
+        new_subgraph->PushPartitioningRatio(
+        master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
+        if(master_partitioning_plan[partition_itr]->partitioning_ratios[0] > 10)
+          new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
+        else
+          new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);        
+        break;
       default:
         break;
       }
@@ -817,11 +830,11 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
     // sj
     // To check whether subgraphs need delegation
     // if(new_subgraph->GetGraphid()!=12 && new_subgraph->GetGraphid()!=8){
+    std::cout << "resource type : " << new_subgraph->GetResourceType() << "\n";
     if(new_subgraph->GetResourceType() == ResourceType::GPU ||
-      new_subgraph->GetResourceType() == ResourceType::CO_GPU
-      || new_subgraph->GetResourceType() == ResourceType::CPU_XNN
-      || new_subgraph->GetResourceType() == ResourceType::CO_CPU_XNN
-      ){
+      new_subgraph->GetResourceType() == ResourceType::CO_GPU ||
+      new_subgraph->GetResourceType() == ResourceType::CPU_XNN ||
+      new_subgraph->GetResourceType() == ResourceType::CO_CPU_XNN){
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"

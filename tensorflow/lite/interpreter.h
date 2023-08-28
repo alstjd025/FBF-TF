@@ -491,7 +491,7 @@ class Interpreter {
   // Minsung
   // Register given delegate object to this interpreter.
   // Currently only one deldegate.
-  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2 = nullptr);
+  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2);
   // TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2);
 
   // Owning handle to a TfLiteDelegate instance.

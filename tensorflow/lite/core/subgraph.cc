@@ -856,7 +856,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
 
     // Move the data pointer to proper point. (No need to move if CO_GPU)
     // moving data pointer isn't necessary for global input tensor.
-    if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
+    if(resource_type == ResourceType::CO_CPU ||
+        resource_type == ResourceType::CO_CPU_XNN){ // move pointer to bottom. 
       new_dims[1] = (h - padd);
       pointer_offset = o * (h - padd) * w;
       data_pointer += pointer_offset;
@@ -896,7 +897,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     
     // Move the data pointer to proper point. (No need to move if CO_GPU)
     // moving data pointer isn't necessary for global input tensor.
-    if(resource_type == ResourceType::CO_CPU){ // move pointer to bottom. 
+    if(resource_type == ResourceType::CO_CPU ||
+      resource_type == ResourceType::CO_CPU_XNN){ // move pointer to bottom. 
     //   int padd_with_dummy = 0;
     //   switch (GetGraphid())
     //   {
@@ -1193,7 +1195,8 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
         nodes_and_registration_[node_index].second;
     EnsureTensorsVectorCapacity();
     if(resource_type == ResourceType::CO_GPU || 
-        resource_type == ResourceType::CO_CPU){
+        resource_type == ResourceType::CO_CPU ||
+        resource_type == ResourceType::CO_CPU_XNN){
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
         std::vector<int> input_tensors;
         for(int i=0; i<node.inputs->size; ++i)
