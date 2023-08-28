@@ -41,6 +41,8 @@ limitations under the License.
 #define TF_P_PLAN_CPU        0
 #define TF_P_PLAN_GPU        1
 #define TF_P_PLAN_CO_E       2
+#define TF_P_PLAN_CPU_XNN    3
+#define TF_P_PLAN_CO_E_XNN   3
 
 // packet partitioning plan end flag
 #define TF_P_END_PLAN       -1
@@ -192,8 +194,17 @@ typedef enum ResourceType{
   GPU,
   CO_CPU,
   CO_GPU,
+  CPU_XNN,
+  CO_CPU_XNN,
   NONE
 } ResourceType;
+
+// packet partitioning plan resource types
+// #define TF_P_PLAN_CPU        0
+// #define TF_P_PLAN_GPU        1
+// #define TF_P_PLAN_CO_E       2
+// #define TF_P_PLAN_CPU_XNN    3
+// #define TF_P_PLAN_CO_E_XNN   3
 
 typedef enum RuntimeState{
   INITIALIZE,

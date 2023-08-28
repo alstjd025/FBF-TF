@@ -218,6 +218,7 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
         dummy_profile->layer_subsets[i].push_back(j);
       }
       // MUST FIX TO SUPPORT CO_EXECUTION CPU AND GPU
+      // NEED REFACTOR (e7f75) 
       dummy_profile->subset_resource.push_back(
                               static_cast<ResourceType>(raw_plan[i][TF_P_IDX_RESOURCE]));
       if(raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E){ // if subset is co-exetution subset
