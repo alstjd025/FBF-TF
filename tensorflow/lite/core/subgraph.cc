@@ -1431,24 +1431,25 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   // ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
   const int num_boxes_2 = output_tensor_2->dims->data[1]; 
   printf("HOONING: num_boxes --> %d\n", num_boxes_2);
-  std::vector<float> classifications(num_boxes_2 * 80);
-  float cls_thresh = 0.06; //////////////////////////////////////// should  0.02 < thesh < 0.2
+  std::vector<float> classifications;
+  // float cls_thresh = 0.25; //////////////////////////////////////// should  0.02 < thesh < 0.2
+  float cls_thresh = 0.15; //////////////////////////////////////// should  0.02 < thesh < 0.2
   for (int i = 0; i < num_boxes_2; ++i) {
     for (int j = 0; j < 80; ++j) {
-        // classifications.push_back(output_data_2[i*80 + j]);  // use push_back (0)
-        classifications[i*80 + j] = (output_data_2[i*80 + j]);  // not use push_back (4)
+        classifications.push_back(output_data_2[i*80 + j]);  // use push_back (0)
+        // classifications[i*80 + j] = (output_data_2[i*80 + j]);  // not use push_back (4)
        }
   }
   int conf_count = 0;
   int real_bbox_index = -1;
-  std::vector<float> raw_vector(80);
+  std::vector<float> raw_vector;
   for (int i = 0; i < num_boxes_2; ++i) {
     int box_per_conf_count = 0;
     for (int j = 0; j < 80; ++j) {
       raw_vector.push_back(classifications[i * 80 + j]); 
       // raw_vector[j] = classifications[i * 80 + j]; // Not use push_back
     }
-    // SOFTMAX(raw_vector); //TODO
+    //SOFTMAX(raw_vector); //TODO
     for (int k = 0; k < 80; ++k) {
       // HHHHH
       if (raw_vector[k] > cls_thresh){
@@ -1486,8 +1487,7 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
 }
 
 
-// should change 2077, 813, 830, 1537, 2068 
-//           to 1749, 1775, 1776, 2123, 2135, 2136, 2350
+// should have Bbox index [ 2421, 2438 ]
 void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector){
   TfLiteTensor* output_tensor = tensor(233);
   ///
@@ -1508,31 +1508,25 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
   const int num_boxes = output_tensor->dims->data[1]; // 2535
   const int num_columns = output_tensor->dims->data[2]; // 4
   std::cout << num_boxes << "  " << num_columns << " " <<std::endl;
-  std::vector<float> boxes(num_boxes * num_columns);
-  // CASE 1 
-  // for (int i = 0; i < num_columns; ++i) {
-  //   for (int j = 0; j < num_boxes; ++j) {
-  //       boxes[i * num_boxes + j] = output_data[j * num_columns + i];
-  //   }
-  // }
+  std::vector<float> boxes;
   // CASE 2 (Vanilla)
   // std::vector<int> rr;
   for (int i = 0; i < 2535; ++i) {
        for (int j = 0; j < 4; ++j) {
-          //  boxes[i * 4 + j] = output_data[i * 4 + j];  
-           boxes[i * 4 + j] = *(input_pointer + i *4 + j);  //SAME
+          // boxes[i * 4 + j] = output_data[i * 4 + j];  
+          boxes.push_back(output_data[i * 4 + j]);  
+          //  boxes[i * 4 + j] = *(input_pointer + i *4 + j);  //SAME
           //  std::cout << boxes[i*4+j] << " ";  // Okay (0822)
+
        }
-      //  if(i == 1749 || i == 1775 || i == 1776 || i == 2123 || i == 2135 ){
-        // rr.push_back(i); // DEbugging
+      //  if (i == 2421 || i == 2438){
+        // rr.push_back(i);
       //  }
-      //  if(i == 2077 || i == 813 || i == 830 || i == 1537 || i == 2068 ){
-      //   // std::cout << "jj ";
-      //  }
-      //  std::cout << std::endl;
   }
   int bbox_count = 0;
   int image_size = 416; // Image size
+
+  
   printf("num boxes : %d\n", 2535);
   printf("\033[0;33mdebugging real_bbox_loc_vector --> real_bbox's loc data :\033[0m \n");
   for (int i = 0; i < 2535; ++i) {
@@ -1542,25 +1536,19 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
           if(i == real_bbox_index_vector[j])
           // if(i == rr[j])
           {
-            std::cout << "LOC index is :   " << real_bbox_index_vector[j]<< " ... " << i << std::endl;
+            // std::cout << "LOC index is :   " << real_bbox_index_vector[j]<< " ... " << i << std::endl;
+            // Just loc parsing (converting) Error ...??
             float first = boxes[i * 4];      // 0   ????
             float second = boxes[i * 4 + 1];  // 8
             float third = boxes[i * 4 + 2];   //  2
             float fourth = boxes[i* 4 + 3];   // 0
-            // float x_c = second;
-            // float y_c = first;
-            // float width = fourth;
-            // float height = third;
-            std::cout << "Bbox's loc raw data :  " << int(first) << " " <<int(second) << " "<< int(third) << " "<< int(fourth) << std::endl;
-            // int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first)));
-            // int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second)));
-            // int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third)));
-            // int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth)));
+
+            std::cout << "RAW data :  " << int(first) << " " <<int(second) << " "<< int(third) << " "<< int(fourth) << std::endl;
             int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first - third/2)));
             int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second - fourth/2)));
             int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third/2)));
             int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth/2)));
-            // std::cout << std::endl << left <<std::endl;
+            // std::cout << "Converted data :  " << left << " " << top << " "<< right << " "<< bottom << std::endl;
             tmp.push_back(left);
             tmp.push_back(top);
             tmp.push_back(right);
