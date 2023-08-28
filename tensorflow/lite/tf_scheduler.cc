@@ -4,7 +4,7 @@ namespace tflite{
 
 TfScheduler::TfScheduler() {};
 
-TfScheduler::TfScheduler(const char* uds_file_name) {
+TfScheduler::TfScheduler(const char* uds_file_name, const char* partitioning_params) {
   // delete if sock file already exists.
   if(access(uds_file_name, F_OK) == 0)
     unlink(uds_file_name);
@@ -27,6 +27,8 @@ TfScheduler::TfScheduler(const char* uds_file_name) {
   }
   cpu_util = new float;
   gpu_util = new float;
+  OpenPartitioningParams(partitioning_params);
+  
   std::cout << "Scheduler initializaing done" << "\n";
 };
 
@@ -166,6 +168,10 @@ void TfScheduler::Work(){
   }
 }
 
+void TfScheduler::OpenPartitioningParams(const char* partitioning_params){
+  param_file.open(partitioning_params, std::fstream::in);
+}
+
 std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet){
   std::pair<int, int> next_subgraphs_to_invoke;
   int runtime_id = rx_packet.runtime_id;
@@ -295,48 +301,38 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
   int idx = 0;
   int num_co_subs = 0;
 
-  std::cout << "main subgraphs :";
   while(rx_packet.subgraph_ids[0][idx] != -1){
-    std::cout << rx_packet.subgraph_ids[0][idx] << " ";
     subgraph_ids.push_back(rx_packet.subgraph_ids[0][idx]);
     idx++;
   }
-  std::cout << "\n";
   idx = 0;
-  std::cout << "sub subgraphs :";
   while(rx_packet.subgraph_ids[1][idx] != -1){
-    std::cout << rx_packet.subgraph_ids[1][idx] << " ";
     num_co_subs++;
     co_subgraph_ids.push(rx_packet.subgraph_ids[1][idx]);
     idx++;
   }
-  std::cout << "\n";
+  
   // Register main subgraphs
   for(int i=0; i<subgraph_ids.size(); ++i){
     runtime->graph->nodes[i]->subgraph_id = subgraph_ids[i];
   }
-  std::cout << "Main done" << "\n";
-  std::cout << "Node size " << runtime->graph->nodes.size() << "\n";
   // Register Co subgraphs
   // MUST FIX(b6582) : co-subgraph does not always exist at the end of whole graph structure.
   idx = 0;
   while(!co_subgraph_ids.empty()){
     if(runtime->graph->nodes[idx]->resource_type == 2 
         || runtime->graph->nodes[idx]->resource_type == 5){
-      std::cout << co_subgraph_ids.front() << " ";   
       runtime->graph->nodes[idx]->co_subgraph_id = co_subgraph_ids.front();
       co_subgraph_ids.pop();
     }
     idx++;
   }
-  std::cout << "sub done" << "\n";
 
   if((subgraph_ids.size() - num_co_subs) != runtime->graph->nodes.size()){
     std::cout << "Subgraph ids from runtime and existing graph"
               << " does not match" << "\n";
     return;
   }
-
 }
 
 void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet){
@@ -585,361 +581,399 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
   }
   std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers << 
     " layers in model" << "\n";
-  if(layers == 9){ // MNIST
-
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 9;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
-    
-    // if want two subgraph
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 1;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 2; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 1;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
-  } // MNIST
-  else if(layers == 124){ // MOBILENET_V3 224 
-  //(old, from TF model hub)
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 124;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
-  }else if(layers == 123){ // MOBILENET_V3 224 
-  //(from https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet)
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 123;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
-  }else if(layers == 31){ // MOBILENET_V1 224 
-  //(from https://tfhub.dev/tensorflow/lite-model/mobilenet_v1_1.0_224/1/default/1)
-    // TEST PLAN  -- HW & CH
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 27;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 18; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 27;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 29;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 8; // partitioning ratio
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = 29;
-    tx_p.partitioning_plan[2][TF_P_IDX_END]      = 31;
-    tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[3][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    // BASELINE for CPU
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 31;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    // BASELINE for GPU
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 29;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 29;
-    // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 31;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
-    
-    // TEST PLAN (Xavier) 7.2
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 29;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 18; // partitioning ratio
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 29;
-    // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 31;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-  }else if(layers == 118){ // efficientnet lite 4
-  // layers == 118 for GPU FP32
-  // layers == 120 for CPU UINT8
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 114;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 18; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 114;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 118;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 118;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
-  }else if(layers == 152){ // yolo_v4_tiny-ieie
-    // baselines
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 152;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
-    // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_MASTER;
-    
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = 9;
-    tx_p.partitioning_plan[2][TF_P_IDX_END]      = 20;
-    tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[3][TF_P_IDX_START]    = 20;
-    tx_p.partitioning_plan[3][TF_P_IDX_END]      = 21;
-    tx_p.partitioning_plan[3][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[3][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[4][TF_P_IDX_START]    = 21;
-    tx_p.partitioning_plan[4][TF_P_IDX_END]      = 32;
-    tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[5][TF_P_IDX_START]    = 32;
-    tx_p.partitioning_plan[5][TF_P_IDX_END]      = 33;
-    tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[6][TF_P_IDX_START]    = 33; // problem on node 52
-    tx_p.partitioning_plan[6][TF_P_IDX_END]      = 55; // 102?
-    tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
-    tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 0; // partitioning ratio 17
-    tx_p.partitioning_plan[7][TF_P_IDX_START]    = 55;
-    tx_p.partitioning_plan[7][TF_P_IDX_END]      = 152;
-    tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[8][TF_P_IDX_START]    = TF_P_END_PLAN;
-    tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_MASTER;
-    
-    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
-    // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
-    // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 55;
-    // // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 152;
-    // // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // // tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
-    // // tx_p.partitioning_plan[11][TF_P_IDX_START]    = TF_P_END_MASTER;
-
-    // tx_p.partitioning_plan[10][TF_P_IDX_START]    = 9;
-    // tx_p.partitioning_plan[10][TF_P_IDX_END]      = 20;
-    // tx_p.partitioning_plan[10][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
-    // tx_p.partitioning_plan[10][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-
-    // tx_p.partitioning_plan[11][TF_P_IDX_START]    = 21;
-    // tx_p.partitioning_plan[11][TF_P_IDX_END]      = 32;
-    // tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
-    // tx_p.partitioning_plan[11][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[12][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    // // tx_p.partitioning_plan[12][TF_P_IDX_START]    = 33;
-    // // tx_p.partitioning_plan[12][TF_P_IDX_END]      = 55;
-    // // tx_p.partitioning_plan[12][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
-    // // tx_p.partitioning_plan[12][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // // tx_p.partitioning_plan[13][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    // tx_p.partitioning_plan[13][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[13][TF_P_IDX_END]      = 8;
-    // tx_p.partitioning_plan[13][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
-    // tx_p.partitioning_plan[13][TF_P_IDX_RATIO]    = 17; // partitioning ratio
-
-    // tx_p.partitioning_plan[14][TF_P_IDX_START]    = 9;
-    // tx_p.partitioning_plan[14][TF_P_IDX_END]      = 20;
-    // tx_p.partitioning_plan[14][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
-    // tx_p.partitioning_plan[14][TF_P_IDX_RATIO]    = 17; // partitioning ratio
-
-    // tx_p.partitioning_plan[15][TF_P_IDX_START]    = 21;
-    // tx_p.partitioning_plan[15][TF_P_IDX_END]      = 32;
-    // tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
-    // tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 16; // partitioning ratio
-    // tx_p.partitioning_plan[16][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    // tx_p.partitioning_plan[17][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[17][TF_P_IDX_END]      = 8;
-    // tx_p.partitioning_plan[17][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    // tx_p.partitioning_plan[17][TF_P_IDX_RATIO]    = 17; // partitioning ratio
-
-    // tx_p.partitioning_plan[18][TF_P_IDX_START]    = 9;
-    // tx_p.partitioning_plan[18][TF_P_IDX_END]      = 20;
-    // tx_p.partitioning_plan[18][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    // tx_p.partitioning_plan[18][TF_P_IDX_RATIO]    = 17; // partitioning ratio
-
-    // tx_p.partitioning_plan[19][TF_P_IDX_START]    = 21;
-    // tx_p.partitioning_plan[19][TF_P_IDX_END]      = 32;
-    // tx_p.partitioning_plan[19][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    // tx_p.partitioning_plan[19][TF_P_IDX_RATIO]    = 16; // partitioning ratio
-    // tx_p.partitioning_plan[20][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-    // // tx_p.partitioning_plan[23][TF_P_IDX_START]    = 33;
-    // // tx_p.partitioning_plan[23][TF_P_IDX_END]      = 55;
-    // // tx_p.partitioning_plan[23][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    // // tx_p.partitioning_plan[23][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    // // tx_p.partitioning_plan[24][TF_P_IDX_START]    = TF_P_END_PLAN;
-    
-    // tx_p.partitioning_plan[21][TF_P_IDX_START]    = TF_P_END_MASTER;
-
-    //
+  std::string line;
+  int arg = 0;
+  int idx = 0;
+  int plan_idx = 0;
+  while(getline(param_file, line)){
+    arg = std::stoi(line);
+    std::cout << arg << " " << idx << "\n";
+    switch (idx)
+    {
+    case 0:
+      tx_p.partitioning_plan[plan_idx][TF_P_IDX_START] = arg;
+      if(arg == -1){
+        idx = 0;
+        plan_idx++;
+        continue;
+      }else if(arg == -2){
+        break;
+      }else
+        idx++;
+      break;
+    case 1:
+      tx_p.partitioning_plan[plan_idx][TF_P_IDX_END] = arg;
+      idx++;
+      break;
+    case 2:
+      tx_p.partitioning_plan[plan_idx][TF_P_IDX_RESOURCE] = arg;
+      idx++;
+      break;
+    case 3:
+      tx_p.partitioning_plan[plan_idx][TF_P_IDX_RATIO] = arg;
+      idx = 0;
+      plan_idx++;
+      break;
+    default:
+      break;
+    }
   }
-  else if(layers == 59){ //yolov4_tiny from pinto
-  // for gpu
-  // 0 ~ 7
-  // 9 ~ 19
-  // 21 ~ 31
-  // 33 ~ 50  -> testing subgraph
-  // for cpu(minimal precision, int8) 38 ~ 57 is co-execution subgraph 
-  // node 33 -> conv2d input 1 26 26 128
-  //
-  // 55 ~ 58
 
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
-    // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[2][TF_P_IDX_START]    = 9;
-    // tx_p.partitioning_plan[2][TF_P_IDX_END]      = 19;
-    // tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    // tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[3][TF_P_IDX_START]    = 19;
-    // tx_p.partitioning_plan[3][TF_P_IDX_END]      = 21;
-    // tx_p.partitioning_plan[3][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[3][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[4][TF_P_IDX_START]    = 21;
-    // tx_p.partitioning_plan[4][TF_P_IDX_END]      = 31;
-    // tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    // tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[5][TF_P_IDX_START]    = 31;
-    // tx_p.partitioning_plan[5][TF_P_IDX_END]      = 33;
-    // tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    // tx_p.partitioning_plan[6][TF_P_IDX_START]    = 33; 
-    // tx_p.partitioning_plan[6][TF_P_IDX_END]      = 50;
-    // tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    // tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 15; // partitioning ratio
-    // tx_p.partitioning_plan[7][TF_P_IDX_START]    = 50;
-    // tx_p.partitioning_plan[7][TF_P_IDX_END]      = 56;
-    // tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0;
-    // tx_p.partitioning_plan[8][TF_P_IDX_START]    = 56;
-    // tx_p.partitioning_plan[8][TF_P_IDX_END]      = 59;
-    // tx_p.partitioning_plan[8][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    // tx_p.partitioning_plan[8][TF_P_IDX_RATIO]    = 0;
-    // tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_PLAN;
+  // if(layers == 9){ // MNIST
 
-
-    // CPU execution for debugging
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 59;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
-
-  }
-  else if(layers == 68){ // case of yolo v4 tiny cpu (including quantize layer)
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = 9;
-    tx_p.partitioning_plan[2][TF_P_IDX_END]      = 21;
-    tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[3][TF_P_IDX_START]    = 21;
-    tx_p.partitioning_plan[3][TF_P_IDX_END]      = 23;
-    tx_p.partitioning_plan[3][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[3][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[4][TF_P_IDX_START]    = 23;
-    tx_p.partitioning_plan[4][TF_P_IDX_END]      = 36;
-    tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[5][TF_P_IDX_START]    = 36;
-    tx_p.partitioning_plan[5][TF_P_IDX_END]      = 38;
-    tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[6][TF_P_IDX_START]    = 38; 
-    tx_p.partitioning_plan[6][TF_P_IDX_END]      = 58;
-    tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 0; // partitioning ratio
-    tx_p.partitioning_plan[7][TF_P_IDX_START]    = 58;
-    tx_p.partitioning_plan[7][TF_P_IDX_END]      = 65;
-    tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0;
-    tx_p.partitioning_plan[8][TF_P_IDX_START]    = 65;
-    tx_p.partitioning_plan[8][TF_P_IDX_END]      = 68;
-    tx_p.partitioning_plan[8][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[8][TF_P_IDX_RATIO]    = 0;
-    tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_PLAN;
-  }else if(layers == 52){ // ultra fast lanenet
-  // 52 for FP32. 54 for int8
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 47;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15;
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 47;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 52;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0;
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;     
-
-
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 47;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 47;
-    // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 52;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0;
-    // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;      
-
-    // FOR INT8 
-    // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 54;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
-    // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 9;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
     
-  }else if(layers == 54){
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 47;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15;
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = 47;
-    tx_p.partitioning_plan[1][TF_P_IDX_END]      = 52;
-    tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0;
-    tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;         
-  }
-  else{
-    tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_END]      = 0;
-    tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
-    tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
-    tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;  
-  }
+  //   // if want two subgraph
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 1;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 2; // partitioning ratio
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = 1;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
+  // } // MNIST
+  // else if(layers == 124){ // MOBILENET_V3 224 
+  // //(old, from TF model hub)
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 124;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+  // }else if(layers == 123){ // MOBILENET_V3 224 
+  // //(from https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet)
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 123;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+  // }else if(layers == 31){ // MOBILENET_V1 224 
+  // //(from https://tfhub.dev/tensorflow/lite-model/mobilenet_v1_1.0_224/1/default/1)
+  //   // TEST PLAN  -- HW & CH
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 27;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 18; // partitioning ratio
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = 27;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_END]      = 29;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 8; // partitioning ratio
+  //   tx_p.partitioning_plan[2][TF_P_IDX_START]    = 29;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_END]      = 31;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[3][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  //   // BASELINE for CPU
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 31;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  //   // BASELINE for GPU
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 29;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 29;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 31;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
+    
+  //   // TEST PLAN (Xavier) 7.2
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 29;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 18; // partitioning ratio
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 29;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 31;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  // }else if(layers == 118){ // efficientnet lite 4
+  // // layers == 118 for GPU FP32
+  // // layers == 120 for CPU UINT8
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 114;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 18; // partitioning ratio
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = 114;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_END]      = 118;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 118;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+  // }else if(layers == 152){ // yolo_v4_tiny-ieie
+  //   // baselines
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 152;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_MASTER;
+    
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[2][TF_P_IDX_START]    = 9;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_END]      = 20;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[3][TF_P_IDX_START]    = 20;
+  //   tx_p.partitioning_plan[3][TF_P_IDX_END]      = 21;
+  //   tx_p.partitioning_plan[3][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[3][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[4][TF_P_IDX_START]    = 21;
+  //   tx_p.partitioning_plan[4][TF_P_IDX_END]      = 32;
+  //   tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[5][TF_P_IDX_START]    = 32;
+  //   tx_p.partitioning_plan[5][TF_P_IDX_END]      = 33;
+  //   tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[6][TF_P_IDX_START]    = 33; // problem on node 52
+  //   tx_p.partitioning_plan[6][TF_P_IDX_END]      = 55; // 102?
+  //   tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
+  //   tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 0; // partitioning ratio 17
+  //   tx_p.partitioning_plan[7][TF_P_IDX_START]    = 55;
+  //   tx_p.partitioning_plan[7][TF_P_IDX_END]      = 152;
+  //   tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[8][TF_P_IDX_START]    = TF_P_END_PLAN;
+  //   tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_MASTER;
+    
+  //   // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 8;
+  //   // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
+  //   // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // // tx_p.partitioning_plan[9][TF_P_IDX_START]    = 55;
+  //   // // tx_p.partitioning_plan[9][TF_P_IDX_END]      = 152;
+  //   // // tx_p.partitioning_plan[9][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // // tx_p.partitioning_plan[9][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // // tx_p.partitioning_plan[10][TF_P_IDX_START]    = TF_P_END_PLAN;
+  //   // // tx_p.partitioning_plan[11][TF_P_IDX_START]    = TF_P_END_MASTER;
+
+  //   // tx_p.partitioning_plan[10][TF_P_IDX_START]    = 9;
+  //   // tx_p.partitioning_plan[10][TF_P_IDX_END]      = 20;
+  //   // tx_p.partitioning_plan[10][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
+  //   // tx_p.partitioning_plan[10][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+
+  //   // tx_p.partitioning_plan[11][TF_P_IDX_START]    = 21;
+  //   // tx_p.partitioning_plan[11][TF_P_IDX_END]      = 32;
+  //   // tx_p.partitioning_plan[11][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
+  //   // tx_p.partitioning_plan[11][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[12][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  //   // // tx_p.partitioning_plan[12][TF_P_IDX_START]    = 33;
+  //   // // tx_p.partitioning_plan[12][TF_P_IDX_END]      = 55;
+  //   // // tx_p.partitioning_plan[12][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU_XNN;
+  //   // // tx_p.partitioning_plan[12][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // // tx_p.partitioning_plan[13][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  //   // tx_p.partitioning_plan[13][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[13][TF_P_IDX_END]      = 8;
+  //   // tx_p.partitioning_plan[13][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
+  //   // tx_p.partitioning_plan[13][TF_P_IDX_RATIO]    = 17; // partitioning ratio
+
+  //   // tx_p.partitioning_plan[14][TF_P_IDX_START]    = 9;
+  //   // tx_p.partitioning_plan[14][TF_P_IDX_END]      = 20;
+  //   // tx_p.partitioning_plan[14][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
+  //   // tx_p.partitioning_plan[14][TF_P_IDX_RATIO]    = 17; // partitioning ratio
+
+  //   // tx_p.partitioning_plan[15][TF_P_IDX_START]    = 21;
+  //   // tx_p.partitioning_plan[15][TF_P_IDX_END]      = 32;
+  //   // tx_p.partitioning_plan[15][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E_XNN;
+  //   // tx_p.partitioning_plan[15][TF_P_IDX_RATIO]    = 16; // partitioning ratio
+  //   // tx_p.partitioning_plan[16][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  //   // tx_p.partitioning_plan[17][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[17][TF_P_IDX_END]      = 8;
+  //   // tx_p.partitioning_plan[17][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   // tx_p.partitioning_plan[17][TF_P_IDX_RATIO]    = 17; // partitioning ratio
+
+  //   // tx_p.partitioning_plan[18][TF_P_IDX_START]    = 9;
+  //   // tx_p.partitioning_plan[18][TF_P_IDX_END]      = 20;
+  //   // tx_p.partitioning_plan[18][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   // tx_p.partitioning_plan[18][TF_P_IDX_RATIO]    = 17; // partitioning ratio
+
+  //   // tx_p.partitioning_plan[19][TF_P_IDX_START]    = 21;
+  //   // tx_p.partitioning_plan[19][TF_P_IDX_END]      = 32;
+  //   // tx_p.partitioning_plan[19][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   // tx_p.partitioning_plan[19][TF_P_IDX_RATIO]    = 16; // partitioning ratio
+  //   // tx_p.partitioning_plan[20][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  //   // // tx_p.partitioning_plan[23][TF_P_IDX_START]    = 33;
+  //   // // tx_p.partitioning_plan[23][TF_P_IDX_END]      = 55;
+  //   // // tx_p.partitioning_plan[23][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   // // tx_p.partitioning_plan[23][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+  //   // // tx_p.partitioning_plan[24][TF_P_IDX_START]    = TF_P_END_PLAN;
+    
+  //   // tx_p.partitioning_plan[21][TF_P_IDX_START]    = TF_P_END_MASTER;
+
+  //   //
+  // }
+  // else if(layers == 59){ //yolov4_tiny from pinto
+  // // for gpu
+  // // 0 ~ 7
+  // // 9 ~ 19
+  // // 21 ~ 31
+  // // 33 ~ 50  -> testing subgraph
+  // // for cpu(minimal precision, int8) 38 ~ 57 is co-execution subgraph 
+  // // node 33 -> conv2d input 1 26 26 128
+  // //
+  // // 55 ~ 58
+
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_START]    = 9;
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_END]      = 19;
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[3][TF_P_IDX_START]    = 19;
+  //   // tx_p.partitioning_plan[3][TF_P_IDX_END]      = 21;
+  //   // tx_p.partitioning_plan[3][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[3][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[4][TF_P_IDX_START]    = 21;
+  //   // tx_p.partitioning_plan[4][TF_P_IDX_END]      = 31;
+  //   // tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   // tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[5][TF_P_IDX_START]    = 31;
+  //   // tx_p.partitioning_plan[5][TF_P_IDX_END]      = 33;
+  //   // tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   // tx_p.partitioning_plan[6][TF_P_IDX_START]    = 33; 
+  //   // tx_p.partitioning_plan[6][TF_P_IDX_END]      = 50;
+  //   // tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   // tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 15; // partitioning ratio
+  //   // tx_p.partitioning_plan[7][TF_P_IDX_START]    = 50;
+  //   // tx_p.partitioning_plan[7][TF_P_IDX_END]      = 56;
+  //   // tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0;
+  //   // tx_p.partitioning_plan[8][TF_P_IDX_START]    = 56;
+  //   // tx_p.partitioning_plan[8][TF_P_IDX_END]      = 59;
+  //   // tx_p.partitioning_plan[8][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   // tx_p.partitioning_plan[8][TF_P_IDX_RATIO]    = 0;
+  //   // tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+
+  //   // CPU execution for debugging
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 59;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+
+  // }
+  // else if(layers == 68){ // case of yolo v4 tiny cpu (including quantize layer)
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 8;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = 8;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_END]      = 9;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[2][TF_P_IDX_START]    = 9;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_END]      = 21;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[3][TF_P_IDX_START]    = 21;
+  //   tx_p.partitioning_plan[3][TF_P_IDX_END]      = 23;
+  //   tx_p.partitioning_plan[3][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[3][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[4][TF_P_IDX_START]    = 23;
+  //   tx_p.partitioning_plan[4][TF_P_IDX_END]      = 36;
+  //   tx_p.partitioning_plan[4][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[4][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[5][TF_P_IDX_START]    = 36;
+  //   tx_p.partitioning_plan[5][TF_P_IDX_END]      = 38;
+  //   tx_p.partitioning_plan[5][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[5][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[6][TF_P_IDX_START]    = 38; 
+  //   tx_p.partitioning_plan[6][TF_P_IDX_END]      = 58;
+  //   tx_p.partitioning_plan[6][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[6][TF_P_IDX_RATIO]    = 0; // partitioning ratio
+  //   tx_p.partitioning_plan[7][TF_P_IDX_START]    = 58;
+  //   tx_p.partitioning_plan[7][TF_P_IDX_END]      = 65;
+  //   tx_p.partitioning_plan[7][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[7][TF_P_IDX_RATIO]    = 0;
+  //   tx_p.partitioning_plan[8][TF_P_IDX_START]    = 65;
+  //   tx_p.partitioning_plan[8][TF_P_IDX_END]      = 68;
+  //   tx_p.partitioning_plan[8][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[8][TF_P_IDX_RATIO]    = 0;
+  //   tx_p.partitioning_plan[9][TF_P_IDX_START]    = TF_P_END_PLAN;
+  // }else if(layers == 52){ // ultra fast lanenet
+  // // 52 for FP32. 54 for int8
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 47;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = 47;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_END]      = 52;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;     
+
+
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 47;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_GPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = 47;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_END]      = 52;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0;
+  //   // tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;      
+
+  //   // FOR INT8 
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_END]      = 54;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   // tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
+  //   // tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;
+    
+  // }else if(layers == 54){
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 47;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CO_E;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 15;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = 47;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_END]      = 52;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_RATIO]    = 0;
+  //   tx_p.partitioning_plan[2][TF_P_IDX_START]    = TF_P_END_PLAN;         
+  // }
+  // else{
+  //   tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_END]      = 0;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RESOURCE] = TF_P_PLAN_CPU;
+  //   tx_p.partitioning_plan[0][TF_P_IDX_RATIO]    = 0;
+  //   tx_p.partitioning_plan[1][TF_P_IDX_START]    = TF_P_END_PLAN;  
+  // }
 }
 
 TfScheduler::~TfScheduler() {};
