@@ -1,6 +1,6 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-#define YOLO
+// #define YOLO
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -646,29 +646,13 @@ void TfLiteRuntime::FeedInputToModel(const char* model,
 }
 
 // TODO : Impl global input tensor sharing
+// MUST_REFACTOR ()
 void TfLiteRuntime::FeedInputToModelDebug(const char* model,
                                      cv::Mat& input, cv::Mat& input_quant,
                                      INPUT_TYPE input_type) {
-  // for (int i = 0; i < 224; ++i) {
-  //   for (int j = 0; j < 224; ++j) {
-  //     printf("%d ", ((uint8_t)input.at<uchar>(i,j)));
-  //   }
-  //   std::cout << "\n";
-  // }
   bool use_two_interpreter = false;
   TfLiteTensor* input_tensor = nullptr;
-  TfLiteTensor* quant_input_tensor = nullptr;
   input_tensor = interpreter->input_tensor_of_model(0);
-  if(quantized_interpreter != nullptr && quantized_interpreter->subgraphs_size() > 0){
-    quant_input_tensor = quantized_interpreter->input_tensor_of_model(0);
-    if(quant_input_tensor == nullptr) {
-      std::cout << "TfLiteRuntime : cannont get pointer to quant input tensor, model["
-              << model << "]"
-              << "\n";
-      return;
-    }
-    use_two_interpreter = true;
-  }
   
   if(input_tensor == nullptr) {
     std::cout << "TfLiteRuntime : cannont get pointer to input tensor, model["
@@ -676,10 +660,12 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
               << "\n";
     return;
   }
+  
   if(input_tensor->type == kTfLiteFloat32){
     auto input_pointer = (float*)input_tensor->data.data;
     int h = input_tensor->dims->data[1];
     int w = input_tensor->dims->data[2];
+  
     switch (input_type) {
       case INPUT_TYPE::MNIST:
         for (int i = 0; i < h; ++i) {
@@ -706,24 +692,22 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         memcpy(input_pointer, input.data,
               h * w * input.elemSize());
         break;
-      case INPUT_TYPE::IMAGENET416:
-        // memcpy(input_pointer, input.data,
-        //       input.total() * input.elemSize());
+      case INPUT_TYPE::COCO416:
         ////////////////////////////////////////////////////////////////////
         // HOON : correct method to push image to input_tensor in YOLOv4-tiny
         for (int i=0; i<416; i++){
-                for (int j=0; j<416; j++){   
-                        cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
-                        *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
-                        *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
-                        *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
-                }
-            }
+          for (int j=0; j<416; j++){   
+            cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
+            *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+            *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+          }
+        }
         ////////////////////////////////////////////////////////////////////
         break;
       case INPUT_TYPE::LANENET144800:
         memcpy(input_pointer, input.data,
-              h * w * input.elemSize());      
+                h * w * input.elemSize());      
       default:
         break;
       }
@@ -757,7 +741,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         memcpy(input_pointer, input_quant.data,
               h * w * input_quant.elemSize());
         break;
-      case INPUT_TYPE::IMAGENET416:
+      case INPUT_TYPE::COCO416:
         memcpy(input_pointer, input_quant.data,
               input_quant.total() * input_quant.elemSize());
          ////////////////////////////////////////////////////////////////////
@@ -779,78 +763,6 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         break;
     }
   }
-  // PrintTensorSerial(*input_tensor);
-  if(use_two_interpreter){
-    int input_tensor_idx = quantized_interpreter->subgraph_id(1)->GetInputTensorIndex();
-    // std::cout << "min_prec input_tensor_idx : " << input_tensor_idx << "\n";
-    quant_input_tensor = quantized_interpreter->subgraph_id(1)->tensor(input_tensor_idx);
-    if(quant_input_tensor != nullptr){
-      if(quant_input_tensor->type == kTfLiteFloat32){
-        auto input_pointer = (float*)quant_input_tensor->data.data;
-        int h = quant_input_tensor->dims->data[1];
-        int w = quant_input_tensor->dims->data[2];
-        switch (input_type) {
-          case INPUT_TYPE::MNIST:
-            for (int i = 0; i < h; ++i) {
-              for (int j = 0; j < w; ++j) {
-                input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
-              }
-            }
-            break;
-          case INPUT_TYPE::IMAGENET224:
-            memcpy(input_pointer, input.data,
-                  h * w * input.elemSize());
-            break;
-          case INPUT_TYPE::IMAGENET300:
-            memcpy(input_pointer, input.data,
-                  h * w * input.elemSize());
-            break;
-          case INPUT_TYPE::IMAGENET416:
-            memcpy(input_pointer, input.data,
-                  input.total() * input.elemSize());
-          case INPUT_TYPE::LANENET144800:
-            memcpy(input_pointer, input.data,
-                  input.total() * input.elemSize());
-            break;
-          default:
-            break;
-          }
-      }else if(quant_input_tensor->type == kTfLiteUInt8){
-        auto input_pointer = (uint8_t*)quant_input_tensor->data.data;
-        int h = quant_input_tensor->dims->data[1];
-        int w = quant_input_tensor->dims->data[2];
-        switch (input_type) {
-          case INPUT_TYPE::MNIST:
-            for (int i = 0; i < h; ++i) {
-              for (int j = 0; j < w; ++j) {
-                input_pointer[i * w + j] = ((float)input_quant.at<uchar>(i, j) / 255.0);
-              }
-            }
-            break;
-          case INPUT_TYPE::IMAGENET224:
-            memcpy(input_pointer, input_quant.data,
-                  h * w * input_quant.elemSize());
-            break;
-          case INPUT_TYPE::IMAGENET300:
-            memcpy(input_pointer, input_quant.data,
-                  h * w * input_quant.elemSize());
-            break;
-          case INPUT_TYPE::IMAGENET416:
-            memcpy(input_pointer, input_quant.data,
-                  input_quant.total() * input_quant.elemSize());
-            break;
-          case INPUT_TYPE::LANENET144800:
-            memcpy(input_pointer, input_quant.data,
-                  input_quant.total() * input_quant.elemSize());
-          default:
-            break;
-        }
-      }
-    }
-  }
-
-
-  // PrintTensorSerial(*quant_input_tensor);
 }
 
 void TfLiteRuntime::FeedInputToModel(const char* model,
@@ -1018,7 +930,6 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
               YOLO_Parser::real_bbox_loc_vector, iou_threshold,YOLO_Parser::real_bbox_cls_index_vector);
         printf("\033[0;33mEND YOLO parsing\033[0m\n");
         #endif
-        subgraph->tensor(212);
         ////////////////////////////////////////////////////////////////////
         return;
         // break;
@@ -1028,7 +939,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         co_subgraph_id = rx_packet.subgraph_ids[1][0];
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
-      // std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
+      std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
       // if previous subgraph was co-execution, merge co-exectuion data here?
       if(prev_subgraph_id != subgraph_id && prev_subgraph_id != -1 &&
           interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() == CO_GPU){
@@ -1053,7 +964,7 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
           // std::cout << "CopyIntermediateDataIfNeeded Done" << "\n";
         }
       }
-      // std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
