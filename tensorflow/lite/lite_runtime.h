@@ -62,13 +62,6 @@ class TfLiteRuntime{
     // Prepares co-execution for intermediate & shared tensors between interpreters.
     TfLiteStatus PrepareCoExecution();
 
-
-    void FeedInputToModel(const char* model, std::vector<cv::Mat>& input,
-                          INPUT_TYPE input_type);
-    void FeedInputToModel(const char* model, cv::Mat& input,
-                          INPUT_TYPE input_type);
-
-    
     /// For debugging only ==
     void InitLogFile();
     void WriteVectorLog(std::vector<double>& latency, int n);
@@ -78,15 +71,12 @@ class TfLiteRuntime{
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);
 
-    // Debug invoke (for single interpreter invoke test) 
-    TfLiteStatus DebugInvoke();
-
     // Debug invoke (for co-execution invoke test api) 
-    TfLiteStatus DebugCoInvoke();
+    TfLiteStatus Invoke();
 
     // Debug invoke (for co-execution invoke synchronization test)
     // Call after DebugCoInvoke()
-    void DebugSyncInvoke(PrecisionType type);
+    void DoInvoke(PrecisionType type);
 
     void FeedInputToModelDebug(const char* model, cv::Mat& input,
                                cv::Mat& input_quant, INPUT_TYPE input_type);
@@ -96,13 +86,6 @@ class TfLiteRuntime{
     void PrintyoloOutput(TfLiteTensor& tensor);
     std::vector<std::vector<float>*>* GetFloatOutputInVector();
     std::vector<std::vector<uint8_t>*>* GetUintOutputInVector();
-    ////// ==
-
-    void WakeScheduler();
-    void JoinScheduler();
-    TfLiteStatus Invoke();
-    TfLiteStatus InvokeCoExecution();
-    TfLiteStatus InvokeSingleExecution();
 
     // Merge output(which is intermediate in the view of whole task)
     // data from previous subgraph.
@@ -137,9 +120,6 @@ class TfLiteRuntime{
     void* QuantizeGivenTensorandReturnBuffer(TfLiteTensor* tensor,
                                           TfLiteAffineQuantization* quant_params);
 
-    TfLiteStatus QuantizeGivenTensorandCopy(TfLiteTensor* source_tensor,
-                                            TfLiteTensor* dest_tensor);
-    
     // This function is deprecated.
     // Use Quant/dequantOnCopy() instead. 
     // Dequantize given tensor to float32 and return the swaped buffer.

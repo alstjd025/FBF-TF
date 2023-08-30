@@ -105,7 +105,6 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::NEED_PROFILE :{
-      std::cout << "runtime need profile" << "\n";
       tf_packet tx_packet;
       RefreshRuntimeState(rx_packet);
       CreatePartitioningPlan(rx_packet, tx_packet);
@@ -115,7 +114,6 @@ void TfScheduler::Work(){
       
       // Not done
       CreateGraphofSubgraphs(tx_packet);
-      std::cout << "CreateGraphofSubgraphs" << "\n";
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
         printf("errno : %d \n", errno);
@@ -124,7 +122,6 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::SUBGRAPH_CREATE :{
-      std::cout << "runtime subgraph create" << "\n";
       RefreshRuntimeState(rx_packet);
 
       tf_packet tx_packet;
@@ -132,11 +129,9 @@ void TfScheduler::Work(){
       tx_packet.runtime_next_state = RuntimeState::INVOKE_;
       
       // not done
-      std::cout << "Prepareruntime" << "\n";
       PrepareRuntime(rx_packet);
-      std::cout << "Prepareruntime" << "\n";
       PrintGraph(rx_packet.runtime_id);
-      std::cout << "Print" << "\n";
+      
       if(SendPacketToRuntime(tx_packet, runtime_addr) == -1){
         std::cout << "sock : " << runtime_addr.sun_path  << " " << runtime_addr.sun_family << "\n";
         printf("errno : %d \n", errno);
@@ -588,7 +583,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
   int plan_idx = 0;
   while(getline(param_file, line)){
     arg = std::stoi(line);
-    std::cout << arg << " " << idx << "\n";
+    // std::cout << arg << " " << idx << "\n";
     switch (idx)
     {
     case 0:
