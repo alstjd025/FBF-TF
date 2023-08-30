@@ -68,7 +68,9 @@ class TfLiteRuntime{
     
     // contains name of test sequence
     void SetTestSequenceName(std::string name);
+    void SetLogPath(std::string path);
     std::string sequence_name;
+    std::string log_path;
     
     std::ofstream m_interpreter_lat_log; 
     std::ofstream s_interpreter_lat_log; 

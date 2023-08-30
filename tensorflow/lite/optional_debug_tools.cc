@@ -303,4 +303,59 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
   }
 }
 
+void PrintInterpreterStateSimple(Interpreter* interpreter){
+  int subgraph_size = interpreter->subgraphs_size();
+  printf("Interpreter has %d subgraphs\n", subgraph_size);
+  //interpreter->PrintSubgraphInfo();
+  for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
+    std::cout << "======================================" << "\n";
+    int subgraph_id = interpreter->subgraph(subgraph_index)->GetGraphid();
+    int tensor_size = interpreter->subgraph_id(subgraph_id)->tensors_size();
+    int node_size = interpreter->nodes_size(subgraph_id);
+    printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
+        tensor_size, node_size);
+    printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
+    std::cout << "Resource type : " 
+          << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";
+    std::cout<< "Partitioning type : " 
+          << interpreter->subgraph_id(subgraph_id)->GetPartitioningType() << "\n";
+    if(interpreter->subgraph_id(subgraph_id)->IsInvokable())
+      std::cout << "State : Invokable" << "\n";
+    else
+      std::cout << "State : Not Invokable" << "\n";
+    for (size_t node_index = 0; node_index < node_size;
+        node_index++) {
+      const std::pair<TfLiteNode, TfLiteRegistration>* node_and_reg =
+          interpreter->node_and_registration(static_cast<int>(node_index), subgraph_id);
+      const TfLiteNode& node = node_and_reg->first;
+      const TfLiteRegistration& reg = node_and_reg->second;
+      if (reg.custom_name != nullptr) {
+        printf("Node %3zu Operator Custom Name %s\n", node_index,
+              reg.custom_name);
+      } else {
+        printf("Node %3zu Operator Builtin Code %3d %s\n", node_index,
+              reg.builtin_code, EnumNamesBuiltinOperator()[reg.builtin_code]);
+      }
+      printf("  Inputs:");
+      PrintTfLiteIntVector(node.inputs);
+      printf("  Outputs:");
+      PrintTfLiteIntVector(node.outputs);
+      if (node.intermediates && node.intermediates->size) {
+        printf("  Intermediates:");
+        PrintTfLiteIntVector(node.intermediates);
+      }
+      if (node.temporaries && node.temporaries->size) {
+        printf("  Temporaries:");
+        PrintTfLiteIntVector(node.temporaries);
+      }
+    }
+    std::cout << "======================================" << "\n";
+    printf("Inputs:");
+    PrintIntVector(interpreter->inputs(subgraph_id));
+    printf("Outputs:");
+    PrintIntVector(interpreter->outputs(subgraph_id));
+    printf("\n");
+  }
+}
+
 }  // namespace tflite

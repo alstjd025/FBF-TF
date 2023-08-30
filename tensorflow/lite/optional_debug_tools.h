@@ -29,6 +29,8 @@ void PrintInterpreterStateV2(Interpreter* interpreter);
 
 void PrintInterpreterStateV3(Interpreter* interpreter);
 
+void PrintInterpreterStateSimple(Interpreter* interpreter);
+
 }  // namespace tflite
 
 #endif  // TENSORFLOW_LITE_OPTIONAL_DEBUG_TOOLS_H_

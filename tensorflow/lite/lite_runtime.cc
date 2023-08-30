@@ -158,8 +158,6 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model partitioning ERROR" << "\n";
     exit(-1);
   }
-  
-  InitLogFile();
 };
 
 TfLiteRuntime::~TfLiteRuntime() {
@@ -172,19 +170,24 @@ void TfLiteRuntime::SetTestSequenceName(std::string name){
   std::cout << "TEST " << sequence_name << " \n";
 }
 
+void TfLiteRuntime::SetLogPath(std::string path){
+  log_path = path;
+  std::cout << "Log path " << log_path << " \n";
+}
+
 void TfLiteRuntime::InitLogFile(){
   std::string lat_file_name = "_latency.txt";
   std::string ts_file_name = "_timestamps.txt";
-  m_interpreter_lat_log.open((sequence_name + lat_file_name));
-  s_interpreter_lat_log.open((sequence_name + "_s_" + lat_file_name));
+
+  m_interpreter_lat_log.open(log_path + sequence_name + lat_file_name);
+  s_interpreter_lat_log.open(log_path + sequence_name + "_s" + lat_file_name);
   
-  m_interpreter_t_stamp_log.open((sequence_name + ts_file_name));
-  s_interpreter_t_stamp_log.open((sequence_name + "_s_" + ts_file_name));
+  m_interpreter_t_stamp_log.open(log_path + sequence_name + ts_file_name);
+  s_interpreter_t_stamp_log.open(log_path + sequence_name + "_s" + ts_file_name);
   return;
 }
 
 void TfLiteRuntime::WriteVectorLog(std::vector<double>& log, int log_id){
-  
   switch (log_id)
   {
   case 0:
@@ -205,6 +208,7 @@ void TfLiteRuntime::WriteVectorLog(std::vector<double>& log, int log_id){
     break;
   case 2:
     if(m_interpreter_t_stamp_log.is_open()){
+      m_interpreter_t_stamp_log.precision(14);
       for(int i=0; i<log.size(); ++i){
         m_interpreter_t_stamp_log << log[i] << " ";
       }
@@ -793,6 +797,7 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
       invoke_cpu = false;
       if(co_subgraph_id == -1){
         WriteVectorLog(latency, 1);
+        WriteVectorLog(stamp, 3);
         #ifdef debug_print
           std::cout << "Minimal precision graph invoke done" << "\n";
         #endif
@@ -806,7 +811,11 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
         #ifdef debug_print
           std::cout << "CopyIntermediateDataIfNeeded" << "\n";
         #endif
+        clock_gettime(CLOCK_MONOTONIC, &begin);
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        stamp.push_back(begin.tv_sec + begin.tv_nsec / 1000000000.0);
+        stamp.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
       }
       #ifdef debug_print
         std::cout << "[Minimal precision] Invoke subgraph " << co_subgraph_id << "\n";
@@ -818,6 +827,8 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      stamp.push_back(begin.tv_sec + begin.tv_nsec);
+      stamp.push_back(end.tv_sec + end.tv_nsec);
       latency.push_back(response_time);
       // sync with gpu here (wake gpu)
       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -850,6 +861,7 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
         WriteVectorLog(latency, 0);
+        WriteVectorLog(stamp, 2);
         ////////////////////////////////////////////////////////////////////
         //HOON
         #ifdef YOLO
@@ -893,7 +905,11 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
           std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id << 
                     " " << subgraph_id << "\n";
         #endif
+        clock_gettime(CLOCK_MONOTONIC, &begin);
         MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id, subgraph_id);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        stamp.push_back(begin.tv_sec + float(begin.tv_nsec / 1000000000.0));
+        stamp.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
       }
       
       if(subgraph->GetResourceType() == CO_GPU){
@@ -909,7 +925,11 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
           #ifdef debug_print
             std::cout << "CopyIntermediateDataIfNeeded" << "\n";
           #endif
+          clock_gettime(CLOCK_MONOTONIC, &begin);
           CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id);
+          clock_gettime(CLOCK_MONOTONIC, &end);
+          stamp.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+          stamp.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
           #ifdef debug_print
             std::cout << "CopyIntermediateDataIfNeeded Done" << "\n";
           #endif
@@ -922,7 +942,9 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
         return;
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
-      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0); 
+      stamp.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+      stamp.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
       latency.push_back(response_time);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
