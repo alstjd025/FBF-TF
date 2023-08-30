@@ -86,7 +86,7 @@ namespace tflite{
 
       void SysMonitor();
 
-      void OpenPartitioningParams(const char* partitioning_params);
+      void OpenPartitioningParams();
 
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
       
@@ -133,6 +133,7 @@ namespace tflite{
 
     LiteSysMonitor* monitor;
     std::fstream param_file;
+    std::string param_file_name;
 
     int scheduler_fd;
     size_t addr_size;

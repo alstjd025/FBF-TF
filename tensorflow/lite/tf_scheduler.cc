@@ -27,7 +27,8 @@ TfScheduler::TfScheduler(const char* uds_file_name, const char* partitioning_par
   }
   cpu_util = new float;
   gpu_util = new float;
-  OpenPartitioningParams(partitioning_params);
+  param_file_name = partitioning_params;
+  OpenPartitioningParams();
   
   std::cout << "Scheduler initializaing done" << "\n";
 };
@@ -168,8 +169,8 @@ void TfScheduler::Work(){
   }
 }
 
-void TfScheduler::OpenPartitioningParams(const char* partitioning_params){
-  param_file.open(partitioning_params, std::fstream::in);
+void TfScheduler::OpenPartitioningParams(){
+  param_file.open(param_file_name, std::fstream::in);
 }
 
 std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet){
@@ -618,7 +619,8 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
       break;
     }
   }
-
+  param_file.close();
+  OpenPartitioningParams();
   // if(layers == 9){ // MNIST
 
   //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
