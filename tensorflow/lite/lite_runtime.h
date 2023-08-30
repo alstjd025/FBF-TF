@@ -37,6 +37,7 @@ and interpreterbuilder. (commit b56faa4981)
 namespace tflite{
 
 class LiteScheduler;
+// class YOLO_Parser;
 
 class TfLiteRuntime{
   public:
@@ -99,7 +100,6 @@ class TfLiteRuntime{
 
     void WakeScheduler();
     void JoinScheduler();
-
     TfLiteStatus Invoke();
     TfLiteStatus InvokeCoExecution();
     TfLiteStatus InvokeSingleExecution();

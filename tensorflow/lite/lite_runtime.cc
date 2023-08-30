@@ -1,6 +1,6 @@
 #include "tensorflow/lite/lite_runtime.h"
-
 #include "tensorflow/lite/lite_scheduler.h"
+#define YOLO
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -707,18 +707,19 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
               h * w * input.elemSize());
         break;
       case INPUT_TYPE::IMAGENET416:
-        memcpy(input_pointer, input.data,
-              input.total() * input.elemSize());
-        // for (int i = 0; i < 416; ++i) {
-        //   for (int j = 0; j < 416; ++j) {
-        //     input_pointer[i * 416 + j * 3] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[0]);
-        //     input_pointer[i * 416 + j * 3 + 1] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[1]);
-        //     input_pointer[i * 416 + j * 3 + 2] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[2]);
-        //   }
-        // }
+        // memcpy(input_pointer, input.data,
+        //       input.total() * input.elemSize());
+        ////////////////////////////////////////////////////////////////////
+        // HOON : correct method to push image to input_tensor in YOLOv4-tiny
+        for (int i=0; i<416; i++){
+                for (int j=0; j<416; j++){   
+                        cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+                        *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
+                        *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+                        *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+                }
+            }
+        ////////////////////////////////////////////////////////////////////
         break;
       case INPUT_TYPE::LANENET144800:
         memcpy(input_pointer, input.data,
@@ -759,16 +760,17 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
       case INPUT_TYPE::IMAGENET416:
         memcpy(input_pointer, input_quant.data,
               input_quant.total() * input_quant.elemSize());
-        // for (int i = 0; i < 416; ++i) {
-        //   for (int j = 0; j < 416; ++j) {
-        //     input_pointer[i * 416 + j * 3] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[0]);
-        //     input_pointer[i * 416 + j * 3 + 1] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[1]);
-        //     input_pointer[i * 416 + j * 3 + 2] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[2]);
-        //   }
-        // }
+         ////////////////////////////////////////////////////////////////////
+        // HOON : correct method to push image to input_tensor in YOLOv4-tiny
+        for (int i=0; i<416; i++){
+                for (int j=0; j<416; j++){   
+                        cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+                        *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
+                        *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+                        *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+                }
+            }
+        ////////////////////////////////////////////////////////////////////
         break;
       case INPUT_TYPE::LANENET144800:
         memcpy(input_pointer, input_quant.data,
@@ -992,6 +994,32 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
         WriteVectorLog(latency, 0);
+        ////////////////////////////////////////////////////////////////////
+        //HOON
+        #ifdef YOLO
+        YOLO_Parser yolo_parser;
+        printf("\033[0;33mStart YOLO parsing\033[0m\n");
+        std::vector<int> real_bbox_index_vector;
+        real_bbox_index_vector.clear();
+        YOLO_Parser::real_bbox_cls_index_vector.clear();
+        YOLO_Parser::real_bbox_cls_vector.clear();
+        YOLO_Parser::real_bbox_loc_vector.clear();
+        YOLO_Parser::result_boxes.clear();
+        TfLiteTensor* cls_tensor = subgraph->tensor(212);
+        TfLiteTensor* loc_tensor = subgraph->tensor(233);
+        yolo_parser.make_real_bbox_cls_vector(cls_tensor, real_bbox_index_vector,
+                                               YOLO_Parser::real_bbox_cls_vector);
+        YOLO_Parser::real_bbox_cls_index_vector = \
+                    yolo_parser.get_cls_index(YOLO_Parser::real_bbox_cls_vector); 
+        yolo_parser.make_real_bbox_loc_vector(loc_tensor, real_bbox_index_vector, 
+                                              YOLO_Parser::real_bbox_loc_vector);
+        float iou_threshold = 0.5;
+        yolo_parser.PerformNMSUsingResults(real_bbox_index_vector, YOLO_Parser::real_bbox_cls_vector, 
+              YOLO_Parser::real_bbox_loc_vector, iou_threshold,YOLO_Parser::real_bbox_cls_index_vector);
+        printf("\033[0;33mEND YOLO parsing\033[0m\n");
+        #endif
+        subgraph->tensor(212);
+        ////////////////////////////////////////////////////////////////////
         return;
         // break;
       }
@@ -1060,6 +1088,116 @@ void TfLiteRuntime::DebugSyncInvoke(PrecisionType type){
   }
   return;
 }
+
+////////////////////////////////////////////////////////////////////
+// HOON
+std::vector<YOLO_Parser::BoundingBox> YOLO_Parser::result_boxes;
+std::vector<std::vector<float>> YOLO_Parser::real_bbox_cls_vector; 
+std::vector<int> YOLO_Parser::real_bbox_cls_index_vector;
+std::vector<std::vector<int>> YOLO_Parser::real_bbox_loc_vector;
+
+std::vector<int> YOLO_Parser::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
+  float max=0;
+  int max_index = -1;
+  int index = 0;
+  for (auto i : real_bbox_cls_vector) { 
+    index = 0;
+		for (auto j : i) { 
+      if (j > max){
+        max = j;
+        max_index = index;
+      }
+      index+=1;
+		}
+    real_bbox_cls_index_vector.push_back(max_index);
+    max = 0;
+    max_index = -1;
+	}
+  return real_bbox_cls_index_vector;
+}
+
+void YOLO_Parser::make_real_bbox_cls_vector(TfLiteTensor* cls_tensor, 
+ std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
+  TfLiteTensor* output_tensor = cls_tensor;  
+  const float* output_data_2 = (float*)output_tensor->data.data;
+  const int num_boxes_2 = output_tensor->dims->data[1]; 
+  std::vector<float> classifications;
+  float cls_thresh = 0.05; // Hyperparam
+  for (int i = 0; i < num_boxes_2; ++i) {
+    for (int j = 0; j < 80; ++j) {
+        classifications.push_back(output_data_2[i*80 + j]);  
+       }
+  }
+  int conf_count = 0;
+  int real_bbox_index = -1;
+  std::vector<float> raw_vector;
+  for (int i = 0; i < num_boxes_2; ++i) {
+    int box_per_conf_count = 0;
+    for (int j = 0; j < 80; ++j) {
+      raw_vector.push_back(classifications[i * 80 + j]); 
+    }
+    // SOFTMAX(raw_vector); // Not use Softmax currently
+    for (int k = 0; k < 80; ++k) {
+      if (raw_vector[k] > cls_thresh){
+        box_per_conf_count +=1;
+      }
+    }
+    if(box_per_conf_count >0){
+      conf_count +=1;
+      real_bbox_index_vector.push_back(i); 
+      real_bbox_cls_vector.push_back(raw_vector);
+    }
+    raw_vector.clear();
+  }
+  classifications.clear();
+  printf("\033[0;32mBefore NMS : \033[0m");
+  std::cout << " Number of bounding boxes before NMS : " << real_bbox_index_vector.size() << std::endl;
+}
+
+void YOLO_Parser::make_real_bbox_loc_vector(TfLiteTensor* loc_tensor,std::vector<int>& real_bbox_index_vector,
+                                            std::vector<std::vector<int>>& real_bbox_loc_vector){
+  TfLiteTensor* output_tensor = loc_tensor;
+  auto input_pointer = (float *)output_tensor->data.data;
+  const float* output_data = (float*)output_tensor->data.data; 
+  const int num_boxes = output_tensor->dims->data[1]; 
+  const int num_columns = output_tensor->dims->data[2]; 
+  std::vector<float> boxes;
+  for (int i = 0; i < 2535; ++i) {
+       for (int j = 0; j < 4; ++j) {
+          boxes.push_back(output_data[i * 4 + j]);  
+       }
+  }
+  int bbox_count = 0;
+  int image_size = 416; 
+  for (int i = 0; i < 2535; ++i) {
+      std::vector<int>tmp;
+      for(int j=0 ; j < real_bbox_index_vector.size(); j++){
+          if(i == real_bbox_index_vector[j]) {
+            float first = boxes[i * 4];      
+            float second = boxes[i * 4 + 1]; 
+            float third = boxes[i * 4 + 2]; 
+            float fourth = boxes[i* 4 + 3];   
+            int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), first - third/2)));
+            int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), second - fourth/2)));
+            int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), first + third/2)));
+            int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), second + fourth/2)));
+            tmp.push_back(left);
+            tmp.push_back(top);
+            tmp.push_back(right);
+            tmp.push_back(bottom);
+            real_bbox_loc_vector.push_back(tmp);
+            break;
+          }
+      }
+      tmp.clear();
+  }
+}
+////////////////////////////////////////////////////////////////////
+
 
 TfLiteStatus TfLiteRuntime::DebugInvoke() {
   Subgraph* subgraph;

@@ -271,6 +271,36 @@ typedef struct tf_packet{
   float cpu_utilization;
 }tf_packet;
 
+////////////////////////////////////////////////////////////////////
+// HOON : utility funcs for parsing Yolo output
+class YOLO_Parser{
+  public:
+    YOLO_Parser();
+    ~YOLO_Parser();
+    static std::vector<std::vector<float>> real_bbox_cls_vector; 
+    static std::vector<int> real_bbox_cls_index_vector;
+    static std::vector<std::vector<int>> real_bbox_loc_vector;
+    std::vector<int> get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector);
+    void make_real_bbox_cls_vector(TfLiteTensor* cls_tensor, std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector);
+    void make_real_bbox_loc_vector(TfLiteTensor* loc_tensor, std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector);
+    void SOFTMAX(std::vector<float>& real_bbox_cls_vector);
+    void NMS(const std::vector<int>& real_bbox_cls_index_vector, const std::vector<std::vector<float>>& real_bbox_cls_vector, const std::vector<std::vector<int>>& real_bbox_loc_vector);
+    struct BoundingBox {
+      float left, top, right, bottom;
+      float score;
+      int class_id;
+    };
+    static std::vector<YOLO_Parser::BoundingBox> result_boxes;
+    static bool CompareBoxesByScore(const BoundingBox& box1, const BoundingBox& box2);
+    float CalculateIoU(const BoundingBox& box1, const BoundingBox& box2);
+    void NonMaximumSuppression(std::vector<BoundingBox>& boxes, float iou_threshold);
+    void PerformNMSUsingResults(
+    const std::vector<int>& real_bbox_index_vector,
+    const std::vector<std::vector<float>>& real_bbox_cls_vector,
+    const std::vector<std::vector<int>>& real_bbox_loc_vector,
+    float iou_threshold, const std::vector<int> real_bbox_cls_index_vector);
+}; 
+////////////////////////////////////////////////////////////////////
 }  // namespace tflite
 
 #endif  // TENSORFLOW_LITE_UTIL_H_
