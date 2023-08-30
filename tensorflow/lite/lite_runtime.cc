@@ -1,6 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
 // #define YOLO
+// #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -100,7 +101,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 };
 
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                      const char* f_model, const char* i_model, INPUT_TYPE type) {
+                            const char* f_model, const char* i_model, INPUT_TYPE type) {
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
   quantized_interpreter = new tflite::Interpreter(true);
@@ -166,27 +167,61 @@ TfLiteRuntime::~TfLiteRuntime() {
             << "\n";
 };
 
+void TfLiteRuntime::SetTestSequenceName(std::string name){
+  sequence_name = name;
+  std::cout << "TEST " << sequence_name << " \n";
+}
+
 void TfLiteRuntime::InitLogFile(){
-  logFile.open("latency.txt");
-  logFile_.open("latency_.txt");
+  std::string lat_file_name = "_latency.txt";
+  std::string ts_file_name = "_timestamps.txt";
+  m_interpreter_lat_log.open((sequence_name + lat_file_name));
+  s_interpreter_lat_log.open((sequence_name + "_s_" + lat_file_name));
+  
+  m_interpreter_t_stamp_log.open((sequence_name + ts_file_name));
+  s_interpreter_t_stamp_log.open((sequence_name + "_s_" + ts_file_name));
   return;
 }
 
-void TfLiteRuntime::WriteVectorLog(std::vector<double>& log, int n){
-  if(logFile.is_open() && n == 0){
-    for(int i=0; i<log.size(); ++i){
-      logFile << log[i] << " ";
+void TfLiteRuntime::WriteVectorLog(std::vector<double>& log, int log_id){
+  
+  switch (log_id)
+  {
+  case 0:
+    if(m_interpreter_lat_log.is_open()){
+      for(int i=0; i<log.size(); ++i){
+        m_interpreter_lat_log << log[i] << " ";
+      }
+      m_interpreter_lat_log << "\n";
     }
-    logFile << "\n";
-  }else if(logFile_.is_open() && n == 1){
-    for(int i=0; i<log.size(); ++i){
-      logFile_ << log[i] << " ";
+    break;
+  case 1:
+    if(s_interpreter_lat_log.is_open()){
+      for(int i=0; i<log.size(); ++i){
+        s_interpreter_lat_log << log[i] << " ";
+      }
+      s_interpreter_lat_log << "\n";
+    }  
+    break;
+  case 2:
+    if(m_interpreter_t_stamp_log.is_open()){
+      for(int i=0; i<log.size(); ++i){
+        m_interpreter_t_stamp_log << log[i] << " ";
+      }
+      m_interpreter_t_stamp_log << "\n";
     }
-    logFile_ << "\n";
-  }
-  else{
-    std::cout << "Log file not open ERROR" << "\n";
-    return;
+    break;
+  case 3:
+    if(s_interpreter_t_stamp_log.is_open()){
+      for(int i=0; i<log.size(); ++i){
+        s_interpreter_t_stamp_log << log[i] << " ";
+      }
+      s_interpreter_t_stamp_log << "\n";
+    } 
+    break;
+  default:
+    std::cout << "Wrong logging id" << "\n";
+    break;
   }
 }
 
@@ -741,6 +776,7 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
   int subgraph_idx = 0;
   double response_time = 0; 
   std::vector<double> latency;
+  std::vector<double> stamp;
   struct timespec begin, end;
   int subgraph_id = -1;
   int prev_subgraph_id = -1;
@@ -757,15 +793,24 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
       invoke_cpu = false;
       if(co_subgraph_id == -1){
         WriteVectorLog(latency, 1);
-        // std::cout << "Minimal precision graph invoke done" << "\n";
+        #ifdef debug_print
+          std::cout << "Minimal precision graph invoke done" << "\n";
+        #endif
         return;
       }
-      // std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
+      #ifdef debug_print
+        std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
+      #endif
       subgraph = quantized_interpreter->subgraph_id(co_subgraph_id);
       if(main_execution_graph != nullptr){
+        #ifdef debug_print
+          std::cout << "CopyIntermediateDataIfNeeded" << "\n";
+        #endif
         CopyIntermediateDataIfNeeded(subgraph, main_execution_graph);
       }
-      // std::cout << "[Minimal precision] Invoke subgraph " << co_subgraph_id << "\n";
+      #ifdef debug_print
+        std::cout << "[Minimal precision] Invoke subgraph " << co_subgraph_id << "\n";
+      #endif
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid() << "\n";
@@ -838,14 +883,17 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
         co_subgraph_id = rx_packet.subgraph_ids[1][0];
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
-      std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
+      #ifdef debug_print
+        std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
+      #endif
       // if previous subgraph was co-execution, merge co-exectuion data here?
       if(prev_subgraph_id != subgraph_id && prev_subgraph_id != -1 &&
           interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() == CO_GPU){
-        // std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id << 
-        //           " " << subgraph_id << "\n";
+        #ifdef debug_print
+          std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id << 
+                    " " << subgraph_id << "\n";
+        #endif
         MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id, subgraph_id);
-        // std::cout << "merge done " << "\n";
       }
       
       if(subgraph->GetResourceType() == CO_GPU){
@@ -858,12 +906,16 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
       }else{ // if not co-execution, it needs additional imtermediate data copy.
         if(prev_subgraph_id != -1 && 
            interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() != ResourceType::CO_GPU){
-          // std::cout << "CopyIntermediateDataIfNeeded" << "\n";
+          #ifdef debug_print
+            std::cout << "CopyIntermediateDataIfNeeded" << "\n";
+          #endif
           CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id);
-          // std::cout << "CopyIntermediateDataIfNeeded Done" << "\n";
+          #ifdef debug_print
+            std::cout << "CopyIntermediateDataIfNeeded Done" << "\n";
+          #endif
         }
       }
-      std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
+      // std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
@@ -885,15 +937,6 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
         }
       }
       prev_subgraph_id = subgraph_id;
-      
-      if(false){ // TODO (f85fa) : Need terminal condition.
-        main_execution_graph = nullptr;
-        WriteVectorLog(latency, 0);
-        // std::cout << "Max precision graph invoke done" << "\n";
-        // PrintyoloOutput(*(subgraph->tensor(109)));
-        global_output_tensor = subgraph->tensor(subgraph->GetFirstOutputTensorIndex());
-        break;
-      }
     }
   }
   return;
