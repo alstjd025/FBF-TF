@@ -88,8 +88,10 @@ class TfLiteRuntime{
     // Call after DebugCoInvoke()
     void DoInvoke(PrecisionType type);
 
-    void FeedInputToModelDebug(const char* model, cv::Mat& input,
-                               cv::Mat& input_quant, INPUT_TYPE input_type);
+
+    void SetInputType(INPUT_TYPE input_type_);
+    INPUT_TYPE GetInputTypeFromString(string input_type);
+    void FeedInputToModelDebug(const char* model, cv::Mat& input, cv::Mat& input_quant);
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
     void PrintTensorSerial(TfLiteTensor& tensor);
@@ -184,6 +186,8 @@ class TfLiteRuntime{
     tflite::InterpreterBuilder* quantized_builder;
 
     TfLiteTensor* global_output_tensor = nullptr;
+
+    INPUT_TYPE input_type;
 
     //// Co-execution
     bool co_execution = false;

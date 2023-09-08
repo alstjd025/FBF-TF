@@ -661,11 +661,26 @@ void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
   }
 }
 
+INPUT_TYPE TfLiteRuntime::GetInputTypeFromString(string input_type){
+  if(strcmp(input_type.c_str(), "IMAGENET224") == 0){
+    return INPUT_TYPE::IMAGENET224;
+  }else if(strcmp(input_type.c_str(), "IMAGENET300") == 0){
+    return INPUT_TYPE::IMAGENET300;
+  }else if(strcmp(input_type.c_str(), "COCO416") == 0){
+    return INPUT_TYPE::COCO416;
+  }else{
+    return INPUT_TYPE::USER;
+  }
+}
+
+void TfLiteRuntime::SetInputType(INPUT_TYPE input_type_){
+  input_type = input_type_;
+}
+
 // TODO : Impl global input tensor sharing
 // MUST_REFACTOR (fb4775) : Need to refactor for sub-interpreter input.
 void TfLiteRuntime::FeedInputToModelDebug(const char* model,
-                                     cv::Mat& input, cv::Mat& input_quant,
-                                     INPUT_TYPE input_type) {
+                                     cv::Mat& input, cv::Mat& input_quant) {
   bool use_two_interpreter = false;
   TfLiteTensor* input_tensor = nullptr;
   input_tensor = interpreter->input_tensor_of_model(0);
