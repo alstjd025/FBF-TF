@@ -212,7 +212,8 @@ typedef enum RuntimeState{
   NEED_PROFILE,
   SUBGRAPH_CREATE,
   INVOKE_,
-  BLOCKED_
+  BLOCKED_,
+  TERMINATE
 } RuntimeState;
 
 //WARNING! This struct is deprecatied.

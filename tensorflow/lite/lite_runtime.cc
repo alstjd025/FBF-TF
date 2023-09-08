@@ -175,6 +175,15 @@ void TfLiteRuntime::SetLogPath(std::string path){
   std::cout << "Log path " << log_path << " \n";
 }
 
+void TfLiteRuntime::WriteInitStateLog(){
+  std::string buf;
+  PrintInterpreterStateSimple(interpreter, quantized_interpreter, buf);
+  m_interpreter_lat_log << buf;
+  m_interpreter_t_stamp_log << buf;
+  s_interpreter_lat_log << buf;
+  s_interpreter_t_stamp_log << buf;
+}
+
 void TfLiteRuntime::InitLogFile(){
   std::string lat_file_name = "_latency.txt";
   std::string ts_file_name = "_timestamps.txt";
@@ -281,6 +290,17 @@ TfLiteStatus TfLiteRuntime::InitializeUDS(){
     return kTfLiteError;
   }
   return kTfLiteOk;
+}
+
+void TfLiteRuntime::ShutdownScheduler(){
+  tf_packet tx_packet;
+  memset(&tx_packet, 0, sizeof(tf_packet));
+  tx_packet.runtime_current_state = RuntimeState::TERMINATE;
+  tx_packet.runtime_id = runtime_id;
+  if(SendPacketToScheduler(tx_packet) != kTfLiteOk){
+    std::cout << "Sechduler Shutdown Error" << "\n";
+  }
+  return;
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_packet& tx_p){

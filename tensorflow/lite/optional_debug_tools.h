@@ -29,7 +29,9 @@ void PrintInterpreterStateV2(Interpreter* interpreter);
 
 void PrintInterpreterStateV3(Interpreter* interpreter);
 
-void PrintInterpreterStateSimple(Interpreter* interpreter);
+void PrintInterpreterStateSimple(Interpreter* interpreter,
+                                 Interpreter* sub_interpreter
+                                , std::string& buf);
 
 }  // namespace tflite
 

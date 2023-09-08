@@ -60,7 +60,8 @@ void TfScheduler::SysMonitor(){
 
 void TfScheduler::Work(){
   monitor = new LiteSysMonitor();
-  while(1){
+  bool run = true;
+  while(run){
     tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
     memset(&rx_packet, 0, sizeof(tf_packet));
@@ -156,6 +157,10 @@ void TfScheduler::Work(){
         printf("errno : %d \n", errno);
         return;
       }
+      break;
+    }
+    case RuntimeState::TERMINATE : {
+      run = false;
       break;
     }
     default:
@@ -269,7 +274,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(tf_packet& rx_packet
     }
   }
   
-  std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
+  // std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n";
   // std::cout << "set next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
   // std::cout << "set next_subgraph_to_invoke resource_type " << next_subgraph_to_invoke->resource_type << "\n";
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;

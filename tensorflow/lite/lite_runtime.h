@@ -65,6 +65,7 @@ class TfLiteRuntime{
     /// For debugging only ==
     void InitLogFile();
     void WriteVectorLog(std::vector<double>& latency, int n);
+    void WriteInitStateLog();
     
     // contains name of test sequence
     void SetTestSequenceName(std::string name);
@@ -171,6 +172,7 @@ class TfLiteRuntime{
     TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
     TfLiteStatus SendPacketToScheduler(tf_packet& tx_p);
     TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
+    void ShutdownScheduler();
     //////
 
   private:
