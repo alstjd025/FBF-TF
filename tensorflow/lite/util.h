@@ -175,11 +175,10 @@ typedef enum WorkerState{
   BLOCKED
 } WorkerState;
 
-// Threadtype for co-execution
-typedef enum PrecisionType{
-  MINIMAL_PRECISION,
-  MAX_PRECISION
-} ThreadType;
+typedef enum InterpreterType{
+  MAIN_INTERPRETER,
+  SUB_INTERPRETER
+} InterpreterType;
 
 // Partitioning types for co-execution
 typedef enum PartitioningType{

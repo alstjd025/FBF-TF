@@ -798,8 +798,8 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
 
 TfLiteStatus TfLiteRuntime::Invoke(){
   c_thread = std::thread(&TfLiteRuntime::DoInvoke, this, 
-                          PrecisionType::MINIMAL_PRECISION);
-  DoInvoke(PrecisionType::MAX_PRECISION);
+                          InterpreterType::SUB_INTERPRETER);
+  DoInvoke(InterpreterType::MAIN_INTERPRETER);
   c_thread.join();
 }
 
@@ -808,7 +808,7 @@ TfLiteStatus TfLiteRuntime::Invoke(){
 // TODO : 1. Get subgraph id to invoke from Graphselector.
 //        2. Get system monitoring info from scheduler at each invoke.
 ////////////////////////////////////////////////////////////////////////////////
-void TfLiteRuntime::DoInvoke(PrecisionType type){
+void TfLiteRuntime::DoInvoke(InterpreterType type){
   // For prototye, invoke first layer only with HW-partitioning and merge them.
   Subgraph* subgraph;
   
@@ -821,7 +821,7 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
   int prev_subgraph_id = -1;
   int prev_co_subgraph_id = -1;
   while(true){
-    if(type == PrecisionType::MINIMAL_PRECISION){
+    if(type == InterpreterType::SUB_INTERPRETER){
       if(quantized_interpreter->subgraphs_size() < 1){
         // std::cout << "No invokable subgraph for cpu" << "\n";
         break;
@@ -861,7 +861,7 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
         return;
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
-      response_time =  (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
       stamp.push_back(begin.tv_sec + begin.tv_nsec);
       stamp.push_back(end.tv_sec + end.tv_nsec);
       latency.push_back(response_time);
@@ -871,7 +871,7 @@ void TfLiteRuntime::DoInvoke(PrecisionType type){
       co_execution_graph = subgraph;
       data_sync_cv.notify_one();
       
-    }else if(type == PrecisionType::MAX_PRECISION){
+    }else if(type == InterpreterType::MAIN_INTERPRETER){
       // TODO (d9a62) : Make this part to an individual function.
       tf_packet tx_packet;
       memset(&tx_packet, 0, sizeof(tf_packet));
