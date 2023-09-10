@@ -554,7 +554,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           switch (profile[k]->subset_resource[i])
           {
           case TF_P_PLAN_CPU:
-            std::cout << "TF_P_PLAN_CPU" << "\n";
             if(is_sub_interpreter){
               // Don't create subgraph if sub-interprter. 
               new_plan->resource_type = ResourceType::NONE;
@@ -563,7 +562,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             new_plan->resource_type = ResourceType::CPU;
             break;
           case TF_P_PLAN_GPU:
-            std::cout << "TF_P_PLAN_GPU" << "\n";
             if(is_sub_interpreter){
               // Don't create subgraph if sub-interprter. 
               new_plan->resource_type = ResourceType::NONE;
@@ -572,7 +570,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             new_plan->resource_type = ResourceType::GPU;
             break;
           case TF_P_PLAN_CO_E:
-            std::cout << "TF_P_PLAN_CO_E" << "\n";
             if(is_sub_interpreter){
               new_plan->resource_type = ResourceType::CO_CPU;
               break;
@@ -581,7 +578,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
               new_plan->resource_type = ResourceType::CO_GPU;
             break;
           case TF_P_PLAN_CPU_XNN:
-            std::cout << "TF_P_PLAN_CPU_XNN" << "\n";
             if(is_sub_interpreter){
               // Don't create subgraph if sub-interprter. 
               new_plan->resource_type = ResourceType::NONE;
@@ -591,7 +587,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
               new_plan->resource_type = ResourceType::CPU_XNN;
             break;
           case TF_P_PLAN_CO_E_XNN:
-            std::cout << "TF_P_PLAN_CO_E_XNN" << "\n";
             if(is_sub_interpreter){
               new_plan->resource_type = ResourceType::CO_CPU_XNN;
               break;
@@ -692,7 +687,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       // Now setup nodes and tensors for new subgraph
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
-        std::cout << "Working op " << working_op << "\n";        
+        // std::cout << "Working op " << working_op << "\n";        
         const auto* op = operators->Get(working_op);
         int op_index = op->opcode_index();
         /// get every tensor indices of all nodes
@@ -719,7 +714,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
                       std::vector<int>(input_tensor->begin(), input_tensor->end()));
           new_subgraph->SetOutputs(  // set 'all' output tensors
                       std::vector<int>(output_tensor->begin(), output_tensor->end()));
-          if (ParseNodes(operators, new_subgraph,\
+          if (ParseNodes(operators, new_subgraph,
                           nodes_in_partition[0], nodes_in_partition[j]) != kTfLiteOk)
             return kTfLiteError;
           if (ParseTensors(buffers, tensors, new_subgraph, *tensors_) != kTfLiteOk)

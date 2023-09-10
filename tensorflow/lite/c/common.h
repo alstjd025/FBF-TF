@@ -820,6 +820,12 @@ typedef struct TfLiteContext {
   // WARNING: This method may not be available on all platforms.
   TfLiteEvalTensor* (*GetEvalTensor)(const struct TfLiteContext* context,
                                      int tensor_idx);
+
+  // Minsung (b4f72)
+  // Experimental API
+  // char array to communicate with delegates (temporary).
+  // default value is false
+  bool experimental_flag = false;
 } TfLiteContext;
 
 typedef struct TfLiteRegistration {

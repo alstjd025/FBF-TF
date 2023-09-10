@@ -2851,18 +2851,18 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
         // CODE FOR FALLBACK TEST
-      
-    if(registration->builtin_code == 0 || registration->builtin_code == 18){ //check if ADD or mullayer
-    // if(false){ //check if ADD layer
+    if(context->experimental_flag){
+      if(registration->builtin_code == 0 || registration->builtin_code == 18){ //check if ADD or mullayer
+      // if(false){ //check if ADD layer
         printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
         return false;
-    }else{
-      if (!status.ok()) {
-        if (unsupported_details) {
-          *unsupported_details = std::string(status.message());
-        }
-        return false;
       }
+    }
+    if (!status.ok()) {
+      if (unsupported_details) {
+        *unsupported_details = std::string(status.message());
+      }
+      return false;
     }
     if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
         !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) {
