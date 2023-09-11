@@ -62,6 +62,7 @@ void TfScheduler::Work(){
   monitor = new LiteSysMonitor();
   bool run = true;
   while(run){
+    std::cout << "run" << "\n";
     tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
     memset(&rx_packet, 0, sizeof(tf_packet));
@@ -160,6 +161,7 @@ void TfScheduler::Work(){
       break;
     }
     case RuntimeState::TERMINATE : {
+      std::cout << "Scheduler got terminate signal" << "\n";
       run = false;
       break;
     }
@@ -167,6 +169,7 @@ void TfScheduler::Work(){
       break;
     }
   }
+  return;
 }
 
 void TfScheduler::OpenPartitioningParams(){
@@ -978,7 +981,9 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p){
   // }
 }
 
-TfScheduler::~TfScheduler() {};
-
+TfScheduler::~TfScheduler() {
+  std::cout << "Scheduler Terminated" << "\n";
+};
+  
 }
 

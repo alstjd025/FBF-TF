@@ -854,25 +854,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     // moving data pointer isn't necessary for global input tensor.
     if(resource_type == ResourceType::CO_CPU ||
       resource_type == ResourceType::CO_CPU_XNN){ // move pointer to bottom. 
-    //   int padd_with_dummy = 0;
-    //   switch (GetGraphid())
-    //   {
-    //   case 1:
-    //     padd_with_dummy = 80;
-    //     break;
-    //   case 2:
-    //     padd_with_dummy = 45;
-    //     break;
-    //   case 3:
-    //     padd_with_dummy = 25;
-    //     break;
-    //   case 4:
-    //     padd_with_dummy = 13;
-    //     break;
-    //   default:
-    //     padd_with_dummy = 0;
-    //     break;
-    //   }
 
       int padd_with_dummy = (h - padd) + int((h - padd) * 0.5);
       std::cout << "h " << h << " padd " << padd << "\n";

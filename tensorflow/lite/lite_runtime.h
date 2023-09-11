@@ -86,7 +86,7 @@ class TfLiteRuntime{
 
     // Debug invoke (for co-execution invoke synchronization test)
     // Call after DebugCoInvoke()
-    void DoInvoke(InterpreterType type);
+    TfLiteStatus DoInvoke(InterpreterType type);
 
 
     void SetInputType(INPUT_TYPE input_type_);
@@ -101,24 +101,26 @@ class TfLiteRuntime{
 
     // Merge output(which is intermediate in the view of whole task)
     // data from previous subgraph.
-    void CopyIntermediateDataIfNeeded(Subgraph* subgraph);
+    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* subgraph);
     
     
     // Merge output(which is intermediate in the view of whole task)
     // data from previous subgraph (with id).
-    void CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_subgraph_id);
+    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_subgraph_id);
 
     // Merge output(which is intermediate in the view of whole task)
     // data from full precision subgraph.
-    void CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph);
+    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph);
     
     // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
-    void MergeCoExecutionData(Subgraph* min_precision_subgraph
+    // THIS FUNCTION IS DEPRECATED.
+    // USE SUBGRAPH OVERLOADED FUCTION INSTEAD.
+    TfLiteStatus MergeCoExecutionData(Subgraph* min_precision_subgraph
                             , Subgraph* max_precision_subgraph);
 
     
     // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
-    void MergeCoExecutionData(int prev_sub_subgraph
+    TfLiteStatus MergeCoExecutionData(int prev_sub_subgraph
                             , int prev_main_subgraph
                             , int dest_subgraph_);
 

@@ -823,9 +823,8 @@ typedef struct TfLiteContext {
 
   // Minsung (b4f72)
   // Experimental API
-  // char array to communicate with delegates (temporary).
   // default value is false
-  bool experimental_flag = false;
+  bool experimental_flag;
 } TfLiteContext;
 
 typedef struct TfLiteRegistration {
