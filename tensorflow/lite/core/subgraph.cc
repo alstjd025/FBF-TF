@@ -1337,29 +1337,37 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   }
   ////////////////////////////////////////////////////////////////////////////////////////////
   #ifdef YOLO
+  YOLO_Parser yolo_parser;
   printf("\033[0;33mStart YOLO parsing\033[0m\n");
   std::vector<int> real_bbox_index_vector;
   real_bbox_index_vector.clear();
-  real_bbox_cls_index_vector.clear();
-  real_bbox_cls_vector.clear();
-  real_bbox_loc_vector.clear();
-  result_boxes.clear();
-  make_real_bbox_cls_vector(real_bbox_index_vector, real_bbox_cls_vector);
-  real_bbox_cls_index_vector = get_cls_index(real_bbox_cls_vector); 
-  make_real_bbox_loc_vector(real_bbox_index_vector, real_bbox_loc_vector);
+  YOLO_Parser::real_bbox_cls_index_vector.clear();
+  YOLO_Parser::real_bbox_cls_vector.clear();
+  YOLO_Parser::real_bbox_loc_vector.clear();
+  YOLO_Parser::result_boxes.clear();
+  TfLiteTensor* cls_tensor = tensor(212);
+  TfLiteTensor* loc_tensor = tensor(233);
+  yolo_parser.make_real_bbox_cls_vector(cls_tensor, real_bbox_index_vector,
+                                         YOLO_Parser::real_bbox_cls_vector);
+  YOLO_Parser::real_bbox_cls_index_vector = \
+              yolo_parser.get_cls_index(YOLO_Parser::real_bbox_cls_vector); 
+  yolo_parser.make_real_bbox_loc_vector(loc_tensor, real_bbox_index_vector, 
+                                        YOLO_Parser::real_bbox_loc_vector);
   float iou_threshold = 0.5;
-  PerformNMSUsingResults(real_bbox_index_vector, real_bbox_cls_vector, real_bbox_loc_vector, iou_threshold,real_bbox_cls_index_vector);
+  yolo_parser.PerformNMSUsingResults(real_bbox_index_vector, YOLO_Parser::real_bbox_cls_vector, 
+        YOLO_Parser::real_bbox_loc_vector, iou_threshold,YOLO_Parser::real_bbox_cls_index_vector);
   printf("\033[0;33mEND YOLO parsing\033[0m\n");
   #endif
   return status;
 }
 
-std::vector<Subgraph::BoundingBox> Subgraph::result_boxes;
-std::vector<std::vector<float>> Subgraph::real_bbox_cls_vector; 
-std::vector<int> Subgraph::real_bbox_cls_index_vector;
-std::vector<std::vector<int>> Subgraph::real_bbox_loc_vector;
 
-std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
+std::vector<YOLO_Parser::BoundingBox> YOLO_Parser::result_boxes;
+std::vector<std::vector<float>> YOLO_Parser::real_bbox_cls_vector; 
+std::vector<int> YOLO_Parser::real_bbox_cls_index_vector;
+std::vector<std::vector<int>> YOLO_Parser::real_bbox_loc_vector;
+
+std::vector<int> YOLO_Parser::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
   float max=0;
   int max_index = -1;
   int index = 0;
@@ -1379,33 +1387,31 @@ std::vector<int> Subgraph::get_cls_index(std::vector<std::vector<float>>& real_b
   return real_bbox_cls_index_vector;
 }
 
-void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
-  TfLiteTensor* output_tensor_2 = tensor(212);  
-  const float* output_data_2 = (float*)output_tensor_2->data.data;
-  const int num_boxes_2 = output_tensor_2->dims->data[1]; 
+void YOLO_Parser::make_real_bbox_cls_vector(TfLiteTensor* cls_tensor, 
+ std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
+  TfLiteTensor* output_tensor = cls_tensor;  
+  const float* output_data = (float*)output_tensor->data.data;
+  const int num_raw_bboxes = output_tensor->dims->data[1]; 
   std::vector<float> classifications;
   float cls_thresh = 0.05; // Hyperparam
-  for (int i = 0; i < num_boxes_2; ++i) {
+  for (int i = 0; i < num_raw_bboxes; ++i) {
     for (int j = 0; j < 80; ++j) {
-        classifications.push_back(output_data_2[i*80 + j]);  
+        classifications.push_back(output_data[i*80 + j]);  
        }
   }
-  int conf_count = 0;
-  int real_bbox_index = -1;
   std::vector<float> raw_vector;
-  for (int i = 0; i < num_boxes_2; ++i) {
-    int box_per_conf_count = 0;
+  for (int i = 0; i < num_raw_bboxes; ++i) {
+    bool is_survived = false;
     for (int j = 0; j < 80; ++j) {
       raw_vector.push_back(classifications[i * 80 + j]); 
     }
     // SOFTMAX(raw_vector); // Not use Softmax currently
     for (int k = 0; k < 80; ++k) {
       if (raw_vector[k] > cls_thresh){
-        box_per_conf_count +=1;
+        is_survived = true;
       }
     }
-    if(box_per_conf_count >0){
-      conf_count +=1;
+    if(is_survived){
       real_bbox_index_vector.push_back(i); 
       real_bbox_cls_vector.push_back(raw_vector);
     }
@@ -1416,22 +1422,21 @@ void Subgraph::make_real_bbox_cls_vector(std::vector<int>& real_bbox_index_vecto
   std::cout << " Number of bounding boxes before NMS : " << real_bbox_index_vector.size() << std::endl;
 }
 
-
-void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vector,std::vector<std::vector<int>>& real_bbox_loc_vector){
-  TfLiteTensor* output_tensor = tensor(233);
-  auto input_pointer = (float *)tensor(233)->data.data;
+void YOLO_Parser::make_real_bbox_loc_vector(TfLiteTensor* loc_tensor,std::vector<int>& real_bbox_index_vector,
+                                            std::vector<std::vector<int>>& real_bbox_loc_vector){
+  TfLiteTensor* output_tensor = loc_tensor;
+  auto input_pointer = (float *)output_tensor->data.data;
   const float* output_data = (float*)output_tensor->data.data; 
-  const int num_boxes = output_tensor->dims->data[1]; // 2535
-  const int num_columns = output_tensor->dims->data[2]; // 4
+  const int num_raw_bboxes = output_tensor->dims->data[1]; 
+  const int num_columns = output_tensor->dims->data[2]; 
   std::vector<float> boxes;
-  for (int i = 0; i < 2535; ++i) {
-       for (int j = 0; j < 4; ++j) {
+  for (int i = 0; i < num_raw_bboxes; ++i) {
+       for (int j = 0; j < num_columns; ++j) {
           boxes.push_back(output_data[i * 4 + j]);  
        }
   }
-  int bbox_count = 0;
   int image_size = 416; 
-  for (int i = 0; i < 2535; ++i) {
+  for (int i = 0; i < num_raw_bboxes; ++i) {
       std::vector<int>tmp;
       for(int j=0 ; j < real_bbox_index_vector.size(); j++){
           if(i == real_bbox_index_vector[j]) {
@@ -1439,10 +1444,14 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
             float second = boxes[i * 4 + 1]; 
             float third = boxes[i * 4 + 2]; 
             float fourth = boxes[i* 4 + 3];   
-            int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first - third/2)));
-            int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second - fourth/2)));
-            int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), first + third/2)));
-            int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(image_size), second + fourth/2)));
+            int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), first - third/2)));
+            int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), second - fourth/2)));
+            int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), first + third/2)));
+            int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+            (image_size), second + fourth/2)));
             tmp.push_back(left);
             tmp.push_back(top);
             tmp.push_back(right);
@@ -1453,19 +1462,6 @@ void Subgraph::make_real_bbox_loc_vector(std::vector<int>& real_bbox_index_vecto
       }
       tmp.clear();
   }
-}
-void Subgraph::SOFTMAX(std::vector<float>& row) {
-    const float threshold = 0.999999; 
-    float maxElement = *std::max_element(row.begin(), row.end());
-    float sum = 0.0;
-    const float scalingFactor = 20.0; //20
-    for (auto& i : row)
-        sum += std::exp(scalingFactor * (i - maxElement));
-    for (int i = 0; i < row.size(); ++i) {
-        row[i] = std::exp(scalingFactor * (row[i] - maxElement)) / sum;
-        if (row[i] > threshold)
-            row[i] = threshold; 
-    }
 }
 ////////////////////////////////////////////////////////////////////////////////////////////
 

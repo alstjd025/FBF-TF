@@ -162,4 +162,92 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
   return result;
 }
 
+
+////////////////////////////////////////////////////////////////////
+// HOON : utility funcs for parsing Yolo output
+
+YOLO_Parser::YOLO_Parser() {};
+
+YOLO_Parser::~YOLO_Parser() {};
+
+bool YOLO_Parser::CompareBoxesByScore(const BoundingBox& box1, const BoundingBox& box2) {
+    return box1.score > box2.score; }   
+
+float YOLO_Parser::CalculateIoU(const BoundingBox& box1, const BoundingBox& box2) {
+    float x1 = std::max(box1.left, box2.left);
+    float y1 = std::max(box1.top, box2.top);
+    float x2 = std::min(box1.right, box2.right);
+    float y2 = std::min(box1.bottom, box2.bottom);
+    float area_box1 = (box1.right - box1.left) * (box1.bottom - box1.top);
+    float area_box2 = (box2.right - box2.left) * (box2.bottom - box2.top);
+    float intersection_area = std::max(0.0f, x2 - x1) * std::max(0.0f, y2 - y1);
+    float union_area = area_box1 + area_box2 - intersection_area;
+  
+    if (union_area > 0.0f) {
+        return intersection_area / union_area;
+    } else {
+        return 0.0f; 
+    }
+  }
+  
+void YOLO_Parser::NonMaximumSuppression(std::vector<BoundingBox>& boxes, float iou_threshold) {
+  std::sort(boxes.begin(), boxes.end(), CompareBoxesByScore);
+  std::vector<BoundingBox> selected_boxes;
+  while (!boxes.empty()) {
+      BoundingBox current_box = boxes[0];
+      selected_boxes.push_back(current_box);
+      boxes.erase(boxes.begin());
+      for (auto it = boxes.begin(); it != boxes.end();) {
+          float iou = CalculateIoU(current_box, *it);
+          if (iou > iou_threshold) {
+              it = boxes.erase(it);
+          } else {
+              ++it;
+          }
+      }
+  }
+  boxes = selected_boxes;
+}
+void YOLO_Parser::PerformNMSUsingResults(
+    const std::vector<int>& real_bbox_index_vector,
+    const std::vector<std::vector<float>>& real_bbox_cls_vector,
+    const std::vector<std::vector<int>>& real_bbox_loc_vector,
+    float iou_threshold, const std::vector<int> real_bbox_cls_index_vector)
+  {
+    std::vector<BoundingBox> bounding_boxes;
+
+    for (size_t i = 0; i < real_bbox_index_vector.size(); ++i) {
+        BoundingBox box;
+        box.left = static_cast<float>(real_bbox_loc_vector[i][0]);
+        box.top = static_cast<float>(real_bbox_loc_vector[i][1]);
+        box.right = static_cast<float>(real_bbox_loc_vector[i][2]);
+        box.bottom = static_cast<float>(real_bbox_loc_vector[i][3]);
+        box.score = static_cast<float>(real_bbox_cls_vector[i][real_bbox_cls_index_vector[i]]); // Using the class score
+        box.class_id = real_bbox_cls_index_vector[i];
+        bounding_boxes.push_back(box);
+    }
+
+    NonMaximumSuppression(bounding_boxes, iou_threshold);
+
+    printf("\033[0;32mAfter NMS : \033[0m");
+    printf("Number of bounding boxes after NMS: %d\n",bounding_boxes.size());
+    result_boxes = bounding_boxes;
+    bounding_boxes.clear();
+  }
+
+void YOLO_Parser::SOFTMAX(std::vector<float>& row) {
+    const float threshold = 0.999999; 
+    float maxElement = *std::max_element(row.begin(), row.end());
+    float sum = 0.0;
+    const float scalingFactor = 20.0; //20
+    for (auto& i : row)
+        sum += std::exp(scalingFactor * (i - maxElement));
+    for (int i = 0; i < row.size(); ++i) {
+        row[i] = std::exp(scalingFactor * (row[i] - maxElement)) / sum;
+        if (row[i] > threshold)
+            row[i] = threshold; 
+    }
+}
+////////////////////////////////////////////////////////////////////
+
 }  // namespace tflite
