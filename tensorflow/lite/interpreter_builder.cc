@@ -804,10 +804,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     }
     // need to reallocate if tensor shapes are changed.
     // BUT NEED CHECK
-    if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){ 
-      std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
-      return kTfLiteError; // TEST
-    }
+    // if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){ 
+    //   std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
+    //   return kTfLiteError; // TEST
+    // }
   }
   // Delegate and Partitions-in-channel subgraphs 
   if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){

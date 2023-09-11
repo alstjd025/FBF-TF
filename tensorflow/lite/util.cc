@@ -173,13 +173,13 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
       std::cout << "Node input tensor size is not 3" << "\n";
       return false;
     }
-    if(context->tensors[node->inputs->data[2]].dims->size != 4){
+    if(context->tensors[node->inputs->data[1]].dims->size != 4){
       std::cout << "GetParamsForPartitioning ERROR" << "\n";
       std::cout << "Tensor dimension is not 4" << "\n";
       return false;
     }
     // get filter size from filter tensor
-    filter_size = context->tensors[node->inputs->data[2]].dims->data[1];  
+    filter_size = context->tensors[node->inputs->data[1]].dims->data[1];  
     // get stride and padding from params
     stride = conv_params->stride_height;
 
@@ -193,13 +193,13 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
       std::cout << "Node input tensor size is not 3" << "\n";
       return false;
     }
-    if(context->tensors[node->inputs->data[2]].dims->size != 4){
+    if(context->tensors[node->inputs->data[1]].dims->size != 4){
       std::cout << "GetParamsForPartitioning ERROR" << "\n";
       std::cout << "Tensor dimension is not 4" << "\n";
       return false;
     }
     // get filter size from filter tensor
-    filter_size = context->tensors[node->inputs->data[2]].dims->data[1];  
+    filter_size = context->tensors[node->inputs->data[1]].dims->data[1];  
     // get stride and padding from params
     stride = depth_conv_params->stride_height;
     

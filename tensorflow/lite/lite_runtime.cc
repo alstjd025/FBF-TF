@@ -1,7 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
 // #define YOLO
-#define debug_print
+// #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1593,9 +1593,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision
                                               , Subgraph* max_precision_subgraph_) {
   auto connect = [&](Subgraph* source_subgraph, Subgraph* dest_subgraph) {
     int source_tensor_idx = source_subgraph->inputs()[0];
-    std::cout << "source_tensor : " << source_tensor_idx << "\n";
     int input_tensor_idx = dest_subgraph->GetFirstInputTensorIndex();
-    std::cout << "dest_tensor : " << input_tensor_idx << "\n";
     TfLiteTensor* source_tensor = source_subgraph->tensor(source_tensor_idx);
     TfLiteTensor* dest_tensor = dest_subgraph->tensor(input_tensor_idx);
     void* data_source = nullptr;
@@ -1607,7 +1605,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision
     for(int i=0; i<dest_tensor->dims->size; ++i){
       dest_data_size *= dest_tensor->dims->data[i]; 
     }
-    std::cout << "123" << "\n";
+    
     // Match tensor precision (quantize)
     if(source_tensor->type == kTfLiteFloat32 &&
           dest_tensor->type == kTfLiteUInt8){
@@ -1631,11 +1629,15 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision
       // Maybe consider memory footprint.
       auto data_dest = (float*)dest_tensor->data.data;
       auto data_source = (float*)source_tensor->data.data;
-      std::cout << "source: " << source_data_size << " "
-                << "dest: " << dest_data_size <<  "\n";
+      #ifdef debug_print
+        std::cout << "source: " << source_data_size << " "
+                  << "dest: " << dest_data_size <<  "\n";
+      #endif
       int offset = source_data_size - dest_data_size;
       memcpy(data_dest, data_source + offset, dest_data_size*(sizeof(float)));
-      std::cout << "Copied intermediate data from main graph" << "\n";
+      #ifdef debug_print
+        std::cout << "Copied intermediate data from main graph" << "\n";
+      #endif
     }
     return kTfLiteOk;
   };
@@ -1648,7 +1650,6 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision
                 << "\n";
       return kTfLiteError;
     }
-    std::cout << "Asdf" << "\n";
   } else {  // if nulltpr returned
     return kTfLiteOk;
   }

@@ -315,12 +315,8 @@ TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id){
 TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
   auto HeightPartitionandAllocateIfNeed = [&](Subgraph* subgraph){
     if(subgraph->GetResourceType() == ResourceType::CO_CPU ||
+        subgraph->GetResourceType() == ResourceType::CO_CPU_XNN ||
         subgraph->GetResourceType() == ResourceType::CO_GPU){
-      if(subgraph->GetPartitioningType() == PartitioningType::NO_PARTITIONING){
-        std::cout << "ERROR HeightPartitionIfNeed : " << "graph has been set Co-execution"
-                  << " but has no partitioning plan" << "\n";
-        return kTfLiteError;
-      }
       if(subgraph->GetPartitioningType() == PartitioningType::HEIGHT_PARTITIONING){
         std::cout << "Height partition on subgraph " << subgraph->GetGraphid() << "\n"; 
         if(subgraph->PartitionHeightTest() != kTfLiteOk){
