@@ -323,7 +323,10 @@ void PrintInterpreterStateSimple(Interpreter* interpreter,
            std::string("\n");
     buf += std::string("partitioning type ") + \
            std::to_string(interpreter->subgraph_id(subgraph_id)->GetPartitioningType()) +
-          std::string("\n");;
+           std::string("\n");
+    buf += std::string("partitioning ratio ") + \
+           std::to_string(interpreter->subgraph_id(subgraph_id)->GetPartitioningRatio()) +
+           std::string("\n");
   }
   subgraph_size = sub_interpreter->subgraphs_size();
   buf += std::string("Sub Interpreter has ") + std::to_string(subgraph_size)
@@ -342,7 +345,10 @@ void PrintInterpreterStateSimple(Interpreter* interpreter,
            std::string("\n");
     buf += std::string("partitioning type ") + \
            std::to_string(sub_interpreter->subgraph_id(subgraph_id)->GetPartitioningType()) +
-          std::string("\n");;
+           std::string("\n");
+    buf += std::string("partitioning ratio ") + \
+           std::to_string(interpreter->subgraph_id(subgraph_id)->GetPartitioningRatio()) +
+           std::string("\n");
   }
   buf += std::string("======================================\n");
   buf += std::string("LOG_START\n");

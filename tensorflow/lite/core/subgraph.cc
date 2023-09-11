@@ -839,8 +839,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   int partitioning_ratio = GetPartitioningRatio();
   if(partitioning_ratio >= 10)
     partitioning_ratio -= 10;
-  if(resource_type != ResourceType::CO_GPU)
+  if(resource_type != ResourceType::CO_GPU){
     partitioning_ratio = 10 - partitioning_ratio;
+    PushPartitioningRatio(partitioning_ratio);
+  }
   // See execution_plan from backward.
   for(int execution_plan_idx = execution_plan_.size() -1;
            execution_plan_idx >= 0; execution_plan_idx--){

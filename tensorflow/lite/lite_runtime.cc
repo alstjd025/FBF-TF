@@ -832,7 +832,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         #ifdef debug_print
           std::cout << "Sub Interpreter invoke done" << "\n";
         #endif
-        return_state = kTfLiteError;
+        return_state = kTfLiteOk;
         return;
       }
       #ifdef debug_print
@@ -1589,8 +1589,8 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
 // TODO : Quantization, height partitioning aware data copy
 // IMPORTANT : There are some cases that input, output tensor indices are not same.
 //             Be carefull to use this function in those cases.
-TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision_subgraph_
-                                              , Subgraph* max_precision_subgraph_) {
+TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* sub_subgraph
+                                              , Subgraph* main_subgraph) {
   auto connect = [&](Subgraph* source_subgraph, Subgraph* dest_subgraph) {
     int source_tensor_idx = source_subgraph->inputs()[0];
     int input_tensor_idx = dest_subgraph->GetFirstInputTensorIndex();
@@ -1644,8 +1644,8 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* min_precision
   
   // std::cout << "copy from subgraph " << max_precision_subgraph_->GetGraphid() << "\n";
   // std::cout << "copy to subgraph " << min_precision_subgraph_->GetGraphid() << "\n";
-  if (max_precision_subgraph_ != nullptr) {  // Need to copy output from previous graph.
-    if (connect(max_precision_subgraph_, min_precision_subgraph_) != kTfLiteOk) {
+  if (main_subgraph != nullptr) {  // Need to copy output from previous graph.
+    if (connect(main_subgraph, sub_subgraph) != kTfLiteOk) {
       std::cout << "Subgraph intermediate data copy failed"
                 << "\n";
       return kTfLiteError;
