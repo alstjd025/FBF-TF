@@ -62,7 +62,6 @@ void TfScheduler::Work(){
   monitor = new LiteSysMonitor();
   bool run = true;
   while(run){
-    std::cout << "run" << "\n";
     tf_packet rx_packet;
     struct sockaddr_un runtime_addr;
     memset(&rx_packet, 0, sizeof(tf_packet));

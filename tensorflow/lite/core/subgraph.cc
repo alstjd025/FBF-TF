@@ -820,7 +820,6 @@ TfLiteStatus Subgraph::PartitionChannel(){
 }
 
 TfLiteStatus Subgraph::PartitionHeightTest(){
-
   auto stub_method = [&](int p_ratio, std::vector<std::pair<int, int>>& tensor_pair){
     // Resize the tensors 
     // TEST FOR FIRST NODE

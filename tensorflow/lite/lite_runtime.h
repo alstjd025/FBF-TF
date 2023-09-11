@@ -86,7 +86,7 @@ class TfLiteRuntime{
 
     // Debug invoke (for co-execution invoke synchronization test)
     // Call after DebugCoInvoke()
-    TfLiteStatus DoInvoke(InterpreterType type);
+    void DoInvoke(InterpreterType type, TfLiteStatus& return_state);
 
 
     void SetInputType(INPUT_TYPE input_type_);
