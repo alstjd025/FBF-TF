@@ -60,27 +60,6 @@ limitations under the License.
 
 namespace tflite {
 
-typedef struct latency_st{
-  std::string name;
-  double latency;
-  int n;
-}latency_st;
-
-// Latency measure helper class
-class LatencyHelper{
-  public:
-    LatencyHelper();
-    ~LatencyHelper();
-
-    // InitHelper(int graph, int node);
-
-    void AddLatency(struct timespec& start_time,
-              struct timespec& end_time, int graph, int node);
-    
-    void PrintLatency();
-
-    std::vector<std::vector<latency_st*>*> latency_data; 
-};
 
 // Memory allocation parameter used by ArenaPlanner.
 // Clients (such as delegates) might look at this to ensure interop between
@@ -141,6 +120,12 @@ bool IsUnresolvedCustomOp(const TfLiteRegistration& registration);
 
 // Returns a descriptive name with the given op TfLiteRegistration.
 std::string GetOpNameByRegistration(const TfLiteRegistration& registration);
+
+// Minsung
+// Get parameters used for HW partitioning.
+bool GetParamsForPartitioning(const TfLiteRegistration* registration,
+                              const TfLiteNode* node, TfLiteContext* context,
+                              int& filter_size, int& stride);
 
 typedef struct SharedTensorsInGraphs{
   int model_id; // identifier

@@ -16,10 +16,12 @@ limitations under the License.
 
 #include <complex>
 #include <cstring>
+#include <iostream>
 
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+#include "tensorflow/lite/c/builtin_op_data.h"
 
 namespace tflite {
 namespace {
@@ -157,26 +159,80 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
   return result;
 }
 
-LatencyHelper::LatencyHelper(){
-  
-}
 
-LatencyHelper::
+bool GetParamsForPartitioning(const TfLiteRegistration* registration,
+                              const TfLiteNode* node, TfLiteContext* context,
+                              int& filter_size, int& stride){
+  switch (registration->builtin_code)
+  {
+  case kTfLiteBuiltinConv2d:{
+    const TfLiteConvParams* conv_params = 
+        reinterpret_cast<const TfLiteConvParams*>(node->builtin_data);
+    if(node->inputs->size != 3){
+      std::cout << "GetParamsForPartitioning ERROR" << "\n";
+      std::cout << "Node input tensor size is not 3" << "\n";
+      return false;
+    }
+    if(context->tensors[node->inputs->data[2]].dims->size != 4){
+      std::cout << "GetParamsForPartitioning ERROR" << "\n";
+      std::cout << "Tensor dimension is not 4" << "\n";
+      return false;
+    }
+    // get filter size from filter tensor
+    filter_size = context->tensors[node->inputs->data[2]].dims->data[1];  
+    // get stride and padding from params
+    stride = conv_params->stride_height;
 
-LatencyHelper::~LatencyHelper(){
-  
-}
+    break;
+    }
+  case kTfLiteBuiltinDepthwiseConv2d:{
+    const TfLiteDepthwiseConvParams* depth_conv_params = 
+        reinterpret_cast<const TfLiteDepthwiseConvParams*>(node->builtin_data);
+    if(node->inputs->size != 3){
+      std::cout << "GetParamsForPartitioning ERROR" << "\n";
+      std::cout << "Node input tensor size is not 3" << "\n";
+      return false;
+    }
+    if(context->tensors[node->inputs->data[2]].dims->size != 4){
+      std::cout << "GetParamsForPartitioning ERROR" << "\n";
+      std::cout << "Tensor dimension is not 4" << "\n";
+      return false;
+    }
+    // get filter size from filter tensor
+    filter_size = context->tensors[node->inputs->data[2]].dims->data[1];  
+    // get stride and padding from params
+    stride = depth_conv_params->stride_height;
+    
+    break;
+    }
+  case kTfLiteBuiltinMaxPool2d:{
+    const TfLitePoolParams* pool_params = 
+        reinterpret_cast<const TfLitePoolParams*>(node->builtin_data);
+    
+    // get filter size from params
+    filter_size = pool_params->filter_height;  
+    // get stride and padding from params
+    stride = pool_params->stride_height;
+    
+    break;
+    }
+  case kTfLiteBuiltinAveragePool2d:{
+    const TfLitePoolParams* pool_params = 
+        reinterpret_cast<const TfLitePoolParams*>(node->builtin_data);
 
-void LatencyHelper::AddLatency(struct timespec& start_time,
-                              struct timespec& end_time, int graph, int node){
-  if(latency_data.size() < graph){
-    latency_data.push_back(new std::vector<latency_st*>);
-    // if(la)
+    // get filter size from params
+    filter_size = pool_params->filter_height;  
+    // get stride and padding from params
+    stride = pool_params->stride_height;
+    
+    break;
+    }
+  default:
+    filter_size = 0;
+    stride = 0;
+    break;
   }
-}
-
-void LatencyHelper::PrintLatency(){
-
+  return true;
 }
 ////////////////////////////////////////////////////////////////////
 // HOON : utility funcs for parsing Yolo output
