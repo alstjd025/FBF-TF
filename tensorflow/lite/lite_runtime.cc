@@ -490,10 +490,12 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs(){
   if(ReceivePacketFromScheduler(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
+  
   // At this point, scheduler will send INVOKE state.
   if(ChangeStatewithPacket(rx_packet) != kTfLiteOk){
     return kTfLiteError;
   }
+
   interpreter->PrintSubgraphInfo();
   PrintInterpreterStateV3(interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
@@ -788,6 +790,8 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
 TfLiteStatus TfLiteRuntime::Invoke(){
   TfLiteStatus return_state_sub = TfLiteStatus::kTfLiteOk;
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
+  struct timespec begin, end;
+  clock_gettime(CLOCK_MONOTONIC, &begin);
   c_thread = std::thread(&TfLiteRuntime::DoInvoke, this, 
                           InterpreterType::SUB_INTERPRETER, std::ref(return_state_sub));
   DoInvoke(InterpreterType::MAIN_INTERPRETER, return_state_main);
@@ -797,6 +801,18 @@ TfLiteStatus TfLiteRuntime::Invoke(){
     return kTfLiteError;
   }
   c_thread.join();
+  clock_gettime(CLOCK_MONOTONIC, &end);
+  double response_time = (end.tv_sec - begin.tv_sec) +
+                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+  latency_main_interpreter.push_back(response_time);
+  WriteVectorLog(latency_main_interpreter, 0);
+  WriteVectorLog(timestamp_main_interpreter, 2);
+  WriteVectorLog(latency_sub_interpreter, 1);
+  WriteVectorLog(timestamp_sub_interpreter, 3);
+  latency_main_interpreter.clear();
+  timestamp_main_interpreter.clear();
+  latency_sub_interpreter.clear();
+  timestamp_sub_interpreter.clear();
   return kTfLiteOk;
 }
 
@@ -810,8 +826,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
   Subgraph* subgraph;
   int subgraph_idx = 0;
   double response_time = 0; 
-  std::vector<double> latency;
-  std::vector<double> stamp;
   struct timespec begin, end;
   int subgraph_id = -1;
   int prev_subgraph_id = -1;
@@ -827,8 +841,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       invoke_sync_cv.wait(lock_invoke, [&]{ return invoke_cpu; });
       invoke_cpu = false;
       if(co_subgraph_id == -1){
-        WriteVectorLog(latency, 1);
-        WriteVectorLog(stamp, 3);
         #ifdef debug_print
           std::cout << "Sub Interpreter invoke done" << "\n";
         #endif
@@ -851,8 +863,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           return;
         }
         clock_gettime(CLOCK_MONOTONIC, &end);
-        stamp.push_back(begin.tv_sec + begin.tv_nsec / 1000000000.0);
-        stamp.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
+        timestamp_sub_interpreter.push_back(begin.tv_sec + begin.tv_nsec / 1000000000.0);
+        timestamp_sub_interpreter.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
       }
       #ifdef debug_print
         std::cout << "[Sub Interpreter] Invoke subgraph " << co_subgraph_id << "\n";
@@ -865,9 +877,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      stamp.push_back(begin.tv_sec + begin.tv_nsec);
-      stamp.push_back(end.tv_sec + end.tv_nsec);
-      latency.push_back(response_time);
+      timestamp_sub_interpreter.push_back(begin.tv_sec + begin.tv_nsec);
+      timestamp_sub_interpreter.push_back(end.tv_sec + end.tv_nsec);
+      latency_sub_interpreter.push_back(response_time);
       // sync with gpu here (wake gpu)
       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
       is_execution_done = true;
@@ -902,8 +914,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
-        WriteVectorLog(latency, 0);
-        WriteVectorLog(stamp, 2);
         ////////////////////////////////////////////////////////////////////
         //HOON
         #ifdef YOLO
@@ -956,8 +966,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           break;
         }
         clock_gettime(CLOCK_MONOTONIC, &end);
-        stamp.push_back(begin.tv_sec + float(begin.tv_nsec / 1000000000.0));
-        stamp.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
+        timestamp_main_interpreter.push_back(begin.tv_sec + float(begin.tv_nsec / 1000000000.0));
+        timestamp_main_interpreter.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
       }
       
       if(subgraph->GetResourceType() == CO_GPU){
@@ -983,8 +993,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
             break;
           }
           clock_gettime(CLOCK_MONOTONIC, &end);
-          stamp.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-          stamp.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+          timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+          timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
           #ifdef debug_print
             std::cout << "Main CopyIntermediateDataIfNeeded Done" << "\n";
           #endif
@@ -1001,9 +1011,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0); 
-      stamp.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-      stamp.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
-      latency.push_back(response_time);
+      timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+      timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+      latency_main_interpreter.push_back(response_time);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);

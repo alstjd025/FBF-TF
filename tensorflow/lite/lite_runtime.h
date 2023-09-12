@@ -78,6 +78,11 @@ class TfLiteRuntime{
     std::ofstream m_interpreter_t_stamp_log; 
     std::ofstream s_interpreter_t_stamp_log; 
 
+    std::vector<double> latency_main_interpreter;
+    std::vector<double> timestamp_main_interpreter;
+    std::vector<double> latency_sub_interpreter;
+    std::vector<double> timestamp_sub_interpreter;
+
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);
 
