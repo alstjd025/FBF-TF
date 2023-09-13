@@ -1924,12 +1924,12 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
 	  return kTfLiteApplicationError;
   }
-  std::cout << "ModifyGraphWithDelegate " << "\n";
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
     if(resource_type == ResourceType::CO_GPU){
       // Runtime filter modification for co-execution
       int partitioning_ratio = GetPartitioningRatio();
+      std::cout << "partitioning ratio : " << partitioning_ratio  << "\n";
       if(partitioning_ratio < 10){  
         // channel-wise partitioning(GPU)
         int conv_filter_before_modification = 0;

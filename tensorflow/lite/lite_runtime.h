@@ -65,6 +65,8 @@ class TfLiteRuntime{
     /// For debugging only ==
     void InitLogFile();
     void WriteVectorLog(std::vector<double>& latency, int n);
+    void WriteVectorLog(std::vector<double>& latency, 
+                        std::vector<string>& label, int n);
     void WriteInitStateLog();
     
     // contains name of test sequence
@@ -82,6 +84,8 @@ class TfLiteRuntime{
     std::vector<double> timestamp_main_interpreter;
     std::vector<double> latency_sub_interpreter;
     std::vector<double> timestamp_sub_interpreter;
+    std::vector<string> timestamp_label_main_interpreter;
+    std::vector<string> timestamp_label_sub_interpreter;
 
     void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
                                   std::vector<cv::Mat>& imagetnet);

@@ -221,7 +221,8 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
       // NEED REFACTOR (e7f75) 
       dummy_profile->subset_resource.push_back(
                               static_cast<ResourceType>(raw_plan[i][TF_P_IDX_RESOURCE]));
-      if(raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E){ // if subset is co-exetution subset
+      if(raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E ||
+          raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E_XNN){ // if subset is co-exetution subset
         dummy_profile->partitioning_ratios[i].push_back(raw_plan[i][TF_P_IDX_RATIO]);
       }else{
         dummy_profile->partitioning_ratios[i].push_back(0);

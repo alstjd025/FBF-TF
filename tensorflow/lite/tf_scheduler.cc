@@ -324,7 +324,7 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet){
   idx = 0;
   while(!co_subgraph_ids.empty()){
     if(runtime->graph->nodes[idx]->resource_type == 2 
-        || runtime->graph->nodes[idx]->resource_type == 5){
+        || runtime->graph->nodes[idx]->resource_type == 4){
       runtime->graph->nodes[idx]->co_subgraph_id = co_subgraph_ids.front();
       co_subgraph_ids.pop();
     }

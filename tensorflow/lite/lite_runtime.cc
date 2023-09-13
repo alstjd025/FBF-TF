@@ -223,8 +223,52 @@ void TfLiteRuntime::WriteVectorLog(std::vector<double>& log, int log_id){
     break;
   case 3:
     if(s_interpreter_t_stamp_log.is_open()){
+      s_interpreter_t_stamp_log.precision(14);
       for(int i=0; i<log.size(); ++i){
         s_interpreter_t_stamp_log << log[i] << " ";
+      }
+      s_interpreter_t_stamp_log << "\n";
+    } 
+    break;
+  default:
+    std::cout << "Wrong logging id" << "\n";
+    break;
+  }
+}
+
+void TfLiteRuntime::WriteVectorLog(std::vector<double>& log,
+                                   std::vector<string>& label, int log_id){
+  switch (log_id)
+  {
+  case 0:
+    if(m_interpreter_lat_log.is_open()){
+      for(int i=0; i<log.size(); ++i){
+        m_interpreter_lat_log << log[i] << " ";
+      }
+      m_interpreter_lat_log << "\n";
+    }
+    break;
+  case 1:
+    if(s_interpreter_lat_log.is_open()){
+      for(int i=0; i<log.size(); ++i){
+        s_interpreter_lat_log << log[i] << " ";
+      }
+      s_interpreter_lat_log << "\n";
+    }  
+    break;
+  case 2:
+    if(m_interpreter_t_stamp_log.is_open()){
+      m_interpreter_t_stamp_log.precision(14);
+      for(int i=0; i<log.size(); ++i){
+        m_interpreter_t_stamp_log << label[i] << " " << log[i] << " ";
+      }
+      m_interpreter_t_stamp_log << "\n";
+    }
+    break;
+  case 3:
+    if(s_interpreter_t_stamp_log.is_open()){
+      for(int i=0; i<log.size(); ++i){
+        s_interpreter_t_stamp_log << label[i] << " " << log[i] << " ";
       }
       s_interpreter_t_stamp_log << "\n";
     } 
@@ -396,13 +440,15 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
               << "\n";
     exit(-1);
   }
-  std::cout << "============================" << "\n";
-  std::cout << "Full precision interpreter" << "\n";
-  PrintInterpreterStateV3(interpreter);
-  std::cout << "============================" << "\n";
-  std::cout << "Minimal precision interpreter" << "\n";
-  PrintInterpreterStateV3(quantized_interpreter);
-  //interpreter->PrintSubgraphInfo();
+  #ifdef debug_print
+    std::cout << "============================" << "\n";
+    std::cout << "Full precision interpreter" << "\n";
+    PrintInterpreterStateV3(interpreter);
+    std::cout << "============================" << "\n";
+    std::cout << "Minimal precision interpreter" << "\n";
+    PrintInterpreterStateV3(quantized_interpreter);
+    interpreter->PrintSubgraphInfo();
+  #endif
   
   return kTfLiteOk;
 };
@@ -792,6 +838,8 @@ TfLiteStatus TfLiteRuntime::Invoke(){
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
   struct timespec begin, end;
   clock_gettime(CLOCK_MONOTONIC, &begin);
+  timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+  timestamp_label_main_interpreter.push_back("Start");
   c_thread = std::thread(&TfLiteRuntime::DoInvoke, this, 
                           InterpreterType::SUB_INTERPRETER, std::ref(return_state_sub));
   DoInvoke(InterpreterType::MAIN_INTERPRETER, return_state_main);
@@ -802,17 +850,22 @@ TfLiteStatus TfLiteRuntime::Invoke(){
   }
   c_thread.join();
   clock_gettime(CLOCK_MONOTONIC, &end);
+  timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+  timestamp_label_main_interpreter.push_back("End");
   double response_time = (end.tv_sec - begin.tv_sec) +
                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+  
   latency_main_interpreter.push_back(response_time);
   WriteVectorLog(latency_main_interpreter, 0);
-  WriteVectorLog(timestamp_main_interpreter, 2);
+  WriteVectorLog(timestamp_main_interpreter, timestamp_label_main_interpreter, 2);
   WriteVectorLog(latency_sub_interpreter, 1);
-  WriteVectorLog(timestamp_sub_interpreter, 3);
+  WriteVectorLog(timestamp_sub_interpreter, timestamp_label_sub_interpreter, 3);
   latency_main_interpreter.clear();
   timestamp_main_interpreter.clear();
+  timestamp_label_main_interpreter.clear();
   latency_sub_interpreter.clear();
   timestamp_sub_interpreter.clear();
+  timestamp_label_sub_interpreter.clear();
   return kTfLiteOk;
 }
 
@@ -863,8 +916,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           return;
         }
         clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_sub_interpreter.push_back(begin.tv_sec + begin.tv_nsec / 1000000000.0);
-        timestamp_sub_interpreter.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
+        timestamp_sub_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+        timestamp_label_sub_interpreter.push_back("CPs");
+        timestamp_sub_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        timestamp_label_sub_interpreter.push_back("CPe");
       }
       #ifdef debug_print
         std::cout << "[Sub Interpreter] Invoke subgraph " << co_subgraph_id << "\n";
@@ -877,8 +932,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      timestamp_sub_interpreter.push_back(begin.tv_sec + begin.tv_nsec);
-      timestamp_sub_interpreter.push_back(end.tv_sec + end.tv_nsec);
+      timestamp_sub_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+      timestamp_label_sub_interpreter.push_back("IVs");
+      timestamp_sub_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+      timestamp_label_sub_interpreter.push_back("IVe");
       latency_sub_interpreter.push_back(response_time);
       // sync with gpu here (wake gpu)
       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -966,8 +1023,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           break;
         }
         clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_main_interpreter.push_back(begin.tv_sec + float(begin.tv_nsec / 1000000000.0));
-        timestamp_main_interpreter.push_back(end.tv_sec + end.tv_nsec / 1000000000.0);
+        timestamp_label_main_interpreter.push_back("MGs");
+        timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+        timestamp_label_main_interpreter.push_back("MGe");
+        timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
       }
       
       if(subgraph->GetResourceType() == CO_GPU){
@@ -993,7 +1052,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
             break;
           }
           clock_gettime(CLOCK_MONOTONIC, &end);
+          timestamp_label_main_interpreter.push_back("CPs");
           timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+          timestamp_label_main_interpreter.push_back("CPe");
           timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
           #ifdef debug_print
             std::cout << "Main CopyIntermediateDataIfNeeded Done" << "\n";
@@ -1011,7 +1072,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0); 
+      timestamp_label_main_interpreter.push_back("IVs");
       timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+      timestamp_label_main_interpreter.push_back("IVe");
       timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
       latency_main_interpreter.push_back(response_time);
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
