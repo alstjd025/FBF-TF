@@ -108,6 +108,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   quantized_builder = nullptr;
   interpreter->SetInputType(type);
   quantized_interpreter->SetInputType(type);
+  SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;

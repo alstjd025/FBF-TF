@@ -560,6 +560,18 @@ class Subgraph {
   // The dimension must match between two tensors.
   TfLiteStatus ReplaceBufferofSameDims(TfLiteTensor* source, TfLiteTensor* dest);
 
+  // Minsung
+  // Set experimental flag true in context (for delegate)
+  void SetExperimentalFlagTrue() {  context_.experimental_flag = true; }
+  
+  // Minsung
+  // Set experimental flag false in context (for delegate)
+  void SetExperimentalFlagFalse(){  context_.experimental_flag = false; }
+
+  // Minsung
+  // Return experimental flag of context (for delegate)
+  bool ReturnExperimentalFlag() { return context_.experimental_flag; }
+
  private:
   // SubgraphAwareProfiler wraps an actual TFLite profiler, such as a
   // BufferedProfiler instance, and takes care of event profiling/tracing in a
@@ -640,17 +652,6 @@ class Subgraph {
   // Initialize a subgraph with job and model metadata
   TfLiteStatus SetupSubgraphForJob(int job_id, int model_id, int graph_id);
 
-  // Minsung
-  // Set experimental flag true in context (for delegate)
-  void SetExperimentalFlagTrue() {  context_.experimental_flag = true; }
-  
-  // Minsung
-  // Set experimental flag false in context (for delegate)
-  void SetExperimentalFlagFalse(){  context_.experimental_flag = false; }
-
-  // Minsung
-  // Return experimental flag of context (for delegate)
-  bool ReturnExperimentalFlag() { return context_.experimental_flag; }
 
   // Call OpPrepare() for as many ops as possible, allocating memory for their
   // tensors. If an op containing dynamic tensors is found, preparation will be

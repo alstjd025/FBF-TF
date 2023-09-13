@@ -825,20 +825,28 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
   for(auto new_subgraph : new_subgraphs){
     // sj
     // To check whether subgraphs need delegation
-    // if(new_subgraph->GetGraphid()!=12 && new_subgraph->GetGraphid()!=8){
     std::cout << "resource type : " << new_subgraph->GetResourceType() << "\n";
     if(new_subgraph->GetResourceType() == ResourceType::GPU ||
       new_subgraph->GetResourceType() == ResourceType::CO_GPU ||
       new_subgraph->GetResourceType() == ResourceType::CPU_XNN ||
       new_subgraph->GetResourceType() == ResourceType::CO_CPU_XNN){
+      // Minsung
+      // Experimental flag for ADD, MUL fallback handle in YOLO.
+      if(interpreter_->GetInputType() == INPUT_TYPE::COCO416){
+        new_subgraph->SetExperimentalFlagTrue();
+        std::cout << "SetExperimentalFlagTrue" << "\n";
+      }
+      else{
+        new_subgraph->SetExperimentalFlagFalse();
+        std::cout << "SetExperimentalFlagFalse" << "\n";
+      } 
+
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
                   << " Delegate" << "\n";
       }
-      // }
     }
-    
   }
   return kTfLiteOk;
 }
