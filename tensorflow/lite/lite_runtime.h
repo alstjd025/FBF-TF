@@ -183,6 +183,7 @@ class TfLiteRuntime{
     // Initialize UDS and check communication with scheduler.
     TfLiteStatus InitializeUDS();
     TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
+    RuntimeState GetRuntimeState() { return state; };
     TfLiteStatus SendPacketToScheduler(tf_packet& tx_p);
     TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
     void ShutdownScheduler();

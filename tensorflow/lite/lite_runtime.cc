@@ -146,15 +146,12 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   }
   if(AddModelToRuntime(f_model, i_model) != kTfLiteOk){
     std::cout << "Model registration to runtime ERROR" << "\n";
-    exit(-1);
   }
   if(RegisterModeltoScheduler() != kTfLiteOk){
     std::cout << "Model registration to scheduler ERROR" << "\n";
-    exit(-1);
   }
   if(PartitionCoSubgraphs() != kTfLiteOk){
     std::cout << "Model partitioning ERROR" << "\n";
-    exit(-1);
   }
 };
 
