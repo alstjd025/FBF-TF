@@ -202,6 +202,7 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = context->tensors[node->inputs->data[1]].dims->data[1];  
     // get stride and padding from params
     stride = depth_conv_params->stride_height;
+    std::cout << "depth padd :" <<  depth_conv_params->padding << "\n";
     
     break;
     }

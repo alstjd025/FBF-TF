@@ -874,7 +874,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     // divide input tensor's dimension in node.
     input_height = input_tensor->dims->data[1];
     input_height = std::round((input_height  * 0.1) * partitioning_ratio);
-    
+
     // Get parameters(filter size, stride) of node.
     if(!GetParamsForPartitioning(&registration, &node, &context_, filter, stride)){
       std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
@@ -882,9 +882,13 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     }
 
     // Calculate padding
-    int padding = padding_equation(stride, filter, input_height, output_height);
-    input_height += padding;
-    std::cout << "input_height : " << input_height << "\n";
+    int padding = padding_equation(stride, filter, input_height, output_height); 
+    input_height += padding; 
+    std::cout << "tensor : " << input_tensor_idx << 
+                " origin input_height : " << input_tensor->dims->data[1] << 
+                " new input_height : " << input_height << 
+                " filter : " << filter << 
+                " stride : " << stride << "\n";
 
     // Change height
     std::vector<int> new_dims;
@@ -896,7 +900,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     }else{
       std::cout << "calculated height too big " << input_height <<
                    " " <<  new_dims[1] <<  "\n";
-      return kTfLiteError;
+      new_dims[1] = input_height;
+      // return kTfLiteError;
     }
     ResizeInputTensor(input_tensor_idx, new_dims);
 
