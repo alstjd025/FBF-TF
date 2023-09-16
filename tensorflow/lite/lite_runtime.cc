@@ -1,7 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
 #define YOLO
-// #define debug_print
+#define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1609,10 +1609,17 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
     Subgraph* dest_graph = interpreter->subgraph_id(dest_subgraph);
     std::vector<int> dest_tensor_indices; 
     TfLiteIntArray* source_tensor_idx = source_graph->GetOutputTensorIndices();
+    TfLiteIntArray* source_tensor_idx_ = source_graph->GetInputTensorIndices();
     TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
     for(int i=0; i<input_tensor_indices->size; ++i){
       for(int j=0; j<source_tensor_idx->size; ++j){
         if(source_tensor_idx->data[j] == input_tensor_indices->data[i])
+          dest_tensor_indices.push_back(input_tensor_indices->data[i]);
+      }
+    }
+    for(int i=0; i<input_tensor_indices->size; ++i){
+      for(int j=0; j<source_tensor_idx_->size; ++j){
+        if(source_tensor_idx_->data[j] == input_tensor_indices->data[i])
           dest_tensor_indices.push_back(input_tensor_indices->data[i]);
       }
     }
@@ -1623,6 +1630,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
       return kTfLiteError;
     }
     for(int i=0; i<dest_tensor_indices.size(); ++i){
+      std::cout << "Copy tensor " << dest_tensor_indices[i] << "\n";
       TfLiteTensor* source_tensor = source_graph->tensor(dest_tensor_indices[i]);
       TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_indices[i]);
       size_t source_byte_size = source_tensor->bytes;
