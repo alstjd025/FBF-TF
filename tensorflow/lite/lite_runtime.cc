@@ -1,6 +1,6 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-// #define YOLO
+#define YOLO
 // #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
@@ -60,8 +60,8 @@ namespace tflite {
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                                      const char* model, INPUT_TYPE type) {
   interpreter = new tflite::Interpreter(true);
-  quantized_interpreter = nullptr;
-  quantized_builder = nullptr;
+  sub_interpreter = nullptr;
+  sub_builder = nullptr;
   interpreter->SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
@@ -104,10 +104,10 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                             const char* f_model, const char* i_model, INPUT_TYPE type) {
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
-  quantized_interpreter = new tflite::Interpreter(true);
-  quantized_builder = nullptr;
+  sub_interpreter = new tflite::Interpreter(true);
+  sub_builder = nullptr;
   interpreter->SetInputType(type);
-  quantized_interpreter->SetInputType(type);
+  sub_interpreter->SetInputType(type);
   SetInputType(type);
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
@@ -139,7 +139,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 
 
   interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
-  quantized_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
+  sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
   if(InitializeUDS() != kTfLiteOk){
     std::cout << "UDS socker init ERROR" << "\n";
     exit(-1);
@@ -172,7 +172,7 @@ void TfLiteRuntime::SetLogPath(std::string path){
 
 void TfLiteRuntime::WriteInitStateLog(){
   std::string buf;
-  PrintInterpreterStateSimple(interpreter, quantized_interpreter, buf);
+  PrintInterpreterStateSimple(interpreter, sub_interpreter, buf);
   m_interpreter_lat_log << buf;
   m_interpreter_t_stamp_log << buf;
   s_interpreter_lat_log << buf;
@@ -422,8 +422,8 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
       **float_model, *float_resolver, interpreter, f_model, 0, false);
 
   // Build IntpertereBuilder for int model
-  quantized_builder = new tflite::InterpreterBuilder(
-      **int_model, *int_resolver, quantized_interpreter, i_model, 0, true);
+  sub_builder = new tflite::InterpreterBuilder(
+      **int_model, *int_resolver, sub_interpreter, i_model, 0, true);
 
   // Now creates an invokable (float)origin subgraph from new model.
   if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
@@ -433,7 +433,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
   }
 
   // Now creates an invokable (int)origin subgraph from new model.
-  if (quantized_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
+  if (sub_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
     std::cout << "CreateSubgraphFromFlatBuffer returned Error"
               << "\n";
     exit(-1);
@@ -444,7 +444,7 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
     PrintInterpreterStateV3(interpreter);
     std::cout << "============================" << "\n";
     std::cout << "Minimal precision interpreter" << "\n";
-    PrintInterpreterStateV3(quantized_interpreter);
+    PrintInterpreterStateV3(sub_interpreter);
     interpreter->PrintSubgraphInfo();
   #endif
   
@@ -489,7 +489,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler(){
   }
   std::cout << "Successfully registered model to scheduler" << "\n";
   // interpreter->PrintSubgraphInfo();
-  // quantized_interpreter->PrintSubgraphInfo();
+  // sub_interpreter->PrintSubgraphInfo();
   return kTfLiteOk;
 }
 
@@ -556,7 +556,7 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
     if(partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN){
       raw_plan[inner_plan_idx].push_back(TF_P_END_PLAN);
       interpreter_builder->CopyRawPartitioningPlan(raw_plan);
-      quantized_builder->CopyRawPartitioningPlan(raw_plan);
+      sub_builder->CopyRawPartitioningPlan(raw_plan);
       raw_plan.clear();
       inner_plan_idx = 0;
       raw_plan.push_back(std::vector<int>());
@@ -583,12 +583,12 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::cout << "Full precision subgraph created" << "\n";
   std::cout << "===============================" << "\n";
   // Create subgraphs of quantized model
-  Subgraph* origin_quantized_subgraph = quantized_interpreter->returnProfiledOriginalSubgraph(0);
+  Subgraph* origin_quantized_subgraph = sub_interpreter->returnProfiledOriginalSubgraph(0);
   if(origin_quantized_subgraph == nullptr){
     std::cout << "Model id " << interpreter_builder->GetModelid() << " no subgraph. \n"; 
     return kTfLiteError;
   }
-  if(quantized_builder->CreateSubgraphsFromProfiling(origin_quantized_subgraph)
+  if(sub_builder->CreateSubgraphsFromProfiling(origin_quantized_subgraph)
       != kTfLiteOk){
     std::cout << "CreateSubgraphsFromProfiling returned ERROR" << "\n";
     return kTfLiteError;
@@ -602,7 +602,7 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   // PrintInterpreterStateV3(interpreter);
   // std::cout << "=====================" << "\n";
   // std::cout << "MIN precicion interpreter state" << "\n";
-  // PrintInterpreterStateV3(quantized_interpreter);
+  // PrintInterpreterStateV3(sub_interpreter);
   
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
@@ -613,7 +613,7 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   // see the total graph of view.
   std::vector<int> full_prec_subgraphs, min_prec_subgraphs;
   interpreter->GetTotalSubgraphID(full_prec_subgraphs);
-  quantized_interpreter->GetTotalSubgraphID(min_prec_subgraphs);
+  sub_interpreter->GetTotalSubgraphID(min_prec_subgraphs);
   
   for(int i=0; i<full_prec_subgraphs.size(); ++i){
     tx_packet.subgraph_ids[0][i] = full_prec_subgraphs[i];
@@ -649,14 +649,14 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   PrintInterpreterStateV3(interpreter);
   std::cout << "=====================" << "\n";
   std::cout << "MIN precicion interpreter state" << "\n";
-  PrintInterpreterStateV3(quantized_interpreter);
+  PrintInterpreterStateV3(sub_interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
   return kTfLiteOk;
 } 
 
 TfLiteStatus TfLiteRuntime::PrepareCoExecution(){
-  if(quantized_interpreter == nullptr){
+  if(sub_interpreter == nullptr){
     std::cout << "PrepareCoExecution ERROR" << "\n";
     std::cout << "minimal precision interpreter nullptr" << "\n";
     return kTfLiteError;
@@ -666,12 +666,12 @@ TfLiteStatus TfLiteRuntime::PrepareCoExecution(){
         subgraph_idx++){
     Subgraph* subgraph = interpreter->subgraph(subgraph_idx);
     if(subgraph->GetResourceType() == ResourceType::CO_GPU){
-      if(quantized_interpreter->subgraphs_size() < 1){
+      if(sub_interpreter->subgraphs_size() < 1){
         std::cout << "PrepareCoExecution ERROR" << "\n";
         std::cout << "minimal precision interpreter has no subgraph" << "\n";
         return kTfLiteError;
       }
-      Subgraph* co_subgraph = quantized_interpreter->subgraph(co_subgraph_idx);
+      Subgraph* co_subgraph = sub_interpreter->subgraph(co_subgraph_idx);
       std::vector<int> inputs = subgraph->inputs();
       std::vector<int> outputs = subgraph->outputs();
       for(int i=0; i<inputs.size(); ++i){
@@ -690,9 +690,9 @@ void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
                                            std::vector<cv::Mat>& imagenet) {
   interpreter->mnist_input = mnist;
   interpreter->imagenet_input = imagenet;
-  if(quantized_interpreter != nullptr){
-    quantized_interpreter->mnist_input = mnist;
-    quantized_interpreter->imagenet_input = imagenet;
+  if(sub_interpreter != nullptr){
+    sub_interpreter->mnist_input = mnist;
+    sub_interpreter->imagenet_input = imagenet;
   }
 }
 
@@ -761,13 +761,16 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
       case INPUT_TYPE::COCO416:
         ////////////////////////////////////////////////////////////////////
         // HOON : correct method to push image to input_tensor in YOLOv4-tiny
+        std::cout << "Copy coco input " << "\n";
         for (int i=0; i<416; i++){
           for (int j=0; j<416; j++){   
             cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            // printf("%.3f", (float)pixel[0]/255.0);
             *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
             *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
             *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
           }
+          // std::cout << "\n";
         }
         ////////////////////////////////////////////////////////////////////
         break;
@@ -808,8 +811,7 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
               h * w * input_quant.elemSize());
         break;
       case INPUT_TYPE::COCO416:
-        memcpy(input_pointer, input_quant.data,
-              input_quant.total() * input_quant.elemSize());
+
          ////////////////////////////////////////////////////////////////////
         // HOON : correct method to push image to input_tensor in YOLOv4-tiny
         for (int i=0; i<416; i++){
@@ -883,7 +885,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
   int prev_co_subgraph_id = -1;
   while(true){
     if(type == InterpreterType::SUB_INTERPRETER){
-      if(quantized_interpreter->subgraphs_size() < 1){
+      if(sub_interpreter->subgraphs_size() < 1){
         // std::cout << "No invokable subgraph for cpu" << "\n";
         break;
       }
@@ -901,7 +903,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       #ifdef debug_print
         std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
       #endif
-      subgraph = quantized_interpreter->subgraph_id(co_subgraph_id);
+      subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
       if(main_execution_graph != nullptr){
         #ifdef debug_print
           std::cout << "sub CopyIntermediateDataIfNeeded" << "\n";
@@ -980,8 +982,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         YOLO_Parser::real_bbox_cls_vector.clear();
         YOLO_Parser::real_bbox_loc_vector.clear();
         YOLO_Parser::result_boxes.clear();
-        TfLiteTensor* cls_tensor = subgraph->tensor(212);
-        TfLiteTensor* loc_tensor = subgraph->tensor(233);
+        TfLiteTensor* cls_tensor = subgraph->tensor(212); // 1 2535 80
+        TfLiteTensor* loc_tensor = subgraph->tensor(233); // 1 2535 4
         yolo_parser.make_real_bbox_cls_vector(cls_tensor, real_bbox_index_vector,
                                                YOLO_Parser::real_bbox_cls_vector);
         YOLO_Parser::real_bbox_cls_index_vector = \
@@ -990,8 +992,14 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
                                               YOLO_Parser::real_bbox_loc_vector);
         float iou_threshold = 0.5;
         yolo_parser.PerformNMSUsingResults(real_bbox_index_vector, YOLO_Parser::real_bbox_cls_vector, 
-              YOLO_Parser::real_bbox_loc_vector, iou_threshold,YOLO_Parser::real_bbox_cls_index_vector);
+              YOLO_Parser::real_bbox_loc_vector, iou_threshold, YOLO_Parser::real_bbox_cls_index_vector);
         printf("\033[0;33mEND YOLO parsing\033[0m\n");
+        for(int i=0; i<YOLO_Parser::result_boxes.size(); ++i){
+          std::cout << "BOX i " << i << "\n";
+          std::cout << "LABEL : " << YOLO_Parser::result_boxes[i].class_id + 1
+                    << ":" << yolo_parser.yolo_labels[YOLO_Parser::result_boxes[i].class_id] << "\n";
+          std::cout << "SCORE : " << YOLO_Parser::result_boxes[i].score << "\n";
+        }
         #endif
         ////////////////////////////////////////////////////////////////////
         return_state = kTfLiteOk;
@@ -1377,7 +1385,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
                                         , int prev_main_subgraph
                                         , int dest_subgraph_){
   // std::cout << "Merge" << "\n";
-  Subgraph* min_precision_subgraph = quantized_interpreter->subgraph_id(prev_sub_subgraph);
+  Subgraph* min_precision_subgraph = sub_interpreter->subgraph_id(prev_sub_subgraph);
   Subgraph* max_precision_subgraph = interpreter->subgraph_id(prev_main_subgraph);
   Subgraph* dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
   if(dest_subgraph == nullptr){

@@ -319,6 +319,7 @@ void YOLO_Parser::SOFTMAX(std::vector<float>& row) {
             row[i] = threshold; 
     }
 }
+
 ////////////////////////////////////////////////////////////////////
 
 }  // namespace tflite

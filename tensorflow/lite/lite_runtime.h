@@ -193,9 +193,9 @@ class TfLiteRuntime{
     RuntimeState state;
     int runtime_id = -1;
     tflite::Interpreter* interpreter;
-    tflite::Interpreter* quantized_interpreter;
+    tflite::Interpreter* sub_interpreter;
     tflite::InterpreterBuilder* interpreter_builder;
-    tflite::InterpreterBuilder* quantized_builder;
+    tflite::InterpreterBuilder* sub_builder;
 
     TfLiteTensor* global_output_tensor = nullptr;
 

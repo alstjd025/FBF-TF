@@ -289,7 +289,7 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
     PrintIntVector(interpreter->outputs(subgraph_id));
     printf("\n");
     printf("Tensor size : %d\n", tensor_size);
-    for (size_t tensor_index = 0; tensor_index < tensor_size-1;
+    for (size_t tensor_index = 0; tensor_index < tensor_size;
        tensor_index++) {
       TfLiteTensor* tensor = interpreter->tensor(subgraph_id, static_cast<int>(tensor_index));
       printf("Tensor %3zu %10s %15s %10zu bytes (%4.1f MB) ", tensor_index,
