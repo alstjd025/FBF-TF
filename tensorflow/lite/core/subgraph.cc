@@ -820,7 +820,6 @@ TfLiteStatus Subgraph::PartitionChannel(){
 }
 
 TfLiteStatus Subgraph::PartitionHeightTest(){
-  
   // padding_equation from CoDL (Mobisys '23)
   // S  : stride
   // F  : filter size
@@ -921,91 +920,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   std::cout << "Height partitioning done" << "\n";
   return kTfLiteOk;
 }
-
-// TfLiteStatus Subgraph::PartitionHeightTest(){
-//   auto stub_method = [&](int p_ratio, std::vector<std::pair<int, int>>& tensor_pair){
-//     // Resize the tensors 
-//     // TEST FOR FIRST NODE
-//     // TEST FOR FIRST NODE
-//     TfLiteTensor* input_tensor;
-//     TfLiteTensor* output_tensor;
-//     int input_tensor_idx = tensor_pair[0].first;
-//     std::cout << "changed height for tensor " << input_tensor_idx << "\n";
-//     int output_tensor_idx = tensor_pair[0].second; 
-//     std::vector<int> new_dims;
-//     input_tensor = tensor(input_tensor_idx);
-//     output_tensor = tensor(output_tensor_idx);
-    
-//     // calculate paddings for inputs. (consider input, kernel size)
-//     int padd = p_ratio - 10;
-//     int pointer_offset = 0;
-//     for(int i=0; i<input_tensor->dims->size; ++i){
-//       new_dims.push_back(input_tensor->dims->data[i]);
-//     }
-//     // no padding for output. (consider input, kernel size)
-//     auto data_pointer = *(&input_tensor->data.data);
-//     int o = input_tensor->dims->data[0];
-//     int h = input_tensor->dims->data[1];
-//     int w = input_tensor->dims->data[2];
-//     int i = input_tensor->dims->data[3];
-    
-//     padd = int(h * 0.1 * padd);
-//     new_dims[1] = padd;
-    
-//     // Move the data pointer to proper point. (No need to move if CO_GPU)
-//     // moving data pointer isn't necessary for global input tensor.
-//     if(resource_type == ResourceType::CO_CPU ||
-//       resource_type == ResourceType::CO_CPU_XNN){ // move pointer to bottom. 
-
-//       int padd_with_dummy = (h - padd) + int((h - padd) * 0.5);
-//       std::cout << "h " << h << " padd " << padd << "\n";
-//       std::cout << "padd_with_dummy " << padd_with_dummy << "\n";
-//       if(w == 416){
-//         padd_with_dummy = 248;
-//         new_dims[1] = padd_with_dummy;
-//         pointer_offset = o * padd_with_dummy * w;
-//         data_pointer += pointer_offset;
-//       }else{
-//         new_dims[1] = padd_with_dummy;
-//         pointer_offset = o * padd_with_dummy * w;
-//         data_pointer += pointer_offset;
-//       }
-//     }
-//     std::cout << "changed dims : " << new_dims[1] << "\n";
-//     // Resize tensor with calculated dims. (this job changes the 'bytes' in tensor)
-//     ResizeInputTensor(input_tensor_idx, new_dims);
-//   };
-
-//   std::vector<std::pair<int, int>> tensor_pair;
-//   // First get the input & output tensor of all nodes in subgraph.
-// 	for (int execution_plan_index = 0;
-//     	execution_plan_index < execution_plan_.size(); execution_plan_index++) {
-// 		int node_index = execution_plan_[execution_plan_index];
-// 		int input_tensor, output_tensor;
-// 		TfLiteNode& node = nodes_and_registration_[node_index].first;
-// 		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-//     if(node.inputs->size > 0 && node.outputs->size > 0){
-//       input_tensor = node.inputs->data[0];
-//       output_tensor = node.outputs->data[0];
-//     }else{
-//       std::cout << "ERROR Node " << GetOpName(registration) 
-//             << " input, output size not > 0" << "\n";
-//       return kTfLiteError;
-//     }
-//     tensor_pair.push_back(std::pair<int, int>(input_tensor, output_tensor));
-//   }
-//   int partitioning_plan_ratio = GetPartitioningRatio();
-  
-//   stub_method(partitioning_plan_ratio, tensor_pair);
-//   // stub_method(225, tensor_pair);  // for efficient l4
-//   // stub_method(144, tensor_pair);  // for ultra lane net
-//   // stub_method(240, tensor_pair);  // for ultra lane net
-//   // stub_method(180, tensor_pair);  // for mobilenet v1
-//   // stub_method(224, tensor_pair);
-
-//   std::cout << "Height partitioning done" << "\n";
-//   return kTfLiteOk;
-// }
 
 // This function is deprecated.
 // No more use. 

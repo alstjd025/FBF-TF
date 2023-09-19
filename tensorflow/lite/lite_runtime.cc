@@ -686,16 +686,6 @@ TfLiteStatus TfLiteRuntime::PrepareCoExecution(){
   return kTfLiteOk;
 }
 
-void TfLiteRuntime::FeedInputToInterpreter(std::vector<cv::Mat>& mnist,
-                                           std::vector<cv::Mat>& imagenet) {
-  interpreter->mnist_input = mnist;
-  interpreter->imagenet_input = imagenet;
-  if(sub_interpreter != nullptr){
-    sub_interpreter->mnist_input = mnist;
-    sub_interpreter->imagenet_input = imagenet;
-  }
-}
-
 INPUT_TYPE TfLiteRuntime::GetInputTypeFromString(string input_type){
   if(strcmp(input_type.c_str(), "IMAGENET224") == 0){
     return INPUT_TYPE::IMAGENET224;
@@ -713,25 +703,30 @@ void TfLiteRuntime::SetInputType(INPUT_TYPE input_type_){
 }
 
 // TODO : Impl global input tensor sharing
-// MUST_REFACTOR (fb4775) : Need to refactor for sub-interpreter input.
-void TfLiteRuntime::FeedInputToModelDebug(const char* model,
+// MUST_REFACTOR (628b2) : MUST refactor for sub-interpreter input.
+void TfLiteRuntime::CopyInputToInterpreter(const char* model,
                                      cv::Mat& input, cv::Mat& input_quant) {
   bool use_two_interpreter = false;
+  if(sub_interpreter != nullptr){
+    use_two_interpreter = true;
+  }
+
   TfLiteTensor* input_tensor = nullptr;
+  TfLiteTensor* input_tensor_sub = nullptr;
   input_tensor = interpreter->input_tensor_of_model(0);
-  
+  // if(use_two_interpreter){
+  //   input_tensor_sub = sub_interpreter->input_tensor_of_model(0);
+  // }
   if(input_tensor == nullptr) {
-    std::cout << "TfLiteRuntime : cannont get pointer to input tensor, model["
+    std::cout << "TfLiteRuntime : cannot get pointer to input tensor, model["
               << model << "]"
               << "\n";
     return;
   }
-  
   if(input_tensor->type == kTfLiteFloat32){
     auto input_pointer = (float*)input_tensor->data.data;
     int h = input_tensor->dims->data[1];
     int w = input_tensor->dims->data[2];
-  
     switch (input_type) {
       case INPUT_TYPE::MNIST:
         for (int i = 0; i < h; ++i) {
@@ -741,45 +736,26 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         }
         break;
       case INPUT_TYPE::IMAGENET224:
-        memcpy(input_pointer, input.data,
-              h * w * input.elemSize());
-        // for (int i = 0; i < 224; ++i) {
-        //   for (int j = 0; j < 224; ++j) {
-        //     input_pointer[i * 224 + j * 3] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[0]);
-        //     input_pointer[i * 224 + j * 3 + 1] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[1]);
-        //     input_pointer[i * 224 + j * 3 + 2] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[2]);
-        //   }
-        // }
-        break;
       case INPUT_TYPE::IMAGENET300:
         memcpy(input_pointer, input.data,
               h * w * input.elemSize());
         break;
       case INPUT_TYPE::COCO416:
-        ////////////////////////////////////////////////////////////////////
-        // HOON : correct method to push image to input_tensor in YOLOv4-tiny
-        std::cout << "Copy coco input " << "\n";
-        for (int i=0; i<416; i++){
-          for (int j=0; j<416; j++){   
+        for (int i=0; i<416; i++){ // row
+          for (int j=0; j<416; j++){ // col
             cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
-            // printf("%.3f", (float)pixel[0]/255.0);
             *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
             *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
             *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
           }
-          // std::cout << "\n";
         }
-        ////////////////////////////////////////////////////////////////////
         break;
       case INPUT_TYPE::LANENET144800:
         memcpy(input_pointer, input.data,
                 h * w * input.elemSize());      
       default:
         break;
-      }
+    }
   }else if(input_tensor->type == kTfLiteUInt8){
     auto input_pointer = (uint8_t*)input_tensor->data.data;
     int h = input_tensor->dims->data[1];
@@ -793,25 +769,11 @@ void TfLiteRuntime::FeedInputToModelDebug(const char* model,
         }
         break;
       case INPUT_TYPE::IMAGENET224:
-        memcpy(input_pointer, input_quant.data,
-              h * w * input_quant.elemSize());
-        // for (int i = 0; i < 224; ++i) {
-        //   for (int j = 0; j < 224; ++j) {
-        //     input_pointer[i * 224 + j * 3] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[0]);
-        //     input_pointer[i * 224 + j * 3 + 1] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[1]);
-        //     input_pointer[i * 224 + j * 3 + 2] =
-        //         ((float)input.at<cv::Vec3b>(i, j)[2]);
-        //   }
-        // }
-        break;
       case INPUT_TYPE::IMAGENET300:
         memcpy(input_pointer, input_quant.data,
               h * w * input_quant.elemSize());
         break;
       case INPUT_TYPE::COCO416:
-
          ////////////////////////////////////////////////////////////////////
         // HOON : correct method to push image to input_tensor in YOLOv4-tiny
         for (int i=0; i<416; i++){
@@ -1608,19 +1570,26 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
     Subgraph* source_graph = interpreter->subgraph_id(source_subgraph);
     Subgraph* dest_graph = interpreter->subgraph_id(dest_subgraph);
     std::vector<int> dest_tensor_indices; 
-    TfLiteIntArray* source_tensor_idx = source_graph->GetOutputTensorIndices();
-    TfLiteIntArray* source_tensor_idx_ = source_graph->GetInputTensorIndices();
-    TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
-    for(int i=0; i<input_tensor_indices->size; ++i){
-      for(int j=0; j<source_tensor_idx->size; ++j){
-        if(source_tensor_idx->data[j] == input_tensor_indices->data[i])
-          dest_tensor_indices.push_back(input_tensor_indices->data[i]);
-      }
-    }
-    for(int i=0; i<input_tensor_indices->size; ++i){
-      for(int j=0; j<source_tensor_idx_->size; ++j){
-        if(source_tensor_idx_->data[j] == input_tensor_indices->data[i])
-          dest_tensor_indices.push_back(input_tensor_indices->data[i]);
+    /* This method deprecated since (628b2)
+      In case of XNN delegated subgraph, GetOutputTensorIndices() and 
+      GetInputTensorIndices() method is unsafe since XNN graph has multiple XNN delegated
+      nodes.
+
+      TfLiteIntArray* source_tensor_idx = source_graph->GetOutputTensorIndices();
+      TfLiteIntArray* source_tensor_idx_ = source_graph->GetInputTensorIndices();
+      TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
+    */
+    std::vector<int> source_tensor_idx = source_graph->inputs();
+    std::vector<int> source_tensor_idx_ = source_graph->outputs();
+    std::vector<int>::iterator source_itr = source_tensor_idx.end();
+    source_tensor_idx.insert(source_itr, source_tensor_idx_.begin(), source_tensor_idx_.end()); 
+    std::vector<int> dest_tensor_idx = dest_graph->inputs();
+    for(int i=0; i<dest_tensor_idx.size(); ++i){
+      for(int j=0; j<source_tensor_idx.size(); ++j){
+        std::cout << "source : " << source_tensor_idx[j] << " " << " dest "
+                  << dest_tensor_idx[i] << "\n";
+        if(source_tensor_idx[j] == dest_tensor_idx[i])
+          dest_tensor_indices.push_back(dest_tensor_idx[i]);
       }
     }
     if(dest_tensor_indices.empty()){

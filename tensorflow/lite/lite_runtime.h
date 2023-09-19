@@ -87,9 +87,6 @@ class TfLiteRuntime{
     std::vector<string> timestamp_label_main_interpreter;
     std::vector<string> timestamp_label_sub_interpreter;
 
-    void FeedInputToInterpreter(std::vector<cv::Mat>& mnist, 
-                                  std::vector<cv::Mat>& imagetnet);
-
     // Debug invoke (for co-execution invoke test api) 
     TfLiteStatus Invoke();
 
@@ -100,7 +97,7 @@ class TfLiteRuntime{
 
     void SetInputType(INPUT_TYPE input_type_);
     INPUT_TYPE GetInputTypeFromString(string input_type);
-    void FeedInputToModelDebug(const char* model, cv::Mat& input, cv::Mat& input_quant);
+    void CopyInputToInterpreter(const char* model, cv::Mat& input, cv::Mat& input_quant);
     void PrintOutput(Subgraph* subgraph);
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
     void PrintTensorSerial(TfLiteTensor& tensor);
