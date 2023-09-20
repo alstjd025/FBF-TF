@@ -105,16 +105,11 @@ class TfLiteRuntime{
     std::vector<std::vector<float>*>* GetFloatOutputInVector();
     std::vector<std::vector<uint8_t>*>* GetUintOutputInVector();
 
-    // Merge output(which is intermediate in the view of whole task)
-    // data from previous subgraph.
-    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* subgraph);
-    
-    
-    // Merge output(which is intermediate in the view of whole task)
+    // Copy output(which is intermediate in the view of whole task)
     // data from previous subgraph (with id).
     TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_subgraph_id);
 
-    // Merge output(which is intermediate in the view of whole task)
+    // Copy output(which is intermediate in the view of whole task)
     // data from full precision subgraph.
     TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph);
     

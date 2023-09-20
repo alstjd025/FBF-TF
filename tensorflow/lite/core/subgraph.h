@@ -238,7 +238,7 @@ class Subgraph {
 
   // Minsung
   // Access to an input tensor (for multiple subgraphs and GPUdelegate)
-  // THIS FUNTION IS DEPRECATED!!! (DO NOT USE)
+  // Do not use this function except returning global input tensor.
   // becasue subgraph can have multiple input and output tensors, 
   // returning first tensor of them is tirivial.
   int GetInputTensorIndex() { return inputs()[inputs().size()-1]; }

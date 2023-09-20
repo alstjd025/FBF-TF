@@ -693,7 +693,10 @@ INPUT_TYPE TfLiteRuntime::GetInputTypeFromString(string input_type){
     return INPUT_TYPE::IMAGENET300;
   }else if(strcmp(input_type.c_str(), "COCO416") == 0){
     return INPUT_TYPE::COCO416;
-  }else{
+  }else if(strcmp(input_type.c_str(), "MNIST") == 0){
+    return INPUT_TYPE::MNIST;
+  }
+  else{
     return INPUT_TYPE::USER;
   }
 }
@@ -707,16 +710,20 @@ void TfLiteRuntime::SetInputType(INPUT_TYPE input_type_){
 void TfLiteRuntime::CopyInputToInterpreter(const char* model,
                                      cv::Mat& input, cv::Mat& input_quant) {
   bool use_two_interpreter = false;
-  if(sub_interpreter != nullptr){
-    use_two_interpreter = true;
+  ResourceType primary_resource = interpreter->primary_subgraph().GetResourceType();
+  if(primary_resource != ResourceType::GPU && primary_resource != ResourceType::CPU
+     && primary_resource != ResourceType::CPU_XNN){
+    if(sub_interpreter != nullptr){
+      use_two_interpreter = true;
+    }
   }
 
   TfLiteTensor* input_tensor = nullptr;
   TfLiteTensor* input_tensor_sub = nullptr;
   input_tensor = interpreter->input_tensor_of_model(0);
-  // if(use_two_interpreter){
-  //   input_tensor_sub = sub_interpreter->input_tensor_of_model(0);
-  // }
+  if(use_two_interpreter){
+    input_tensor_sub = sub_interpreter->input_tensor_of_model(0);
+  }
   if(input_tensor == nullptr) {
     std::cout << "TfLiteRuntime : cannot get pointer to input tensor, model["
               << model << "]"
@@ -727,13 +734,29 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
     auto input_pointer = (float*)input_tensor->data.data;
     int h = input_tensor->dims->data[1];
     int w = input_tensor->dims->data[2];
+    std::cout << "input h " << h << " w " << w << "\n";
     switch (input_type) {
       case INPUT_TYPE::MNIST:
         for (int i = 0; i < h; ++i) {
           for (int j = 0; j < w; ++j) {
             input_pointer[i * w + j] = ((float)input.at<uchar>(i, j) / 255.0);
+            printf("%.02f ", ((float)input.at<uchar>(i, j) / 255.0));
           }
+          printf("\n");
         }
+        if(use_two_interpreter){
+          auto input_pointer = (float*)input_tensor_sub->data.data;
+          int h = input_tensor_sub->dims->data[1];
+          int w = input_tensor_sub->dims->data[2];
+          std::cout << "sub input h " << h << " w " << w << "\n";
+          for (int i=0; i<h; i++){
+            for (int j=0; j<w; j++){ 
+              input_pointer[i * w + j] = ((float)input.at<uchar>(i + (w - h), j) / 255.0);
+              printf("%.02f ", ((float)input.at<uchar>(i + (w - h), j) / 255.0));
+            }
+            printf("\n");
+          }
+        }       
         break;
       case INPUT_TYPE::IMAGENET224:
       case INPUT_TYPE::IMAGENET300:
@@ -741,12 +764,26 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
               h * w * input.elemSize());
         break;
       case INPUT_TYPE::COCO416:
-        for (int i=0; i<416; i++){ // row
-          for (int j=0; j<416; j++){ // col
+        for (int i=0; i<h; i++){ // row
+          for (int j=0; j<w; j++){ // col
             cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
-            *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
-            *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
-            *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+            *(input_pointer + i * w*3 + j * 3) = ((float)pixel[0])/255.0;
+            *(input_pointer + i * w*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+            *(input_pointer + i * w*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+          }
+        }
+        if(use_two_interpreter){
+          auto input_pointer = (float*)input_tensor_sub->data.data;
+          int h = input_tensor_sub->dims->data[1];
+          int w = input_tensor_sub->dims->data[2];
+          std::cout << "sub input h " << h << " w " << w << "\n";
+          for (int i=0; i<h; i++){
+            for (int j=0; j<w; j++){   
+              cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
+              *(input_pointer + i * w*3 + j * 3) = ((float)pixel[0])/255.0;
+              *(input_pointer + i * w*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+              *(input_pointer + i * w*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+            }
           }
         }
         break;
@@ -776,14 +813,14 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
       case INPUT_TYPE::COCO416:
          ////////////////////////////////////////////////////////////////////
         // HOON : correct method to push image to input_tensor in YOLOv4-tiny
-        for (int i=0; i<416; i++){
-                for (int j=0; j<416; j++){   
-                        cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
-                        *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
-                        *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
-                        *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
-                }
-            }
+        for (int i=0; i<h; i++){
+          for (int j=0; j<w; j++){   
+            cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            *(input_pointer + i * 416*3 + j * 3) = ((float)pixel[0])/255.0;
+            *(input_pointer + i * 416*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+            *(input_pointer + i * 416*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+          }
+        }
         ////////////////////////////////////////////////////////////////////
         break;
       case INPUT_TYPE::LANENET144800:
@@ -933,6 +970,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
+        // PrintTensor(*(subgraph->tensor(18)), true);
         ////////////////////////////////////////////////////////////////////
         //HOON
         #ifdef YOLO
@@ -1365,8 +1403,10 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   
   // std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
   //               " max id : " << max_precision_subgraph->GetGraphid() << "\n";
-  // std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-              // << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
+  #ifdef debug_print
+    std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
+  #endif 
+              << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* min_precision_tensor = 
                   min_precision_subgraph->tensor(min_precision_tensor_idx);
@@ -1380,10 +1420,10 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     == kTfLiteAffineQuantization){
     dequant_reference_tensor = min_precision_subgraph->tensor(quantization_param_tensor_idx);
   }else{
-    quantization_param_tensor_idx= max_precision_subgraph->GetFirstInputTensorIndex();
+    quantization_param_tensor_idx = max_precision_subgraph->GetFirstInputTensorIndex();
     dequant_reference_tensor = max_precision_subgraph->tensor(quantization_param_tensor_idx); 
   }
-            
+  
   if(dest_tensor == nullptr || min_precision_tensor == nullptr ||
       max_precision_tensor == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
@@ -1498,71 +1538,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   return kTfLiteOk; 
 }
 
-TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph) {
-  // use source_graph_id, dest_graph_id
-  auto connect = [&](int source_subgraph, int dest_subgraph) {
-    Subgraph* source_graph = interpreter->subgraph_id(source_subgraph);
-    Subgraph* dest_graph = interpreter->subgraph_id(dest_subgraph);
-    std::vector<int> dest_tensor_indices; 
-    TfLiteIntArray* source_tensor_idx = source_graph->GetOutputTensorIndices();
-    TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
-    for(int i=0; i<input_tensor_indices->size; ++i){
-      for(int j=0; j<source_tensor_idx->size; ++j){
-        if(source_tensor_idx->data[j] == input_tensor_indices->data[i])
-          dest_tensor_indices.push_back(input_tensor_indices->data[i]);
-      }
-    }
-    if(dest_tensor_indices.empty()){
-      std::cout << "Output tensor of subgraph [" << source_subgraph << "] cannot"
-                << " found a matching input tensor in subgraph ["
-                << dest_subgraph << "]\n";
-      return kTfLiteError;
-    }
-    for(int i=0; i<dest_tensor_indices.size(); ++i){
-      TfLiteTensor* source_tensor = source_graph->tensor(dest_tensor_indices[i]);
-      TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_indices[i]);
-      size_t source_byte_size = source_tensor->bytes;
-      size_t dest_byte_size = dest_tensor->bytes;
-      if (source_byte_size != dest_byte_size) {
-        std::cout << "Source tensor[" << dest_tensor_indices[i] << "] size "
-                  << static_cast<int>(source_byte_size) << " and Dest tensor["
-                  << dest_tensor_indices[i] << "] size "
-                  << static_cast<int>(dest_byte_size) << " missmatch!"
-                  << "\n";
-        return kTfLiteError;
-      }
-      // PrintTensorSerial(*dest_tensor);
-      
-      if(source_tensor->type == kTfLiteFloat32 && dest_tensor->type == kTfLiteFloat32){
-        // auto data_source = (float*)source_tensor->data.data;
-        // auto data_dest = (float*)dest_tensor->data.data;
-        // memcpy(data_dest, data_source, source_byte_size);
-        dest_tensor->data.data = source_tensor->data.data;
-      }else if(source_tensor->type == kTfLiteInt8 && dest_tensor->type == kTfLiteInt8){
-        // auto data_source = (int8_t*)source_tensor->data.data;
-        // auto data_dest = (int8_t*)dest_tensor->data.data;
-        // memcpy(data_dest, data_source, source_byte_size);
-        dest_tensor->data.data = source_tensor->data.data;
-      }
-      // std::cout << "Copied intermediate data" << "\n";
-    }
-    return kTfLiteOk;
-  };
-  Subgraph* prev_graph = subgraph->GetPrevSubgraph();
-  if (prev_graph != nullptr) {  // Need to copy output from previous graph.
-    int source_graph_id = prev_graph->GetGraphid();
-    int dest_graph_id = subgraph->GetGraphid();
-    if (connect(source_graph_id, dest_graph_id) != kTfLiteOk) {
-      std::cout << "Subgraph intermediate data copy failed"
-                << "\n";
-      return kTfLiteError;
-    }
-  } else {  // if nulltpr returned
-    return kTfLiteOk;
-  }
-  return kTfLiteOk;
-}
-
 TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
                                                          int prev_subgraph_id) {
   // use source_graph_id, dest_graph_id
@@ -1572,8 +1547,8 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
     std::vector<int> dest_tensor_indices; 
     /* This method deprecated since (628b2)
       In case of XNN delegated subgraph, GetOutputTensorIndices() and 
-      GetInputTensorIndices() method is unsafe since XNN graph has multiple XNN delegated
-      nodes.
+      GetInputTensorIndices() method is unsafe because XNN graph has multiple XNN delegated
+      nodes and they have multiple inputs and outputs which are trivial for copy.
 
       TfLiteIntArray* source_tensor_idx = source_graph->GetOutputTensorIndices();
       TfLiteIntArray* source_tensor_idx_ = source_graph->GetInputTensorIndices();
@@ -1586,8 +1561,10 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
     std::vector<int> dest_tensor_idx = dest_graph->inputs();
     for(int i=0; i<dest_tensor_idx.size(); ++i){
       for(int j=0; j<source_tensor_idx.size(); ++j){
-        std::cout << "source : " << source_tensor_idx[j] << " " << " dest "
-                  << dest_tensor_idx[i] << "\n";
+        #ifdef debug_print
+          std::cout << "source : " << source_tensor_idx[j] << " " << " dest "
+                    << dest_tensor_idx[i] << "\n";
+        #endif
         if(source_tensor_idx[j] == dest_tensor_idx[i])
           dest_tensor_indices.push_back(dest_tensor_idx[i]);
       }
@@ -1599,7 +1576,9 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
       return kTfLiteError;
     }
     for(int i=0; i<dest_tensor_indices.size(); ++i){
-      std::cout << "Copy tensor " << dest_tensor_indices[i] << "\n";
+      #ifdef debug_print
+        std::cout << "Copy tensor " << dest_tensor_indices[i] << "\n";
+      #endif
       TfLiteTensor* source_tensor = source_graph->tensor(dest_tensor_indices[i]);
       TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_indices[i]);
       size_t source_byte_size = source_tensor->bytes;
@@ -1648,52 +1627,84 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
 TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* sub_subgraph
                                               , Subgraph* main_subgraph) {
   auto connect = [&](Subgraph* source_subgraph, Subgraph* dest_subgraph) {
-    int source_tensor_idx = source_subgraph->inputs()[0];
-    int input_tensor_idx = dest_subgraph->GetFirstInputTensorIndex();
-    TfLiteTensor* source_tensor = source_subgraph->tensor(source_tensor_idx);
-    TfLiteTensor* dest_tensor = dest_subgraph->tensor(input_tensor_idx);
-    void* data_source = nullptr;
-    int source_data_size = 1;
-    int dest_data_size = 1;
-    for(int i=0; i<source_tensor->dims->size; ++i){
-      source_data_size *= source_tensor->dims->data[i]; 
+    std::vector<int> dest_tensor_indices; 
+    std::vector<int> source_tensor_idx = source_subgraph->inputs();
+    std::vector<int> source_tensor_idx_ = source_subgraph->outputs();
+    std::vector<int>::iterator source_itr = source_tensor_idx.end();
+    source_tensor_idx.insert(source_itr, source_tensor_idx_.begin(), source_tensor_idx_.end()); 
+    std::vector<int> dest_tensor_idx = dest_subgraph->inputs();
+    for(int i=0; i<dest_tensor_idx.size(); ++i){
+      for(int j=0; j<source_tensor_idx.size(); ++j){
+        #ifdef debug_print
+          std::cout << "source : " << source_tensor_idx[j] << " " << " dest "
+                    << dest_tensor_idx[i] << "\n";
+        #endif
+        if(source_tensor_idx[j] == dest_tensor_idx[i]){
+          std::cout << "push tensor " << dest_tensor_idx[i] << "\n";
+          dest_tensor_indices.push_back(dest_tensor_idx[i]);
+        }
+
+      }
     }
-    for(int i=0; i<dest_tensor->dims->size; ++i){
-      dest_data_size *= dest_tensor->dims->data[i]; 
+    if(dest_tensor_indices.empty()){
+      std::cout << "Output tensor of subgraph [" << source_subgraph << "] cannot"
+                << " found a matching input tensor in subgraph ["
+                << dest_subgraph << "]\n";
+      return kTfLiteError;
     }
     
-    // Match tensor precision (quantize)
-    if(source_tensor->type == kTfLiteFloat32 &&
-          dest_tensor->type == kTfLiteUInt8){
-      // std::cout << "quant int" << "\n";
-      auto data_dest = (uint8_t*)dest_tensor->data.data;
-      TfLiteAffineQuantization* new_quantization_params = new TfLiteAffineQuantization;
-      data_source = QuantizeGivenTensorandReturnBuffer(source_tensor,
-                                                       new_quantization_params);
-      int offset = source_data_size - dest_data_size;
-      memcpy(data_dest, data_source + offset, dest_data_size*(sizeof(uint8_t)));
-      free(data_source);           
-      // std::cout << "Copied intermediate data from main graph" << "\n";
-      dest_tensor->quantization.params = reinterpret_cast<void*>(new_quantization_params);
-      // printf("%p \n", new_quantization_params);
-      // std::cout << "Asdfa" << "\n";
-      dest_tensor->quantization.type = kTfLiteAffineQuantization;
-      // printf("set scale %.6f, zp %d \n",
-      //   new_quantization_params->scale->data[0],
-      //   new_quantization_params->zero_point->data[0]);
-    }else{ 
-      // Maybe consider memory footprint.
-      auto data_dest = (float*)dest_tensor->data.data;
-      auto data_source = (float*)source_tensor->data.data;
+    
+    // int source_tensor_idx = source_subgraph->inputs()[0];
+    // int input_tensor_idx = dest_subgraph->GetFirstInputTensorIndex();
+    for(int copy_tensor_idx=0; copy_tensor_idx<dest_tensor_indices.size(); ++copy_tensor_idx){
       #ifdef debug_print
-        std::cout << "source: " << source_data_size << " "
-                  << "dest: " << dest_data_size <<  "\n";
+        std::cout << "Merge tensor " << dest_tensor_indices[copy_tensor_idx] << "\n";
       #endif
-      int offset = source_data_size - dest_data_size;
-      memcpy(data_dest, data_source + offset, dest_data_size*(sizeof(float)));
-      #ifdef debug_print
-        std::cout << "Copied intermediate data from main graph" << "\n";
-      #endif
+      TfLiteTensor* source_tensor = source_subgraph->tensor(dest_tensor_indices[copy_tensor_idx]);
+      TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_indices[copy_tensor_idx]);
+      void* data_source = nullptr;
+      int source_data_size = 1;
+      int dest_data_size = 1;
+      for(int i=0; i<source_tensor->dims->size; ++i){
+        source_data_size *= source_tensor->dims->data[i]; 
+      }
+      for(int i=0; i<dest_tensor->dims->size; ++i){
+        dest_data_size *= dest_tensor->dims->data[i]; 
+      }
+      
+      // Match tensor precision (quantize)
+      if(source_tensor->type == kTfLiteFloat32 &&
+            dest_tensor->type == kTfLiteUInt8){
+        // std::cout << "quant int" << "\n";
+        auto data_dest = (uint8_t*)dest_tensor->data.data;
+        TfLiteAffineQuantization* new_quantization_params = new TfLiteAffineQuantization;
+        data_source = QuantizeGivenTensorandReturnBuffer(source_tensor,
+                                                        new_quantization_params);
+        int offset = source_data_size - dest_data_size;
+        memcpy(data_dest, data_source + offset, dest_data_size*(sizeof(uint8_t)));
+        free(data_source);           
+        // std::cout << "Copied intermediate data from main graph" << "\n";
+        dest_tensor->quantization.params = reinterpret_cast<void*>(new_quantization_params);
+        // printf("%p \n", new_quantization_params);
+        // std::cout << "Asdfa" << "\n";
+        dest_tensor->quantization.type = kTfLiteAffineQuantization;
+        // printf("set scale %.6f, zp %d \n",
+        //   new_quantization_params->scale->data[0],
+        //   new_quantization_params->zero_point->data[0]);
+      }else{ 
+        // Maybe consider memory footprint.
+        auto data_dest = (float*)dest_tensor->data.data;
+        auto data_source = (float*)source_tensor->data.data;
+        #ifdef debug_print
+          std::cout << "source: " << source_data_size << " "
+                    << "dest: " << dest_data_size <<  "\n";
+        #endif
+        int offset = source_data_size - dest_data_size;
+        memcpy(data_dest, data_source + offset, dest_data_size*(sizeof(float)));
+        #ifdef debug_print
+          std::cout << "Copied intermediate data from main graph" << "\n";
+        #endif
+      }
     }
     return kTfLiteOk;
   };
@@ -2009,7 +2020,7 @@ void TfLiteRuntime::PrintTensor(TfLiteTensor& tensor, bool is_output){
           switch (interpreter->GetInputType())
           {
           case INPUT_TYPE::MNIST :
-            if(data > 0.8){ // threshhold
+            if(data > 0.1){ // threshhold
               std::cout << "CH [" << i << "] ";
               printf("%s%0.6f%s \n", C_GREN, data, C_NRML);
               output_correct = true;

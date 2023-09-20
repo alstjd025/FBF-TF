@@ -885,7 +885,9 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     input_height += padding; 
     std::cout << "tensor : " << input_tensor_idx << 
                 " origin input_height : " << input_tensor->dims->data[1] << 
+                " origin calc output : " << output_height << 
                 " new input_height : " << input_height << 
+                " added padding : " << padding << 
                 " filter : " << filter << 
                 " stride : " << stride << "\n";
 
