@@ -734,7 +734,6 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
     auto input_pointer = (float*)input_tensor->data.data;
     int h = input_tensor->dims->data[1];
     int w = input_tensor->dims->data[2];
-    std::cout << "input h " << h << " w " << w << "\n";
     switch (input_type) {
       case INPUT_TYPE::MNIST:
         for (int i = 0; i < h; ++i) {
@@ -748,7 +747,6 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
           auto input_pointer = (float*)input_tensor_sub->data.data;
           int h = input_tensor_sub->dims->data[1];
           int w = input_tensor_sub->dims->data[2];
-          std::cout << "sub input h " << h << " w " << w << "\n";
           for (int i=0; i<h; i++){
             for (int j=0; j<w; j++){ 
               input_pointer[i * w + j] = ((float)input.at<uchar>(i + (w - h), j) / 255.0);
@@ -776,7 +774,6 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
           auto input_pointer = (float*)input_tensor_sub->data.data;
           int h = input_tensor_sub->dims->data[1];
           int w = input_tensor_sub->dims->data[2];
-          std::cout << "sub input h " << h << " w " << w << "\n";
           for (int i=0; i<h; i++){
             for (int j=0; j<w; j++){   
               cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
@@ -1642,7 +1639,6 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* sub_subgraph
                     << dest_tensor_idx[i] << "\n";
         #endif
         if(source_tensor_idx[j] == dest_tensor_idx[i]){
-          std::cout << "push tensor " << dest_tensor_idx[i] << "\n";
           dest_tensor_indices.push_back(dest_tensor_idx[i]);
         }
       }
