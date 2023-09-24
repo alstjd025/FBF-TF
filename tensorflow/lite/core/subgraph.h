@@ -430,6 +430,10 @@ class Subgraph {
   // Returns status of success or failure.
   TfLiteStatus AllocateTensors();
 
+  // Minsung (afef0)
+  // 
+  TfLiteStatus AllocateConcateTensors();
+
   // Invoke the subgraph (run the whole graph in dependency order).
   //
   // NOTE: It is possible that the interpreter is not in a ready state

@@ -1643,7 +1643,6 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* sub_subgraph
           std::cout << "push tensor " << dest_tensor_idx[i] << "\n";
           dest_tensor_indices.push_back(dest_tensor_idx[i]);
         }
-
       }
     }
     if(dest_tensor_indices.empty()){
