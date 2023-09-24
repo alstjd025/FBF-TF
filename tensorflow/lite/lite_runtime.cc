@@ -1038,7 +1038,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       if(subgraph->GetResourceType() == CO_GPU){
         // wake cpu thread here
         if(prev_subgraph_id != -1){
-          main_execution_graph = subgraph;
+          // Consider intermediate tensor is located in prev-previous subgraph?
+          // (99462)
+          main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
         }
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;

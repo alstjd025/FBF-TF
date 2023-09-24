@@ -882,7 +882,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       // divide input tensor's dimension in node.
       input_height = input_tensor->dims->data[1];
       input_height = std::round((input_height  * 0.1) * partitioning_ratio);
-      std::cout << "input_height - " << input_height << "\n";
+      // std::cout << "input_height - " << input_height << "\n";
       // Get parameters(filter size, stride) of node.
       if(!GetParamsForPartitioning(&registration, &node, &context_, filter, stride)){
         std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
@@ -892,13 +892,13 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       // Calculate padding 
       int padding = padding_equation(stride, filter, input_height, output_height); 
       input_height += padding; 
-      std::cout << "tensor : " << input_tensor_idx << 
-                  " origin input_height : " << input_tensor->dims->data[1] << 
-                  " origin calc output : " << output_height << 
-                  " new input_height : " << input_height << 
-                  " added padding : " << padding << 
-                  " filter : " << filter << 
-                  " stride : " << stride << "\n"; 
+      // std::cout << "tensor : " << input_tensor_idx << 
+      //             " origin input_height : " << input_tensor->dims->data[1] << 
+      //             " origin calc output : " << output_height << 
+      //             " new input_height : " << input_height << 
+      //             " added padding : " << padding << 
+      //             " filter : " << filter << 
+      //             " stride : " << stride << "\n"; 
 
       // Change height
       std::vector<int> new_dims;
@@ -914,24 +914,9 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         // return kTfLiteError;
       }
       ResizeInputTensor(input_tensor_idx, new_dims);
-
-      // // Move data pointer to proper position.
-      // // (No need to move if CO_GPU)
-      // // moving data pointer isn't necessary for global input tensor.
-      // int o = input_tensor->dims->data[0];
-      // int h = input_tensor->dims->data[1];
-      // int w = input_tensor->dims->data[2];
-      // int i = input_tensor->dims->data[3];
-      // printf("%p -> ", input_tensor->data.data);
-      // auto data_pointer = *(&input_tensor->data.data);
-      // if(resource_type != ResourceType::CO_GPU){
-      //   int offset = o * h * w;
-      //   data_pointer += offset;
-      // }
-      // printf("%p \n", input_tensor->data.data);
     }
   }
-  std::cout << "Height partitioning done" << "\n";
+  // std::cout << "Height partitioning done" << "\n";
   return kTfLiteOk;
 }
 
@@ -963,8 +948,6 @@ TfLiteStatus Subgraph::AllocateConcateTensors(){
       if(input_tensor->data.data == nullptr){
         size_t tensor_size = input_tensor->bytes;
         input_tensor->data.data = malloc(tensor_size);
-        std::cout << "NEW ALLOCATION FOR TENSOR " << input_tensor_idx << " "
-                  <<  tensor_size << " bytes \n";
       }
     }
   }
