@@ -393,12 +393,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
                   }
                   if(subgraph_id(working_subgraph)->AllocateTensors() != kTfLiteOk)
                     return kTfLiteError;
-                  // Subject to change (14540) : no more use ReplaceBufferofSameDims().
-                  // if(subgraph_id(working_subgraph)->ReplaceBufferofSameDims(working_tensor, 
-                  //   subgraph_id(working_subgraph)->tensor(base_tensor)) != kTfLiteOk){
-                  //   std::cout << "ReplaceBufferofSameDims returned ERROR" << "\n";
-                  //   return kTfLiteError;
-                  // }
                 }
                 working_tensor = nullptr;
                 match_dims.clear();

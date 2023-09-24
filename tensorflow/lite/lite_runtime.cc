@@ -1,7 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-#define YOLO
-#define debug_print
+// #define YOLO
+// #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1407,8 +1407,8 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   //               " max id : " << max_precision_subgraph->GetGraphid() << "\n";
   #ifdef debug_print
     std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-  #endif 
               << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
+  #endif 
   TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* min_precision_tensor = 
                   min_precision_subgraph->tensor(min_precision_tensor_idx);
