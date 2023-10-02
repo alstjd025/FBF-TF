@@ -736,12 +736,12 @@ TfLiteStatus Subgraph::AllocateTensors() {
 TfLiteStatus Subgraph::PartitionChannel(){
 	std::vector<int> partitioning_plan;
 	std::vector<float> ratios;
-  if(partitioning_ratios.empty())
+  int partitioning_ratio_ = GetPartitioningRatio();
+  // std::cout << "Partition [sub-interpreter] ratio " << partitioning_ratio_ << "\n";
+  
+  if(partitioning_ratio_ >= 10 || partitioning_ratio_ <= 0) // this subgraph is hw
     return kTfLiteOk;
-  else{
-    if(partitioning_ratios[0] >= 10) // this subgraph is hw
-      return kTfLiteOk;
-  }
+
 	for (int execution_plan_index = 0;
 			execution_plan_index < execution_plan_.size(); execution_plan_index++) {
 		int node_index = execution_plan_[execution_plan_index];
@@ -751,10 +751,7 @@ TfLiteStatus Subgraph::PartitionChannel(){
 		
 		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
 			partitioning_plan.push_back(execution_plan_index);
-      if(!partitioning_ratios.empty())
-			  ratios.push_back(1.0 - partitioning_ratios[0] / 10.0);
-      else
-        return kTfLiteError;
+      ratios.push_back(1.0 - partitioning_ratio_ / 10.0);
 		}
 	}
   for (int partitioning_plan_index = 0;
@@ -781,7 +778,7 @@ TfLiteStatus Subgraph::PartitionChannel(){
 					int h = *(dims + 3);
 					int i = *(dims + 4);
 					int next_filter = w * h * i * ((int)bytes / (o * w * h * i));
-          std::cout << "partitioning " << ratios[partitioning_plan_index] << "\n";
+          // std::cout << "partitioning " << ratios[partitioning_plan_index] << "\n";
 					next_filter = (int)next_filter * ceil(o * (1 - ratios[partitioning_plan_index]));
          	*data += next_filter; 
 				}

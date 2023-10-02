@@ -1,7 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
 // #define YOLO
-// #define debug_print
+#define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -640,12 +640,12 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   
   std::cout << "=====================" << "\n";
   std::cout << "MAX precicion interpreter state" << "\n";
-  // PrintInterpreterStateV3(interpreter);
-  PrintInterpreterStateDimandSize(interpreter);
+  PrintInterpreterStateV3(interpreter);
+  // PrintInterpreterStateDimandSize(interpreter);
   std::cout << "=====================" << "\n";
   std::cout << "MIN precicion interpreter state" << "\n";
-  PrintInterpreterStateDimandSize(sub_interpreter);
-  // PrintInterpreterStateV3(sub_interpreter);
+  // PrintInterpreterStateDimandSize(sub_interpreter);
+  PrintInterpreterStateV3(sub_interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
   return kTfLiteOk;

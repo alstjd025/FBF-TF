@@ -856,7 +856,8 @@ TfLiteStatus InterpreterBuilder::PartitionChannels(
   for(auto new_subgraph : new_subgraphs){
    if(new_subgraph->GetResourceType() == ResourceType::CO_CPU ||
         // sj
-        new_subgraph->GetResourceType() == ResourceType::CPU){
+        // Fixed for CO_CPU_XNN.. (785a4) MINSUNG
+        new_subgraph->GetResourceType() == ResourceType::CO_CPU_XNN){
       if(new_subgraph->PartitionChannel() != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
                    << " Partition in channel-wise" << "\n";
