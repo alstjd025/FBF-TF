@@ -596,13 +596,7 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   std::cout << "===============================" << "\n";
   std::cout << "Minimal precision subgraph created" << "\n";
   std::cout << "===============================" << "\n";
-  
-  // std::cout << "=====================" << "\n";
-  // std::cout << "MAX precicion interpreter state" << "\n";
-  // PrintInterpreterStateV3(interpreter);
-  // std::cout << "=====================" << "\n";
-  // std::cout << "MIN precicion interpreter state" << "\n";
-  // PrintInterpreterStateV3(sub_interpreter);
+
   
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
@@ -646,10 +640,12 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   
   std::cout << "=====================" << "\n";
   std::cout << "MAX precicion interpreter state" << "\n";
-  PrintInterpreterStateV3(interpreter);
+  // PrintInterpreterStateV3(interpreter);
+  PrintInterpreterStateDimandSize(interpreter);
   std::cout << "=====================" << "\n";
   std::cout << "MIN precicion interpreter state" << "\n";
-  PrintInterpreterStateV3(sub_interpreter);
+  PrintInterpreterStateDimandSize(sub_interpreter);
+  // PrintInterpreterStateV3(sub_interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
   return kTfLiteOk;

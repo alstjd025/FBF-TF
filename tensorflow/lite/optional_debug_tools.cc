@@ -354,4 +354,40 @@ void PrintInterpreterStateSimple(Interpreter* interpreter,
   buf += std::string("LOG_START\n");
 }
 
+void PrintInterpreterStateDimandSize(Interpreter* interpreter){
+  int subgraph_size = interpreter->subgraphs_size();
+  printf("Interpreter has %d subgraphs\n", subgraph_size);
+  //interpreter->PrintSubgraphInfo();
+  for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
+    std::cout << "======================================" << "\n";
+    int subgraph_id = interpreter->subgraph(subgraph_index)->GetGraphid();
+    int tensor_size = interpreter->subgraph_id(subgraph_id)->tensors_size();
+    int node_size = interpreter->nodes_size(subgraph_id);
+    printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
+        tensor_size, node_size);
+    for (size_t node_index = 0; node_index < node_size;
+        node_index++) {
+      const std::pair<TfLiteNode, TfLiteRegistration>* node_and_reg =
+          interpreter->node_and_registration(static_cast<int>(node_index), subgraph_id);
+      const TfLiteNode& node = node_and_reg->first;
+      const TfLiteRegistration& reg = node_and_reg->second;
+      if (reg.custom_name != nullptr) {
+        printf("Node %3zu %s\n", node_index, reg.custom_name);
+      } else {
+        printf("Node %3zu %s\n", node_index, EnumNamesBuiltinOperator()[reg.builtin_code]);
+      }
+      TfLiteIntArray* outputs = node.outputs;
+      for(int i=0; i<outputs->size; ++i){
+        int tensor_index = outputs->data[i];
+        TfLiteTensor* tensor = interpreter->tensor(subgraph_id, static_cast<int>(tensor_index));
+        printf("Tensor %3zu %10zu bytes (%4.1f MB) ", tensor_index,
+            tensor->bytes,
+            (static_cast<float>(tensor->bytes) / (1 << 20)));
+        PrintTfLiteIntVector(tensor->dims);  
+      }
+    }
+    printf("\n");
+  }
+}
+
 }  // namespace tflite

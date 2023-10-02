@@ -34,7 +34,7 @@ limitations under the License.
 // For channel partitioning
 #include "tensorflow/lite/kernels/kernel_util.h"
 
-// #define LATENCY_MEASURE
+#define LATENCY_MEASURE
 
 namespace tflite {
 
@@ -1407,15 +1407,17 @@ TfLiteStatus Subgraph::Invoke() {
   
     #ifdef LATENCY_MEASURE
       clock_gettime(CLOCK_MONOTONIC, &end);
-      if(strcmp(GetOpName(registration), "DELEGATE")){
-        response_time += (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      }else{
-        if(response_time)
-          latency_per_node.push_back(response_time);
-        response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-        latency_per_node.push_back(response_time);
-        response_time = 0;
-      }
+      // if(strcmp(GetOpName(registration), "DELEGATE")){
+      //   response_time += (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      // }else{
+      //   if(response_time)
+      //     latency_per_node.push_back(response_time);
+      //   response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      //   latency_per_node.push_back(response_time);
+      //   response_time = 0;
+      // }
+      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      latency_per_node.push_back(response_time);
       // if(resource_type == ResourceType::CO_CPU||
       //             resource_type == ResourceType::CPU)
       //   printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
@@ -1446,16 +1448,13 @@ TfLiteStatus Subgraph::Invoke() {
   }
   #ifdef LATENCY_MEASURE
     std::ofstream latency_log;
-    latency_log.open("latency_per_node.txt", std::ios::app);
-    auto writeLog = [&](std::vector<double>& log){
-      if(latency_log.is_open()){
-        for(int i=0; i<log.size(); ++i)
-          latency_log << log[i] << " ";
-        latency_log << "\n";
+    latency_log.open("/home/nvidia/latency_per_node.txt", std::ios::app);
+    if(latency_log.is_open()){
+      for(int i=0; i<latency_per_node.size(); ++i){
+        latency_log << latency_per_node[i] << " ";
       }
-      return;
-    };
-    writeLog(latency_per_node);
+      latency_log << "\n";
+    }
     latency_log.close();
   #endif
   return status;

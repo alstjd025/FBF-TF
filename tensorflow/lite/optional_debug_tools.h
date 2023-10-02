@@ -33,6 +33,8 @@ void PrintInterpreterStateSimple(Interpreter* interpreter,
                                  Interpreter* sub_interpreter
                                 , std::string& buf);
 
+void PrintInterpreterStateDimandSize(Interpreter* interpreter);
+
 }  // namespace tflite
 
 #endif  // TENSORFLOW_LITE_OPTIONAL_DEBUG_TOOLS_H_
