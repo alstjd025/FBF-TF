@@ -162,7 +162,7 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
 
 bool GetParamsForPartitioning(const TfLiteRegistration* registration,
                               const TfLiteNode* node, TfLiteContext* context,
-                              int& filter_size, int& stride){
+                              int& filter_size, int& stride, int& padding){
   switch (registration->builtin_code)
   {
   case kTfLiteBuiltinConv2d:{
@@ -182,7 +182,7 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = context->tensors[node->inputs->data[1]].dims->data[1];  
     // get stride and padding from params
     stride = conv_params->stride_height;
-
+    padding = conv_params->padding;
     break;
     }
   case kTfLiteBuiltinDepthwiseConv2d:{
@@ -202,8 +202,7 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = context->tensors[node->inputs->data[1]].dims->data[1];  
     // get stride and padding from params
     stride = depth_conv_params->stride_height;
-    std::cout << "depth padd :" <<  depth_conv_params->padding << "\n";
-    
+    padding = depth_conv_params->padding;
     break;
     }
   case kTfLiteBuiltinMaxPool2d:{
@@ -214,7 +213,7 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = pool_params->filter_height;  
     // get stride and padding from params
     stride = pool_params->stride_height;
-    
+    padding = pool_params->padding;
     break;
     }
   case kTfLiteBuiltinAveragePool2d:{
@@ -225,12 +224,13 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = pool_params->filter_height;  
     // get stride and padding from params
     stride = pool_params->stride_height;
-    
+    padding = pool_params->padding;
     break;
     }
   default:
     filter_size = 0;
     stride = 0;
+    padding = 0;
     break;
   }
   return true;

@@ -869,7 +869,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       TfLiteTensor* output_tensor = nullptr;
       input_tensor = tensor(input_tensor_idx);
       output_tensor = tensor(output_tensor_idx);
-      int output_height, input_height, filter, stride;
+      int output_height, input_height, filter, stride, padding;
       // First, divide last node's input and output tensor height.
       output_height = output_tensor->dims->data[1];
       if(execution_plan_idx == execution_plan_.size() - 1){
@@ -881,21 +881,23 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       input_height = std::round((input_height  * 0.1) * partitioning_ratio);
       std::cout << "input_height - " << input_height << "\n";
       // Get parameters(filter size, stride) of node.
-      if(!GetParamsForPartitioning(&registration, &node, &context_, filter, stride)){
+      if(!GetParamsForPartitioning(&registration, &node, &context_,
+                                   filter, stride, padding)){
         std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
         return kTfLiteError;
       }
 
       // Calculate padding 
-      int padding = padding_equation(stride, filter, input_height, output_height); 
-      input_height += padding; 
+      int padding_to_add = padding_equation(stride, filter, input_height, output_height); 
+      input_height += padding_to_add; 
       std::cout << "tensor : " << input_tensor_idx << 
                   " new input_height : " << input_height << 
                   " origin input_height : " << input_tensor->dims->data[1] << 
                   " origin calc output : " << output_height << 
-                  " added padding : " << padding << 
+                  " padding to add : " << padding_to_add << 
                   " filter : " << filter << 
-                  " stride : " << stride << "\n"; 
+                  " stride : " << stride << 
+                  " padding : " << padding << "\n"; 
 
       // Change height
       std::vector<int> new_dims;

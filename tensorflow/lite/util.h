@@ -125,7 +125,7 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration);
 // Get parameters used for HW partitioning.
 bool GetParamsForPartitioning(const TfLiteRegistration* registration,
                               const TfLiteNode* node, TfLiteContext* context,
-                              int& filter_size, int& stride);
+                              int& filter_size, int& stride, int& padding);
 
 typedef struct SharedTensorsInGraphs{
   int model_id; // identifier
