@@ -162,7 +162,9 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration) {
 
 bool GetParamsForPartitioning(const TfLiteRegistration* registration,
                               const TfLiteNode* node, TfLiteContext* context,
-                              int& filter_size, int& stride, int& padding){
+                              int& filter_size, int& stride, int& padding_type,
+                              int& padding_height, int& padding_width,
+                              int& padding_height_offset, int& padding_width_offset){
   switch (registration->builtin_code)
   {
   case kTfLiteBuiltinConv2d:{
@@ -182,7 +184,14 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = context->tensors[node->inputs->data[1]].dims->data[1];  
     // get stride and padding from params
     stride = conv_params->stride_height;
-    padding = conv_params->padding;
+    // padding info
+    // same == 1
+    // valid == 2
+    padding_type = conv_params->padding;
+    padding_height = 0;
+    padding_width = 0;
+    padding_height_offset = 0;
+    padding_width_offset = 0;
     break;
     }
   case kTfLiteBuiltinDepthwiseConv2d:{
@@ -202,7 +211,14 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = context->tensors[node->inputs->data[1]].dims->data[1];  
     // get stride and padding from params
     stride = depth_conv_params->stride_height;
-    padding = depth_conv_params->padding;
+    // padding info
+    // same == 1
+    // valid == 2
+    padding_type = depth_conv_params->padding;
+    padding_height = 0;
+    padding_width = 0;
+    padding_height_offset = 0;
+    padding_width_offset = 0;
     break;
     }
   case kTfLiteBuiltinMaxPool2d:{
@@ -213,7 +229,20 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = pool_params->filter_height;  
     // get stride and padding from params
     stride = pool_params->stride_height;
-    padding = pool_params->padding;
+    padding_type = pool_params->padding;
+    // Pooling needs paading values.
+    /* Consider params below.
+    typedef struct {
+      int width;
+      int height;
+      int width_offset;
+      int height_offset;
+    } TfLitePaddingValues;
+    */
+    padding_height = pool_params->computed.padding.height;
+    padding_width = pool_params->computed.padding.width;
+    padding_height_offset = pool_params->computed.padding.height_offset;
+    padding_width_offset = pool_params->computed.padding.width_offset;
     break;
     }
   case kTfLiteBuiltinAveragePool2d:{
@@ -224,17 +253,63 @@ bool GetParamsForPartitioning(const TfLiteRegistration* registration,
     filter_size = pool_params->filter_height;  
     // get stride and padding from params
     stride = pool_params->stride_height;
-    padding = pool_params->padding;
+    // padding info
+    // same == 1
+    // valid == 2
+    padding_type = pool_params->padding;
+    padding_height = pool_params->computed.padding.height;
+    padding_width = pool_params->computed.padding.width;
+    padding_height_offset = pool_params->computed.padding.height_offset;
+    padding_width_offset = pool_params->computed.padding.width_offset;
     break;
     }
   default:
     filter_size = 0;
     stride = 0;
-    padding = 0;
+    padding_type = 0;
     break;
   }
   return true;
 }
+
+
+int HW::GetOverlapConv(int S, int K, int Hi, int Ho){
+  if(S == 0)
+    S = 1;
+  int padding = S * (Ho - 1) - Hi + K;
+  if(padding < 0){
+    padding = 0;
+  }
+  return padding;
+}
+
+int HW::GetPaddingConv(int S, int K, int Hi, int Ho){
+  int padding = S * (Ho - 1) - Hi + K;
+  if(padding < 0){
+    padding = 0;
+  }
+  return padding;
+}
+
+int HW::GetOutputHeightConv(int S, int K, int P, int Hi){
+  int output_height = (((Hi - K + 2 * P)/S) + 1);
+  if (output_height <= 0)
+    output_height = -1;
+  return output_height;
+}
+
+int HW::GetOverlapPool(int S, int K, int Hi, int Ho){
+
+}
+
+int HW::GetPaddingPool(int S, int K, int Hi){
+
+}
+
+int HW::GetOutputHeightPool(int S, int K, int P, int Ho){
+
+}
+
 ////////////////////////////////////////////////////////////////////
 // HOON : utility funcs for parsing Yolo output
 

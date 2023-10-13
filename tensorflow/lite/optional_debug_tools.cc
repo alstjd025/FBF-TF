@@ -372,9 +372,9 @@ void PrintInterpreterStateDimandSize(Interpreter* interpreter){
       const TfLiteNode& node = node_and_reg->first;
       const TfLiteRegistration& reg = node_and_reg->second;
       if (reg.custom_name != nullptr) {
-        printf("Node %3zu %s\n", node_index, reg.custom_name);
+        printf("Node %3zu %s ", node_index, reg.custom_name);
       } else {
-        printf("Node %3zu %s\n", node_index, EnumNamesBuiltinOperator()[reg.builtin_code]);
+        printf("Node %3zu %s ", node_index, EnumNamesBuiltinOperator()[reg.builtin_code]);
       }
       TfLiteIntArray* outputs = node.outputs;
       for(int i=0; i<outputs->size; ++i){

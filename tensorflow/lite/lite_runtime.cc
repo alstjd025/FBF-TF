@@ -1,6 +1,6 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-// #define YOLO
+#define YOLO
 // #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
@@ -644,8 +644,8 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs(){
   PrintInterpreterStateDimandSize(interpreter);
   std::cout << "=====================" << "\n";
   std::cout << "MIN precicion interpreter state" << "\n";
-  PrintInterpreterStateDimandSize(sub_interpreter);
   PrintInterpreterStateV3(sub_interpreter);
+  PrintInterpreterStateDimandSize(sub_interpreter);
   std::cout << "Successfully partitioned subgraph" << "\n";
   std::cout << "Ready to invoke" << "\n";
   return kTfLiteOk;
@@ -1513,6 +1513,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     // Drop minimum precision data because it is dequantized and might drop accuracy.
     if((min_tensor_ht + max_tensor_ht) != dest_ht){
       float drop_height = (dest_ht - (min_tensor_ht + max_tensor_ht))/(-2);
+      std::cout << "Drop height : " << drop_height << "\n";
       if(drop_height < 0){
         std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
         std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<

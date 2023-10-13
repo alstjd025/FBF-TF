@@ -817,12 +817,12 @@ TfLiteStatus Subgraph::PartitionChannel(){
 }
 
 TfLiteStatus Subgraph::PartitionHeightTest(){
-  // padding_equation from CoDL (Mobisys '23)
+  // overlap equation from CoDL (Mobisys '23)
   // S  : stride
   // F  : filter size
   // Hi : Input Height
   // Ho : Output Height
-  auto padding_equation = [&](int S, int F, int Hi, int Ho){
+  auto overlap_equation = [&](int S, int F, int Hi, int Ho){
     if(S == 0)
       S = 1;
     int padding = S * (Ho - 1) - Hi + F;
@@ -830,6 +830,22 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       padding = 0;
     }
     return padding;
+  };
+
+  // padding equation for conv
+  // S  : stride
+  // F  : filter size
+  // Hi : Input Height
+  auto padding_equation_conv = [&](int S, int F, int Hi){
+    int padd = std::round(((Hi - 1) * S + F - Hi)/2);
+    if(padd < 0)
+      padd = 0;
+    return padd;
+  };
+
+  // padding equation for pool
+  auto padding_equation_pool = [&]{
+    // not implemented
   };
 
   int partitioning_ratio = GetPartitioningRatio();
@@ -840,7 +856,13 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     PushPartitioningRatio(partitioning_ratio);
   }
   std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
+
+  // Need extra overlap in case of "output featue : same".
+  int zero_padding_overlap = 0;
+
   // See execution_plan from backward.
+  // Calculate overlap and zero_padding_overlap for Conv and Pool layers.
+  // And propagate dimension recursively from backward when zero_padding_overlap > 0.
   for(int execution_plan_idx = execution_plan_.size() -1;
            execution_plan_idx >= 0; execution_plan_idx--){
     int node_index = execution_plan_[execution_plan_idx];
@@ -851,10 +873,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     if(node.inputs->size > 0 && node.outputs->size > 0){
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
         // Need to modify both inputs for concatenation layer.
-        std::cout << "push tensor " << node.inputs->data[1] << "\n";
+        // std::cout << "push tensor " << node.inputs->data[1] << "\n";
         input_tensor_indices.push_back(node.inputs->data[1]);
       }
-      std::cout << "push tensor " << node.inputs->data[0] << "\n";
+      // std::cout << "push tensor " << node.inputs->data[0] << "\n";
       input_tensor_indices.push_back(node.inputs->data[0]);
       output_tensor_idx = node.outputs->data[0];
     }else{
@@ -863,54 +885,91 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       return kTfLiteError;
     }
     for(int idx=0; idx<input_tensor_indices.size(); ++idx){
+      std::cout << "==================================" << "\n";
       std::cout << GetOpName(registration) << "\n";
       input_tensor_idx = input_tensor_indices[idx];
       TfLiteTensor* input_tensor = nullptr;
       TfLiteTensor* output_tensor = nullptr;
       input_tensor = tensor(input_tensor_idx);
       output_tensor = tensor(output_tensor_idx);
-      int output_height, input_height, filter, stride, padding;
+      int origin_output_height, origin_input_height, new_input_height,
+          new_output_height, filter, stride, padding_type, padding_height,
+          padding_width, padding_height_offset, padding_width_offset;
       // First, divide last node's input and output tensor height.
-      output_height = output_tensor->dims->data[1];
+      origin_output_height = output_tensor->dims->data[1];
       if(execution_plan_idx == execution_plan_.size() - 1){
         // divide output tensor's dimension in last node.
-        output_height = std::round((output_height * 0.1) * partitioning_ratio);
+        new_output_height = std::round((origin_output_height * 0.1) * partitioning_ratio);
+      }else{
+        new_output_height = origin_output_height;
       }
       // divide input tensor's dimension in node.
-      input_height = input_tensor->dims->data[1];
-      input_height = std::round((input_height  * 0.1) * partitioning_ratio);
-      std::cout << "input_height - " << input_height << "\n";
+      origin_input_height = input_tensor->dims->data[1];
+      new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
+      
       // Get parameters(filter size, stride) of node.
       if(!GetParamsForPartitioning(&registration, &node, &context_,
-                                   filter, stride, padding)){
+                                   filter, stride, padding_type, padding_height,
+                                   padding_width, padding_height_offset,
+                                   padding_width_offset)){
         std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
         return kTfLiteError;
       }
-
+      // padding info
+      // same == 1
+      // valid == 2
+      int zero_padding = 0;
+      if(padding_type == 1) // caculate zero padding in 'same' case.
+        zero_padding = padding_equation_conv(stride, filter, origin_input_height);
+      std::cout << "Params in layer : " << "\n" <<
+                   " filter : " << filter << "\n" <<
+                   " stride : " << stride << "\n" <<
+                   " padding_type : " << padding_type << "\n" <<
+                   " padding_height : " << padding_height << "\n" <<
+                   " padding_width : " << padding_width << "\n" <<
+                   " padding_height_offset : " << padding_height_offset << "\n" <<
+                   " padding_witdh_offset : " << padding_width_offset << "\n" <<
+                   " zero padding calculated : " << zero_padding << "\n";
       // Calculate padding 
-      int padding_to_add = padding_equation(stride, filter, input_height, output_height); 
-      input_height += padding_to_add; 
-      std::cout << "tensor : " << input_tensor_idx << 
-                  " new input_height : " << input_height << 
-                  " origin input_height : " << input_tensor->dims->data[1] << 
-                  " origin calc output : " << output_height << 
-                  " padding to add : " << padding_to_add << 
-                  " filter : " << filter << 
-                  " stride : " << stride << 
-                  " padding : " << padding << "\n"; 
+      int padding_to_add = overlap_equation(stride, filter, new_input_height, new_output_height); 
+      new_input_height += (padding_to_add + zero_padding); 
+      std::cout << "-----------------------------------" << "\n";
+      std::cout << "tensor : " << input_tensor_idx << "\n" <<
+                  " origin input_height : " << origin_input_height <<  "\n" <<
+                  " origin output_height : " << origin_output_height << "\n" <<
+                  " new input height : " << new_input_height << "\n" <<
+                  " new output height : " << new_output_height << "\n" <<
+                  " overlap to add : " << padding_to_add <<  "\n"
+                  " added zero padding : " << zero_padding <<  "\n";
 
-      // Change height
+      // Change height of input tensor
       std::vector<int> new_dims;
       for(int i=0; i<input_tensor->dims->size; ++i){
         new_dims.push_back(input_tensor->dims->data[i]);
       }
-      if(input_height <= new_dims[1]){
-        new_dims[1] = input_height;
+      if(new_input_height <= new_dims[1]){
+        new_dims[1] = new_input_height;
       }else{
-        std::cout << "calculated height too big " << input_height <<
+        std::cout << "calculated in height too big " << new_input_height <<
                     " " <<  new_dims[1] <<  "\n";
-        new_dims[1] = input_height;
+        new_dims[1] = new_input_height;
         // return kTfLiteError;
+      }
+      // Change height of output tensor if padding is 'same'
+      if(padding_type == 1 && new_input_height != new_output_height){
+        std::vector<int> new_dims_;
+        for(int i=0; i<output_tensor->dims->size; ++i){
+          new_dims_.push_back(output_tensor->dims->data[i]);
+        }
+        if(new_input_height <= new_dims_[1]){
+          new_dims_[1] = new_input_height;
+        }else{
+          std::cout << "calculated out height too big " << new_input_height <<
+                      " " <<  new_dims_[1] <<  "\n";
+          new_dims_[1] = new_input_height;
+          // return kTfLiteError;
+        }
+        ResizeInputTensor(output_tensor_idx, new_dims_);
       }
       ResizeInputTensor(input_tensor_idx, new_dims);
     }

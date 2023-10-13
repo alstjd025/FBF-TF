@@ -125,7 +125,10 @@ std::string GetOpNameByRegistration(const TfLiteRegistration& registration);
 // Get parameters used for HW partitioning.
 bool GetParamsForPartitioning(const TfLiteRegistration* registration,
                               const TfLiteNode* node, TfLiteContext* context,
-                              int& filter_size, int& stride, int& padding);
+                              int& filter_size, int& stride, int& padding_type,
+                              int& padding_height, int& padding_width,
+                              int& padding_height_offset, int& padding_width_offset);
+
 
 typedef struct SharedTensorsInGraphs{
   int model_id; // identifier
@@ -133,6 +136,36 @@ typedef struct SharedTensorsInGraphs{
   // <tensor id, subgraph ids>
   std::vector<std::pair<int, std::vector<int>>> pair_tensor_graph;
 } SharedTensorsInGraphs;
+
+namespace HW{
+  // overlap equation from CoDL (Mobisys '23)
+  // S  : stride
+  // K  : filter size
+  // Hi : Input Height
+  // Ho : Output Height
+  int GetOverlapConv(int S, int K, int Hi, int Ho);
+
+  // padding equation for conv
+  // S  : stride
+  // K  : filter size
+  // Hi : Input Height
+  // Ho : Output Height
+  int GetPaddingConv(int S, int K, int Hi, int Ho);
+
+  // Output height equation for conv
+  // S  : stride
+  // P  : padding
+  // K  : filter size
+  // Hi : Input Height
+  int GetOutputHeightConv(int S, int K, int P, int Hi);
+
+  int GetOverlapPool(int S, int K, int Hi, int Ho);
+  
+  int GetPaddingPool(int S, int K, int Hi);
+
+  int GetOutputHeightPool(int S, int K, int P, int Hi);
+} // namespace HW
+
 
 // Minsung
 // Scheduler status
