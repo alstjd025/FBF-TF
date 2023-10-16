@@ -817,37 +817,6 @@ TfLiteStatus Subgraph::PartitionChannel(){
 }
 
 TfLiteStatus Subgraph::PartitionHeightTest(){
-  // overlap equation from CoDL (Mobisys '23)
-  // S  : stride
-  // F  : filter size
-  // Hi : Input Height
-  // Ho : Output Height
-  auto overlap_equation = [&](int S, int F, int Hi, int Ho){
-    if(S == 0)
-      S = 1;
-    int padding = S * (Ho - 1) - Hi + F;
-    if(padding < 0 || F == 0){
-      padding = 0;
-    }
-    return padding;
-  };
-
-  // padding equation for conv
-  // S  : stride
-  // F  : filter size
-  // Hi : Input Height
-  auto padding_equation_conv = [&](int S, int F, int Hi){
-    int padd = std::round(((Hi - 1) * S + F - Hi)/2);
-    if(padd < 0)
-      padd = 0;
-    return padd;
-  };
-
-  // padding equation for pool
-  auto padding_equation_pool = [&]{
-    // not implemented
-  };
-
   int partitioning_ratio = GetPartitioningRatio();
   if(partitioning_ratio >= 10)
     partitioning_ratio -= 10;
@@ -856,27 +825,22 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     PushPartitioningRatio(partitioning_ratio);
   }
   std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
-
-  // Need extra overlap in case of "output featue : same".
-  int zero_padding_overlap = 0;
-
-  // See execution_plan from backward.
-  // Calculate overlap and zero_padding_overlap for Conv and Pool layers.
-  // And propagate dimension recursively from backward when zero_padding_overlap > 0.
-  for(int execution_plan_idx = execution_plan_.size() -1;
-           execution_plan_idx >= 0; execution_plan_idx--){
+  for(int execution_plan_idx = execution_plan_.size() - 1;
+          execution_plan_idx >= 0; execution_plan_idx--){
+    bool is_output_feature_same = false;
+    // Calculate overlap and zero_padding_overlap.
+    // And change dims of given tensor.
     int node_index = execution_plan_[execution_plan_idx];
     int input_tensor_idx, output_tensor_idx;
     std::vector<int> input_tensor_indices;
+    std::vector<int> new_input_dim, new_output_dim;
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
     if(node.inputs->size > 0 && node.outputs->size > 0){
       if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
-        // Need to modify both inputs for concatenation layer.
-        // std::cout << "push tensor " << node.inputs->data[1] << "\n";
+        // Need to change dims of both inputs for concatenation layer.
         input_tensor_indices.push_back(node.inputs->data[1]);
-      }
-      // std::cout << "push tensor " << node.inputs->data[0] << "\n";
+      } // else just change first input tensor which is actual input of node.
       input_tensor_indices.push_back(node.inputs->data[0]);
       output_tensor_idx = node.outputs->data[0];
     }else{
@@ -884,6 +848,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
             << " input, output size not > 0" << "\n";
       return kTfLiteError;
     }
+    int zero_padding_overlap = 0;
+    int padding_overlap = 0;
     for(int idx=0; idx<input_tensor_indices.size(); ++idx){
       std::cout << "==================================" << "\n";
       std::cout << GetOpName(registration) << "\n";
@@ -918,9 +884,29 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       // padding info
       // same == 1
       // valid == 2
-      int zero_padding = 0;
-      if(padding_type == 1) // caculate zero padding in 'same' case.
-        zero_padding = padding_equation_conv(stride, filter, origin_input_height);
+      if(padding_type == 1){ // calculate zero padding in 'same' case.
+        is_output_feature_same = true;
+        // Use different function to calculate zero_padding for Conv and Pool.
+        //if(Conv)
+        switch (registration.builtin_code)
+        {
+        case kTfLiteBuiltinDepthwiseConv2d:
+        case kTfLiteBuiltinConv2d:
+          zero_padding_overlap = HW::GetZeroPaddingConv(stride, filter, new_input_height,
+                                                                   new_output_height);  
+          padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
+                                                               new_output_height);
+          break;
+        case kTfLiteBuiltinMaxPool2d:
+        case kTfLiteBuiltinAveragePool2d:
+          zero_padding_overlap = 0; // no 'same' option in pooling layer
+          padding_overlap = HW::GetOverlapPool(stride, filter, new_input_height,
+                                                               new_output_height);
+          break;
+        default:
+          break;
+        }
+      }
       std::cout << "Params in layer : " << "\n" <<
                    " filter : " << filter << "\n" <<
                    " stride : " << stride << "\n" <<
@@ -929,52 +915,103 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
                    " padding_width : " << padding_width << "\n" <<
                    " padding_height_offset : " << padding_height_offset << "\n" <<
                    " padding_witdh_offset : " << padding_width_offset << "\n" <<
-                   " zero padding calculated : " << zero_padding << "\n";
+                   " zero padding calculated : " << zero_padding_overlap << "\n";
       // Calculate padding 
-      int padding_to_add = overlap_equation(stride, filter, new_input_height, new_output_height); 
-      new_input_height += (padding_to_add + zero_padding); 
+      new_input_height += (padding_overlap + zero_padding_overlap);
+      if(is_output_feature_same)
+        new_output_height += (padding_overlap + zero_padding_overlap);
       std::cout << "-----------------------------------" << "\n";
       std::cout << "tensor : " << input_tensor_idx << "\n" <<
                   " origin input_height : " << origin_input_height <<  "\n" <<
                   " origin output_height : " << origin_output_height << "\n" <<
                   " new input height : " << new_input_height << "\n" <<
                   " new output height : " << new_output_height << "\n" <<
-                  " overlap to add : " << padding_to_add <<  "\n"
-                  " added zero padding : " << zero_padding <<  "\n";
+                  " overlap to add : " << padding_overlap <<  "\n"
+                  " added zero padding : " << zero_padding_overlap <<  "\n";
 
       // Change height of input tensor
-      std::vector<int> new_dims;
       for(int i=0; i<input_tensor->dims->size; ++i){
-        new_dims.push_back(input_tensor->dims->data[i]);
+        new_input_dim.push_back(input_tensor->dims->data[i]);
       }
-      if(new_input_height <= new_dims[1]){
-        new_dims[1] = new_input_height;
+      if(new_input_height <= origin_input_height){
+        new_input_dim[1] = new_input_height;
       }else{
         std::cout << "calculated in height too big " << new_input_height <<
-                    " " <<  new_dims[1] <<  "\n";
-        new_dims[1] = new_input_height;
-        // return kTfLiteError;
+                    " " <<  origin_input_height <<  "\n";
+        new_input_dim[1] = new_input_height;
+        // return kTfLiteError; (no return)
       }
       // Change height of output tensor if padding is 'same'
-      if(padding_type == 1 && new_input_height != new_output_height){
-        std::vector<int> new_dims_;
+      // TODO : Fix duplicate code (newdims... Resize())
+      if(is_output_feature_same && new_input_height == new_output_height){
         for(int i=0; i<output_tensor->dims->size; ++i){
-          new_dims_.push_back(output_tensor->dims->data[i]);
+          new_output_dim.push_back(output_tensor->dims->data[i]);
         }
-        if(new_input_height <= new_dims_[1]){
-          new_dims_[1] = new_input_height;
-        }else{
+        if(new_input_height <= origin_input_height && new_input_height >= origin_output_height){
+          new_output_dim[1] = new_input_height;
+        }else if(new_input_height <= origin_input_height && new_input_height < origin_output_height){
+          new_output_dim[1] = origin_output_height;
+        }
+        else if(new_input_height > origin_input_height){
           std::cout << "calculated out height too big " << new_input_height <<
-                      " " <<  new_dims_[1] <<  "\n";
-          new_dims_[1] = new_input_height;
+                      " " <<  new_output_dim[1] <<  "\n";
+          new_output_dim[1] = new_input_height;
           // return kTfLiteError;
         }
-        ResizeInputTensor(output_tensor_idx, new_dims_);
+      
+        ResizeInputTensor(output_tensor_idx, new_output_dim);
       }
-      ResizeInputTensor(input_tensor_idx, new_dims);
+      ResizeInputTensor(input_tensor_idx, new_input_dim);
     }
+    // See execution plan from current watching exectuion plan + 1 to end.
+    // Then propagate dims which changed by zero_padding_overlap.
+    // TODO : Fix duplicate code (consider better implementation)
+    if(is_output_feature_same){ // Case of padding type 'same'
+      for(int execution_plan_idx_inner = execution_plan_idx+1;
+          execution_plan_idx_inner < execution_plan_.size(); execution_plan_idx_inner++){
+        std::cout << "Propagate zero_padding_overlap "<< zero_padding_overlap <<
+                     " to node " << execution_plan_idx_inner << "\n";
+        int node_index = execution_plan_[execution_plan_idx_inner];
+        int input_tensor_idx_, output_tensor_idx_;
+        std::vector<int> input_tensor_indices_;
+        TfLiteNode& node = nodes_and_registration_[node_index].first;
+        const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+        if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
+          // Need to change dims of both inputs for concatenation layer.
+          input_tensor_indices_.push_back(node.inputs->data[1]);
+        } // else just change first input tensor which is actual input of node.
+        input_tensor_indices_.push_back(node.inputs->data[0]);
+        output_tensor_idx_ = node.outputs->data[0];    
+        TfLiteTensor* input_tensor;
+        TfLiteTensor* output_tensor;
+        // change input tensor dim. (add zero_padding_overlap)
+        for(int idx=0; idx < input_tensor_indices_.size(); ++idx){
+          input_tensor = tensor(input_tensor_indices_[idx]);
+          std::vector<int> new_dim;
+          for(int i=0; i<input_tensor->dims->size; ++i){
+            new_dim.push_back(input_tensor->dims->data[i]);
+          }
+          if(new_output_dim[1] > new_dim[1]){
+            new_dim[1] = new_dim[1] + zero_padding_overlap;
+          }
+          ResizeInputTensor(input_tensor_indices_[idx], new_dim);
+        }
+        // change output tensor dim. (add zero_padding_overlap)
+        output_tensor = tensor(output_tensor_idx_);
+        std::vector<int> new_dim;
+        for(int i=0; i<output_tensor->dims->size; ++i){
+          new_dim.push_back(output_tensor->dims->data[i]);
+        }
+        new_dim[1] = new_dim[1] + zero_padding_overlap;
+        ResizeInputTensor(output_tensor_idx_, new_dim);
+      }
+    }
+    new_input_dim.clear();
+    new_output_dim.clear();
+    is_output_feature_same = false;
+    zero_padding_overlap = 0;
   }
-  // std::cout << "Height partitioning done" << "\n";
+  std::cout << "Height partitioning done" << "\n";
   return kTfLiteOk;
 }
 

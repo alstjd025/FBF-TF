@@ -150,7 +150,7 @@ namespace HW{
   // K  : filter size
   // Hi : Input Height
   // Ho : Output Height
-  int GetPaddingConv(int S, int K, int Hi, int Ho);
+  int GetZeroPaddingConv(int S, int K, int Hi, int Ho);
 
   // Output height equation for conv
   // S  : stride
