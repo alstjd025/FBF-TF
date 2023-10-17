@@ -280,6 +280,8 @@ int HW::GetOverlapConv(int S, int K, int Hi, int Ho){
   if(padding < 0){
     padding = 0;
   }
+  if(S == 1 && K == 1) // case of 1x1 conv
+    padding = 0;
   return padding;
 }
 
@@ -300,9 +302,11 @@ int HW::GetOutputHeightConv(int S, int K, int P, int Hi){
 
 // Must divide in even numbers.
 int HW::GetOverlapPool(int S, int K, int Hi, int Ho){
-  int padding = 0;
-  if(Hi < Ho){
-    padding = (Hi) % K;
+  if(S == 0)
+    S = 1;
+  int padding = S * (Ho - 1) - Hi + K;
+  if(padding < 0){
+    padding = 0;
   }
   return padding;
 }

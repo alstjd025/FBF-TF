@@ -833,6 +833,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   }
   // FIX!
   if(resource_type == ResourceType::CO_CPU || resource_type == ResourceType::CO_CPU_XNN){
+    std::vector<int> tensors_already_partitioned;
     std::cout << "Sub subgraph partitioning" << "\n";
     for(int execution_plan_idx = execution_plan_.size() - 1;
             execution_plan_idx >= 0; execution_plan_idx--){
@@ -884,8 +885,16 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         }
         // divide input tensor's dimension in node.
         origin_input_height = input_tensor->dims->data[1];
-        new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
-        
+        bool need_to_be_partitioned = true;
+        for(int i=0; i<tensors_already_partitioned.size(); ++i){
+          if(tensors_already_partitioned[i] == input_tensor_idx){
+            need_to_be_partitioned = false; // in case of tensor already partitioned by primary concate layer.
+          }
+        }
+        if(need_to_be_partitioned)
+          new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
+        else  
+          new_input_height = origin_input_height;
         // Get parameters(filter size, stride) of node.
         if(!GetParamsForPartitioning(&registration, &node, &context_,
                                     filter, stride, padding_type, padding_height,
@@ -894,26 +903,30 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
           std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
           return kTfLiteError;
         }
+        bool is_output_same = false;
+        if(padding_type == 1)
+          is_output_same = true;
         // padding info
         // same == 1
         // valid == 2
         // Use different function to calculate zero_padding for Conv and Pool.
         switch (registration.builtin_code) //
         {
-          // WE NEED PADDINGPARAMETER HERE..
+          
         case kTfLiteBuiltinPad:
         case kTfLiteBuiltinPadv2:
           padding_layer_placeholder = origin_output_height - origin_input_height;
           if(padding_layer_placeholder < 0){
             std::cout << "padding layer placeholder error" << "\n";
-            padding_layer_placeholder = 0;
+            padding_layer_placeholder = 1;
           }
           break;
         case kTfLiteBuiltinDepthwiseConv2d:
         case kTfLiteBuiltinConv2d:
           zero_padding_overlap = 0;
-          padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
-                                                                new_output_height);
+          if(!is_output_same)
+            padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
+                                                                  new_output_height);
           break;
         case kTfLiteBuiltinMaxPool2d:
         case kTfLiteBuiltinAveragePool2d:
@@ -990,16 +1003,44 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         }
         std::cout << "resize input " << "\n";
         ResizeInputTensor(input_tensor_idx, new_input_dim);
+        new_input_dim.clear();
+        new_output_dim.clear();
       }
-      new_input_dim.clear();
-      new_output_dim.clear();
       is_output_feature_same = false;
       zero_padding_overlap = 0;
+      if(registration.builtin_code == kTfLiteBuiltinConcatenation){
+        tensors_already_partitioned.push_back(node.inputs->data[1]);
+        tensors_already_partitioned.push_back(node.inputs->data[0]);
+      }
+    }
+    for(int execution_plan_idx = 0; execution_plan_idx<execution_plan_.size();
+          ++execution_plan_idx){
+      int node_index = execution_plan_[execution_plan_idx];
+      TfLiteNode& node = nodes_and_registration_[node_index].first;
+      const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+      if (registration.custom_name != nullptr) {
+        printf("Node %3zu %s ", node_index, registration.custom_name);
+      } else {
+        printf("Node %3zu %s ", node_index, EnumNamesBuiltinOperator()[registration.builtin_code]);
+      }
+      TfLiteIntArray* outputs = node.outputs;
+      for(int i=0; i<outputs->size; ++i){
+        int tensor_index = outputs->data[i];
+        TfLiteTensor* tensor_ = tensor(tensor_index);
+        printf("Tensor %3zu %10zu bytes (%4.1f MB) ", tensor_index,
+            tensor_->bytes,
+            (static_cast<float>(tensor_->bytes) / (1 << 20)));
+        for(int k=0; k<tensor_->dims->size; k++){
+          std::cout << tensor_->dims->data[k] << " ";
+        } 
+        std::cout << "\n";
+      }
     }
     return kTfLiteOk; 
   }
   std::cout << "Main subgraph partitioning" << "\n";
   std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
+  std::vector<int> tensors_already_partitioned;
   for(int execution_plan_idx = execution_plan_.size() - 1;
           execution_plan_idx >= 0; execution_plan_idx--){
     bool is_output_feature_same = false;
@@ -1050,8 +1091,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       }
       // divide input tensor's dimension in node.
       origin_input_height = input_tensor->dims->data[1];
-      new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
-      
       // Get parameters(filter size, stride) of node.
       if(!GetParamsForPartitioning(&registration, &node, &context_,
                                    filter, stride, padding_type, padding_height,
@@ -1060,11 +1099,17 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
         return kTfLiteError;
       }
-      // padding info
-      // same == 1
-      // valid == 2
-      if(padding_type == 1) // calculate zero padding in 'same' case.
-        is_output_feature_same = true;
+      bool need_to_be_partitioned = true;
+      for(int i=0; i<tensors_already_partitioned.size(); ++i){
+        if(tensors_already_partitioned[i] == input_tensor_idx){
+          need_to_be_partitioned = false; // in case of tensor already partitioned by primary concate layer.
+        }
+      }
+      if(need_to_be_partitioned)
+        new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
+      else  
+        new_input_height = origin_input_height;
+      
       // Use different function to calculate zero_padding for Conv and Pool.
       switch (registration.builtin_code) //
       {
@@ -1080,9 +1125,19 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       case kTfLiteBuiltinDepthwiseConv2d:
       case kTfLiteBuiltinConv2d:
         std::cout << "Conv padding calc" << "\n";
-        if(is_output_feature_same){
+        // padding info
+        // same == 1
+        // valid == 2
+        if(padding_type == 1){
+          if(new_input_height < origin_output_height)
+            new_input_height = origin_output_height;
           zero_padding_overlap = HW::GetZeroPaddingConv(stride, filter, new_input_height,
-                                                                    new_output_height);  
+                                                                    new_output_height);
+          if(stride == 1 && filter == 1){
+            is_output_feature_same = false; // case of 1x1 conv
+          }else{
+            is_output_feature_same = true;
+          }  
         }
         padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
                                                               new_output_height);
@@ -1161,11 +1216,13 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
           new_output_dim[1] = new_input_height;
           // return kTfLiteError;
         }
-        std::cout << "resize output " << "\n";
+        std::cout << "resize output (dim" << new_output_dim.size() << ")\n";
         ResizeInputTensor(output_tensor_idx, new_output_dim);
       }
-      std::cout << "resize input " << "\n";
+      std::cout << "resize input (dim" << new_input_dim.size() << ")\n";
       ResizeInputTensor(input_tensor_idx, new_input_dim);
+      new_input_dim.clear();
+      new_output_dim.clear();
     }
     // See execution plan from current watching exectuion plan + 1 to end.
     // Then propagate dims which changed by zero_padding_overlap.
@@ -1198,24 +1255,28 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
           if(new_output_dim[1] > new_dim[1]){
             new_dim[1] = new_dim[1] + zero_padding_overlap;
           }
-          std::cout << "resize input zero padding" << "\n";
+          std::cout << "resize input zero padding (dim" << new_dim.size() << ")\n";
           ResizeInputTensor(input_tensor_indices_[idx], new_dim);
         }
         // change output tensor dim. (add zero_padding_overlap)
         output_tensor = tensor(output_tensor_idx_);
-        std::vector<int> new_dim;
+        std::vector<int> new_dim_;
         for(int i=0; i<output_tensor->dims->size; ++i){
-          new_dim.push_back(output_tensor->dims->data[i]);
+          new_dim_.push_back(output_tensor->dims->data[i]);
         }
-        new_dim[1] = new_dim[1] + zero_padding_overlap;
-        std::cout << "resize output zero_padding" << "\n";
-        ResizeInputTensor(output_tensor_idx_, new_dim);
+        new_dim_[1] = new_dim_[1] + zero_padding_overlap;
+        std::cout << "resize output zero_padding (dim" << new_dim_.size() << ")\n";
+        ResizeInputTensor(output_tensor_idx_, new_dim_);
       }
     }
     new_input_dim.clear();
     new_output_dim.clear();
     is_output_feature_same = false;
     zero_padding_overlap = 0;
+    if(registration.builtin_code == kTfLiteBuiltinConcatenation){
+      tensors_already_partitioned.push_back(node.inputs->data[1]);
+      tensors_already_partitioned.push_back(node.inputs->data[0]);
+    }
   }
   std::cout << "Height partitioning done" << "\n";
   for(int execution_plan_idx = 0; execution_plan_idx<execution_plan_.size();

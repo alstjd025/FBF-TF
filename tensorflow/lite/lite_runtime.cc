@@ -1,7 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
 #define YOLO
-// #define debug_print
+#define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1013,6 +1013,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       subgraph_id = rx_packet.subgraph_ids[0][0];
       if(rx_packet.subgraph_ids[1][0] != -1)
         co_subgraph_id = rx_packet.subgraph_ids[1][0];
+      bool merged = false;
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
       #ifdef debug_print
@@ -1025,6 +1026,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id << 
                     " " << subgraph_id << "\n";
         #endif
+        merged = true;
         clock_gettime(CLOCK_MONOTONIC, &begin);
         if(MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id, subgraph_id)
            != kTfLiteOk){
@@ -1049,30 +1051,29 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
-      }else{ // if not co-execution, it needs additional imtermediate data copy.
-        if(prev_subgraph_id != -1 && 
-           interpreter->subgraph_id(prev_subgraph_id)->GetResourceType()
-            != ResourceType::CO_GPU){
-          #ifdef debug_print
-            std::cout << "Main CopyIntermediateDataIfNeeded" << "\n";
-          #endif
-          clock_gettime(CLOCK_MONOTONIC, &begin);
-          if(CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id)
-            != kTfLiteOk){
-            std::cout << "Main CopyIntermediateDataIfNeeded Failed" << "\n";
-            return_state = kTfLiteError;
-            break;
-          }
-          clock_gettime(CLOCK_MONOTONIC, &end);
-          timestamp_label_main_interpreter.push_back("CPs");
-          timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-          timestamp_label_main_interpreter.push_back("CPe");
-          timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
-          #ifdef debug_print
-            std::cout << "Main CopyIntermediateDataIfNeeded Done" << "\n";
-          #endif
-        }
       }
+      // if not co-execution, it needs additional imtermediate data copy.
+      if(prev_subgraph_id != -1 && !merged){
+        #ifdef debug_print
+          std::cout << "Main CopyIntermediateDataIfNeeded" << "\n";
+        #endif
+        clock_gettime(CLOCK_MONOTONIC, &begin);
+        if(CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id)
+          != kTfLiteOk){
+          std::cout << "Main CopyIntermediateDataIfNeeded Failed" << "\n";
+          return_state = kTfLiteError;
+          break;
+        }
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        timestamp_label_main_interpreter.push_back("CPs");
+        timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+        timestamp_label_main_interpreter.push_back("CPe");
+        timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        #ifdef debug_print
+          std::cout << "Main CopyIntermediateDataIfNeeded Done" << "\n";
+        #endif
+      }
+      
       #ifdef debug_print
       std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       #endif
@@ -1561,6 +1562,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   return kTfLiteOk; 
 }
 
+// For main subgraph
 TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
                                                          int prev_subgraph_id) {
   // use source_graph_id, dest_graph_id
@@ -1606,21 +1608,21 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
       TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_indices[i]);
       size_t source_byte_size = source_tensor->bytes;
       size_t dest_byte_size = dest_tensor->bytes;
-      if (source_byte_size != dest_byte_size) {
-        std::cout << "Source tensor[" << dest_tensor_indices[i] << "] size " 
-                  << static_cast<int>(source_byte_size) << " and Dest tensor["
-                  << dest_tensor_indices[i] << "] size "
-                  << static_cast<int>(dest_byte_size) << " missmatch!" 
-                  << "\n";
-        return kTfLiteError;
-      }
+      // if (source_byte_size != dest_byte_size) {
+      //   std::cout << "Source tensor[" << dest_tensor_indices[i] << "] size " 
+      //             << static_cast<int>(source_byte_size) << " and Dest tensor["
+      //             << dest_tensor_indices[i] << "] size "
+      //             << static_cast<int>(dest_byte_size) << " missmatch!" 
+      //             << "\n";
+      //   return kTfLiteError;
+      // }
       // PrintTensorSerial(*dest_tensor);
       
       if(source_tensor->type == kTfLiteFloat32 && dest_tensor->type == kTfLiteFloat32){
-        // auto data_source = (float*)source_tensor->data.data;
-        // auto data_dest = (float*)dest_tensor->data.data;
-        // memcpy(data_dest, data_source, source_byte_size);
-        dest_tensor->data.data = source_tensor->data.data;
+        auto data_source = (float*)source_tensor->data.data;
+        auto data_dest = (float*)dest_tensor->data.data;
+        memcpy(data_dest, data_source, dest_byte_size);
+        // dest_tensor->data.data = source_tensor->data.data;
       }else if(source_tensor->type == kTfLiteInt8 && dest_tensor->type == kTfLiteInt8){
         // auto data_source = (int8_t*)source_tensor->data.data;
         // auto data_dest = (int8_t*)dest_tensor->data.data;
@@ -1633,7 +1635,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
   };
   int source_graph_id = prev_subgraph_id;
   int dest_graph_id = subgraph->GetGraphid();
-  // std::cout << "Copy " << source_graph_id << " " << dest_graph_id << " \n";
+  std::cout << "[Main] Copy sub " << source_graph_id << " to sub " << dest_graph_id << " \n";
   if (connect(source_graph_id, dest_graph_id) != kTfLiteOk) {
     std::cout << "Subgraph intermediate data copy failed"
               << "\n";
