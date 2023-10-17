@@ -737,9 +737,9 @@ TfLiteStatus Subgraph::PartitionChannel(){
 	std::vector<int> partitioning_plan;
 	std::vector<float> ratios;
   int partitioning_ratio_ = GetPartitioningRatio();
-  // std::cout << "Partition [sub-interpreter] ratio " << partitioning_ratio_ << "\n";
+  std::cout << "Partition [sub-interpreter] ratio " << partitioning_ratio_ << "\n";
   
-  if(partitioning_ratio_ >= 10 || partitioning_ratio_ <= 0) // this subgraph is hw
+  if(partitioning_type != PartitioningType::CHANNEL_PARTITIONING) // this subgraph is hw
     return kTfLiteOk;
 
 	for (int execution_plan_index = 0;
@@ -822,6 +822,8 @@ TfLiteStatus Subgraph::PartitionChannel(){
 // no need to drop zero padding for bottom subgraph...
 // no need to drop zero padding for bottom subgraph...
 TfLiteStatus Subgraph::PartitionHeightTest(){
+  if(partitioning_type != PartitioningType::HEIGHT_PARTITIONING)
+    return kTfLiteOk;
   int partitioning_ratio = GetPartitioningRatio();
   if(partitioning_ratio >= 10)
     partitioning_ratio -= 10;
@@ -829,6 +831,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     partitioning_ratio = 10 - partitioning_ratio;
     PushPartitioningRatio(partitioning_ratio);
   }
+  // FIX!
   if(resource_type == ResourceType::CO_CPU || resource_type == ResourceType::CO_CPU_XNN){
     std::cout << "Sub subgraph partitioning" << "\n";
     for(int execution_plan_idx = execution_plan_.size() - 1;
@@ -923,8 +926,25 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
           break;
         }
         // Calculate padding 
+        std::cout << "Params in layer : " << "\n" <<
+              " filter : " << filter << "\n" <<
+              " stride : " << stride << "\n" <<
+              " padding_type : " << padding_type << "\n" <<
+              " padding_height : " << padding_height << "\n" <<
+              " padding_width : " << padding_width << "\n" <<
+              " padding_height_offset : " << padding_height_offset << "\n" <<
+              " padding_witdh_offset : " << padding_width_offset << "\n" <<
+              " zero padding calculated : " << zero_padding_overlap << "\n";
         int padding_to_add = (padding_overlap - padding_layer_placeholder);
         new_input_height += padding_to_add;
+        std::cout << "-----------------------------------" << "\n";
+        std::cout << "tensor : " << input_tensor_idx << "\n" <<
+                    " origin input_height : " << origin_input_height <<  "\n" <<
+                    " origin output_height : " << origin_output_height << "\n" <<
+                    " new input height : " << new_input_height << "\n" <<
+                    " new output height : " << new_output_height << "\n" <<
+                    " overlap to add : " << padding_overlap <<  "\n" <<
+                    " added zero padding : " << zero_padding_overlap <<  "\n";
         // Change height of input tensor
         for(int i=0; i<input_tensor->dims->size; ++i){
           new_input_dim.push_back(input_tensor->dims->data[i]);
@@ -1060,8 +1080,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       case kTfLiteBuiltinDepthwiseConv2d:
       case kTfLiteBuiltinConv2d:
         std::cout << "Conv padding calc" << "\n";
-        zero_padding_overlap = HW::GetZeroPaddingConv(stride, filter, new_input_height,
-                                                                  new_output_height);  
+        if(is_output_feature_same){
+          zero_padding_overlap = HW::GetZeroPaddingConv(stride, filter, new_input_height,
+                                                                    new_output_height);  
+        }
         padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
                                                               new_output_height);
         break;
