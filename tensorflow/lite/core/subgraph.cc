@@ -816,11 +816,6 @@ TfLiteStatus Subgraph::PartitionChannel(){
   return kTfLiteOk;
 }
 
-// no need to drop zero padding for bottom subgraph...
-// no need to drop zero padding for bottom subgraph...
-// no need to drop zero padding for bottom subgraph...
-// no need to drop zero padding for bottom subgraph...
-// no need to drop zero padding for bottom subgraph...
 TfLiteStatus Subgraph::PartitionHeightTest(){
   if(partitioning_type != PartitioningType::HEIGHT_PARTITIONING)
     return kTfLiteOk;
@@ -873,7 +868,19 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         int origin_output_height, origin_input_height, new_input_height,
             new_output_height, filter, stride, padding_type, padding_height,
             padding_width, padding_height_offset, padding_width_offset;
-        // First, divide last node's input and output tensor height.
+        // Get parameters of current looking layer.
+        if(!GetParamsForPartitioning(&registration, &node, &context_,
+                                    filter, stride, padding_type, padding_height,
+                                    padding_width, padding_height_offset,
+                                    padding_width_offset)){
+          std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
+          return kTfLiteError;
+        }
+        bool is_output_same = false;
+        if(padding_type == 1) // !! Important flag
+          is_output_same = true;
+
+        // Divide last node's input and output tensor height.
         origin_output_height = output_tensor->dims->data[1];
         if(execution_plan_idx == execution_plan_.size() - 1){
           is_last_output = true;
@@ -896,19 +903,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         else  
           new_input_height = origin_input_height;
         // Get parameters(filter size, stride) of node.
-        if(!GetParamsForPartitioning(&registration, &node, &context_,
-                                    filter, stride, padding_type, padding_height,
-                                    padding_width, padding_height_offset,
-                                    padding_width_offset)){
-          std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
-          return kTfLiteError;
-        }
-        bool is_output_same = false;
-        if(padding_type == 1)
-          is_output_same = true;
         // padding info
         // same == 1
         // valid == 2
+        // output_spatial_shape[i] = ceil(input_spatial_shape[i] / strides[i])
         // Use different function to calculate zero_padding for Conv and Pool.
         switch (registration.builtin_code) //
         {
@@ -1038,6 +1036,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     }
     return kTfLiteOk; 
   }
+  // Below is main interpreter side.
   std::cout << "Main subgraph partitioning" << "\n";
   std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
   std::vector<int> tensors_already_partitioned;
@@ -1079,6 +1078,25 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       int origin_output_height, origin_input_height, new_input_height,
           new_output_height, filter, stride, padding_type, padding_height,
           padding_width, padding_height_offset, padding_width_offset;
+      // Get parameters(filter size, stride) of node.
+      if(!GetParamsForPartitioning(&registration, &node, &context_,
+                                   filter, stride, padding_type, padding_height,
+                                   padding_width, padding_height_offset,
+                                   padding_width_offset)){
+        std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
+        return kTfLiteError;
+      }
+      bool need_to_be_partitioned = true;
+
+      // Check for 1x1 conv and output feature type ('same', 'valid')
+      if(padding_type == 1){
+        if(stride == 1 && filter == 1){
+          is_output_feature_same = false; // case of 1x1 conv
+        }else{
+          is_output_feature_same = true;
+        }  
+      }
+
       // First, divide last node's input and output tensor height.
       origin_output_height = output_tensor->dims->data[1];
       if(execution_plan_idx == execution_plan_.size() - 1){
@@ -1091,24 +1109,21 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       }
       // divide input tensor's dimension in node.
       origin_input_height = input_tensor->dims->data[1];
-      // Get parameters(filter size, stride) of node.
-      if(!GetParamsForPartitioning(&registration, &node, &context_,
-                                   filter, stride, padding_type, padding_height,
-                                   padding_width, padding_height_offset,
-                                   padding_width_offset)){
-        std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
-        return kTfLiteError;
-      }
-      bool need_to_be_partitioned = true;
       for(int i=0; i<tensors_already_partitioned.size(); ++i){
         if(tensors_already_partitioned[i] == input_tensor_idx){
-          need_to_be_partitioned = false; // in case of tensor already partitioned by primary concate layer.
+          // in case of tensor already partitioned by primary concate layer.
+          need_to_be_partitioned = false; 
         }
       }
       if(need_to_be_partitioned)
-        new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
-      else  
+        if(is_output_feature_same){
+          new_input_height = HW::GetInputHeightofSameFeatureConv(origin_output_height, stride);
+        }else{
+          new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
+        }
+      else{
         new_input_height = origin_input_height;
+      }  
       
       // Use different function to calculate zero_padding for Conv and Pool.
       switch (registration.builtin_code) //
@@ -1129,15 +1144,10 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         // same == 1
         // valid == 2
         if(padding_type == 1){
-          if(new_input_height < origin_output_height)
+          if(new_input_height != origin_output_height && !is_last_output)
             new_input_height = origin_output_height;
           zero_padding_overlap = HW::GetZeroPaddingConv(stride, filter, new_input_height,
                                                                     new_output_height);
-          if(stride == 1 && filter == 1){
-            is_output_feature_same = false; // case of 1x1 conv
-          }else{
-            is_output_feature_same = true;
-          }  
         }
         padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
                                                               new_output_height);

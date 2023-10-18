@@ -1,7 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-#define YOLO
-#define debug_print
+// #define YOLO
+// #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"

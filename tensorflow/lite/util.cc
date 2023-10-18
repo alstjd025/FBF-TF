@@ -300,6 +300,15 @@ int HW::GetOutputHeightConv(int S, int K, int P, int Hi){
   return output_height;
 }
 
+int HW::GetInputHeightofSameFeatureConv(int Ho_origin, int S){
+  return Ho_origin * S;
+}
+
+int HW::GetOutputHeightofSameFeatureConv(int Hi_origin, int S){
+  return std::ceil(Hi_origin / S);
+}
+
+
 // Must divide in even numbers.
 int HW::GetOverlapPool(int S, int K, int Hi, int Ho){
   if(S == 0)
