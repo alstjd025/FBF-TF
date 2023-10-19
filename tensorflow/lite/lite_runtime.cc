@@ -1,7 +1,8 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-// #define YOLO
-// #define debug_print
+#define YOLO
+// #define mobilenet
+#define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -753,6 +754,29 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
         }       
         break;
       case INPUT_TYPE::IMAGENET224:
+        for (int i=0; i<h; i++){ // row
+          for (int j=0; j<w; j++){ // col
+            cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            *(input_pointer + i * w*3 + j * 3) = ((float)pixel[0])/255.0;
+            *(input_pointer + i * w*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+            *(input_pointer + i * w*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+          }
+        }
+        if(use_two_interpreter){
+          auto input_pointer_sub = (float*)input_tensor_sub->data.data;
+          int h = input_tensor_sub->dims->data[1];
+          int w = input_tensor_sub->dims->data[2];
+          std::cout << "h : " << h << " w : " << w << "\n";
+          for (int i=0; i<h; i++){
+            for (int j=0; j<w; j++){   
+              cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
+              *(input_pointer_sub + i * w*3 + j * 3) = ((float)pixel[0])/255.0;
+              *(input_pointer_sub + i * w*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+              *(input_pointer_sub + i * w*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+            }
+          }
+        }
+        break;
       case INPUT_TYPE::IMAGENET300:
         memcpy(input_pointer, input.data,
               h * w * input.elemSize());
@@ -904,7 +928,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           std::cout << "sub CopyIntermediateDataIfNeeded" << "\n";
         #endif
         clock_gettime(CLOCK_MONOTONIC, &begin);
-        if(CopyIntermediateDataIfNeeded(subgraph, main_execution_graph)
+        if(CopyIntermediateDataIfNeeded(subgraph, main_execution_graph, merge_tensor)
            != kTfLiteOk){
           std::cout << "sub CopyIntermediateDataIfNeeded Failed" << "\n";
           return_state = kTfLiteError;
@@ -953,6 +977,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       tx_packet.runtime_id = runtime_id;
       tx_packet.runtime_current_state = state;
       tx_packet.cur_subgraph = subgraph_id;
+      merge_tensor = nullptr;
       if(SendPacketToScheduler(tx_packet) != kTfLiteOk){ // Request invoke permission to scheduler
         return_state = kTfLiteError;
         break;
@@ -974,6 +999,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
+        #ifdef mobilenet
+          global_output_tensor = subgraph->tensor(86);
+        #endif
         // PrintTensor(*(subgraph->tensor(18)), true);
         ////////////////////////////////////////////////////////////////////
         //HOON
@@ -1019,7 +1047,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       #ifdef debug_print
         std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
       #endif
-      // if previous subgraph was co-execution, merge co-exectuion data here?
+      // if previous subgraph was co-execution, merge co-exectuion data here.
       if(prev_subgraph_id != subgraph_id && prev_subgraph_id != -1 &&
           interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() == CO_GPU){
         #ifdef debug_print
@@ -1027,8 +1055,15 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
                     " " << subgraph_id << "\n";
         #endif
         merged = true;
+        // Need extra buffer tensor if previous subgraph was co-execution and
+        // current subgraph is co-execution.
+        if(subgraph->GetResourceType() == CO_GPU){ 
+          merge_tensor = new TfLiteMergeTensor;
+          merge_tensor->tensor = new TfLiteTensor;
+          merged = false;
+        }
         clock_gettime(CLOCK_MONOTONIC, &begin);
-        if(MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id, subgraph_id)
+        if(MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id, subgraph_id, merge_tensor)
            != kTfLiteOk){
           std::cout << "MergeCoExecutionData Error" << "\n";
           return_state = kTfLiteError;
@@ -1058,7 +1093,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           std::cout << "Main CopyIntermediateDataIfNeeded" << "\n";
         #endif
         clock_gettime(CLOCK_MONOTONIC, &begin);
-        if(CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id)
+        if(CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id, merge_tensor)
           != kTfLiteOk){
           std::cout << "Main CopyIntermediateDataIfNeeded Failed" << "\n";
           return_state = kTfLiteError;
@@ -1078,19 +1113,11 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       #endif
       clock_gettime(CLOCK_MONOTONIC, &begin);
-      // if(subgraph_id == 1){
-      //   TfLiteTensor* input_t = subgraph->tensor(0);
-      //   PrintTensorSerial(*input_t);
-      // }
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
         return_state = kTfLiteError;
         break;
       }
-      // if(subgraph_id == 1){
-      //   TfLiteTensor* input_t = subgraph->tensor(70);
-      //   PrintTensorSerial(*input_t);
-      // }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0); 
       timestamp_label_main_interpreter.push_back("IVs");
@@ -1106,6 +1133,14 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         if(co_execution_graph != nullptr){
           prev_co_subgraph_id = co_subgraph_id;
           co_execution_graph = nullptr;
+          // clean merge tensor here (used in previous subgraph.)
+          if(merge_tensor != nullptr){
+            delete(merge_tensor->tensor->data.data);
+            delete(merge_tensor->tensor->dims->data);
+            delete(merge_tensor->tensor);
+            delete(merge_tensor);
+            merge_tensor = nullptr;
+          }
         }
       }
       prev_subgraph_id = subgraph_id;
@@ -1238,169 +1273,15 @@ void YOLO_Parser::make_real_bbox_loc_vector(TfLiteTensor* loc_tensor,std::vector
 // Compare input & output dims between 'Dn' and 'S'(source subgraph, probabily cpu side)
 // Merge 'S' and 'D's output tensor to 'Dn's input tensor.
 // NEED TO FIX FOR MULTIPLE OUTPUT TENSORS.
-// THIS FUNCTION IS DEPRECATED.
-// USE SUBGRAPH OVERLOADED FUCTION INSTEAD.
-TfLiteStatus TfLiteRuntime::MergeCoExecutionData(Subgraph* min_precision_subgraph
-                                      , Subgraph* max_precision_subgraph){
-  // std::cout << "Merge" << "\n";
-  Subgraph* dest_subgraph;
-  // TODO (d9a62d) : Fix to use subgraph id.
-  dest_subgraph = max_precision_subgraph->GetNextSubgraph();
-  if(dest_subgraph == nullptr){
-    std::cout << "MergeCoExecutionData ERROR" << "\n";
-    std::cout << "dest_subgraph nullptr." << "\n";
-    return kTfLiteError;
-  }
-  std::vector<int> dest_tensor_indicies = 
-                              dest_subgraph->inputs();
-
-  int dest_tensor_idx = dest_subgraph->GetInputTensorIndex();
-  int min_precision_tensor_idx = min_precision_subgraph->GetFirstOutputTensorIndex(); // for uint model
-  int max_precision_tensor_idx = max_precision_subgraph->GetFirstOutputTensorIndex();
-  int dequant_reference_tensor_idx = 0;
-  
-  // std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
-  //               " max id : " << max_precision_subgraph->GetGraphid() << "\n";
-  // std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-  //             << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
-  TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
-  TfLiteTensor* min_precision_tensor = 
-                  min_precision_subgraph->tensor(min_precision_tensor_idx);
-  TfLiteTensor* max_precision_tensor = 
-                  max_precision_subgraph->tensor(max_precision_tensor_idx);
-             
-  int quantization_param_tensor_idx =  
-                  min_precision_subgraph->GetFirstInputTensorIndex();
-  TfLiteTensor* dequant_reference_tensor = nullptr;
-  if(min_precision_subgraph->tensor(quantization_param_tensor_idx)->quantization.type
-    == kTfLiteAffineQuantization){
-    dequant_reference_tensor = min_precision_subgraph->tensor(quantization_param_tensor_idx);
-  }else{
-    quantization_param_tensor_idx= max_precision_subgraph->GetFirstInputTensorIndex();
-    dequant_reference_tensor = max_precision_subgraph->tensor(quantization_param_tensor_idx); 
-  }
-            
-  if(dest_tensor == nullptr || min_precision_tensor == nullptr ||
-      max_precision_tensor == nullptr){
-    std::cout << "MergeCoExecutionData ERROR" << "\n";
-    std::cout << "Tensor NULLPTR" << "\n";
-    return kTfLiteError;
-  }
-
-  if(dest_tensor->dims->size < 4 || min_precision_tensor->dims->size < 4 ||
-      max_precision_tensor->dims->size < 4){
-    std::cout << "MergeCoExecutionData ERROR" << "\n";
-    std::cout << "Tensor rank must 4" << "\n";
-    return kTfLiteError;
-  }
-  // This flag means that the tensor is de-quantized temporary for merge.
-  // Restore to the original buffer after merge.
-  float* dequantized_buffer = nullptr;
-
-  if(min_precision_tensor->type == kTfLiteUInt8 || 
-      min_precision_tensor->type == kTfLiteInt8 ){
-    dequantized_buffer = (float*)DequantizeGivenTensorWithReference(
-                                  min_precision_tensor, 
-                                  dequant_reference_tensor);
-    if(dequantized_buffer == nullptr){
-      std::cout << "DeQuantizeGivenTensor returned nullptr ERROR" << "\n";
-      return kTfLiteError;
-    }
-  }
-  // minimum precision side data buffer.
-  float* data_min; 
-  if(dequantized_buffer != nullptr){
-    data_min = dequantized_buffer;
-  }else{
-    data_min = (float*)min_precision_tensor->data.data;
-  }
-  // max precision side data buffer.
-  float* data_max = (float*)max_precision_tensor->data.data;
-  
-  // destination buffer.
-  float* data_dest = (float*)dest_tensor->data.data;
-
-  // check dims 
-  if(dest_tensor->dims->data[3] == 
-      min_precision_tensor->dims->data[3] + max_precision_tensor->dims->data[3]){
-    // Merge CW-partitioned data 
-    int dest_ch, min_tensor_ch, max_tensor_ch;
-    dest_ch = dest_tensor->dims->data[3];
-    min_tensor_ch = min_precision_tensor->dims->data[3];
-    max_tensor_ch = max_precision_tensor->dims->data[3];
-    // std::cout << "min_tensor_ch " << min_tensor_ch << " max_tensor_ch " << max_tensor_ch << "\n";
-    if((min_tensor_ch + max_tensor_ch) != dest_ch){
-      std::cout << "Tensor dim [OCH] min_prec + max_prec != dest ERROR" << "\n";
-      return kTfLiteError;
-    }
-    int tensor_data_size = 1;
-    for(int i=0; i<dest_tensor->dims->size; ++i){
-      tensor_data_size *= dest_tensor->dims->data[i];
-    }
-    // WRONG MERGE
-    // WRONG MERGE
-    // WRONG MERGE
-    // Note : max pricision side is front channel.
-    int tensor_data_per_ch = tensor_data_size / dest_ch;
-    for(int i=0; i<tensor_data_per_ch; ++i){ //copy minimum precision side data
-      memcpy(data_dest + (dest_ch * i), data_max + (max_tensor_ch * i),
-              max_tensor_ch * sizeof(float));
-    }
-    
-    for(int i=0; i<tensor_data_per_ch; ++i){ //copy minimum precision side data
-      memcpy(data_dest + max_tensor_ch + (dest_ch * i), data_min + (min_tensor_ch * i),
-              min_tensor_ch * sizeof(float));
-    }
-  }else{ // Merge HW-partitioned data
-    int dest_ht = dest_tensor->dims->data[1];
-    int min_tensor_ht = min_precision_tensor->dims->data[1];
-    int max_tensor_ht = max_precision_tensor->dims->data[1];
-    int tensor_dest_data_size = 1;
-    int min_precision_data_size = 1;
-    int max_precision_data_size = 1;
-
-    // Calculate data size to copy.
-    for(int i=0; i<dest_tensor->dims->size; ++i){
-      tensor_dest_data_size *= dest_tensor->dims->data[i];
-    }
-    for(int i=0; i<max_precision_tensor->dims->size; ++i){
-      max_precision_data_size *= max_precision_tensor->dims->data[i];
-    }
-    for(int i=0; i<min_precision_tensor->dims->size; ++i){
-      min_precision_data_size *= min_precision_tensor->dims->data[i];
-    }
-    // Need to drop padding data before merge if it's not fit with destination tensor.
-    // Drop minimum precision data because it is dequantized and might drop accuracy.
-    if((min_tensor_ht + max_tensor_ht) != dest_ht){
-      float drop_height = (dest_ht - (min_tensor_ht + max_tensor_ht))/(-2);
-      if(drop_height < 0){
-        std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
-        std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<
-              " h: " << min_tensor_ht << 
-              " max sub: " << max_precision_subgraph->GetGraphid() << 
-              " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
-        return kTfLiteError;
-      }
-      memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);
-      memcpy(data_dest+max_precision_data_size, data_min, 
-              sizeof(float)*(tensor_dest_data_size - min_precision_data_size));
-    }else{  // No need to drop (fits with destination tensor).
-      memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);
-      memcpy(data_dest+max_precision_data_size, data_min, 
-              sizeof(float)*min_precision_data_size);
-    }
-  }
-  return kTfLiteOk; 
-}
-
-
 TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
                                         , int prev_main_subgraph
-                                        , int dest_subgraph_){
-  // std::cout << "Merge" << "\n";
+                                        , int dest_subgraph_
+                                        , TfLiteMergeTensor* buffer_tensor){
   Subgraph* min_precision_subgraph = sub_interpreter->subgraph_id(prev_sub_subgraph);
   Subgraph* max_precision_subgraph = interpreter->subgraph_id(prev_main_subgraph);
   Subgraph* dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
+  bool merge_tensor_used = false;
+  PartitioningType partitioned_type = PartitioningType::NO_PARTITIONING;
   if(dest_subgraph == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
     std::cout << "dest_subgraph nullptr." << "\n";
@@ -1413,18 +1294,45 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   int min_precision_tensor_idx = min_precision_subgraph->GetFirstOutputTensorIndex(); // for uint model
   int max_precision_tensor_idx = max_precision_subgraph->GetFirstOutputTensorIndex();
   int dequant_reference_tensor_idx = 0;
-  
-  // std::cout << "min id : " << min_precision_subgraph->GetGraphid() <<
-  //               " max id : " << max_precision_subgraph->GetGraphid() << "\n";
+  partitioned_type = max_precision_subgraph->GetPartitioningType();
   #ifdef debug_print
     std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
               << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
   #endif 
-  TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
   TfLiteTensor* min_precision_tensor = 
                   min_precision_subgraph->tensor(min_precision_tensor_idx);
   TfLiteTensor* max_precision_tensor = 
                   max_precision_subgraph->tensor(max_precision_tensor_idx);
+  TfLiteTensor* dest_tensor = nullptr;
+  if(buffer_tensor != nullptr){
+    dest_tensor = buffer_tensor->tensor;
+    buffer_tensor->tensor_idx = dest_tensor_idx;
+    buffer_tensor->partition_type = partitioned_type;
+    merge_tensor_used = true;
+    // initialize merge tensor
+    int new_size = 1;
+    std::vector<int> new_dim;
+    dest_tensor->dims = TfLiteIntArrayCreate(4);
+    dest_tensor->dims->data[0] = max_precision_tensor->dims->data[0];
+    dest_tensor->dims->data[2] = max_precision_tensor->dims->data[2];
+    if(partitioned_type == PartitioningType::CHANNEL_PARTITIONING){
+      dest_tensor->dims->data[1] = max_precision_tensor->dims->data[1];
+      dest_tensor->dims->data[3] = max_precision_tensor->dims->data[3] + \
+                                   min_precision_tensor->dims->data[3];
+    }else{ // HW partitioned
+      dest_tensor->dims->data[3] = max_precision_tensor->dims->data[3];
+      // Assume that H,W always same in the origin shape of tensor.
+      dest_tensor->dims->data[1] = max_precision_tensor->dims->data[2];
+    }
+    for(int i=0; i<4; ++i){
+      new_size *= dest_tensor->dims->data[i];
+    }
+    dest_tensor->type = kTfLiteFloat32;
+    dest_tensor->data.data = new float[new_size];
+    dest_tensor->bytes = static_cast<size_t>(new_size * sizeof(float));
+  }else{
+    dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
+  }
              
   int quantization_param_tensor_idx =  
                   min_precision_subgraph->GetFirstInputTensorIndex();
@@ -1444,12 +1352,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     return kTfLiteError;
   }
 
-  if(dest_tensor->dims->size < 4 || min_precision_tensor->dims->size < 4 ||
-      max_precision_tensor->dims->size < 4){
-    std::cout << "MergeCoExecutionData ERROR" << "\n";
-    std::cout << "Tensor rank must 4" << "\n";
-    return kTfLiteError;
-  }
   // This flag means that the tensor is de-quantized temporary for merge.
   // Restore to the original buffer after merge.
   float* dequantized_buffer = nullptr;
@@ -1479,8 +1381,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   float* data_dest = (float*)dest_tensor->data.data;
 
   // check dims 
-  if(dest_tensor->dims->data[3] == 
-      min_precision_tensor->dims->data[3] + max_precision_tensor->dims->data[3]){
+  if(partitioned_type == PartitioningType::CHANNEL_PARTITIONING){
     // Merge CW-partitioned data 
     int dest_ch, min_tensor_ch, max_tensor_ch;
     dest_ch = dest_tensor->dims->data[3];
@@ -1510,7 +1411,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
               min_tensor_ch * sizeof(float));
     }
     
-  }else{ // Merge HW-partitioned data
+  }else if(partitioned_type == PartitioningType::HEIGHT_PARTITIONING){ // Merge HW-partitioned data
     int dest_ht = dest_tensor->dims->data[1];
     int min_tensor_ht = min_precision_tensor->dims->data[1];
     int max_tensor_ht = max_precision_tensor->dims->data[1];
@@ -1564,7 +1465,8 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
 
 // For main subgraph
 TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
-                                                         int prev_subgraph_id) {
+                                                         int prev_subgraph_id,
+                                                         TfLiteMergeTensor* merge_tensor) {
   // use source_graph_id, dest_graph_id
   auto connect = [&](int source_subgraph, int dest_subgraph) {
     Subgraph* source_graph = interpreter->subgraph_id(source_subgraph);
@@ -1579,8 +1481,15 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
       TfLiteIntArray* source_tensor_idx_ = source_graph->GetInputTensorIndices();
       TfLiteIntArray* input_tensor_indices = dest_graph->GetInputTensorIndices();
     */
-    std::vector<int> source_tensor_idx = source_graph->inputs();
-    std::vector<int> source_tensor_idx_ = source_graph->outputs();
+    std::vector<int> source_tensor_idx;
+    std::vector<int> source_tensor_idx_;
+    if(merge_tensor == nullptr){
+      source_tensor_idx = source_graph->inputs();
+      source_tensor_idx_ = source_graph->outputs();
+    }else{
+      std::cout << "copy from merge tensor " << "\n";
+      source_tensor_idx.push_back(merge_tensor->tensor_idx);
+    }
     std::vector<int>::iterator source_itr = source_tensor_idx.end();
     source_tensor_idx.insert(source_itr, source_tensor_idx_.begin(), source_tensor_idx_.end()); 
     std::vector<int> dest_tensor_idx = dest_graph->inputs();
@@ -1604,7 +1513,12 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
       #ifdef debug_print
         std::cout << "Copy tensor " << dest_tensor_indices[i] << "\n";
       #endif
-      TfLiteTensor* source_tensor = source_graph->tensor(dest_tensor_indices[i]);
+      TfLiteTensor* source_tensor = nullptr;
+      if(merge_tensor != nullptr){
+        source_tensor = merge_tensor->tensor;
+      }else{
+        source_tensor = source_graph->tensor(dest_tensor_indices[i]);
+      }
       TfLiteTensor* dest_tensor = dest_graph->tensor(dest_tensor_indices[i]);
       size_t source_byte_size = source_tensor->bytes;
       size_t dest_byte_size = dest_tensor->bytes;
@@ -1650,11 +1564,18 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
 // IMPORTANT : There are some cases that input, output tensor indices are not same.
 //             Be carefull to use this function in those cases.
 TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* sub_subgraph
-                                              , Subgraph* main_subgraph) {
+                                              , Subgraph* main_subgraph
+                                              , TfLiteMergeTensor* merge_tensor) {
   auto connect = [&](Subgraph* source_subgraph, Subgraph* dest_subgraph) {
     std::vector<int> dest_tensor_indices; 
-    std::vector<int> source_tensor_idx = source_subgraph->inputs();
-    std::vector<int> source_tensor_idx_ = source_subgraph->outputs();
+    std::vector<int> source_tensor_idx;
+    std::vector<int> source_tensor_idx_;
+    if(merge_tensor == nullptr){
+      source_tensor_idx = source_subgraph->inputs();
+      source_tensor_idx_ = source_subgraph->outputs();
+    }else{
+      source_tensor_idx.push_back(merge_tensor->tensor_idx);
+    }
     std::vector<int>::iterator source_itr = source_tensor_idx.end();
     source_tensor_idx.insert(source_itr, source_tensor_idx_.begin(), source_tensor_idx_.end()); 
     std::vector<int> dest_tensor_idx = dest_subgraph->inputs();
@@ -1683,7 +1604,12 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* sub_subgraph
       #ifdef debug_print
         std::cout << "Merge tensor " << dest_tensor_indices[copy_tensor_idx] << "\n";
       #endif
-      TfLiteTensor* source_tensor = source_subgraph->tensor(dest_tensor_indices[copy_tensor_idx]);
+      TfLiteTensor* source_tensor = nullptr;
+      if(merge_tensor != nullptr){
+        source_tensor = merge_tensor->tensor;
+      }else{
+        source_tensor = source_subgraph->tensor(dest_tensor_indices[copy_tensor_idx]);
+      }
       TfLiteTensor* dest_tensor = dest_subgraph->tensor(dest_tensor_indices[copy_tensor_idx]);
       void* data_source = nullptr;
       int source_data_size = 1;
@@ -2190,6 +2116,7 @@ std::vector<std::vector<float>*>* TfLiteRuntime::GetFloatOutputInVector(){
     for(int j=0; j<ch; j++){
       float data = *(data_st + j);
       output->at(0)->push_back(data);
+      // std::cout << "data : " << data << "\n";
     }
   }else if(tensor->dims->size == 4){
     int tensor_channel_idx = tensor->dims->size-1;

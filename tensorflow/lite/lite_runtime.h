@@ -36,6 +36,12 @@ and interpreterbuilder. (commit b56faa4981)
 
 namespace tflite{
 
+typedef struct TfLiteMergeTensor{
+  TfLiteTensor* tensor;
+  PartitioningType partition_type;
+  int tensor_idx;
+}TfLiteMergeTensor;
+
 class LiteScheduler;
 // class YOLO_Parser;
 
@@ -107,23 +113,23 @@ class TfLiteRuntime{
 
     // Copy output(which is intermediate in the view of whole task)
     // data from previous subgraph (with id).
-    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* subgraph, int prev_subgraph_id);
+    // used in main subgraph.
+    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* subgraph,
+                                              int prev_subgraph_id,
+                                              TfLiteMergeTensor* buffer_tensor);
 
     // Copy output(which is intermediate in the view of whole task)
     // data from full precision subgraph.
-    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* co_subgraph, Subgraph* subgraph);
-    
-    // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
-    // THIS FUNCTION IS DEPRECATED.
-    // USE SUBGRAPH OVERLOADED FUCTION INSTEAD.
-    TfLiteStatus MergeCoExecutionData(Subgraph* min_precision_subgraph
-                            , Subgraph* max_precision_subgraph);
-
+    // used in sub-subgraph.
+    TfLiteStatus CopyIntermediateDataIfNeeded(Subgraph* co_subgraph,
+                                              Subgraph* subgraph,
+                                              TfLiteMergeTensor* buffer_tensor);
     
     // Merge output of sub-subgraph(for co-execution) to main subgraph's input.
     TfLiteStatus MergeCoExecutionData(int prev_sub_subgraph
                             , int prev_main_subgraph
-                            , int dest_subgraph_);
+                            , int dest_subgraph_
+                            , TfLiteMergeTensor* buffer_tensor);
 
     // Quantize given tensor
     // (This function changes the entire metadata to uint8)
@@ -214,10 +220,13 @@ class TfLiteRuntime{
     Subgraph* main_execution_graph = nullptr;
     ////
 
+    // used to merge co-execution data if extra scratch buffer needed.
+    TfLiteMergeTensor* merge_tensor = nullptr;
+
     // Subgraph partitioning
     int partitioning_plan[1000][4];
 
-        // sj
+    // sj
     std::vector<TfLiteDelegate*> delegate;
     
     // IPC
