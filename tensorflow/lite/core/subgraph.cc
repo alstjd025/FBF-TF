@@ -842,7 +842,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       TfLiteNode& node = nodes_and_registration_[node_index].first;
       const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
       if(node.inputs->size > 0 && node.outputs->size > 0){
-        if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
+        if(strcmp(GetOpName(registration), "CONCATENATION") == 0 ||
+            strcmp(GetOpName(registration), "ADD") == 0){
           // Need to change dims of both inputs for concatenation layer.
           input_tensor_indices.push_back(node.inputs->data[1]);
         } // else just change first input tensor which is actual input of node.
@@ -1006,7 +1007,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       }
       is_output_feature_same = false;
       zero_padding_overlap = 0;
-      if(registration.builtin_code == kTfLiteBuiltinConcatenation){
+      if(registration.builtin_code == kTfLiteBuiltinConcatenation ||
+          registration.builtin_code == kTfLiteBuiltinAdd){
         tensors_already_partitioned.push_back(node.inputs->data[1]);
         tensors_already_partitioned.push_back(node.inputs->data[0]);
       }
@@ -1052,7 +1054,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
     if(node.inputs->size > 0 && node.outputs->size > 0){
-      if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
+      if(strcmp(GetOpName(registration), "CONCATENATION") == 0
+          || strcmp(GetOpName(registration), "ADD") == 0){
         // Need to change dims of both inputs for concatenation layer.
         input_tensor_indices.push_back(node.inputs->data[1]);
       } // else just change first input tensor which is actual input of node.
@@ -1248,7 +1251,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         std::vector<int> input_tensor_indices_;
         TfLiteNode& node = nodes_and_registration_[node_index].first;
         const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-        if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
+        if(strcmp(GetOpName(registration), "CONCATENATION") == 0 ||
+            strcmp(GetOpName(registration), "ADD") == 0){
           // Need to change dims of both inputs for concatenation layer.
           input_tensor_indices_.push_back(node.inputs->data[1]);
         } // else just change first input tensor which is actual input of node.
@@ -1288,7 +1292,8 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     new_output_dim.clear();
     is_output_feature_same = false;
     zero_padding_overlap = 0;
-    if(registration.builtin_code == kTfLiteBuiltinConcatenation){
+    if(registration.builtin_code == kTfLiteBuiltinConcatenation ||
+                    registration.builtin_code == kTfLiteBuiltinAdd){
       tensors_already_partitioned.push_back(node.inputs->data[1]);
       tensors_already_partitioned.push_back(node.inputs->data[0]);
     }

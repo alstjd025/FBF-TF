@@ -1,5 +1,5 @@
 #include "tensorflow/lite/tf_monitor.h"
-
+#define nvidia
 #define MONITORING_PERIOD_MS 5 // < 5 is not stable.
 
 namespace tflite{
@@ -9,10 +9,14 @@ LiteSysMonitor::LiteSysMonitor(){
   
   std::cout << "System monitoring started" << "\n";
   CPU_daemon = std::thread(&LiteSysMonitor::GetCPUUtilization, this);
-  GPU_daemon = std::thread(&LiteSysMonitor::GetGPUUtilization, this);
+  #ifdef nvidia
+    GPU_daemon = std::thread(&LiteSysMonitor::GetGPUUtilization, this);
+  #endif
   debugger_daemon = std::thread(&LiteSysMonitor::usage_debugger, this);
   CPU_daemon.detach();
-  GPU_daemon.detach();
+  #ifdef nvidia
+    GPU_daemon.detach();
+  #endif
   debugger_daemon.detach();
 }
 

@@ -1,7 +1,7 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-#define YOLO
-// #define mobilenet
+// #define YOLO
+#define mobilenet
 #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
@@ -778,8 +778,28 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
         }
         break;
       case INPUT_TYPE::IMAGENET300:
-        memcpy(input_pointer, input.data,
-              h * w * input.elemSize());
+        for (int i=0; i<h; i++){ // row
+          for (int j=0; j<w; j++){ // col
+            cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            *(input_pointer + i * w*3 + j * 3) = ((float)pixel[0])/255.0;
+            *(input_pointer + i * w*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+            *(input_pointer + i * w*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+          }
+        }
+        if(use_two_interpreter){
+          auto input_pointer_sub = (float*)input_tensor_sub->data.data;
+          int h = input_tensor_sub->dims->data[1];
+          int w = input_tensor_sub->dims->data[2];
+          std::cout << "h : " << h << " w : " << w << "\n";
+          for (int i=0; i<h; i++){
+            for (int j=0; j<w; j++){   
+              cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
+              *(input_pointer_sub + i * w*3 + j * 3) = ((float)pixel[0])/255.0;
+              *(input_pointer_sub + i * w*3 + j * 3 + 1) = ((float)pixel[1])/255.0;
+              *(input_pointer_sub + i * w*3 + j * 3 + 2) = ((float)pixel[2])/255.0;
+            }
+          }
+        }
         break;
       case INPUT_TYPE::COCO416:
         for (int i=0; i<h; i++){ // row
@@ -1000,7 +1020,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
         #ifdef mobilenet
-          global_output_tensor = subgraph->tensor(86);
+          global_output_tensor = subgraph->tensor(303);
         #endif
         // PrintTensor(*(subgraph->tensor(18)), true);
         ////////////////////////////////////////////////////////////////////
