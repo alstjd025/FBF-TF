@@ -37,7 +37,7 @@ limitations under the License.
 #include <fstream> //HOON. for YOLO parsing
 #include "tensorflow/lite/hoon.h"
 //#define debug
-#define YOLO
+// #define YOLO
 
 
 
@@ -1362,107 +1362,107 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
 }
 
 
-std::vector<YOLO_Parser::BoundingBox> YOLO_Parser::result_boxes;
-std::vector<std::vector<float>> YOLO_Parser::real_bbox_cls_vector; 
-std::vector<int> YOLO_Parser::real_bbox_cls_index_vector;
-std::vector<std::vector<int>> YOLO_Parser::real_bbox_loc_vector;
+// std::vector<YOLO_Parser::BoundingBox> YOLO_Parser::result_boxes;
+// std::vector<std::vector<float>> YOLO_Parser::real_bbox_cls_vector; 
+// std::vector<int> YOLO_Parser::real_bbox_cls_index_vector;
+// std::vector<std::vector<int>> YOLO_Parser::real_bbox_loc_vector;
 
-std::vector<int> YOLO_Parser::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
-  float max=0;
-  int max_index = -1;
-  int index = 0;
-  for (auto i : real_bbox_cls_vector) { 
-    index = 0;
-		for (auto j : i) { 
-      if (j > max){
-        max = j;
-        max_index = index;
-      }
-      index+=1;
-		}
-    real_bbox_cls_index_vector.push_back(max_index);
-    max = 0;
-    max_index = -1;
-	}
-  return real_bbox_cls_index_vector;
-}
+// std::vector<int> YOLO_Parser::get_cls_index(std::vector<std::vector<float>>& real_bbox_cls_vector){
+//   float max=0;
+//   int max_index = -1;
+//   int index = 0;
+//   for (auto i : real_bbox_cls_vector) { 
+//     index = 0;
+// 		for (auto j : i) { 
+//       if (j > max){
+//         max = j;
+//         max_index = index;
+//       }
+//       index+=1;
+// 		}
+//     real_bbox_cls_index_vector.push_back(max_index);
+//     max = 0;
+//     max_index = -1;
+// 	}
+//   return real_bbox_cls_index_vector;
+// }
 
-void YOLO_Parser::make_real_bbox_cls_vector(TfLiteTensor* cls_tensor, 
- std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
-  TfLiteTensor* output_tensor = cls_tensor;  
-  const float* output_data = (float*)output_tensor->data.data;
-  const int num_raw_bboxes = output_tensor->dims->data[1]; 
-  std::vector<float> classifications;
-  float cls_thresh = 0.05; // Hyperparam
-  for (int i = 0; i < num_raw_bboxes; ++i) {
-    for (int j = 0; j < 80; ++j) {
-        classifications.push_back(output_data[i*80 + j]);  
-       }
-  }
-  std::vector<float> raw_vector;
-  for (int i = 0; i < num_raw_bboxes; ++i) {
-    bool is_survived = false;
-    for (int j = 0; j < 80; ++j) {
-      raw_vector.push_back(classifications[i * 80 + j]); 
-    }
-    // SOFTMAX(raw_vector); // Not use Softmax currently
-    for (int k = 0; k < 80; ++k) {
-      if (raw_vector[k] > cls_thresh){
-        is_survived = true;
-      }
-    }
-    if(is_survived){
-      real_bbox_index_vector.push_back(i); 
-      real_bbox_cls_vector.push_back(raw_vector);
-    }
-    raw_vector.clear();
-  }
-  classifications.clear();
-  printf("\033[0;32mBefore NMS : \033[0m");
-  std::cout << " Number of bounding boxes before NMS : " << real_bbox_index_vector.size() << std::endl;
-}
+// void YOLO_Parser::make_real_bbox_cls_vector(TfLiteTensor* cls_tensor, 
+//  std::vector<int>& real_bbox_index_vector, std::vector<std::vector<float>>& real_bbox_cls_vector){
+//   TfLiteTensor* output_tensor = cls_tensor;  
+//   const float* output_data = (float*)output_tensor->data.data;
+//   const int num_raw_bboxes = output_tensor->dims->data[1]; 
+//   std::vector<float> classifications;
+//   float cls_thresh = 0.05; // Hyperparam
+//   for (int i = 0; i < num_raw_bboxes; ++i) {
+//     for (int j = 0; j < 80; ++j) {
+//         classifications.push_back(output_data[i*80 + j]);  
+//        }
+//   }
+//   std::vector<float> raw_vector;
+//   for (int i = 0; i < num_raw_bboxes; ++i) {
+//     bool is_survived = false;
+//     for (int j = 0; j < 80; ++j) {
+//       raw_vector.push_back(classifications[i * 80 + j]); 
+//     }
+//     // SOFTMAX(raw_vector); // Not use Softmax currently
+//     for (int k = 0; k < 80; ++k) {
+//       if (raw_vector[k] > cls_thresh){
+//         is_survived = true;
+//       }
+//     }
+//     if(is_survived){
+//       real_bbox_index_vector.push_back(i); 
+//       real_bbox_cls_vector.push_back(raw_vector);
+//     }
+//     raw_vector.clear();
+//   }
+//   classifications.clear();
+//   printf("\033[0;32mBefore NMS : \033[0m");
+//   std::cout << " Number of bounding boxes before NMS : " << real_bbox_index_vector.size() << std::endl;
+// }
 
-void YOLO_Parser::make_real_bbox_loc_vector(TfLiteTensor* loc_tensor,std::vector<int>& real_bbox_index_vector,
-                                            std::vector<std::vector<int>>& real_bbox_loc_vector){
-  TfLiteTensor* output_tensor = loc_tensor;
-  auto input_pointer = (float *)output_tensor->data.data;
-  const float* output_data = (float*)output_tensor->data.data; 
-  const int num_raw_bboxes = output_tensor->dims->data[1]; 
-  const int num_columns = output_tensor->dims->data[2]; 
-  std::vector<float> boxes;
-  for (int i = 0; i < num_raw_bboxes; ++i) {
-       for (int j = 0; j < num_columns; ++j) {
-          boxes.push_back(output_data[i * 4 + j]);  
-       }
-  }
-  int image_size = 416; 
-  for (int i = 0; i < num_raw_bboxes; ++i) {
-      std::vector<int>tmp;
-      for(int j=0 ; j < real_bbox_index_vector.size(); j++){
-          if(i == real_bbox_index_vector[j]) {
-            float first = boxes[i * 4];      
-            float second = boxes[i * 4 + 1]; 
-            float third = boxes[i * 4 + 2]; 
-            float fourth = boxes[i* 4 + 3];   
-            int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
-            (image_size), first - third/2)));
-            int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
-            (image_size), second - fourth/2)));
-            int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
-            (image_size), first + third/2)));
-            int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
-            (image_size), second + fourth/2)));
-            tmp.push_back(left);
-            tmp.push_back(top);
-            tmp.push_back(right);
-            tmp.push_back(bottom);
-            real_bbox_loc_vector.push_back(tmp);
-            break;
-          }
-      }
-      tmp.clear();
-  }
-}
+// void YOLO_Parser::make_real_bbox_loc_vector(TfLiteTensor* loc_tensor,std::vector<int>& real_bbox_index_vector,
+//                                             std::vector<std::vector<int>>& real_bbox_loc_vector){
+//   TfLiteTensor* output_tensor = loc_tensor;
+//   auto input_pointer = (float *)output_tensor->data.data;
+//   const float* output_data = (float*)output_tensor->data.data; 
+//   const int num_raw_bboxes = output_tensor->dims->data[1]; 
+//   const int num_columns = output_tensor->dims->data[2]; 
+//   std::vector<float> boxes;
+//   for (int i = 0; i < num_raw_bboxes; ++i) {
+//        for (int j = 0; j < num_columns; ++j) {
+//           boxes.push_back(output_data[i * 4 + j]);  
+//        }
+//   }
+//   int image_size = 416; 
+//   for (int i = 0; i < num_raw_bboxes; ++i) {
+//       std::vector<int>tmp;
+//       for(int j=0 ; j < real_bbox_index_vector.size(); j++){
+//           if(i == real_bbox_index_vector[j]) {
+//             float first = boxes[i * 4];      
+//             float second = boxes[i * 4 + 1]; 
+//             float third = boxes[i * 4 + 2]; 
+//             float fourth = boxes[i* 4 + 3];   
+//             int left = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+//             (image_size), first - third/2)));
+//             int top = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+//             (image_size), second - fourth/2)));
+//             int right = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+//             (image_size), first + third/2)));
+//             int bottom = static_cast<int>(std::max(0.0f, std::min(static_cast<float> 
+//             (image_size), second + fourth/2)));
+//             tmp.push_back(left);
+//             tmp.push_back(top);
+//             tmp.push_back(right);
+//             tmp.push_back(bottom);
+//             real_bbox_loc_vector.push_back(tmp);
+//             break;
+//           }
+//       }
+//       tmp.clear();
+//   }
+// }
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 
