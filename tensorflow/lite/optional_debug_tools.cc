@@ -356,6 +356,7 @@ void PrintInterpreterStateSimple(Interpreter* interpreter,
 
 void PrintInterpreterStateDimandSize(Interpreter* interpreter){
   int subgraph_size = interpreter->subgraphs_size();
+  double tot = 0;
   printf("Interpreter has %d subgraphs\n", subgraph_size);
   //interpreter->PrintSubgraphInfo();
   for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
@@ -371,23 +372,45 @@ void PrintInterpreterStateDimandSize(Interpreter* interpreter){
           interpreter->node_and_registration(static_cast<int>(node_index), subgraph_id);
       const TfLiteNode& node = node_and_reg->first;
       const TfLiteRegistration& reg = node_and_reg->second;
+      int origin_output_height, origin_input_height, new_input_height,
+        new_output_height, filter, stride, padding_type, padding_height,
+        padding_width, padding_height_offset, padding_width_offset;
+      TfLiteContext* context_ = interpreter->subgraph(subgraph_index)->context();
+      if(strcmp(GetOpName(reg), "CONV_2D") == 0 || strcmp(GetOpName(reg), "DEPTHWISE_CONV_2D") == 0){
+        GetParamsForPartitioning(&reg, &node, context_,
+                                    filter, stride, padding_type, padding_height, padding_width, 
+                                    padding_height_offset, padding_width_offset);
+      }
+
       if (reg.custom_name != nullptr) {
         printf("Node %3zu %s ", node_index, reg.custom_name);
       } else {
         printf("Node %3zu %s ", node_index, EnumNamesBuiltinOperator()[reg.builtin_code]);
       }
       TfLiteIntArray* outputs = node.outputs;
+      TfLiteIntArray* inputs = node.inputs;
+
+      
       for(int i=0; i<outputs->size; ++i){
         int tensor_index = outputs->data[i];
+        int i_tensor_idx = inputs->data[0];
+        double flops = 0;
         TfLiteTensor* tensor = interpreter->tensor(subgraph_id, static_cast<int>(tensor_index));
-        printf("Tensor %3zu %10zu bytes (%4.1f MB) ", tensor_index,
-            tensor->bytes,
-            (static_cast<float>(tensor->bytes) / (1 << 20)));
-        PrintTfLiteIntVector(tensor->dims);  
+        TfLiteTensor* i_tensor = interpreter->tensor(subgraph_id, static_cast<int>(i_tensor_idx));
+        printf("Tensor %3zu %10zu bytes(%4.1f MB) ", tensor_index, tensor->bytes,(static_cast<float>(tensor->bytes) / (1 << 20)));
+        PrintTfLiteIntVector(tensor->dims);
+        if(strcmp(GetOpName(reg), "CONV_2D") == 0 || strcmp(GetOpName(reg), "DEPTHWISE_CONV_2D") == 0){
+          double mac = tensor->dims->data[1] * tensor->dims->data[2] * tensor->dims->data[3] * i_tensor->dims->data[3] * filter * filter;
+          flops = 2*mac/1000000;
+          tot += flops;
+          printf("\033[0;31mFLOPs : %.1f\033[0m\n", flops);
+        }
+        
       }
     }
     printf("\n");
   }
+  printf("\033[0;32mTotal Flops : %.1f\033[0m\n", tot);
 }
 
 }  // namespace tflite
