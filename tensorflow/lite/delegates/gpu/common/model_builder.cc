@@ -3023,7 +3023,7 @@ bool IsAllAllowedTensors(TfLiteContext* context,
 // 230405 add parameter "priority_partition_num"
 TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                                 int max_delegated_partitions, int priority_partition_num) {
-  printf("(1) : Start GetOpsToReplace logic\n");
+  // printf("(1) : Start GetOpsToReplace logic\n");
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
@@ -3033,32 +3033,32 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   // get op_name by registration->buitin_code
   if(priority_partition_num ==0)
   {
-      printf("CHECKING LAYER %s \n", GetNodeName_ByBuiltin(registration).c_str());     
+      // printf("CHECKING LAYER %s \n", GetNodeName_ByBuiltin(registration).c_str());     
   }
   context->use_distribute_strategy_context = true;
   if(context->use_distribute_strategy_context) // HOON : only activated at channel-wise partitoning 
   {
     #ifdef YOLO
     if(registration->builtin_code == 49){ // Hoon  --------> SPLIT FALLBACK
-        if(priority_partition_num ==0)
-          printf("FOUND A FALLBACK LAYER [split].. MAKE GPU DEL NODE \n");
+        // if(priority_partition_num ==0)
+          // printf("FOUND A FALLBACK LAYER [split].. MAKE GPU DEL NODE \n");
         return false;
     }
 
     if(registration->builtin_code == 102){    
-        if(priority_partition_num ==0)
-          printf("FOUND A FALLBACK LAYER [split_v]... MAKE GPU DEL NODE \n");
+        // if(priority_partition_num ==0)
+          // printf("FOUND A FALLBACK LAYER [split_v]... MAKE GPU DEL NODE \n");
         return false;
     }
 
     if(registration->builtin_code == 0){   
-        if(priority_partition_num ==0)
-          printf("FOUND A FALLBACK LAYER [ADD]... MAKE GPU DEL NODE \n");
+        // if(priority_partition_num ==0)
+          // printf("FOUND A FALLBACK LAYER [ADD]... MAKE GPU DEL NODE \n");
         return false;
     }
     if(registration->builtin_code == 18){   
-        if(priority_partition_num ==0)
-          printf("FOUND A FALLBACK LAYER [MUL]... MAKE GPU DEL NODE \n");
+        // if(priority_partition_num ==0)
+          // printf("FOUND A FALLBACK LAYER [MUL]... MAKE GPU DEL NODE \n");
         return false;
     }
     #endif
@@ -3151,7 +3151,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
         printf("\033[0;31m%d\033[0m ", ops_to_replace.at(i));
     }
   // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
-  printf("\n(1) : End GetOpsToReplace logic\n");
+  // printf("\n(1) : End GetOpsToReplace logic\n");
   return ConvertVectorToTfLiteIntArray(ops_to_replace); // return tfliteintarray*
 }
 

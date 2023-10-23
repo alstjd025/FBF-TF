@@ -151,7 +151,7 @@ class DelegateKernel {
           InitializeOpenClApi(&graph, &builder, &graph_is_destroyed);
       if (!status.ok()) {
         TF_LITE_KERNEL_LOG(context, std::string(status.message()).c_str());
-        TF_LITE_KERNEL_LOG(context, "Falling back to OpenGL");
+        // TF_LITE_KERNEL_LOG(context, "Falling back to OpenGL");
 
         // Graph needs to be re-created because it is moved above.
         GraphFloat32 graph2;

@@ -375,7 +375,7 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
   #ifdef DEBUG
   	SFLAG();
   #endif
-  std::cout << "(2) : Start ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
+  // std::cout << "(2) : Start ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
   // Ignore empty node replacement sets.
   if (!nodes_to_replace->size) {
 	return kTfLiteOk;
@@ -439,11 +439,11 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
       } break;
       case NodeSubset::kTfUnexplored: ;
 		return kTfLiteError;
-    std::cout << "(2) : End ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
+    // std::cout << "(2) : End ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
         break;
     }
   }
-  std::cout << "(2) : End ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
+  // std::cout << "(2) : End ReplaceNodeSubsetsWithDelegateKernels logic" << "\n";
   return kTfLiteOk;
 }
 
@@ -1915,7 +1915,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
 	  return kTfLiteApplicationError;
   }
-  std::cout << "ModifyGraphWithDelegate logic (func) start " << "\n";
+  // std::cout << "ModifyGraphWithDelegate logic (func) start " << "\n";
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
     // Runtime Filter Modification for CPU&GPU Multithreading
@@ -1994,7 +1994,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   }
   // TODO(aselle): Consider if it is worth storing pointers to delegates.
   // Setup additional context interface.
-  printf("HOON : Start to switch to delegate context\n");
+  // printf("HOON : Start to switch to delegate context\n");
   SwitchToDelegateContext();   // HOON : main code flow // just mapping func pointer for DELEGATE
   auto reset_delegation_if_not_ok = [this](TfLiteStatus status) {
     if (status != kTfLiteOk) {
@@ -2007,12 +2007,12 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     return kTfLiteOk;
   };
   // std::cout << "prepare_2" << "\n";
-  printf("HOON : delegate prepare start\n");
+  // printf("HOON : delegate prepare start\n");
   // printf("<<------------------------------------------------------------------------------------>>\n");
   TfLiteStatus status = delegate->Prepare(&context_, delegate); // HOON  : DELEGATE prepare logic  
   // Remove additional context info.
   // printf("<<------------------------------------------------------------------------------------>>\n");
-  printf("HOON : delegate prepare end \n");
+  // printf("HOON : delegate prepare end \n");
   // printf("HOON : Start to switch to kernel context\n");
   SwitchToKernelContext();
   TF_LITE_ENSURE_STATUS(reset_delegation_if_not_ok(status));

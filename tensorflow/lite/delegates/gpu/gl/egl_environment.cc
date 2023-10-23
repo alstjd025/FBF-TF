@@ -62,7 +62,7 @@ EglEnvironment::~EglEnvironment() {
 }
 
 absl::Status EglEnvironment::Init() {
-  std::cout << "EglEnvironment::Init()" << "\n";
+  // std::cout << "EglEnvironment::Init()" << "\n";
   bool is_bound;
   RETURN_IF_ERROR(
       TFLITE_GPU_CALL_EGL(eglBindAPI, &is_bound, EGL_OPENGL_ES_API));
