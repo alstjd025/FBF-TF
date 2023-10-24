@@ -1,8 +1,8 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
 // #define YOLO
-#define mobilenet
-#define debug_print
+// #define mobilenet
+// #define debug_print
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1154,11 +1154,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           prev_co_subgraph_id = co_subgraph_id;
           co_execution_graph = nullptr;
           // clean merge tensor here (used in previous subgraph.)
-          if(merge_tensor != nullptr){
-            delete(merge_tensor->tensor->data.data);
-            delete(merge_tensor->tensor->dims->data);
-            delete(merge_tensor->tensor);
-            delete(merge_tensor);
+          // std::cout << "merge_tensor is used " << merge_tensor->is_used << "\n";
+          if(merge_tensor != nullptr && merge_tensor->is_used){
+            free(merge_tensor->tensor->data.data); 
+            free(merge_tensor->tensor->dims);
+            free(merge_tensor->tensor);
+            free(merge_tensor);
             merge_tensor = nullptr;
           }
         }
@@ -1300,7 +1301,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   Subgraph* min_precision_subgraph = sub_interpreter->subgraph_id(prev_sub_subgraph);
   Subgraph* max_precision_subgraph = interpreter->subgraph_id(prev_main_subgraph);
   Subgraph* dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
-  bool merge_tensor_used = false;
   PartitioningType partitioned_type = PartitioningType::NO_PARTITIONING;
   if(dest_subgraph == nullptr){
     std::cout << "MergeCoExecutionData ERROR" << "\n";
@@ -1326,9 +1326,9 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   TfLiteTensor* dest_tensor = nullptr;
   if(buffer_tensor != nullptr){
     dest_tensor = buffer_tensor->tensor;
+    buffer_tensor->is_used = true;
     buffer_tensor->tensor_idx = dest_tensor_idx;
     buffer_tensor->partition_type = partitioned_type;
-    merge_tensor_used = true;
     // initialize merge tensor
     int new_size = 1;
     std::vector<int> new_dim;
@@ -1391,7 +1391,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
   if(dequantized_buffer != nullptr){
     data_min = dequantized_buffer;
   }else{
-    std::cout << "data min pointer" << "\n";
     data_min = (float*)min_precision_tensor->data.data;
   }
   // max precision side data buffer.
@@ -1452,15 +1451,10 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     // Need to drop padding data before merge if it's not fit with destination tensor.
     // Drop minimum precision data because it is dequantized and might drop accuracy.
 
-    std::cout << "min size : " << min_precision_data_size << "\n";
-    std::cout << "max size : " << max_precision_data_size << "\n";
-    std::cout << "dest size : " << tensor_dest_data_size << "\n";
     if((min_tensor_ht + max_tensor_ht) != dest_ht){
       float drop_height = ((min_tensor_ht + max_tensor_ht) - dest_ht);
-      std::cout << "Drop height : " << drop_height << "\n";
       int dropped_max_data_size = (max_precision_data_size + min_precision_data_size)
                                                              - tensor_dest_data_size;
-      std::cout << "dropped size " << dropped_max_data_size << "\n";
       max_precision_data_size -= dropped_max_data_size;
       if(drop_height < 0){
         std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
@@ -1507,7 +1501,6 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
       source_tensor_idx = source_graph->inputs();
       source_tensor_idx_ = source_graph->outputs();
     }else{
-      std::cout << "copy from merge tensor " << "\n";
       source_tensor_idx.push_back(merge_tensor->tensor_idx);
     }
     std::vector<int>::iterator source_itr = source_tensor_idx.end();
@@ -1569,7 +1562,9 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
   };
   int source_graph_id = prev_subgraph_id;
   int dest_graph_id = subgraph->GetGraphid();
-  std::cout << "[Main] Copy sub " << source_graph_id << " to sub " << dest_graph_id << " \n";
+  #ifdef debug_print
+    std::cout << "[Main] Copy sub " << source_graph_id << " to sub " << dest_graph_id << " \n";
+  #endif debug_print
   if (connect(source_graph_id, dest_graph_id) != kTfLiteOk) {
     std::cout << "Subgraph intermediate data copy failed"
               << "\n";

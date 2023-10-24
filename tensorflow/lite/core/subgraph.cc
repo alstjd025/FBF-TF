@@ -830,6 +830,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
   if(resource_type == ResourceType::CO_CPU || resource_type == ResourceType::CO_CPU_XNN){
     std::vector<int> tensors_already_partitioned;
     std::cout << "Sub subgraph partitioning" << "\n";
+    std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
     for(int execution_plan_idx = execution_plan_.size() - 1;
             execution_plan_idx >= 0; execution_plan_idx--){
       bool is_output_feature_same = false;
@@ -1120,7 +1121,7 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       }
       if(need_to_be_partitioned)
         if(is_output_feature_same){ // 'same'
-          new_input_height = HW::GetInputHeightofSameFeatureConv(origin_output_height, stride);
+          new_input_height = HW::GetInputHeightofSameFeatureConv(new_output_height, stride);
         }else{ // 'valid'
           new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
         }
@@ -1247,7 +1248,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
                      " to node " << execution_plan_idx_inner << "\n";
         int node_index = execution_plan_[execution_plan_idx_inner];
         int input_tensor_idx_, output_tensor_idx_;
-        std::cout << "asdfa1" << "\n";
         std::vector<int> input_tensor_indices_;
         TfLiteNode& node = nodes_and_registration_[node_index].first;
         const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
@@ -1258,7 +1258,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         } // else just change first input tensor which is actual input of node.
         input_tensor_indices_.push_back(node.inputs->data[0]);
         output_tensor_idx_ = node.outputs->data[0];    
-        std::cout << "asdf2" << "\n";
         TfLiteTensor* input_tensor;
         TfLiteTensor* output_tensor;
         // change input tensor dim. (add zero_padding_overlap)
@@ -1275,7 +1274,6 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
           std::cout << "resize input zero padding (dim" << new_dim.size() << ")\n";
           ResizeInputTensor(input_tensor_indices_[idx], new_dim);
         }
-        std::cout << "dddd" << "\n";
         // change output tensor dim. (add zero_padding_overlap)
         output_tensor = tensor(output_tensor_idx_);
         std::vector<int> new_dim_;
