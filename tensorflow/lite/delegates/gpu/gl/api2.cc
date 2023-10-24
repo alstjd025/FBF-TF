@@ -434,11 +434,21 @@ class InferenceRunnerImpl : public InferenceRunner {
         clock_gettime(CLOCK_MONOTONIC, &end);
         response_time = (end.tv_sec - begin.tv_sec) +
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-        printf("CopyFromExternalObject latency %.6f \n", response_time);
+        printf("CPF %.6f ", response_time);
       #endif  
     }
     
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &begin);
+      #endif
+      
     RETURN_IF_ERROR(runtime_->Execute());
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        response_time = (end.tv_sec - begin.tv_sec) +
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        printf("KD %.6f ", response_time);
+      #endif  
     
     for (auto& obj : outputs_) {
       #ifdef latency_measure
@@ -451,7 +461,7 @@ class InferenceRunnerImpl : public InferenceRunner {
         clock_gettime(CLOCK_MONOTONIC, &end);
         response_time = (end.tv_sec - begin.tv_sec) +
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-        printf("CopyToExternalObject latency %.6f \n", response_time);
+        printf("CPT %.6f ", response_time);
       #endif  
 
     }
@@ -469,7 +479,7 @@ class InferenceRunnerImpl : public InferenceRunner {
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      printf("Flush and WaitforCompletion latency %.6f \n", response_time);
+      printf("FW %.6f ", response_time);
     #endif  
 
     return absl::OkStatus();

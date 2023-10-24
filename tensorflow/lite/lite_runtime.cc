@@ -1121,6 +1121,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         }
         clock_gettime(CLOCK_MONOTONIC, &end);
         timestamp_label_main_interpreter.push_back("CPs");
+        double response_time = (end.tv_sec - begin.tv_sec) +
+                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        printf("CPS %.6f", response_time);
         timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
         timestamp_label_main_interpreter.push_back("CPe");
         timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
