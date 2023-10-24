@@ -399,8 +399,14 @@ void PrintInterpreterStateDimandSize(Interpreter* interpreter){
         TfLiteTensor* i_tensor = interpreter->tensor(subgraph_id, static_cast<int>(i_tensor_idx));
         printf("Tensor %3zu %10zu bytes(%4.1f MB) ", tensor_index, tensor->bytes,(static_cast<float>(tensor->bytes) / (1 << 20)));
         PrintTfLiteIntVector(tensor->dims);
-        if(strcmp(GetOpName(reg), "CONV_2D") == 0 || strcmp(GetOpName(reg), "DEPTHWISE_CONV_2D") == 0){
+        if(strcmp(GetOpName(reg), "CONV_2D") == 0){
           double mac = tensor->dims->data[1] * tensor->dims->data[2] * tensor->dims->data[3] * i_tensor->dims->data[3] * filter * filter;
+          flops = 2*mac/1000000;
+          tot += flops;
+          printf("\033[0;31mFLOPs : %.1f\033[0m\n", flops);
+        }
+        if(strcmp(GetOpName(reg), "DEPTHWISE_CONV_2D") == 0){
+          double mac = tensor->dims->data[1] * tensor->dims->data[2] * tensor->dims->data[3] * filter * filter;
           flops = 2*mac/1000000;
           tot += flops;
           printf("\033[0;31mFLOPs : %.1f\033[0m\n", flops);
