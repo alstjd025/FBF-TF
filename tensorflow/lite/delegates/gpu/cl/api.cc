@@ -504,24 +504,67 @@ class InferenceRunnerImpl : public InferenceRunner {
   }
 
   absl::Status Run() override {
+  #ifdef latency_measure
+    double response_time = 0.0;
+    struct timespec begin, end;
+  #endif
+
 #ifdef CL_DELEGATE_ALLOW_GL
     if (gl_interop_fabric_) {
       RETURN_IF_ERROR(gl_interop_fabric_->Start());
     }
 #endif
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif
     for (auto& obj : inputs_) {
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
     }
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time = (end.tv_sec - begin.tv_sec) +
+                      ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("CPF %.6f ", response_time);
+    #endif
+
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif
     RETURN_IF_ERROR(context_->AddToQueue(queue_));
     clFlush(queue_->queue());
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time = (end.tv_sec - begin.tv_sec) +
+                      ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("KD %.6f ", response_time);
+    #endif 
+
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif
     for (auto& obj : outputs_) {
       RETURN_IF_ERROR(obj->CopyToExternalObject());
     }
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time = (end.tv_sec - begin.tv_sec) +
+                      ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("CPT %.6f ", response_time);
+    #endif 
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &begin);
+    #endif
 #ifdef CL_DELEGATE_ALLOW_GL
     if (gl_interop_fabric_) {
       RETURN_IF_ERROR(gl_interop_fabric_->Finish());
     }
 #endif
+    #ifdef latency_measure
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      response_time = (end.tv_sec - begin.tv_sec) +
+                      ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      printf("FW %.6f ", response_time);
+    #endif 
     return absl::OkStatus();
   }
 

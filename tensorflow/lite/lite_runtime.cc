@@ -766,7 +766,6 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
           auto input_pointer_sub = (float*)input_tensor_sub->data.data;
           int h = input_tensor_sub->dims->data[1];
           int w = input_tensor_sub->dims->data[2];
-          std::cout << "h : " << h << " w : " << w << "\n";
           for (int i=0; i<h; i++){
             for (int j=0; j<w; j++){   
               cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
@@ -790,7 +789,6 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
           auto input_pointer_sub = (float*)input_tensor_sub->data.data;
           int h = input_tensor_sub->dims->data[1];
           int w = input_tensor_sub->dims->data[2];
-          std::cout << "h : " << h << " w : " << w << "\n";
           for (int i=0; i<h; i++){
             for (int j=0; j<w; j++){   
               cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
@@ -814,7 +812,6 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
           auto input_pointer_sub = (float*)input_tensor_sub->data.data;
           int h = input_tensor_sub->dims->data[1];
           int w = input_tensor_sub->dims->data[2];
-          std::cout << "h : " << h << " w : " << w << "\n";
           for (int i=0; i<h; i++){
             for (int j=0; j<w; j++){   
               cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
@@ -1135,6 +1132,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       #ifdef debug_print
       std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       #endif
+      FeedDummyInputToTensor(subgraph->tensor(58));
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
@@ -2191,6 +2189,26 @@ std::vector<std::vector<uint8_t>*>* TfLiteRuntime::GetUintOutputInVector(){
     }
   }
   return output;
+}
+
+void TfLiteRuntime::FeedDummyInputToTensor(TfLiteTensor* tensor){
+  if(tensor == nullptr){
+    std::cout << "FeedDummyInputToTensor Error" << "\n";
+    return;
+  }
+  int data_size = 1;
+  int dim_size = tensor->dims->size;
+  for(int i=0; i<dim_size; ++i){
+    data_size *= tensor->dims->data[i];
+  }
+  std::mt19937_64 engine((unsigned int)time(NULL)); 
+  std::uniform_real_distribution<double> distribution(0, 1.0);       // 생성 범위
+  auto generator = std::bind(distribution, engine);
+  float* buffer = new float[data_size];
+  for(int i=0; i<data_size; ++i)
+    buffer[i] = float(generator());
+  memcpy((float*)tensor->data.data, buffer, data_size * sizeof(float));
+  // printf("\n");
 }
 
 }  // namespace tflite

@@ -12,6 +12,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <functional>
+#include <random>
 
 #include "condition_variable"
 #include "opencv2/opencv.hpp"
@@ -75,6 +76,9 @@ class TfLiteRuntime{
     void WriteVectorLog(std::vector<double>& latency, 
                         std::vector<string>& label, int n);
     void WriteInitStateLog();
+
+    // Fill dummy input (random 0~1.0) to given tensor buffer.
+    void FeedDummyInputToTensor(TfLiteTensor* tensor);
     
     // contains name of test sequence
     void SetTestSequenceName(std::string name);

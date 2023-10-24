@@ -30,6 +30,10 @@ limitations under the License.
 #include "tensorflow/lite/delegates/gpu/common/model.h"
 #include "tensorflow/lite/delegates/gpu/common/status.h"
 
+#ifdef latency_measure
+  #include <time.h>
+#endif
+
 // Usage example:
 //
 //   std::unique_ptr<InferenceEnvironment> env;
