@@ -40,6 +40,7 @@ typedef struct TfLiteMergeTensor{
   TfLiteTensor* tensor;
   PartitioningType partition_type;
   int tensor_idx;
+  bool is_used = false;
 }TfLiteMergeTensor;
 
 class LiteScheduler;

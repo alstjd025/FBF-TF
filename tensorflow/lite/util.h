@@ -159,9 +159,9 @@ namespace HW{
   // Hi : Input Height
   int GetOutputHeightConv(int S, int K, int P, int Hi);
 
-  int GetInputHeightofSameFeatureConv(int Ho_origin, int S);
-
   int GetOutputHeightofSameFeatureConv(int Hi_origin, int S);
+
+  int GetInputHeightofSameFeatureConv(int Ho_origin, int S);
 
   int GetOverlapPool(int S, int K, int Hi, int Ho);
   

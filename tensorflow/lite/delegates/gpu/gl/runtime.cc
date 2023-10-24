@@ -602,15 +602,15 @@ absl::Status Runtime::Execute() {
       RETURN_IF_ERROR(b());
     }
     #ifdef latency_measure
-      clock_gettime(CLOCK_MONOTONIC, &begin);
+      // clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif  
     RETURN_IF_ERROR(command_queue_->Dispatch(descriptor.program,
                                              descriptor.num_workgroups));
     #ifdef latency_measure
-      clock_gettime(CLOCK_MONOTONIC, &end);
-      response_time = (end.tv_sec - begin.tv_sec) +
-                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      printf("Dispatch latency %.6f \n", response_time);
+      // clock_gettime(CLOCK_MONOTONIC, &end);
+      // response_time = (end.tv_sec - begin.tv_sec) +
+      //                  ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      // // printf("KD %.6f ", response_time);
     #endif  
   }
   return absl::OkStatus();
