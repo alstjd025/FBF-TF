@@ -413,6 +413,11 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id){
         std::cout << "HeightPartitionAndAllocateIfNeed returned ERROR" << "\n";
         return kTfLiteError;
       }
+      // Minsung
+      if(working_subgraph->AllocateConcateTensors() != kTfLiteOk){
+        std::cout << "AllocateConcateTensors after HeightPartitioning returned ERROR" << "\n";
+        return kTfLiteError;
+      }
       if(!working_subgraph->IsInvokable()){
         if(working_subgraph->AllocateTensors() != kTfLiteOk)
           return kTfLiteError;        

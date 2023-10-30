@@ -443,7 +443,12 @@ class InferenceRunnerImpl : public InferenceRunner {
       #endif
       
     RETURN_IF_ERROR(runtime_->Execute());
+    // minsung test
+  
+  
       #ifdef latency_measure
+        RETURN_IF_ERROR(runtime_->command_queue()->Flush());
+        RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());
         clock_gettime(CLOCK_MONOTONIC, &end);
         response_time = (end.tv_sec - begin.tv_sec) +
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);

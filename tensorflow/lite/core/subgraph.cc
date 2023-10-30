@@ -1175,6 +1175,9 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
                    " padding_witdh_offset : " << padding_width_offset << "\n" <<
                    " zero padding calculated : " << zero_padding_overlap << "\n";
       // Calculate padding 
+      
+      if(zero_padding_overlap != 0)
+        padding_overlap = 0;
       int padding_to_add = (padding_overlap + zero_padding_overlap - padding_layer_placeholder);
       new_input_height += padding_to_add;
       if(is_output_feature_same)

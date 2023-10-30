@@ -3,6 +3,7 @@
 // #define YOLO
 // #define mobilenet
 // #define debug_print
+// #define latency_measure
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -132,7 +133,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   };
   gpu_delegate = TfLiteGpuDelegateV2Create(&options);
 
-  num_threads = 6;
+  num_threads = 3;
 	TfLiteXNNPackDelegateOptions xnnpack_options =
 		TfLiteXNNPackDelegateOptionsDefault();
 	xnnpack_options.num_threads = num_threads;
@@ -870,10 +871,12 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model,
 TfLiteStatus TfLiteRuntime::Invoke(){
   TfLiteStatus return_state_sub = TfLiteStatus::kTfLiteOk;
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
-  struct timespec begin, end;
-  clock_gettime(CLOCK_MONOTONIC, &begin);
-  timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-  timestamp_label_main_interpreter.push_back("Start");
+  #ifdef latency_measure
+    struct timespec begin, end;
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+    timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+    timestamp_label_main_interpreter.push_back("Start");
+  #endif
   c_thread = std::thread(&TfLiteRuntime::DoInvoke, this, 
                           InterpreterType::SUB_INTERPRETER, std::ref(return_state_sub));
   DoInvoke(InterpreterType::MAIN_INTERPRETER, return_state_main);
@@ -883,23 +886,25 @@ TfLiteStatus TfLiteRuntime::Invoke(){
     return kTfLiteError;
   }
   c_thread.join();
-  clock_gettime(CLOCK_MONOTONIC, &end);
-  timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
-  timestamp_label_main_interpreter.push_back("End");
-  double response_time = (end.tv_sec - begin.tv_sec) +
-                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-  
-  latency_main_interpreter.push_back(response_time);
-  WriteVectorLog(latency_main_interpreter, 0);
-  WriteVectorLog(timestamp_main_interpreter, timestamp_label_main_interpreter, 2);
-  WriteVectorLog(latency_sub_interpreter, 1);
-  WriteVectorLog(timestamp_sub_interpreter, timestamp_label_sub_interpreter, 3);
-  latency_main_interpreter.clear();
-  timestamp_main_interpreter.clear();
-  timestamp_label_main_interpreter.clear();
-  latency_sub_interpreter.clear();
-  timestamp_sub_interpreter.clear();
-  timestamp_label_sub_interpreter.clear();
+  #ifdef latency_measure
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+    timestamp_label_main_interpreter.push_back("End");
+    double response_time = (end.tv_sec - begin.tv_sec) +
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    
+    latency_main_interpreter.push_back(response_time);
+    WriteVectorLog(latency_main_interpreter, 0);
+    WriteVectorLog(timestamp_main_interpreter, timestamp_label_main_interpreter, 2);
+    WriteVectorLog(latency_sub_interpreter, 1);
+    WriteVectorLog(timestamp_sub_interpreter, timestamp_label_sub_interpreter, 3);
+    latency_main_interpreter.clear();
+    timestamp_main_interpreter.clear();
+    timestamp_label_main_interpreter.clear();
+    latency_sub_interpreter.clear();
+    timestamp_sub_interpreter.clear();
+    timestamp_label_sub_interpreter.clear();
+  #endif
   return kTfLiteOk;
 }
 
@@ -944,23 +949,30 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         #ifdef debug_print
           std::cout << "sub CopyIntermediateDataIfNeeded" << "\n";
         #endif
-        clock_gettime(CLOCK_MONOTONIC, &begin);
+        #ifdef latency_measure
+          clock_gettime(CLOCK_MONOTONIC, &begin);
+        #endif
         if(CopyIntermediateDataIfNeeded(subgraph, main_execution_graph, merge_tensor)
            != kTfLiteOk){
           std::cout << "sub CopyIntermediateDataIfNeeded Failed" << "\n";
           return_state = kTfLiteError;
           return;
         }
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_sub_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-        timestamp_label_sub_interpreter.push_back("CPs");
-        timestamp_sub_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
-        timestamp_label_sub_interpreter.push_back("CPe");
+        #ifdef latency_measure
+          clock_gettime(CLOCK_MONOTONIC, &end);
+          timestamp_sub_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+          timestamp_label_sub_interpreter.push_back("CPs");
+          timestamp_sub_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+          timestamp_label_sub_interpreter.push_back("CPe");
+        #endif
       }
       #ifdef debug_print
         std::cout << "[Sub Interpreter] Invoke subgraph " << co_subgraph_id << "\n";
       #endif
-      clock_gettime(CLOCK_MONOTONIC, &begin);
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &begin);
+      #endif
+        clock_gettime(CLOCK_MONOTONIC, &begin);
       // if(co_subgraph_id == 1){
       //   TfLiteTensor* input_t = subgraph->tensor(0);
       //   PrintTensorSerial(*input_t);
@@ -974,13 +986,18 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       //   TfLiteTensor* input_t = subgraph->tensor(70);
       //   PrintTensorSerial(*input_t);
       // }
-      clock_gettime(CLOCK_MONOTONIC, &end);
-      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      timestamp_sub_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-      timestamp_label_sub_interpreter.push_back("IVs");
-      timestamp_sub_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
-      timestamp_label_sub_interpreter.push_back("IVe");
-      latency_sub_interpreter.push_back(response_time);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        // printf(" IVS %.6f ", response_time);
+      #ifdef latency_measure
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+        timestamp_sub_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+        timestamp_label_sub_interpreter.push_back("IVs");
+        timestamp_sub_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        timestamp_label_sub_interpreter.push_back("IVe");
+        latency_sub_interpreter.push_back(response_time);
+      #endif
       // sync with gpu here (wake gpu)
       std::unique_lock<std::mutex> lock_data(data_sync_mtx);
       is_execution_done = true;
@@ -1057,7 +1074,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       }
       subgraph_id = rx_packet.subgraph_ids[0][0];
       if(rx_packet.subgraph_ids[1][0] != -1)
-        co_subgraph_id = rx_packet.subgraph_ids[1][0];
+        co_subgraph_id = rx_packet.subgraph_ids[1][0]; //TEST
+        // interpreter->subgraph_id(subgraph_id)->SetResourceType(GPU); //TEST
       bool merged = false;
       // Check if co execution. If so, give co-execution graph to sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
@@ -1079,18 +1097,22 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
           merge_tensor->tensor = new TfLiteTensor;
           merged = false;
         }
-        clock_gettime(CLOCK_MONOTONIC, &begin);
+        #ifdef latency_measure
+          clock_gettime(CLOCK_MONOTONIC, &begin);
+        #endif
         if(MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id, subgraph_id, merge_tensor)
            != kTfLiteOk){
           std::cout << "MergeCoExecutionData Error" << "\n";
           return_state = kTfLiteError;
           break;
         }
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_label_main_interpreter.push_back("MGs");
-        timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-        timestamp_label_main_interpreter.push_back("MGe");
-        timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        #ifdef latency_measure
+          clock_gettime(CLOCK_MONOTONIC, &end);
+          timestamp_label_main_interpreter.push_back("MGs");
+          timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+          timestamp_label_main_interpreter.push_back("MGe");
+          timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        #endif
       }
       
       if(subgraph->GetResourceType() == CO_GPU){
@@ -1109,21 +1131,25 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         #ifdef debug_print
           std::cout << "Main CopyIntermediateDataIfNeeded" << "\n";
         #endif
-        clock_gettime(CLOCK_MONOTONIC, &begin);
+        #ifdef latency_measure
+          clock_gettime(CLOCK_MONOTONIC, &begin);
+        #endif
         if(CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id, merge_tensor)
           != kTfLiteOk){
           std::cout << "Main CopyIntermediateDataIfNeeded Failed" << "\n";
           return_state = kTfLiteError;
           break;
         }
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_label_main_interpreter.push_back("CPs");
-        double response_time = (end.tv_sec - begin.tv_sec) +
-                        ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-        printf("CPS %.6f", response_time);
-        timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-        timestamp_label_main_interpreter.push_back("CPe");
-        timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        #ifdef latency_measure
+          clock_gettime(CLOCK_MONOTONIC, &end);
+          timestamp_label_main_interpreter.push_back("CPs");
+          double response_time = (end.tv_sec - begin.tv_sec) +
+                          ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+          printf("CPS %.6f", response_time);
+          timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+          timestamp_label_main_interpreter.push_back("CPe");
+          timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        #endif
         #ifdef debug_print
           std::cout << "Main CopyIntermediateDataIfNeeded Done" << "\n";
         #endif
@@ -1132,8 +1158,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       #ifdef debug_print
       std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << "\n";
       #endif
-      FeedDummyInputToTensor(subgraph->tensor(58));
+      // FeedDummyInputToTensor(subgraph->tensor(58));
+      // Note : This latency measure is always on for GPU test.
       clock_gettime(CLOCK_MONOTONIC, &begin);
+      
       if(subgraph->Invoke() != kTfLiteOk){
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid() << "\n";
         return_state = kTfLiteError;
@@ -1141,11 +1169,14 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0); 
-      timestamp_label_main_interpreter.push_back("IVs");
-      timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
-      timestamp_label_main_interpreter.push_back("IVe");
-      timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
-      latency_main_interpreter.push_back(response_time);
+      printf(" IVS %.6f ", response_time);
+      #ifdef latency_measure
+        timestamp_label_main_interpreter.push_back("IVs");
+        timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
+        timestamp_label_main_interpreter.push_back("IVe");
+        timestamp_main_interpreter.push_back(end.tv_sec + (end.tv_nsec / 1000000000.0));
+        latency_main_interpreter.push_back(response_time);
+      #endif
       if(subgraph->GetResourceType() == ResourceType::CO_GPU){
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
@@ -1353,8 +1384,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     dest_tensor->bytes = static_cast<size_t>(new_size * sizeof(float));
   }else{
     dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
-  }
-             
+  }  
   int quantization_param_tensor_idx =  
                   min_precision_subgraph->GetFirstInputTensorIndex();
   TfLiteTensor* dequant_reference_tensor = nullptr;
@@ -1449,6 +1479,9 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     for(int i=0; i<min_precision_tensor->dims->size; ++i){
       min_precision_data_size *= min_precision_tensor->dims->data[i];
     }
+    std::cout << "min_precision_data_size " << min_precision_data_size << "\n";
+    std::cout << "max_precision_data_size " << max_precision_data_size << "\n";
+    std::cout << "tensor_dest_data_size " << tensor_dest_data_size << "\n";
     // Need to drop padding data before merge if it's not fit with destination tensor.
     // Drop minimum precision data because it is dequantized and might drop accuracy.
 
@@ -1457,6 +1490,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
       int dropped_max_data_size = (max_precision_data_size + min_precision_data_size)
                                                              - tensor_dest_data_size;
       max_precision_data_size -= dropped_max_data_size;
+      std::cout << "max_precision_data_size after drop " << max_precision_data_size << "\n";
       if(drop_height < 0){
         std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
         std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<
@@ -1465,7 +1499,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
               " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
         return kTfLiteError;
       }
-      // bug code
       memcpy(data_dest, data_max, sizeof(float)*max_precision_data_size);
       memcpy(data_dest+max_precision_data_size, data_min, 
               sizeof(float)*(tensor_dest_data_size - max_precision_data_size));
@@ -1475,6 +1508,9 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
               sizeof(float)*min_precision_data_size);
     }
   }
+  #ifdef debug_print
+    std::cout << "Merge done" << "\n";
+  #endif
   return kTfLiteOk; 
 }
 

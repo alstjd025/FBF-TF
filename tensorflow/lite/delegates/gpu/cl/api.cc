@@ -543,6 +543,7 @@ class InferenceRunnerImpl : public InferenceRunner {
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
     for (auto& obj : outputs_) {
+      printf("a \n");
       RETURN_IF_ERROR(obj->CopyToExternalObject());
     }
     #ifdef latency_measure

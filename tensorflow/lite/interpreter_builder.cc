@@ -649,6 +649,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       case ResourceType::GPU:
         // Set this sugraph for gpu subgraph
         new_subgraph->SetResourceType(ResourceType::GPU);
+        new_subgraph->context()->recommended_num_threads = 1;  
         break;
       case ResourceType::CO_CPU:
         new_subgraph->SetResourceType(ResourceType::CO_CPU);
@@ -658,7 +659,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);
-        new_subgraph->context()->recommended_num_threads = 6;     
+        new_subgraph->context()->recommended_num_threads = 3;     
         break;
       case ResourceType::CO_GPU:
         new_subgraph->SetResourceType(ResourceType::CO_GPU);
@@ -668,6 +669,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);        
+          new_subgraph->context()->recommended_num_threads = 1;  
         break;
       case ResourceType::CPU_XNN:
         new_subgraph->SetResourceType(ResourceType::CPU_XNN);
