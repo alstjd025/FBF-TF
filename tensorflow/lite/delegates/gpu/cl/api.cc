@@ -533,6 +533,7 @@ class InferenceRunnerImpl : public InferenceRunner {
     RETURN_IF_ERROR(context_->AddToQueue(queue_));
     clFlush(queue_->queue());
     #ifdef latency_measure
+      RETURN_IF_ERROR(queue_->WaitForCompletion());
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
@@ -543,7 +544,6 @@ class InferenceRunnerImpl : public InferenceRunner {
       clock_gettime(CLOCK_MONOTONIC, &begin);
     #endif
     for (auto& obj : outputs_) {
-      printf("a \n");
       RETURN_IF_ERROR(obj->CopyToExternalObject());
     }
     #ifdef latency_measure
