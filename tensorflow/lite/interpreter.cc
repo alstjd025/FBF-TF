@@ -684,8 +684,10 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id){
     if(subgraph_id(graph_id)->GetResourceType() == GPU || subgraph_id(graph_id)->GetResourceType() == CO_GPU)
       status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_);
     // delegate xnn
-    else if(subgraph_id(graph_id)->GetResourceType() == CPU_XNN || subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN)
+    else if(subgraph_id(graph_id)->GetResourceType() == CPU_XNN)
       status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_2);
+    else if(subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN)
+      status = subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_3);
   }
   else{
     std::cout << "No delegate exists in this interpreter" << "\n";
@@ -696,9 +698,10 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id){
   return status;
 }
 // Minsung
-TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2){
+TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2, TfLiteDelegate* delegate3){
   delegate_provided_ = delegate;
   delegate_provided_2 = delegate2;
+  delegate_provided_3 = delegate3;
   is_gpu_delegate_prepared = true;
   return kTfLiteOk;
 }

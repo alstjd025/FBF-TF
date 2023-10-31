@@ -119,6 +119,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   // use Class Delegation
   TfLiteDelegate* gpu_delegate = NULL;
   TfLiteDelegate* xnn_delegate = NULL;
+  TfLiteDelegate* co_xnn_delegate = NULL;
   int32_t num_threads;
 
   const TfLiteGpuDelegateOptionsV2 options = {
@@ -133,15 +134,17 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   };
   gpu_delegate = TfLiteGpuDelegateV2Create(&options);
 
-  num_threads = 3;
-	TfLiteXNNPackDelegateOptions xnnpack_options =
+  TfLiteXNNPackDelegateOptions xnnpack_options =
 		TfLiteXNNPackDelegateOptionsDefault();
-	xnnpack_options.num_threads = num_threads;
+  TfLiteXNNPackDelegateOptions co_xnnpack_options =
+		TfLiteXNNPackDelegateOptionsDefault();
+  
+  xnnpack_options.num_threads = 6;
+  co_xnnpack_options.num_threads = 3;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
-
-
-  interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
-  sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
+  co_xnn_delegate = TfLiteXNNPackDelegateCreate(&co_xnnpack_options);
+  interpreter->RegisterDelegate(gpu_delegate, xnn_delegate, co_xnn_delegate);
+  sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate, co_xnn_delegate);
   if(InitializeUDS() != kTfLiteOk){
     std::cout << "UDS socker init ERROR" << "\n";
     exit(-1);
@@ -152,9 +155,11 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   if(RegisterModeltoScheduler() != kTfLiteOk){
     std::cout << "Model registration to scheduler ERROR" << "\n";
   }
+  
   if(PartitionCoSubgraphs() != kTfLiteOk){
     std::cout << "Model partitioning ERROR" << "\n";
   }
+  
 };
 
 TfLiteRuntime::~TfLiteRuntime() {
@@ -1601,7 +1606,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(Subgraph* subgraph,
   int dest_graph_id = subgraph->GetGraphid();
   #ifdef debug_print
     std::cout << "[Main] Copy sub " << source_graph_id << " to sub " << dest_graph_id << " \n";
-  #endif debug_print
+  #endif
   if (connect(source_graph_id, dest_graph_id) != kTfLiteOk) {
     std::cout << "Subgraph intermediate data copy failed"
               << "\n";
