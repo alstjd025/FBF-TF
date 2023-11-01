@@ -105,7 +105,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                             const char* f_model, const char* i_model, INPUT_TYPE type,
-                            bool use_predictor) {
+                            DEVICE_TYPE d_type, bool use_predictor) {
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
   sub_interpreter = new tflite::Interpreter(true);
@@ -113,6 +113,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   interpreter->SetInputType(type);
   sub_interpreter->SetInputType(type);
   SetInputType(type);
+  SetDeviceType(d_type);
   if(type == INPUT_TYPE::COCO416){
     model_type = MODEL_TYPE::YOLO;
   }else if(type == INPUT_TYPE::IMAGENET224){
