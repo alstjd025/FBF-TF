@@ -25,6 +25,7 @@
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/kernels/internal/cppmath.h"
+#include "tensorflow/lite/latency_predictor.h"
 #include "thread"
 #include "future"
 
@@ -63,6 +64,8 @@ class TfLiteRuntime{
     
     TfLiteStatus RegisterModeltoScheduler();
     TfLiteStatus PartitionSubgraphs();
+
+    TfLiteStatus PredictSubgraphPartitioning();
 
     // Partitions subgraph in both Float & Int.
     TfLiteStatus PartitionCoSubgraphs();
@@ -107,13 +110,25 @@ class TfLiteRuntime{
 
 
     void SetInputType(INPUT_TYPE input_type_);
+
+    void SetDeviceType(DEVICE_TYPE device_type_);
+
+    DEVICE_TYPE GetDeviceType();
+
     INPUT_TYPE GetInputTypeFromString(string input_type);
+
     void CopyInputToInterpreter(const char* model, cv::Mat& input, cv::Mat& input_quant);
+
     void PrintOutput(Subgraph* subgraph);
+
     void PrintTensor(TfLiteTensor& tensor, bool is_output);
+
     void PrintTensorSerial(TfLiteTensor& tensor);
+    
     void PrintyoloOutput(TfLiteTensor& tensor);
+
     std::vector<std::vector<float>*>* GetFloatOutputInVector();
+
     std::vector<std::vector<uint8_t>*>* GetUintOutputInVector();
 
     // Copy output(which is intermediate in the view of whole task)
@@ -203,6 +218,8 @@ class TfLiteRuntime{
     TfLiteTensor* global_output_tensor = nullptr;
 
     INPUT_TYPE input_type;
+
+    DEVICE_TYPE device_type;
 
     //// Co-execution
     bool co_execution = false;

@@ -336,6 +336,19 @@ class YOLO_Parser{
    "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
   };
 }; 
+
+typedef enum DEVICE_TYPE{
+  NONE,
+  ODROID,
+  XAVIER
+} DEVICE_TYPE;
+
+typedef enum MODEL_TYPE{
+  MOBILENET,
+  EFFICIENTNET,
+  YOLO
+} MODEL_TYPE;
+
 ////////////////////////////////////////////////////////////////////
 }  // namespace tflite
 

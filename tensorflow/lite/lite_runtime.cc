@@ -152,6 +152,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   if(AddModelToRuntime(f_model, i_model) != kTfLiteOk){
     std::cout << "Model registration to runtime ERROR" << "\n";
   }
+  // Predict model here
   if(RegisterModeltoScheduler() != kTfLiteOk){
     std::cout << "Model registration to scheduler ERROR" << "\n";
   }
@@ -175,6 +176,10 @@ void TfLiteRuntime::SetTestSequenceName(std::string name){
 void TfLiteRuntime::SetLogPath(std::string path){
   log_path = path;
   std::cout << "Log path " << log_path << " \n";
+}
+
+TfLiteStatus TfLiteRuntime::PredictSubgraphPartitioning(){
+  // call predictor here
 }
 
 void TfLiteRuntime::WriteInitStateLog(){
@@ -702,6 +707,14 @@ INPUT_TYPE TfLiteRuntime::GetInputTypeFromString(string input_type){
   else{
     return INPUT_TYPE::USER;
   }
+}
+
+void TfLiteRuntime::SetDeviceType(DEVICE_TYPE device_type_){
+  device_type = device_type_;
+}
+
+DEVICE_TYPE TfLiteRuntime::GetDeviceType(){
+  return device_type;
 }
 
 void TfLiteRuntime::SetInputType(INPUT_TYPE input_type_){
