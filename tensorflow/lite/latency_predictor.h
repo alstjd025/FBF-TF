@@ -2,6 +2,8 @@
 #include <vector>
 #include "tensorflow/lite/util.h"
 #include "tensorflow/lite/core/subgraph.h"
+#include "tensorflow/lite/builtin_ops.h"
+#include "tensorflow/lite/schema/schema_generated.h"
 
 namespace Predictor{
   typedef enum Latency_Term{
@@ -42,8 +44,8 @@ namespace Predictor{
   } SubgraphCandidate;
 
   typedef struct PartitioningPlan{
-    std::vector<SubgraphCandidate*> subgraphs;
-    std::vector<int> partitioning_cadidate;
+    std::vector<std::pair<SubgraphCandidate*, SubgraphCandidate*>> subgraphs;
+    std::vector<std::pair<int, int>> partitioning_points;
   } PartitioningPlan;
 
 
@@ -68,29 +70,51 @@ namespace Predictor{
       void SimulateSubgraphPartitioning(tflite::Subgraph* origin_subgraph,
                                       std::vector<PartitioningPlan*>& new_plan);
 
-      void SimulateHeightPartitioning(tflite::Subgraph* origin_subgraph, tflite::ResourceType r_type,
-                                      int start_node, int end_node);
+      void SimulateHeightPartitioning(tflite::Subgraph* origin_subgraph, 
+                                      SubgraphCandidate* new_subgraph);
 
       float LatencyPredict(Latency_Term term, int x_value);
-      // CopyFromExternalObject
 
-      // CopyToExternalObject
-
-      // KernelDispatch
-
-      // Flush and Wait
-
-      // Merge
-
-      // Copy
-
-      // CPU dispatch
-
-      // XNN dispatch
+      void CopyTensorsFromContext(TfLiteContext* context);
+      TfLiteTensor* CopyNoBufferTensor(TfLiteTensor& tensor);
+      TfLiteTensor* GetTensor(int tensor_idx);
+      void ResizeTensorNaive(int tensor_idx, std::vector<int>& new_dim);
 
     private:
+    std::vector<TfLiteTensor*> copied_tensors;
     tflite::DEVICE_TYPE d_type;
     tflite::MODEL_TYPE m_type;
+    int partitioning_ratio_gpu;
+    int partitioning_ratio_cpu;
   };
 
 } // namespace Predictor
+
+/*
+55
+28 55
+28 55 85
+13 28 55 85
+13 28 43 55 85
+13 28 43 55 70 85
+13 28 43 55 70 85 97
+9 13 28 43 55 70 85 97
+9 13 20 28 43 55 70 85 97
+9 13 20 28 39 43 55 70 85 97
+9 13 20 28 39 43 51 55 70 85 97
+9 13 20 28 39 43 51 55 66 70 85 97
+9 13 20 28 39 43 51 55 66 70 78 85 97
+9 13 20 28 39 43 51 55 66 70 78 85 93 97
+9 13 20 28 39 43 51 55 66 70 78 85 93 97 105
+5 9 13 20 28 39 43 51 55 66 70 78 85 93 97 105
+5 9 13 17 20 28 39 43 51 55 66 70 78 85 93 97 105
+5 9 13 17 20 24 28 39 43 51 55 66 70 78 85 93 97 105
+5 9 13 17 20 24 28 32 39 43 51 55 66 70 78 85 93 97 105
+5 9 13 17 20 24 28 32 39 43 47 51 55 66 70 78 85 93 97 105
+5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 78 85 93 97 105
+5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 93 97 105
+5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 89 93 97 105
+5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 89 93 97 101 105
+5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 89 93 97 101 105 109
+
+*/

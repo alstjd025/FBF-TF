@@ -4,6 +4,7 @@
 // #define mobilenet
 // #define debug_print
 // #define latency_measure
+#define partitioning_profile
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -153,10 +154,15 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model registration to runtime ERROR" << "\n";
   }
   // Predict model here
+  #ifdef partitioning_profile
+    if(PredictSubgraphPartitioning() != kTfLiteOk){
+      std::cout << "PredictSubgraphPartitioning" << "\n";
+    }
+    return;
+  #endif
   if(RegisterModeltoScheduler() != kTfLiteOk){
     std::cout << "Model registration to scheduler ERROR" << "\n";
   }
-  
   if(PartitionCoSubgraphs() != kTfLiteOk){
     std::cout << "Model partitioning ERROR" << "\n";
   }
