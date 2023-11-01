@@ -1511,9 +1511,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
     for(int i=0; i<min_precision_tensor->dims->size; ++i){
       min_precision_data_size *= min_precision_tensor->dims->data[i];
     }
-    std::cout << "min_precision_data_size " << min_precision_data_size << "\n";
-    std::cout << "max_precision_data_size " << max_precision_data_size << "\n";
-    std::cout << "tensor_dest_data_size " << tensor_dest_data_size << "\n";
     // Need to drop padding data before merge if it's not fit with destination tensor.
     // Drop minimum precision data because it is dequantized and might drop accuracy.
 
@@ -1522,7 +1519,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(int prev_sub_subgraph
       int dropped_max_data_size = (max_precision_data_size + min_precision_data_size)
                                                              - tensor_dest_data_size;
       max_precision_data_size -= dropped_max_data_size;
-      std::cout << "max_precision_data_size after drop " << max_precision_data_size << "\n";
       if(drop_height < 0){
         std::cout << "Wrong drop in HW merging ERROR on graph" << "\n";
         std::cout << "min sub: " << min_precision_subgraph->GetGraphid() <<

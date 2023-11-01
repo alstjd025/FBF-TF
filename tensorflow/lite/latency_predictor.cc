@@ -846,7 +846,12 @@ void PartitioningPredictor::CopyTensorsFromContext(TfLiteContext* context){
 
   int num_tensors = context->tensors_size;
   std::cout << "Copy " << num_tensors << " from original context" << "\n";
-  for(int i=0; i<304; ++i){
+  if(m_type == tflite::MODEL_TYPE::MOBILENET){
+    num_tensors = 89;
+  }else if(m_type == tflite::MODEL_TYPE::EFFICIENTNET){
+    num_tensors = 304;
+  }
+  for(int i=0; i<num_tensors; ++i){
     // std::cout << i << "\n";
     TfLiteTensor* new_tensor = CopyNoBufferTensor(context->tensors[i]);
     copied_tensors.push_back(new_tensor);
@@ -983,6 +988,7 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
           output = (6e-09) * static_cast<float>(x_value) + 0.00018;
           break;
         case tflite::MODEL_TYPE::MOBILENET:
+          output = (5e-09) * static_cast<float>(x_value) + 0.000035;
           break;
         case tflite::MODEL_TYPE::YOLO:
           break;
@@ -1010,6 +1016,7 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
           output = (8e-09) * static_cast<float>(x_value) + 0.00055;
           break;
         case tflite::MODEL_TYPE::MOBILENET:
+          output = (1.2e-08) * static_cast<float>(x_value) + 0.00056;
           break;
         case tflite::MODEL_TYPE::YOLO:
           break;
@@ -1038,6 +1045,7 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
           output = (9.8151e-05) * static_cast<float>(x_value) + 0.00046;
           break;
         case tflite::MODEL_TYPE::MOBILENET:
+          output = (6.5582e-05) * static_cast<float>(x_value) + 0.00032;
           break;
         case tflite::MODEL_TYPE::YOLO:
           break;
@@ -1089,9 +1097,11 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
           }
           break;
         case tflite::MODEL_TYPE::MOBILENET:
-          if(r_type == tflite::ResourceType::CO_CPU_XNN){
-
-          }else { }
+          if(r_type == tflite::ResourceType::CO_CPU_XNN){ // XNN thread 6
+            output = (4.62807e-05) * static_cast<float>(x_value) + 0.00606;
+          }else { 
+            output = (0.00010528) * static_cast<float>(x_value) + 0.00051;
+          }
           break;
         case tflite::MODEL_TYPE::YOLO:
           if(r_type == tflite::ResourceType::CO_CPU_XNN){
@@ -1112,7 +1122,7 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
           break;
         case tflite::MODEL_TYPE::MOBILENET:
           if(r_type == tflite::ResourceType::CO_CPU_XNN){
-
+            output = (1.26774e-05) * static_cast<float>(x_value) + 0.00109;
           }else { 
             output = (4.089e-06) * static_cast<float>(x_value) + 0.00198;
           }
