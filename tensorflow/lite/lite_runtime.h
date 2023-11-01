@@ -53,7 +53,8 @@ class TfLiteRuntime{
     TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                       const char* model, INPUT_TYPE type);
     TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                      const char* f_model, const char* i_model, INPUT_TYPE type);
+                  const char* f_model, const char* i_model, INPUT_TYPE type,
+                  bool use_predictor);
 
     ~TfLiteRuntime();
 

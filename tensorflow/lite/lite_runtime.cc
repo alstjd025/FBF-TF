@@ -104,7 +104,8 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 };
 
 TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                            const char* f_model, const char* i_model, INPUT_TYPE type) {
+                            const char* f_model, const char* i_model, INPUT_TYPE type,
+                            bool use_predictor) {
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
   sub_interpreter = new tflite::Interpreter(true);
@@ -161,12 +162,13 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     std::cout << "Model registration to runtime ERROR" << "\n";
   }
   // Predict model here
-  #ifdef partitioning_profile
+  if(use_predictor){
     if(PredictSubgraphPartitioning() != kTfLiteOk){
       std::cout << "PredictSubgraphPartitioning" << "\n";
     }
     return;
-  #endif
+  }
+  
   if(RegisterModeltoScheduler() != kTfLiteOk){
     std::cout << "Model registration to scheduler ERROR" << "\n";
   }
