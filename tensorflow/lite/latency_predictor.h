@@ -21,25 +21,27 @@ namespace Predictor{
     int start_node;
     int end_node;
     std::vector<int> in_dim;
+    int input_size = 1;
     std::vector<int> out_dim; 
+    int output_size = 1;
     float flops;
 
     // Expected CopyFromExternalObject latency
-    float CPF;
+    float CPF = 0;
     // Expected CopyToExternalObject latency
-    float CPT;
+    float CPT = 0;
     // Expected kernelDispatch latency
-    float KD;
+    float KD = 0;
     // Expected FLush latency
-    float FW;
+    float FW = 0;
     // Expected Total latency;
-    float SUM; 
+    float SUM = 0; 
     // Expected subgraph scope invoke latency
-    float IVS;
+    float IVS = 0;
     // Expected merge latency
-    float MG;
+    float MG = 0;
     // Expected copy(between subgraphs) latency
-    float CP;
+    float CP = 0;
 
   } SubgraphCandidate;
 
@@ -73,12 +75,15 @@ namespace Predictor{
       void SimulateHeightPartitioning(tflite::Subgraph* origin_subgraph, 
                                       SubgraphCandidate* new_subgraph);
 
-      float LatencyPredict(Latency_Term term, int x_value);
+      float LatencyPredict(Latency_Term term, tflite::ResourceType r_type ,int x_value);
 
       void CopyTensorsFromContext(TfLiteContext* context);
       TfLiteTensor* CopyNoBufferTensor(TfLiteTensor& tensor);
       TfLiteTensor* GetTensor(int tensor_idx);
       void ResizeTensorNaive(int tensor_idx, std::vector<int>& new_dim);
+
+      void GetTotalFlopsforGivenSubgraph(tflite::Subgraph* origin_subgraph,
+                                          SubgraphCandidate* new_subgraph);
 
     private:
     std::vector<TfLiteTensor*> copied_tensors;

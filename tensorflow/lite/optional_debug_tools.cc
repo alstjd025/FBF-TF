@@ -411,7 +411,6 @@ void PrintInterpreterStateDimandSize(Interpreter* interpreter){
           tot += flops;
           printf("\033[0;31mFLOPs : %.1f\033[0m\n", flops);
         }
-        
       }
     }
     printf("\n");
