@@ -29,12 +29,12 @@ void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
   case tflite::MODEL_TYPE::EFFICIENTNET :
     std::cout << "Set efficient" << "\n";
     partitioning_candidates = efficientnet_partitioning_cadidates;
-    end_layer = 113;
+    end_layer = 114;
     break;
   case tflite::MODEL_TYPE::MOBILENET :
     std::cout << "Set mobile" << "\n";
     partitioning_candidates = mobilenet_partitioning_cadidates;
-    end_layer = 30;
+    end_layer = 27;
     break;
   case tflite::MODEL_TYPE::YOLO :
     std::cout << "Set yolo" << "\n";
@@ -49,23 +49,46 @@ void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
   std::vector<std::vector<std::pair<int, int>>> new_graphs; // {{0,5} {6,9}, {10, 13},,,}
   std::vector<std::pair<int, int>> a;
   a.push_back(std::pair<int, int>(0, 55));
-
-  for(int i=0; i<efficient_points.size(); ++i){
-    std::vector<std::pair<int, int>> graph_pair;
-    for(int j=0; j<efficient_points[i].size(); ++j){
-      int node = efficient_points[i][j];
-      if(j == 0){
-        std::cout << "0 " << node << "\n";
-        graph_pair.push_back(std::pair<int, int>(0, node));
-      }else if(j == efficient_points[i].size() - 1){
-        std::cout << node << " " << end_layer << "\n";
-        graph_pair.push_back(std::pair<int, int>(node, end_layer));
-      }else{
-        std::cout << efficient_points[i][j-1]+1 << " " << node << "\n";
-        graph_pair.push_back(std::pair<int, int>(efficient_points[i][j-1]+1, node));
+  if(m_type == tflite::MODEL_TYPE::EFFICIENTNET){
+    for(int i=0; i<efficient_points.size(); ++i){
+      std::vector<std::pair<int, int>> graph_pair;
+      for(int j=0; j<efficient_points[i].size(); ++j){
+        int node = efficient_points[i][j];
+        if(j == 0){
+          graph_pair.push_back(std::pair<int, int>(0, node));
+        }
+        if(j == efficient_points[i].size() - 1){
+          if(j > 0){
+            graph_pair.push_back(std::pair<int, int>(efficient_points[i][j-1]+1, node));
+          }
+          graph_pair.push_back(std::pair<int, int>(node, end_layer));
+        }
+        if(j != 0 && j != efficient_points[i].size() - 1){
+          graph_pair.push_back(std::pair<int, int>(efficient_points[i][j-1]+1, node));
+        }
       }
+      new_graphs.push_back(graph_pair);
     }
-    new_graphs.push_back(graph_pair);
+  }else if(m_type == tflite::MODEL_TYPE::MOBILENET){
+    for(int i=0; i<mobilenet_points.size(); ++i){
+      std::vector<std::pair<int, int>> graph_pair;
+      for(int j=0; j<mobilenet_points[i].size(); ++j){
+        int node = mobilenet_points[i][j];
+        if(j == 0){
+          graph_pair.push_back(std::pair<int, int>(0, node));
+        }
+        if(j == mobilenet_points[i].size() - 1){
+          if(j > 0){
+            graph_pair.push_back(std::pair<int, int>(mobilenet_points[i][j-1]+1, node));
+          }
+          graph_pair.push_back(std::pair<int, int>(node, end_layer));
+        }
+        if(j != 0 && j != mobilenet_points[i].size() - 1){
+          graph_pair.push_back(std::pair<int, int>(mobilenet_points[i][j-1]+1, node));
+        }
+      }
+      new_graphs.push_back(graph_pair);
+    }
   }
 
   for(int i=0; i<new_graphs.size(); ++i){

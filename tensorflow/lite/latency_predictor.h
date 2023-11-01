@@ -139,9 +139,15 @@ namespace Predictor{
       {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,89 ,93 ,97 ,101 ,105},
       {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,89 ,93 ,97 ,101 ,105 ,109}
     };
-    // std::vector<std::vector<int>> yolo_points{
-      
-    // }
+    std::vector<std::vector<int>> yolo_points{
+      {13, 28, 55, 86}
+    };
+    std::vector<std::vector<int>> mobilenet_points{
+      {11},
+      {3, 11},
+      {3, 7, 11},
+      {3, 7, 11, 23},
+    };
   };
 
 } // namespace Predictor

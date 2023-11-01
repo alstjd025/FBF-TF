@@ -1201,7 +1201,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0); 
-      printf(" IVS %.6f ", response_time);
+      // printf(" IVS %.6f ", response_time);
       #ifdef latency_measure
         timestamp_label_main_interpreter.push_back("IVs");
         timestamp_main_interpreter.push_back(begin.tv_sec + (begin.tv_nsec / 1000000000.0));
