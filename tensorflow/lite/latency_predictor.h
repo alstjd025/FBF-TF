@@ -22,28 +22,45 @@ namespace Predictor{
     int start_node;
     int end_node;
     TfLiteIntArray* in_dim;
+    TfLiteIntArray* origin_in_dim;
     TfLiteIntArray* out_dim; 
+    TfLiteIntArray* origin_out_dim; 
+    
     int input_size = 1;
+    int origin_input_size = 1;
+
     int output_size = 1;
+    int origin_output_size = 1;
+
     float flops;
+    float origin_flops;
 
     // Expected CopyFromExternalObject latency
     float CPF = 0;
+    float CPF_origin = 0;
     // Expected CopyToExternalObject latency
     float CPT = 0;
+    float CPT_origin = 0;
     // Expected kernelDispatch latency
     float KD = 0;
+    float KD_origin = 0;
     // Expected FLush latency
     float FW = 0;
+    float FW_origin = 0;
     // Expected Total latency;
     float SUM = 0; 
+    float SUM_origin = 0; 
     // Expected subgraph scope invoke latency
     float IVS = 0;
+    float IVS_origin = 0;
     // Expected merge latency
     float MG = 0;
+    float MG_origin = 0;
     // Expected copy(between subgraphs) latency
     float CP = 0;
+    float CP_origin = 0;
 
+    // Expected max_latency
   } SubgraphCandidate;
 
   typedef struct PartitioningPlan{
@@ -84,6 +101,11 @@ namespace Predictor{
       void GetTotalFlopsforGivenSubgraph(tflite::Subgraph* origin_subgraph,
                                           SubgraphCandidate* new_subgraph);
 
+      void GetOriginFlopsforGivenSubgraph(tflite::Subgraph* origin_subgraph,
+                                          SubgraphCandidate* new_subgraph);
+
+      void PrintPredictionResult();
+
     private:
     std::vector<TfLiteTensor*> copied_tensors;
     tflite::DEVICE_TYPE d_type;
@@ -117,6 +139,9 @@ namespace Predictor{
       {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,89 ,93 ,97 ,101 ,105},
       {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,89 ,93 ,97 ,101 ,105 ,109}
     };
+    // std::vector<std::vector<int>> yolo_points{
+      
+    // }
   };
 
 } // namespace Predictor

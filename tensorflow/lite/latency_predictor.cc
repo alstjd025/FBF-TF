@@ -1,6 +1,8 @@
 #include "tensorflow/lite/latency_predictor.h"
 #include "tensorflow/lite/optional_debug_tools.h"
 
+#define print_output
+
 namespace Predictor{
 PartitioningPredictor::PartitioningPredictor(tflite::DEVICE_TYPE device_type_,
                                              tflite::MODEL_TYPE model_type_):
@@ -73,6 +75,7 @@ void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
     total_plans.push_back(new_plan);
   }
   SimulateSubgraphPartitioning(origin_subgraph, total_plans);
+  PrintPredictionResult();
 }
 
 void PartitioningPredictor::SimulateSubgraphPartitioning(
@@ -105,61 +108,176 @@ void PartitioningPredictor::SimulateSubgraphPartitioning(
             std::pair<SubgraphCandidate*, SubgraphCandidate*>(gpu_subgraph, cpu_subgraph));
     }
   }
-  // print created 
-  std::cout << "Total " << new_plan.size() << " partitions created " << "\n";
-  for(int i=0; i< new_plan.size(); ++i){
-    PartitioningPlan* working_plan = new_plan[i];
-    std::cout << "Plan " << i << " has " <<  working_plan->subgraphs.size() << " subgraphs" << "\n";
+  return;
+}
+
+void PartitioningPredictor::PrintPredictionResult(){
+  std::cout << "Total " << total_plans.size() << " partitions created " << "\n";
+  for(int i=0; i< total_plans.size(); ++i){
+    PartitioningPlan* working_plan = total_plans[i];
     std::cout << "=============================================" << "\n";
+    std::cout << "Plan " << i << " has " <<  working_plan->subgraphs.size() << " subgraphs" << "\n";
     double latency = 0;
     double gpu_latency = 0;
     double cpu_latency = 0;
+    // GPU subgraphs
+    // CPT
+    // KD
+    // CPF
+    // FW
+    // SUM
+    // MG
+    // FLOPS
+    // FLOPS(origin)
+    // CO-EX  
+    // XNN
+    // GPU
+    // ==
+    // CPU subgraphs
+    // CP
+    // KD
+    // FLOPS
+    // FLOPS(origin)
+    printf("Main Subgraph \n");
+    printf("CPT    ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->CPT);
+    }
+    printf("\n");
+    printf("KD     ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->KD);
+    }
+    printf("\n");
+    printf("o_KD   ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->KD_origin);
+    }
+    printf("\n");
+    printf("CPF    ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->CPF);
+    }
+    printf("\n");
+    printf("FW     ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->FW);
+    }
+    printf("\n");
+    printf("MG     ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->MG);
+    }
+    printf("\n");
+    printf("SUM     ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->SUM);
+    }
+    printf("\n");
+    printf("FLOPS   ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->flops);
+    }
+    printf("\n");
+    printf("o_flops ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->origin_flops);
+    }
+    printf("\n");
+    printf("input   ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%7d ", gpu_graph->input_size);
+    }
+    printf("\n");
+    printf("output  ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%7d ", gpu_graph->output_size);
+    }
+    printf("\n");
+    printf("o_input ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%7d ", gpu_graph->origin_input_size);
+    }
+    printf("\n");
+    printf("o_output ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%7d ", gpu_graph->origin_output_size);
+    }
+    printf("\n");
+    std::cout << "------------------------------------" << "\n";
+    printf("Sub-subgraph \n");
+    printf("IVS    ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      printf("%0.7f ", cpu_graph->IVS);
+    }
+    printf("\n");
+    printf("o_IVS  ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      printf("%0.7f ", cpu_graph->IVS_origin);
+    }
+    printf("\n");
+    printf("CP     ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      printf("%0.7f ", cpu_graph->CP);
+    }
+    printf("\n");
+    printf("o_CP   ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      printf("%0.7f ", cpu_graph->CP_origin);
+    }
+    printf("\n");
+    printf("SUM    ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      printf("%0.7f ", cpu_graph->SUM);
+    }
+    printf("\n");
+    std::cout << "Result--------------------------" << "\n";
+    printf("GPU latency ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->SUM);
+    }  
+    printf("\n");
+    printf("CPU latency ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      printf("%0.7f ", cpu_graph->SUM);
+    }
+    printf("\n");
+    printf("Ex latency  ");
     for(int j=0; j<working_plan->subgraphs.size(); ++j){
       SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
       SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
-      #ifdef print_output
-        std::cout << "=============================================" << "\n";
-        std::cout << "<GPU graph>" << "\n";
-        std::cout << "Input dim ";
-        for (int k = 0; k < gpu_graph->in_dim->size; k++) {
-          printf(" %d", gpu_graph->in_dim->data[k]);
-        }
-        printf("\n");
-        std::cout << "Output dim ";
-        for (int k = 0; k < gpu_graph->out_dim->size; k++) {
-          printf(" %d", gpu_graph->out_dim->data[k]);
-        }
-        printf("\n");
-        
-        std::cout << "Flops " << gpu_graph->flops << "\n";
-        printf("Latency(sum) : %.7f \n", gpu_graph->SUM); 
-        printf("Latency(sum + mg) : %.7f \n", (gpu_graph->SUM + gpu_graph->MG)); 
-        printf("Latency(IVS) : %.7f \n", gpu_graph->IVS); 
-      #endif
-        gpu_latency = gpu_graph->SUM + gpu_graph->MG;
-      #ifdef print_output
-        std::cout << "<CPU graph>" << "\n";
-        std::cout << "Input dim ";
-        for (int k = 0; k < cpu_graph->in_dim->size; k++) {
-          printf(" %d", cpu_graph->in_dim->data[k]);
-        }
-        printf("\n");
-        std::cout << "Output dim ";
-        for (int k = 0; k < cpu_graph->out_dim->size; k++) {
-          printf(" %d", cpu_graph->out_dim->data[k]);
-        }
-        printf("\n");
-        std::cout << "Flops " << cpu_graph->flops << "\n";
-        printf("Latency(IVS) : %.7f\n", cpu_graph->IVS); 
-        printf("Latency(CP) : %.7f\n", cpu_graph->CP); 
-      #endif
-        cpu_latency = cpu_graph->IVS + gpu_graph->CP;
-        if(gpu_latency > cpu_latency){
-          latency += gpu_latency;
-        }else{
-          latency += cpu_latency;
-        }
-    }
+      float ex_latency = 0;
+      float gpu_latency = gpu_graph->SUM;
+      float gpu_latency_origin = gpu_graph->SUM_origin;
+      float cpu_latency = cpu_graph->SUM;
+      if(gpu_latency < cpu_latency)
+        ex_latency = cpu_latency;
+      else
+        ex_latency = gpu_latency;
+      printf("%0.7f ", ex_latency);
+      latency += ex_latency;
+    }  
+    printf("\n");
     printf("Plan %d expected latency %0.7f \n", i, latency);
     latency = 0;
   }
@@ -175,6 +293,7 @@ void PartitioningPredictor::SimulateHeightPartitioning(
   std::vector<int> execution_plan_;
   int start_node = new_subgraph->start_node;
   int end_node = new_subgraph->end_node;
+
   std::cout << "start node " << start_node << " end node " << end_node << "\n";
   int total_execution_plan_size = origin_subgraph->execution_plan().size();
   int start_tensor_idx, end_tensor_idx;
@@ -189,6 +308,17 @@ void PartitioningPredictor::SimulateHeightPartitioning(
   std::vector<std::pair<TfLiteNode, TfLiteRegistration>> nodes_and_registration_ =
     origin_subgraph->nodes_and_registration();
   CopyTensorsFromContext(origin_subgraph->context());
+  GetOriginFlopsforGivenSubgraph(origin_subgraph, new_subgraph);
+  TfLiteTensor* origin_input_tensor = GetTensor(start_tensor_idx);
+  for(int i=0;i<origin_input_tensor->dims->size; ++i){
+    new_subgraph->origin_in_dim = TfLiteIntArrayCopy(origin_input_tensor->dims);
+    new_subgraph->origin_input_size *= origin_input_tensor->dims->data[i];
+  }
+  TfLiteTensor* origin_output_tensor = GetTensor(end_tensor_idx);
+  for(int i=0;i<origin_output_tensor->dims->size; ++i){
+    new_subgraph->origin_out_dim = TfLiteIntArrayCopy(origin_output_tensor->dims);
+    new_subgraph->origin_output_size *= origin_output_tensor->dims->data[i];
+  }
   // Need to modify simulate height partition.
   // use dummy tensors.
   // no data pointer allocation.
@@ -196,8 +326,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
       resource_type == tflite::ResourceType::CO_CPU_XNN){
     int partitioning_ratio = partitioning_ratio_cpu - 10;
     std::vector<int> tensors_already_partitioned;
-    std::cout << "Sub subgraph partitioning" << "\n";
-    std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
     for(int execution_plan_idx = execution_plan_.size() - 1;
             execution_plan_idx >= 0; execution_plan_idx--){
       bool is_output_feature_same = false;
@@ -231,8 +359,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
       int padding_layer_placeholder = 0; // we have to consider padding layer manually.
       bool is_last_output = false;
       for(int idx=0; idx<input_tensor_indices.size(); ++idx){
-        std::cout << "==================================" << "\n";
-        std::cout << GetOpName(registration) << "\n";
         input_tensor_idx = input_tensor_indices[idx];
         TfLiteTensor* input_tensor = nullptr;
         TfLiteTensor* output_tensor = nullptr;
@@ -302,7 +428,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           break;
         case kTfLiteBuiltinMaxPool2d:
         case kTfLiteBuiltinAveragePool2d:
-          std::cout << "Pool padding calc" << "\n";
           zero_padding_overlap = 0; // no 'same' option in pooling layer
           padding_overlap = tflite::HW::GetOverlapPool(stride, filter, new_input_height,
                                                                 new_output_height);
@@ -310,26 +435,8 @@ void PartitioningPredictor::SimulateHeightPartitioning(
         default:
           break;
         }
-        // Calculate padding 
-        std::cout << "Params in layer : " << "\n" <<
-              " filter : " << filter << "\n" <<
-              " stride : " << stride << "\n" <<
-              " padding_type : " << padding_type << "\n" <<
-              " padding_height : " << padding_height << "\n" <<
-              " padding_width : " << padding_width << "\n" <<
-              " padding_height_offset : " << padding_height_offset << "\n" <<
-              " padding_witdh_offset : " << padding_width_offset << "\n" <<
-              " zero padding calculated : " << zero_padding_overlap << "\n";
         int padding_to_add = (padding_overlap - padding_layer_placeholder);
         new_input_height += padding_to_add;
-        std::cout << "-----------------------------------" << "\n";
-        std::cout << "tensor : " << input_tensor_idx << "\n" <<
-                    " origin input_height : " << origin_input_height <<  "\n" <<
-                    " origin output_height : " << origin_output_height << "\n" <<
-                    " new input height : " << new_input_height << "\n" <<
-                    " new output height : " << new_output_height << "\n" <<
-                    " overlap to add : " << padding_overlap <<  "\n" <<
-                    " added zero padding : " << zero_padding_overlap <<  "\n";
         // Change height of input tensor
         for(int i=0; i<input_tensor->dims->size; ++i){
           new_input_dim.push_back(input_tensor->dims->data[i]);
@@ -339,10 +446,8 @@ void PartitioningPredictor::SimulateHeightPartitioning(
         }else if(is_last_output ||
             (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
           new_input_dim[1] = new_input_height;
-          std::cout << "a1 " << new_input_dim[1] << "\n";
         }else if( new_input_height < origin_output_height){ 
           new_input_dim[1] = origin_output_height + padding_to_add;
-          std::cout << "a2 "<< new_input_dim[1] << "\n";
         }
         else{
           std::cout << "calculated in height too big " << new_input_height <<
@@ -359,10 +464,8 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           if(is_last_output || 
               (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
             new_output_dim[1] = new_input_height;
-            std::cout << "b1 " << new_output_dim[1] << "\n";
           }else if(new_input_height <= origin_input_height && new_input_height < origin_output_height){
             new_output_dim[1] = origin_output_height;
-            std::cout << "b2 " << new_output_dim[1] << "\n";
           }
           else if(new_input_height > origin_input_height){
             std::cout << "calculated out height too big " << new_input_height <<
@@ -370,10 +473,8 @@ void PartitioningPredictor::SimulateHeightPartitioning(
             new_output_dim[1] = new_input_height;
             // return kTfLiteError;
           }
-          std::cout << "resize output " << "\n";
           ResizeTensorNaive(output_tensor_idx, new_output_dim);
         }
-        std::cout << "resize input " << "\n";
         ResizeTensorNaive(input_tensor_idx, new_input_dim);
         new_input_dim.clear();
         new_output_dim.clear();
@@ -386,39 +487,12 @@ void PartitioningPredictor::SimulateHeightPartitioning(
         tensors_already_partitioned.push_back(node.inputs->data[0]);
       }
     }
-    for(int execution_plan_idx = 0; execution_plan_idx<execution_plan_.size();
-          ++execution_plan_idx){
-      int node_index = execution_plan_[execution_plan_idx];
-      TfLiteNode& node = nodes_and_registration_[node_index].first;
-      const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-      if (registration.custom_name != nullptr) {
-        printf("Node %3zu %s ", node_index, registration.custom_name);
-      } else {
-        printf("Node %3zu %s ", node_index, tflite::EnumNamesBuiltinOperator()[registration.builtin_code]);
-      }
-      TfLiteIntArray* outputs = node.outputs;
-      for(int i=0; i<outputs->size; ++i){
-        int tensor_index = outputs->data[i];
-        TfLiteTensor* tensor_ = GetTensor(tensor_index);
-        printf("Tensor %3zu %10zu bytes (%4.1f MB) ", tensor_index,
-            tensor_->bytes,
-            (static_cast<float>(tensor_->bytes) / (1 << 20)));
-        for(int k=0; k<tensor_->dims->size; k++){
-          std::cout << tensor_->dims->data[k] << " ";
-        } 
-        std::cout << "\n";
-      }
-    }
-    
   }else{
     // Below is main interpreter side.
     int partitioning_ratio = partitioning_ratio_gpu - 10;
-    std::cout << "Main subgraph partitioning" << "\n";
-    std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
     std::vector<int> tensors_already_partitioned;
     for(int execution_plan_idx = execution_plan_.size() - 1;
             execution_plan_idx >= 0; execution_plan_idx--){
-      std::cout << "Execution plan " << execution_plan_idx << "\n";
       bool is_output_feature_same = false;
       // Calculate overlap and zero_padding_overlap.
       // And change dims of given tensor.
@@ -450,19 +524,15 @@ void PartitioningPredictor::SimulateHeightPartitioning(
       int padding_layer_placeholder = 0; // we have to consider padding layer manually.
       bool is_last_output = false;
       for(int idx=0; idx<input_tensor_indices.size(); ++idx){
-        std::cout << "==================================" << "\n";
-        std::cout << GetOpName(registration) << "\n";
         input_tensor_idx = input_tensor_indices[idx];
         TfLiteTensor* input_tensor = nullptr;
         TfLiteTensor* output_tensor = nullptr;
-        std::cout << "1" << "\n";
         input_tensor = GetTensor(input_tensor_idx);
         output_tensor = GetTensor(output_tensor_idx);
         int origin_output_height, origin_input_height, new_input_height,
             new_output_height, filter, stride, padding_type, padding_height,
             padding_width, padding_height_offset, padding_width_offset;
         // Get parameters(filter size, stride) of node.
-        std::cout << "2" << "\n";
         if(!tflite::GetParamsForPartitioning(&registration, &node, origin_subgraph->context(),
                                     filter, stride, padding_type, padding_height,
                                     padding_width, padding_height_offset,
@@ -470,7 +540,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
           return;
         }
-        std::cout << "3" << "\n";
         bool need_to_be_partitioned = true;
 
         // Check for 1x1 conv and output feature type ('same', 'valid')
@@ -522,7 +591,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           break;
         case kTfLiteBuiltinDepthwiseConv2d:
         case kTfLiteBuiltinConv2d:
-          std::cout << "Conv padding calc" << "\n";
           // padding info
           // same == 1
           // valid == 2
@@ -537,7 +605,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           break;
         case kTfLiteBuiltinMaxPool2d:
         case kTfLiteBuiltinAveragePool2d:
-          std::cout << "Pool padding calc" << "\n";
           zero_padding_overlap = 0; // no 'same' option in pooling layer
           padding_overlap = tflite::HW::GetOverlapPool(stride, filter, new_input_height,
                                                                 new_output_height);
@@ -545,33 +612,12 @@ void PartitioningPredictor::SimulateHeightPartitioning(
         default:
           break;
         }
-      
-        std::cout << "Params in layer : " << "\n" <<
-                    " filter : " << filter << "\n" <<
-                    " stride : " << stride << "\n" <<
-                    " padding_type : " << padding_type << "\n" <<
-                    " padding_height : " << padding_height << "\n" <<
-                    " padding_width : " << padding_width << "\n" <<
-                    " padding_height_offset : " << padding_height_offset << "\n" <<
-                    " padding_witdh_offset : " << padding_width_offset << "\n" <<
-                    " zero padding calculated : " << zero_padding_overlap << "\n";
-        // Calculate padding 
-        
         if(zero_padding_overlap != 0)
           padding_overlap = 0;
         int padding_to_add = (padding_overlap + zero_padding_overlap - padding_layer_placeholder);
         new_input_height += padding_to_add;
         if(is_output_feature_same)
           new_output_height += padding_to_add;
-        std::cout << "-----------------------------------" << "\n";
-        std::cout << "tensor : " << input_tensor_idx << "\n" <<
-                    " origin input_height : " << origin_input_height <<  "\n" <<
-                    " origin output_height : " << origin_output_height << "\n" <<
-                    " new input height : " << new_input_height << "\n" <<
-                    " new output height : " << new_output_height << "\n" <<
-                    " overlap to add : " << padding_overlap <<  "\n" <<
-                    " added zero padding : " << zero_padding_overlap <<  "\n";
-
         // Change height of input tensor
         for(int i=0; i<input_tensor->dims->size; ++i){
           new_input_dim.push_back(input_tensor->dims->data[i]);
@@ -667,46 +713,22 @@ void PartitioningPredictor::SimulateHeightPartitioning(
         tensors_already_partitioned.push_back(node.inputs->data[1]);
         tensors_already_partitioned.push_back(node.inputs->data[0]);
       }
-    }
-    std::cout << "Height partitioning done" << "\n";
-    for(int execution_plan_idx = 0; execution_plan_idx<execution_plan_.size();
-          ++execution_plan_idx){
-      int node_index = execution_plan_[execution_plan_idx];
-      TfLiteNode& node = nodes_and_registration_[node_index].first;
-      const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-      if (registration.custom_name != nullptr) {
-        printf("Node %3zu %s ", node_index, registration.custom_name);
-      } else {
-        printf("Node %3zu %s ", node_index, tflite::EnumNamesBuiltinOperator()[registration.builtin_code]);
-      }
-      TfLiteIntArray* outputs = node.outputs;
-      for(int i=0; i<outputs->size; ++i){
-        int tensor_index = outputs->data[i];
-        TfLiteTensor* tensor_ = GetTensor(tensor_index);
-        printf("Tensor %3zu %10zu bytes (%4.1f MB) ", tensor_index,
-            tensor_->bytes,
-            (static_cast<float>(tensor_->bytes) / (1 << 20)));
-        for(int k=0; k<tensor_->dims->size; k++){
-          std::cout << tensor_->dims->data[k] << " ";
-        } 
-        std::cout << "\n";
-      }
-    }  
+    } 
   }
   // Set input and output dims for given subgraph
-  std::cout << "Set input tensor " << start_tensor_idx << "\n";
+  // std::cout << "Set input tensor " << start_tensor_idx << "\n";
   TfLiteTensor* input_tensor = GetTensor(start_tensor_idx);
   for(int i=0;i<input_tensor->dims->size; ++i){
     new_subgraph->in_dim = TfLiteIntArrayCopy(input_tensor->dims);
     new_subgraph->input_size *= input_tensor->dims->data[i];
   }
-  std::cout << "\n" << "Set output tensor " << end_tensor_idx << "\n";
+  // std::cout << "\n" << "Set output tensor " << end_tensor_idx << "\n";
   TfLiteTensor* output_tensor = GetTensor(end_tensor_idx);
   for(int i=0;i<output_tensor->dims->size; ++i){
     new_subgraph->out_dim = TfLiteIntArrayCopy(output_tensor->dims);
     new_subgraph->output_size *= output_tensor->dims->data[i];
   }
-  std::cout << "\n";
+  // std::cout << "\n";
   // Calculcate latency terms for given subgraph partitiong plan
   // Get Flops
   GetTotalFlopsforGivenSubgraph(origin_subgraph, new_subgraph);
@@ -726,9 +748,24 @@ void PartitioningPredictor::SimulateHeightPartitioning(
       new_subgraph->MG  = 0;
       new_subgraph->SUM = new_subgraph->CPF + new_subgraph->CPT + new_subgraph->KD \ 
                           + new_subgraph->FW;
+      new_subgraph->CPF_origin = LatencyPredict(Latency_Term::CPF, new_subgraph->resource_type,
+                                          new_subgraph->origin_input_size);
+      new_subgraph->CPT_origin = LatencyPredict(Latency_Term::CPT, new_subgraph->resource_type,
+                                          new_subgraph->origin_output_size);
+      new_subgraph->KD_origin  = LatencyPredict(Latency_Term::KD, new_subgraph->resource_type,
+                                          new_subgraph->origin_flops);
+      new_subgraph->FW_origin   = LatencyPredict(Latency_Term::FW, new_subgraph->resource_type,
+                                          new_subgraph->origin_output_size);
+      new_subgraph->IVS_origin = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->origin_flops);
+      new_subgraph->MG_origin  = 0;
+      new_subgraph->SUM_origin = new_subgraph->CPF_origin + new_subgraph->CPT_origin +
+                                 new_subgraph->KD_origin + new_subgraph->FW_origin;
     }else{
       new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
                                           new_subgraph->flops);
+      new_subgraph->IVS_origin = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->origin_flops);
       new_subgraph->CP  = 0;
     }  
   }else{
@@ -739,19 +776,40 @@ void PartitioningPredictor::SimulateHeightPartitioning(
                                           new_subgraph->output_size);
       new_subgraph->KD  = LatencyPredict(Latency_Term::KD, new_subgraph->resource_type,
                                           new_subgraph->flops);
-      new_subgraph->FW   = LatencyPredict(Latency_Term::FW, new_subgraph->resource_type,
+      new_subgraph->FW  = LatencyPredict(Latency_Term::FW, new_subgraph->resource_type,
                                           new_subgraph->output_size);
       new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
                                           new_subgraph->flops);
       new_subgraph->MG  = LatencyPredict(Latency_Term::MG, new_subgraph->resource_type,
                                           new_subgraph->input_size*2);
       new_subgraph->SUM = new_subgraph->CPF + new_subgraph->CPT + new_subgraph->KD \ 
-                          + new_subgraph->FW;
+                          + new_subgraph->FW + new_subgraph->MG;
+      new_subgraph->CPF_origin = LatencyPredict(Latency_Term::CPF, new_subgraph->resource_type,
+                                          new_subgraph->origin_input_size);
+      new_subgraph->CPT_origin = LatencyPredict(Latency_Term::CPT, new_subgraph->resource_type,
+                                          new_subgraph->origin_output_size);
+      new_subgraph->KD_origin  = LatencyPredict(Latency_Term::KD, new_subgraph->resource_type,
+                                          new_subgraph->origin_flops);
+      new_subgraph->FW_origin   = LatencyPredict(Latency_Term::FW, new_subgraph->resource_type,
+                                          new_subgraph->origin_output_size);
+      new_subgraph->IVS_origin = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->origin_flops);
+      new_subgraph->CP_origin = LatencyPredict(Latency_Term::CP, new_subgraph->resource_type,
+                                          new_subgraph->origin_input_size);
+      new_subgraph->MG_origin  = 0;
+      new_subgraph->SUM_origin = new_subgraph->CPF_origin + new_subgraph->CPT_origin +
+                      new_subgraph->KD_origin + new_subgraph->FW_origin + new_subgraph->CP_origin;
     }else{
       new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
                                           new_subgraph->flops);
       new_subgraph->CP  = LatencyPredict(Latency_Term::CP, new_subgraph->resource_type,
                                           new_subgraph->input_size);
+      new_subgraph->SUM = new_subgraph->IVS + new_subgraph->CP;
+      new_subgraph->IVS_origin = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->origin_flops);
+      new_subgraph->CP_origin  = LatencyPredict(Latency_Term::CP, new_subgraph->resource_type,
+                                          new_subgraph->origin_input_size);
+      new_subgraph->SUM_origin = new_subgraph->IVS_origin + new_subgraph->CP_origin;
     }  
   }
   return;
@@ -841,6 +899,53 @@ void PartitioningPredictor::GetTotalFlopsforGivenSubgraph(tflite::Subgraph* orig
   }
   new_subgraph->flops = total_flops;
 }
+
+void PartitioningPredictor::GetOriginFlopsforGivenSubgraph(tflite::Subgraph* origin_subgraph,
+                                                          SubgraphCandidate* new_subgraph){
+  float total_flops = 0;
+  int start_node = new_subgraph->start_node;
+  int end_node = new_subgraph->end_node;
+  std::vector<std::pair<TfLiteNode, TfLiteRegistration>> nodes_and_registration_ =
+    origin_subgraph->nodes_and_registration();
+  for(int node_idx = start_node; node_idx < end_node+1; ++node_idx){
+    TfLiteNode& node = nodes_and_registration_[node_idx].first;
+    TfLiteRegistration& reg = nodes_and_registration_[node_idx].second;
+    TfLiteIntArray* outputs = node.outputs;
+    TfLiteIntArray* inputs = node.inputs;
+    int origin_output_height, origin_input_height, new_input_height,
+      new_output_height, filter, stride, padding_type, padding_height,
+      padding_width, padding_height_offset, padding_width_offset;
+    TfLiteContext* context_ = origin_subgraph->context();
+    if(strcmp(GetOpName(reg), "CONV_2D") == 0 || strcmp(GetOpName(reg), "DEPTHWISE_CONV_2D") == 0){
+      tflite::GetParamsForPartitioning(&reg, &node, context_,
+                                  filter, stride, padding_type, padding_height, padding_width, 
+                                  padding_height_offset, padding_width_offset);
+    }
+    for(int i=0; i<outputs->size; ++i){
+      int output_tensor_idx = outputs->data[i];
+      int input_tensor_idx = inputs->data[0];
+      float flops = 0;
+      TfLiteTensor* tensor = GetTensor(output_tensor_idx);
+      TfLiteTensor* i_tensor = GetTensor(input_tensor_idx);
+      if(strcmp(GetOpName(reg), "CONV_2D") == 0){
+        double mac = tensor->dims->data[1] * tensor->dims->data[2] * 
+                     tensor->dims->data[3] * i_tensor->dims->data[3] * filter * filter;
+        flops = 2*mac/1000000;
+        total_flops += flops;
+        printf("\033[0;31mFLOPs : %.1f\033[0m\n", flops);
+      }
+      if(strcmp(GetOpName(reg), "DEPTHWISE_CONV_2D") == 0){
+        double mac = tensor->dims->data[1] * tensor->dims->data[2] * 
+                     tensor->dims->data[3] * filter * filter;
+        flops = 2*mac/1000000;
+        total_flops += flops;
+        printf("\033[0;31mFLOPs : %.1f\033[0m\n", flops);
+      }
+    }
+  }
+  new_subgraph->origin_flops = total_flops;
+}
+
 
 float PartitioningPredictor::LatencyPredict(Latency_Term term,
                                             tflite::ResourceType r_type,
