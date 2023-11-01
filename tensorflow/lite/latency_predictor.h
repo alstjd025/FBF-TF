@@ -4,6 +4,7 @@
 #include "tensorflow/lite/core/subgraph.h"
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+#include "tensorflow/lite/optional_debug_tools.h"
 
 namespace Predictor{
   typedef enum Latency_Term{
@@ -20,9 +21,9 @@ namespace Predictor{
     tflite::ResourceType resource_type;
     int start_node;
     int end_node;
-    std::vector<int> in_dim;
+    TfLiteIntArray* in_dim;
+    TfLiteIntArray* out_dim; 
     int input_size = 1;
-    std::vector<int> out_dim; 
     int output_size = 1;
     float flops;
 
@@ -53,14 +54,12 @@ namespace Predictor{
 
   class PartitioningPredictor
   {
-    PartitioningPredictor();
-    
-    PartitioningPredictor(tflite::DEVICE_TYPE device_type_,
-                          tflite::MODEL_TYPE model_type_);
-    ~PartitioningPredictor();
     public:
+      PartitioningPredictor(tflite::DEVICE_TYPE device_type_,
+                            tflite::MODEL_TYPE model_type_);
+      ~PartitioningPredictor();
       // layer index starts at 0
-      std::vector<std::vector<PartitioningPlan*>> total_plans;
+      std::vector<PartitioningPlan*> total_plans;
       std::vector<int> yolo_partitioning_cadidates = {8, 20, 32, 55};
       std::vector<int> mobilenet_partitioning_cadidates = {3, 7, 11, 23, 27, 30};
       std::vector<int> efficientnet_partitioning_cadidates = {
@@ -91,35 +90,33 @@ namespace Predictor{
     tflite::MODEL_TYPE m_type;
     int partitioning_ratio_gpu;
     int partitioning_ratio_cpu;
+    std::vector<std::vector<int>> efficient_points {
+      {55},
+      {28, 55},
+      {28, 55, 85},
+      {13, 28, 55, 86},
+      {13, 28 ,43 ,55 ,85},
+      {13, 28 ,43 ,55 ,70 ,85},
+      {13, 28 ,43 ,55 ,70 ,85 ,97},
+      {9 , 13 ,28 ,43 ,55 ,70 ,85 ,97},
+      {9 , 13 ,20 ,28 ,43 ,55 ,70 ,85 ,97},
+      {9 , 13 ,20 ,28 ,39 ,43 ,55 ,70 ,85 ,97},
+      {9 , 13 ,20 ,28 ,39 ,43 ,51 ,55 ,70 ,85 ,97},
+      {9 , 13 ,20 ,28 ,39 ,43 ,51 ,55 ,66 ,70 ,85 ,97},
+      {9 , 13 ,20 ,28 ,39 ,43 ,51 ,55 ,66 ,70 ,78 ,85 ,97},
+      {9 , 13 ,20 ,28 ,39 ,43 ,51 ,55 ,66 ,70 ,78 ,85 ,93 ,97},
+      {9 , 13 ,20 ,28 ,39 ,43 ,51 ,55 ,66 ,70 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,20 ,28 ,39 ,43 ,51 ,55 ,66 ,70 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,28 ,39 ,43 ,51 ,55 ,66 ,70 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,39 ,43 ,51 ,55 ,66 ,70 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,51 ,55 ,66 ,70 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,66 ,70 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,89 ,93 ,97 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,89 ,93 ,97 ,101 ,105},
+      {5 , 9  ,13 ,17 ,20 ,24 ,28 ,32 ,39 ,43 ,47 ,51 ,55 ,62 ,66 ,70 ,74 ,78 ,85 ,89 ,93 ,97 ,101 ,105 ,109}
+    };
   };
 
 } // namespace Predictor
-
-/*
-55
-28 55
-28 55 85
-13 28 55 85
-13 28 43 55 85
-13 28 43 55 70 85
-13 28 43 55 70 85 97
-9 13 28 43 55 70 85 97
-9 13 20 28 43 55 70 85 97
-9 13 20 28 39 43 55 70 85 97
-9 13 20 28 39 43 51 55 70 85 97
-9 13 20 28 39 43 51 55 66 70 85 97
-9 13 20 28 39 43 51 55 66 70 78 85 97
-9 13 20 28 39 43 51 55 66 70 78 85 93 97
-9 13 20 28 39 43 51 55 66 70 78 85 93 97 105
-5 9 13 20 28 39 43 51 55 66 70 78 85 93 97 105
-5 9 13 17 20 28 39 43 51 55 66 70 78 85 93 97 105
-5 9 13 17 20 24 28 39 43 51 55 66 70 78 85 93 97 105
-5 9 13 17 20 24 28 32 39 43 51 55 66 70 78 85 93 97 105
-5 9 13 17 20 24 28 32 39 43 47 51 55 66 70 78 85 93 97 105
-5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 78 85 93 97 105
-5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 93 97 105
-5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 89 93 97 105
-5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 89 93 97 101 105
-5 9 13 17 20 24 28 32 39 43 47 51 55 62 66 70 74 78 85 89 93 97 101 105 109
-
-*/

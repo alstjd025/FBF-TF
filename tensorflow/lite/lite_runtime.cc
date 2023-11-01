@@ -112,6 +112,13 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   interpreter->SetInputType(type);
   sub_interpreter->SetInputType(type);
   SetInputType(type);
+  if(type == INPUT_TYPE::COCO416){
+    model_type = MODEL_TYPE::YOLO;
+  }else if(type == INPUT_TYPE::IMAGENET224){
+    model_type = MODEL_TYPE::MOBILENET;
+  }else if(type == INPUT_TYPE::IMAGENET300){
+    model_type = MODEL_TYPE::EFFICIENTNET;
+  }
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;
@@ -185,7 +192,8 @@ void TfLiteRuntime::SetLogPath(std::string path){
 }
 
 TfLiteStatus TfLiteRuntime::PredictSubgraphPartitioning(){
-  // call predictor here
+  Predictor::PartitioningPredictor predictor(device_type, model_type);
+  predictor.StartPredictor(interpreter->returnProfiledOriginalSubgraph(0));
 }
 
 void TfLiteRuntime::WriteInitStateLog(){

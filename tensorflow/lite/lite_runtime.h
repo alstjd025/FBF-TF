@@ -220,7 +220,8 @@ class TfLiteRuntime{
     INPUT_TYPE input_type;
 
     DEVICE_TYPE device_type;
-
+    MODEL_TYPE model_type;
+    
     //// Co-execution
     bool co_execution = false;
     

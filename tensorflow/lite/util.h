@@ -338,7 +338,6 @@ class YOLO_Parser{
 }; 
 
 typedef enum DEVICE_TYPE{
-  NONE,
   ODROID,
   XAVIER
 } DEVICE_TYPE;

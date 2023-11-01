@@ -1,4 +1,5 @@
 #include "tensorflow/lite/latency_predictor.h"
+#include "tensorflow/lite/optional_debug_tools.h"
 
 namespace Predictor{
 PartitioningPredictor::PartitioningPredictor(tflite::DEVICE_TYPE device_type_,
@@ -9,6 +10,8 @@ PartitioningPredictor::PartitioningPredictor(tflite::DEVICE_TYPE device_type_,
   std::cout << "Initialized Partitioning Predictor" << "\n";
 }
 
+PartitioningPredictor::~PartitioningPredictor() {}
+
 void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
   if(d_type == tflite::DEVICE_TYPE::ODROID){
     partitioning_ratio_gpu = 14;
@@ -16,35 +19,60 @@ void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
   }else if(d_type == tflite::DEVICE_TYPE::XAVIER){
     partitioning_ratio_gpu = 17;
     partitioning_ratio_cpu = 13;
-
   }
   std::vector<int> partitioning_candidates;
+  int end_layer = 0;
   switch (m_type)
   {
   case tflite::MODEL_TYPE::EFFICIENTNET :
+    std::cout << "Set efficient" << "\n";
     partitioning_candidates = efficientnet_partitioning_cadidates;
+    end_layer = 113;
     break;
   case tflite::MODEL_TYPE::MOBILENET :
+    std::cout << "Set mobile" << "\n";
     partitioning_candidates = mobilenet_partitioning_cadidates;
+    end_layer = 30;
     break;
   case tflite::MODEL_TYPE::YOLO :
+    std::cout << "Set yolo" << "\n";
     partitioning_candidates = yolo_partitioning_cadidates;
+    end_layer = 154;
     break;
   default:
     break;
   }
   
-  // Select a partitioning point
-  std::vector<std::vector<int>> partitioning_points;
-
-  
   // Create subgraph partitioning plan from seleceted partitioing point 
-  std::vector<std::pair<int, int>> new_graphs;
-  PartitioningPlan* new_plan = new PartitioningPlan;
-  new_plan->partitioning_points = new_graphs;
-  // SimulateSubgraphPartitioning with created plan
+  std::vector<std::vector<std::pair<int, int>>> new_graphs; // {{0,5} {6,9}, {10, 13},,,}
+  std::vector<std::pair<int, int>> a;
+  a.push_back(std::pair<int, int>(0, 55));
 
+  for(int i=0; i<efficient_points.size(); ++i){
+    std::vector<std::pair<int, int>> graph_pair;
+    for(int j=0; j<efficient_points[i].size(); ++j){
+      int node = efficient_points[i][j];
+      if(j == 0){
+        std::cout << "0 " << node << "\n";
+        graph_pair.push_back(std::pair<int, int>(0, node));
+      }else if(j == efficient_points[i].size() - 1){
+        std::cout << node << " " << end_layer << "\n";
+        graph_pair.push_back(std::pair<int, int>(node, end_layer));
+      }else{
+        std::cout << efficient_points[i][j-1]+1 << " " << node << "\n";
+        graph_pair.push_back(std::pair<int, int>(efficient_points[i][j-1]+1, node));
+      }
+    }
+    new_graphs.push_back(graph_pair);
+  }
 
+  for(int i=0; i<new_graphs.size(); ++i){
+    PartitioningPlan* new_plan = new PartitioningPlan;
+    for(int j=0; j<new_graphs[i].size(); ++j)
+      new_plan->partitioning_points.push_back(new_graphs[i][j]);
+    total_plans.push_back(new_plan);
+  }
+  SimulateSubgraphPartitioning(origin_subgraph, total_plans);
 }
 
 void PartitioningPredictor::SimulateSubgraphPartitioning(
@@ -52,13 +80,14 @@ void PartitioningPredictor::SimulateSubgraphPartitioning(
                                     std::vector<PartitioningPlan*>& new_plan){
   // iterate SimulateHeightPartitioning
   for(int plan_idx=0; plan_idx < new_plan.size(); ++plan_idx){
-    std::cout << "Plan idx " << plan_idx << "\n";
+    std::cout << "Plan idx " << plan_idx  << " new plan size : " << new_plan.size() << "\n";
     PartitioningPlan* working_plan = new_plan[plan_idx];
     for(int partition_idx=0; partition_idx < working_plan->partitioning_points.size();
         ++partition_idx){
-      std::cout << "Partitioning idx " << partition_idx << "\n";
+      std::cout << "Partitioning idx " << partition_idx << "partitioning_points size "
+                << working_plan->partitioning_points.size() << "\n";
       int start_node = working_plan->partitioning_points[partition_idx].first;
-      int end_node = working_plan->partitioning_points[partition_idx].first;
+      int end_node = working_plan->partitioning_points[partition_idx].second;
       std::cout << "start : " << start_node << " end : " << end_node << "\n";
       // GPU subgraph predict
       SubgraphCandidate* gpu_subgraph = new SubgraphCandidate;
@@ -72,7 +101,67 @@ void PartitioningPredictor::SimulateSubgraphPartitioning(
       cpu_subgraph->end_node = end_node;
       cpu_subgraph->resource_type = tflite::ResourceType::CO_CPU_XNN;
       SimulateHeightPartitioning(origin_subgraph, cpu_subgraph);
+      working_plan->subgraphs.push_back(
+            std::pair<SubgraphCandidate*, SubgraphCandidate*>(gpu_subgraph, cpu_subgraph));
     }
+  }
+  // print created 
+  std::cout << "Total " << new_plan.size() << " partitions created " << "\n";
+  for(int i=0; i< new_plan.size(); ++i){
+    PartitioningPlan* working_plan = new_plan[i];
+    std::cout << "Plan " << i << " has " <<  working_plan->subgraphs.size() << " subgraphs" << "\n";
+    std::cout << "=============================================" << "\n";
+    double latency = 0;
+    double gpu_latency = 0;
+    double cpu_latency = 0;
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      #ifdef print_output
+        std::cout << "=============================================" << "\n";
+        std::cout << "<GPU graph>" << "\n";
+        std::cout << "Input dim ";
+        for (int k = 0; k < gpu_graph->in_dim->size; k++) {
+          printf(" %d", gpu_graph->in_dim->data[k]);
+        }
+        printf("\n");
+        std::cout << "Output dim ";
+        for (int k = 0; k < gpu_graph->out_dim->size; k++) {
+          printf(" %d", gpu_graph->out_dim->data[k]);
+        }
+        printf("\n");
+        
+        std::cout << "Flops " << gpu_graph->flops << "\n";
+        printf("Latency(sum) : %.7f \n", gpu_graph->SUM); 
+        printf("Latency(sum + mg) : %.7f \n", (gpu_graph->SUM + gpu_graph->MG)); 
+        printf("Latency(IVS) : %.7f \n", gpu_graph->IVS); 
+      #endif
+        gpu_latency = gpu_graph->SUM + gpu_graph->MG;
+      #ifdef print_output
+        std::cout << "<CPU graph>" << "\n";
+        std::cout << "Input dim ";
+        for (int k = 0; k < cpu_graph->in_dim->size; k++) {
+          printf(" %d", cpu_graph->in_dim->data[k]);
+        }
+        printf("\n");
+        std::cout << "Output dim ";
+        for (int k = 0; k < cpu_graph->out_dim->size; k++) {
+          printf(" %d", cpu_graph->out_dim->data[k]);
+        }
+        printf("\n");
+        std::cout << "Flops " << cpu_graph->flops << "\n";
+        printf("Latency(IVS) : %.7f\n", cpu_graph->IVS); 
+        printf("Latency(CP) : %.7f\n", cpu_graph->CP); 
+      #endif
+        cpu_latency = cpu_graph->IVS + gpu_graph->CP;
+        if(gpu_latency > cpu_latency){
+          latency += gpu_latency;
+        }else{
+          latency += cpu_latency;
+        }
+    }
+    printf("Plan %d expected latency %0.7f \n", i, latency);
+    latency = 0;
   }
   return;
 }
@@ -86,6 +175,7 @@ void PartitioningPredictor::SimulateHeightPartitioning(
   std::vector<int> execution_plan_;
   int start_node = new_subgraph->start_node;
   int end_node = new_subgraph->end_node;
+  std::cout << "start node " << start_node << " end node " << end_node << "\n";
   int total_execution_plan_size = origin_subgraph->execution_plan().size();
   int start_tensor_idx, end_tensor_idx;
   int nodes_in_subgraph = end_node - start_node + 1;
@@ -104,7 +194,7 @@ void PartitioningPredictor::SimulateHeightPartitioning(
   // no data pointer allocation.
   if(resource_type == tflite::ResourceType::CO_CPU || 
       resource_type == tflite::ResourceType::CO_CPU_XNN){
-    int partitioning_ratio = partitioning_ratio_cpu;
+    int partitioning_ratio = partitioning_ratio_cpu - 10;
     std::vector<int> tensors_already_partitioned;
     std::cout << "Sub subgraph partitioning" << "\n";
     std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
@@ -321,14 +411,14 @@ void PartitioningPredictor::SimulateHeightPartitioning(
     }
     
   }else{
-
     // Below is main interpreter side.
-    int partitioning_ratio = partitioning_ratio_gpu;
+    int partitioning_ratio = partitioning_ratio_gpu - 10;
     std::cout << "Main subgraph partitioning" << "\n";
     std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
     std::vector<int> tensors_already_partitioned;
     for(int execution_plan_idx = execution_plan_.size() - 1;
             execution_plan_idx >= 0; execution_plan_idx--){
+      std::cout << "Execution plan " << execution_plan_idx << "\n";
       bool is_output_feature_same = false;
       // Calculate overlap and zero_padding_overlap.
       // And change dims of given tensor.
@@ -365,12 +455,14 @@ void PartitioningPredictor::SimulateHeightPartitioning(
         input_tensor_idx = input_tensor_indices[idx];
         TfLiteTensor* input_tensor = nullptr;
         TfLiteTensor* output_tensor = nullptr;
+        std::cout << "1" << "\n";
         input_tensor = GetTensor(input_tensor_idx);
         output_tensor = GetTensor(output_tensor_idx);
         int origin_output_height, origin_input_height, new_input_height,
             new_output_height, filter, stride, padding_type, padding_height,
             padding_width, padding_height_offset, padding_width_offset;
         // Get parameters(filter size, stride) of node.
+        std::cout << "2" << "\n";
         if(!tflite::GetParamsForPartitioning(&registration, &node, origin_subgraph->context(),
                                     filter, stride, padding_type, padding_height,
                                     padding_width, padding_height_offset,
@@ -378,6 +470,7 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
           return;
         }
+        std::cout << "3" << "\n";
         bool need_to_be_partitioned = true;
 
         // Check for 1x1 conv and output feature type ('same', 'valid')
@@ -488,10 +581,8 @@ void PartitioningPredictor::SimulateHeightPartitioning(
         }else if(is_last_output ||
             (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
           new_input_dim[1] = new_input_height;
-          std::cout << "a1 " << new_input_dim[1] << "\n";
         }else if( new_input_height < origin_output_height){ 
           new_input_dim[1] = origin_output_height + padding_to_add;
-          std::cout << "a2 "<< new_input_dim[1] << "\n";
         }
         else{ // TODO : Need better logic here
           std::cout << "calculated in height too big " << new_input_height <<
@@ -510,10 +601,8 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           if(is_last_output || 
               (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
             new_output_dim[1] = new_input_height;
-            std::cout << "b1 " << new_output_dim[1] << "\n";
           }else if(new_input_height <= origin_input_height && new_input_height < origin_output_height){
             new_output_dim[1] = origin_output_height;
-            std::cout << "b2 " << new_output_dim[1] << "\n";
           }
           else if(new_input_height > origin_input_height){ // TODO : Need better logic here
             std::cout << "calculated out height too big " << new_input_height <<
@@ -521,10 +610,8 @@ void PartitioningPredictor::SimulateHeightPartitioning(
             new_output_dim[1] = new_input_height;
             // return kTfLiteError; (no return)
           }
-          std::cout << "resize output (dim" << new_output_dim.size() << ")\n";
           ResizeTensorNaive(output_tensor_idx, new_output_dim);
         }
-        std::cout << "resize input (dim" << new_input_dim.size() << ")\n";
         ResizeTensorNaive(input_tensor_idx, new_input_dim);
         new_input_dim.clear();
         new_output_dim.clear();
@@ -535,8 +622,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
       if(is_output_feature_same){ // Case of padding type 'same'
         for(int execution_plan_idx_inner = execution_plan_idx+1;
             execution_plan_idx_inner < execution_plan_.size(); execution_plan_idx_inner++){
-          std::cout << "Propagate zero_padding_overlap "<< zero_padding_overlap <<
-                      " to node " << execution_plan_idx_inner << "\n";
           int node_index = execution_plan_[execution_plan_idx_inner];
           int input_tensor_idx_, output_tensor_idx_;
           std::vector<int> input_tensor_indices_;
@@ -553,7 +638,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
           TfLiteTensor* output_tensor;
           // change input tensor dim. (add zero_padding_overlap)
           for(int idx=0; idx < input_tensor_indices_.size(); ++idx){
-            std::cout << "tensor : " << input_tensor_indices_[idx] << "\n";
             input_tensor = GetTensor(input_tensor_indices_[idx]);
             std::vector<int> new_dim;
             for(int i=0; i<input_tensor->dims->size; ++i){
@@ -562,7 +646,6 @@ void PartitioningPredictor::SimulateHeightPartitioning(
             if(new_output_dim[1] > new_dim[1]){
               new_dim[1] = new_dim[1] + zero_padding_overlap;
             }
-            std::cout << "resize input zero padding (dim" << new_dim.size() << ")\n";
             ResizeTensorNaive(input_tensor_indices_[idx], new_dim);
           }
           // change output tensor dim. (add zero_padding_overlap)
@@ -572,9 +655,7 @@ void PartitioningPredictor::SimulateHeightPartitioning(
             new_dim_.push_back(output_tensor->dims->data[i]);
           }
           new_dim_[1] = new_dim_[1] + zero_padding_overlap;
-          std::cout << "resize output zero_padding (dim" << new_dim_.size() << ")\n";
           ResizeTensorNaive(output_tensor_idx_, new_dim_);
-          std::cout << "dddd22" << "\n";
         }
       }
       new_input_dim.clear();
@@ -613,36 +694,65 @@ void PartitioningPredictor::SimulateHeightPartitioning(
     }  
   }
   // Set input and output dims for given subgraph
+  std::cout << "Set input tensor " << start_tensor_idx << "\n";
   TfLiteTensor* input_tensor = GetTensor(start_tensor_idx);
   for(int i=0;i<input_tensor->dims->size; ++i){
-    new_subgraph->in_dim.push_back(input_tensor->dims->data[i]);
+    new_subgraph->in_dim = TfLiteIntArrayCopy(input_tensor->dims);
     new_subgraph->input_size *= input_tensor->dims->data[i];
   }
+  std::cout << "\n" << "Set output tensor " << end_tensor_idx << "\n";
   TfLiteTensor* output_tensor = GetTensor(end_tensor_idx);
   for(int i=0;i<output_tensor->dims->size; ++i){
-    new_subgraph->out_dim.push_back(output_tensor->dims->data[i]);
+    new_subgraph->out_dim = TfLiteIntArrayCopy(output_tensor->dims);
     new_subgraph->output_size *= output_tensor->dims->data[i];
   }
+  std::cout << "\n";
   // Calculcate latency terms for given subgraph partitiong plan
   // Get Flops
   GetTotalFlopsforGivenSubgraph(origin_subgraph, new_subgraph);
   // Get latency terms
-  if(end_node == total_execution_plan_size-1){ // means that this is final subgraph
-    //if gpu
-      //CPF, CPT, KD, FW, SUM, IVS, MG
-
-    //if cpu
-      //SUM, IVS, MG
-  }else if(start_node == 0){ // means that this is first subgraph
-    //if gpu
-      //CPF, CPT, KD, FW, SUM, IVS, MG
-    //if cpu
-      //SUM, IVS, MG
+  if(start_node == 0){ // start subgraph
+    if(new_subgraph->resource_type == tflite::ResourceType::CO_GPU){
+      new_subgraph->CPF = LatencyPredict(Latency_Term::CPF, new_subgraph->resource_type,
+                                          new_subgraph->input_size);
+      new_subgraph->CPT = LatencyPredict(Latency_Term::CPT, new_subgraph->resource_type,
+                                          new_subgraph->output_size);
+      new_subgraph->KD  = LatencyPredict(Latency_Term::KD, new_subgraph->resource_type,
+                                          new_subgraph->flops);
+      new_subgraph->FW   = LatencyPredict(Latency_Term::FW, new_subgraph->resource_type,
+                                          new_subgraph->output_size);
+      new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->flops);
+      new_subgraph->MG  = 0;
+      new_subgraph->SUM = new_subgraph->CPF + new_subgraph->CPT + new_subgraph->KD \ 
+                          + new_subgraph->FW;
+    }else{
+      new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->flops);
+      new_subgraph->CP  = 0;
+    }  
   }else{
-    //if gpu
-      //CPF, CPT, KD, FW, SUM, IVS, MG
-    //if cpu
-      //SUM, IVS, MG
+    if(new_subgraph->resource_type == tflite::ResourceType::CO_GPU){
+      new_subgraph->CPF = LatencyPredict(Latency_Term::CPF, new_subgraph->resource_type,
+                                          new_subgraph->input_size);
+      new_subgraph->CPT = LatencyPredict(Latency_Term::CPT, new_subgraph->resource_type,
+                                          new_subgraph->output_size);
+      new_subgraph->KD  = LatencyPredict(Latency_Term::KD, new_subgraph->resource_type,
+                                          new_subgraph->flops);
+      new_subgraph->FW   = LatencyPredict(Latency_Term::FW, new_subgraph->resource_type,
+                                          new_subgraph->output_size);
+      new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->flops);
+      new_subgraph->MG  = LatencyPredict(Latency_Term::MG, new_subgraph->resource_type,
+                                          new_subgraph->input_size*2);
+      new_subgraph->SUM = new_subgraph->CPF + new_subgraph->CPT + new_subgraph->KD \ 
+                          + new_subgraph->FW;
+    }else{
+      new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
+                                          new_subgraph->flops);
+      new_subgraph->CP  = LatencyPredict(Latency_Term::CP, new_subgraph->resource_type,
+                                          new_subgraph->input_size);
+    }  
   }
   return;
 }
@@ -655,7 +765,8 @@ void PartitioningPredictor::CopyTensorsFromContext(TfLiteContext* context){
 
   int num_tensors = context->tensors_size;
   std::cout << "Copy " << num_tensors << " from original context" << "\n";
-  for(int i=0; i<num_tensors; ++i){
+  for(int i=0; i<304; ++i){
+    // std::cout << i << "\n";
     TfLiteTensor* new_tensor = CopyNoBufferTensor(context->tensors[i]);
     copied_tensors.push_back(new_tensor);
   }
@@ -664,9 +775,9 @@ void PartitioningPredictor::CopyTensorsFromContext(TfLiteContext* context){
 
 TfLiteTensor* PartitioningPredictor::CopyNoBufferTensor(TfLiteTensor& tensor){
   TfLiteTensor* new_tensor = new TfLiteTensor;
-  TfLiteIntArrayEqualsArray(new_tensor->dims, tensor.dims->size,
-                            tensor.dims->data);
+  new_tensor->dims = TfLiteIntArrayCopy(tensor.dims);
   new_tensor->bytes = tensor.bytes;
+  return new_tensor;
 }
 
 TfLiteTensor* PartitioningPredictor::GetTensor(int tensor_idx){
@@ -767,8 +878,8 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
   case Latency_Term::CPT :
     if(d_type == tflite::DEVICE_TYPE::ODROID)
       switch (m_type){
-          output = (8e-09) * static_cast<float>(x_value) + 0.00055;
         case tflite::MODEL_TYPE::EFFICIENTNET:
+          output = (8e-09) * static_cast<float>(x_value) + 0.00055;
           break;
         case tflite::MODEL_TYPE::MOBILENET:
           break;
@@ -844,7 +955,7 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
       switch (m_type){
         case tflite::MODEL_TYPE::EFFICIENTNET:
           if(r_type == tflite::ResourceType::CO_CPU_XNN){
-            
+            output = (5.7531e-05) * static_cast<float>(x_value) + 0.00299;
           }else{
             output = (0.00010528) * static_cast<float>(x_value) + 0.00051;
           }
@@ -866,7 +977,7 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
       switch (m_type){
         case tflite::MODEL_TYPE::EFFICIENTNET:
           if(r_type == tflite::ResourceType::CO_CPU_XNN){
-            
+            output = (1.94921e-05) * static_cast<float>(x_value) + 0.00042;
           }else{ 
             output = (9.948e-06) * static_cast<float>(x_value) + 0.00119;
           }
