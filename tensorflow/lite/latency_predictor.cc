@@ -16,9 +16,11 @@ PartitioningPredictor::~PartitioningPredictor() {}
 
 void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
   if(d_type == tflite::DEVICE_TYPE::ODROID){
+    std::cout << "ODROID" << "\n";
     partitioning_ratio_gpu = 14;
     partitioning_ratio_cpu = 16;
   }else if(d_type == tflite::DEVICE_TYPE::XAVIER){
+    std::cout << "XAVIER" << "\n";
     partitioning_ratio_gpu = 17;
     partitioning_ratio_cpu = 13;
   }
@@ -240,6 +242,12 @@ void PartitioningPredictor::PrintPredictionResult(){
       printf("%7d ", gpu_graph->origin_output_size);
     }
     printf("\n");
+    printf("O_SUM     ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* gpu_graph = working_plan->subgraphs[j].first;
+      printf("%0.7f ", gpu_graph->SUM_origin);
+    }
+    printf("\n");
     std::cout << "------------------------------------" << "\n";
     printf("Sub-subgraph \n");
     printf("IVS    ");
@@ -270,6 +278,12 @@ void PartitioningPredictor::PrintPredictionResult(){
     for(int j=0; j<working_plan->subgraphs.size(); ++j){
       SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
       printf("%0.7f ", cpu_graph->SUM);
+    }
+    printf("\n");
+    printf("O_SUM    ");
+    for(int j=0; j<working_plan->subgraphs.size(); ++j){
+      SubgraphCandidate* cpu_graph = working_plan->subgraphs[j].second;
+      printf("%0.7f ", cpu_graph->SUM_origin);
     }
     printf("\n");
     std::cout << "Result--------------------------" << "\n";
@@ -787,8 +801,10 @@ void PartitioningPredictor::SimulateHeightPartitioning(
     }else{
       new_subgraph->IVS = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
                                           new_subgraph->flops);
+      new_subgraph->SUM = new_subgraph->IVS;
       new_subgraph->IVS_origin = LatencyPredict(Latency_Term::IVS, new_subgraph->resource_type,
                                           new_subgraph->origin_flops);
+      new_subgraph->SUM_origin = new_subgraph->IVS_origin;
       new_subgraph->CP  = 0;
     }  
   }else{
