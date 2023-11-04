@@ -15,6 +15,14 @@ PartitioningPredictor::PartitioningPredictor(tflite::DEVICE_TYPE device_type_,
 PartitioningPredictor::~PartitioningPredictor() {}
 
 void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
+
+  std::vector<std::vector<std::pair<int, bool>>> yolo_points_with_fallback;
+  yolo_points_with_fallback.push_back(std::vector<std::pair<int, bool>>());
+  yolo_points_with_fallback[0].push_back(std::pair<int, bool>(13, true));
+  yolo_points_with_fallback[0].push_back(std::pair<int, bool>(28, true));
+  yolo_points_with_fallback[0].push_back(std::pair<int, bool>(55, true));
+  yolo_points_with_fallback[0].push_back(std::pair<int, bool>(86, true));
+
   if(d_type == tflite::DEVICE_TYPE::ODROID){
     std::cout << "ODROID" << "\n";
     partitioning_ratio_gpu = 14;
@@ -24,6 +32,7 @@ void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
     partitioning_ratio_gpu = 17;
     partitioning_ratio_cpu = 13;
   }
+
   std::vector<int> partitioning_candidates;
   int end_layer = 0;
   switch (m_type)
@@ -92,6 +101,31 @@ void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
       new_graphs.push_back(graph_pair);
     }
   }
+  // else if(m_type == tflite::MODEL_TYPE::YOLO){
+  //   // yolo partiitoning points includes fallback
+  //   for(int i=0; i<yolo_points_with_fallback.size(); ++i){
+  //     std::vector<std::pair<int, int>> graph_pair;
+  //     for(int j=0; j<yolo_points_with_fallback[i].size(); ++j){
+  //       int node = yolo_points_with_fallback[i][j].first;
+  //       if(yolo_points_with_fallback[i][j].second){ // case of fallback
+          
+  //       }
+  //       if(j == 0){
+  //         graph_pair.push_back(std::pair<int, int>(0, node));
+  //       }
+  //       if(j == yolo_points_with_fallback[i].size() - 1){
+  //         if(j > 0){
+  //           graph_pair.push_back(std::pair<int, int>(yolo_points_with_fallback[i][j-1]+1, node));
+  //         }
+  //         graph_pair.push_back(std::pair<int, int>(node, end_layer));
+  //       }
+  //       if(j != 0 && j != yolo_points_with_fallback[i].size() - 1){
+  //         graph_pair.push_back(std::pair<int, int>(yolo_points_with_fallback[i][j-1]+1, node));
+  //       }
+  //     }
+  //     new_graphs.push_back(graph_pair);
+  //   }
+  // }
 
   for(int i=0; i<new_graphs.size(); ++i){
     PartitioningPlan* new_plan = new PartitioningPlan;
@@ -127,7 +161,7 @@ void PartitioningPredictor::SimulateSubgraphPartitioning(
       SubgraphCandidate* cpu_subgraph = new SubgraphCandidate;
       cpu_subgraph->start_node = start_node;
       cpu_subgraph->end_node = end_node;
-      cpu_subgraph->resource_type = tflite::ResourceType::CO_CPU_XNN;
+      cpu_subgraph->resource_type = tflite::ResourceType::CO_CPU;
       SimulateHeightPartitioning(origin_subgraph, cpu_subgraph);
       working_plan->subgraphs.push_back(
             std::pair<SubgraphCandidate*, SubgraphCandidate*>(gpu_subgraph, cpu_subgraph));
@@ -1108,6 +1142,8 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
         case tflite::MODEL_TYPE::EFFICIENTNET:
           if(r_type == tflite::ResourceType::CO_CPU_XNN){
             output = (5.7531e-05) * static_cast<float>(x_value) + 0.00299;
+          }else if(r_type == tflite::ResourceType::CO_CPU){
+            output = (7.22434-05) * static_cast<float>(x_value) + (-4e-05);
           }else{
             output = (0.00010528) * static_cast<float>(x_value) + 0.00051;
           }
@@ -1115,6 +1151,8 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
         case tflite::MODEL_TYPE::MOBILENET:
           if(r_type == tflite::ResourceType::CO_CPU_XNN){ // XNN thread 6
             output = (4.62807e-05) * static_cast<float>(x_value) + 0.00606;
+          }else if(r_type == tflite::ResourceType::CO_CPU){
+            output = (8.07697e-05) * static_cast<float>(x_value) - 0.0008;
           }else { 
             output = (0.00010528) * static_cast<float>(x_value) + 0.00051;
           }
