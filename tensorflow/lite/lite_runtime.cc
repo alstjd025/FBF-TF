@@ -1,6 +1,6 @@
 #include "tensorflow/lite/lite_runtime.h"
 #include "tensorflow/lite/lite_scheduler.h"
-// #define YOLO
+// #define YOLO_PARSER
 // #define mobilenet
 // #define debug_print
 // #define latency_measure
@@ -1074,7 +1074,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state){
         // PrintTensor(*(subgraph->tensor(18)), true);
         ////////////////////////////////////////////////////////////////////
         //HOON
-        #ifdef YOLO
+        #ifdef YOLO_PARSER
         YOLO_Parser yolo_parser;
         printf("\033[0;33mStart YOLO parsing\033[0m\n");
         std::vector<int> real_bbox_index_vector;

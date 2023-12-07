@@ -101,36 +101,38 @@ void PartitioningPredictor::StartPredictor(tflite::Subgraph* origin_subgraph){
       new_graphs.push_back(graph_pair);
     }
   }
-  // else if(m_type == tflite::MODEL_TYPE::YOLO){
-  //   // yolo partiitoning points includes fallback
-  //   for(int i=0; i<yolo_points_with_fallback.size(); ++i){
-  //     std::vector<std::pair<int, int>> graph_pair;
-  //     for(int j=0; j<yolo_points_with_fallback[i].size(); ++j){
-  //       int node = yolo_points_with_fallback[i][j].first;
-  //       if(yolo_points_with_fallback[i][j].second){ // case of fallback
-          
-  //       }
-  //       if(j == 0){
-  //         graph_pair.push_back(std::pair<int, int>(0, node));
-  //       }
-  //       if(j == yolo_points_with_fallback[i].size() - 1){
-  //         if(j > 0){
-  //           graph_pair.push_back(std::pair<int, int>(yolo_points_with_fallback[i][j-1]+1, node));
-  //         }
-  //         graph_pair.push_back(std::pair<int, int>(node, end_layer));
-  //       }
-  //       if(j != 0 && j != yolo_points_with_fallback[i].size() - 1){
-  //         graph_pair.push_back(std::pair<int, int>(yolo_points_with_fallback[i][j-1]+1, node));
-  //       }
-  //     }
-  //     new_graphs.push_back(graph_pair);
-  //   }
-  // }
+  else if(m_type == tflite::MODEL_TYPE::YOLO){
+    // yolo partiitoning points includes fallback
+    for(int i=0; i<yolo_points_with_fallback.size(); ++i){
+      std::vector<std::pair<int, int>> graph_pair;
+      for(int j=0; j<yolo_points_with_fallback[i].size(); ++j){
+        int node = yolo_points_with_fallback[i][j].first;
+        if(yolo_points_with_fallback[i][j].second){ // case of fallback
+
+        }
+        if(j == 0){
+          graph_pair.push_back(std::pair<int, int>(0, node));
+        }
+        if(j == yolo_points_with_fallback[i].size() - 1){
+          if(j > 0){
+            graph_pair.push_back(std::pair<int, int>(yolo_points_with_fallback[i][j-1].first+1, node));
+          }
+          graph_pair.push_back(std::pair<int, int>(node, end_layer));
+        }
+        if(j != 0 && j != yolo_points_with_fallback[i].size() - 1){
+          graph_pair.push_back(std::pair<int, int>(yolo_points_with_fallback[i][j-1].first+1, node));
+        }
+      }
+      new_graphs.push_back(graph_pair);
+    }
+  }
 
   for(int i=0; i<new_graphs.size(); ++i){
     PartitioningPlan* new_plan = new PartitioningPlan;
-    for(int j=0; j<new_graphs[i].size(); ++j)
+    for(int j=0; j<new_graphs[i].size(); ++j){
+      std::cout << "new plan " << i << " " << j << " \n";
       new_plan->partitioning_points.push_back(new_graphs[i][j]);
+    }
     total_plans.push_back(new_plan);
   }
   SimulateSubgraphPartitioning(origin_subgraph, total_plans);
@@ -157,7 +159,7 @@ void PartitioningPredictor::SimulateSubgraphPartitioning(
       gpu_subgraph->end_node = end_node;
       gpu_subgraph->resource_type = tflite::ResourceType::CO_GPU;
       SimulateHeightPartitioning(origin_subgraph, gpu_subgraph);
-      // CPU subgrapg predict 
+      // CPU subgraph predict 
       SubgraphCandidate* cpu_subgraph = new SubgraphCandidate;
       cpu_subgraph->start_node = start_node;
       cpu_subgraph->end_node = end_node;
@@ -1143,7 +1145,7 @@ float PartitioningPredictor::LatencyPredict(Latency_Term term,
           if(r_type == tflite::ResourceType::CO_CPU_XNN){
             output = (5.7531e-05) * static_cast<float>(x_value) + 0.00299;
           }else if(r_type == tflite::ResourceType::CO_CPU){
-            output = (7.22434-05) * static_cast<float>(x_value) + (-4e-05);
+            output = (7.22434e-05) * static_cast<float>(x_value) + (-4e-05);
           }else{
             output = (0.00010528) * static_cast<float>(x_value) + 0.00051;
           }
