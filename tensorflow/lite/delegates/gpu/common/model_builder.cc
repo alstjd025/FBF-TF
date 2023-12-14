@@ -2850,10 +2850,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-        // CODE FOR FALLBACK TEST
-    if(context->experimental_flag){
-      if(registration->builtin_code == 0 || registration->builtin_code == 18){ //check if ADD or mullayer
-      // if(false){ //check if ADD layer
+    // CODE FOR FALLBACK TEST
+    if (context->experimental_flag) {
+      if (registration->builtin_code == 0 ||
+          registration->builtin_code == 18) {  // check if ADD or mullayer
+        // if(false){ //check if ADD layer
         printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
         return false;
       }
@@ -2888,7 +2889,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
       partition_helper.GetNodesOfFirstNLargestPartitions(
           max_delegated_partitions);
   std::cout << "ops to replace : ";
-  for(int i=0; i<ops_to_replace.size(); ++i){
+  for (int i = 0; i < ops_to_replace.size(); ++i) {
     std::cout << ops_to_replace[i] << " ";
   }
   std::cout << "\n";

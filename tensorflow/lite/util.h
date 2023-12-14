@@ -210,7 +210,7 @@ typedef enum PartitioningType{
 } PartitioningType;
 
 // ResourceType for subgraph
-// NEED_REFACTOR (02634) : Use more clear name. (like SubgraphType)
+// NEED_REFACTOR (02634) : Better use clear name. (like SubgraphType)
 typedef enum ResourceType{
   CPU,
   GPU,
@@ -345,7 +345,8 @@ typedef enum DEVICE_TYPE{
 typedef enum MODEL_TYPE{
   MOBILENET,
   EFFICIENTNET,
-  YOLO
+  YOLO,
+  LANENET
 } MODEL_TYPE;
 
 ////////////////////////////////////////////////////////////////////

@@ -41,7 +41,8 @@ void GemmImplUsingEigen::Run(
     const MatrixParams<float>& rhs_params, const float* rhs_data,
     const MatrixParams<float>& dst_params, float* dst_data,
     const GemmParams<float, float>& params, CpuBackendContext* /* context */) {
-  std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_eigen.cc/GemmImplUsingEigen::Run()\n";
+  // Minsung CPU backend
+  // std::cout << "tensorflow/lite/kernels/cpu_backend_gemm_eigen.cc/GemmImplUsingEigen::Run()\n";
   // This code assumes specific storage orders, encoded in these Eigen types.
   // These assumptions have been checked by TF_LITE_ASSERT's in the public
   // Gemm entry point already, before the implementation gets to this point.
@@ -75,7 +76,8 @@ void GemmImplUsingEigen::Run(
   } else {
     eigen_dst = eigen_dst.cwiseMin(params.clamp_max).cwiseMax(params.clamp_min);
   }
-  std::cout << "run: dst_data : "<< *dst_data << std::endl;
+  // Minsung Cpu backend
+  // std::cout << "run: dst_data : "<< *dst_data << std::endl;
 }
 
 }  // namespace detail

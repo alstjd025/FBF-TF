@@ -162,12 +162,14 @@ class DelegateKernel {
     input_indices_.reserve(input_refs.size());
     for (uint32_t tensor_index : input_refs) {
       const int64_t object_index = input_indices_.size();
+      std::cout << "(Prepare)input index " << tensor_index << "\n";
       input_indices_.push_back(tensor_index);
       RETURN_IF_ERROR(
           builder->SetInputObjectDef(object_index, GetObjectDef(tensor_index)));
     }
     output_indices_.reserve(output_refs.size());
     for (uint32_t tensor_index : output_refs) {
+      std::cout << "(Prepare)output index " << tensor_index << "\n";
       const int64_t object_index = output_indices_.size();
       output_indices_.push_back(tensor_index);
       RETURN_IF_ERROR(builder->SetOutputObjectDef(object_index,
@@ -205,7 +207,7 @@ class DelegateKernel {
     if (thread_id_prepare_ != std::this_thread::get_id()) {
       TFLITE_LOG(tflite::TFLITE_LOG_WARNING,
                  "GpuDelegate invoke thread != prepare thread");
-      if (true) { // MINSUNG_THREAD
+      if (true) {  // MINSUNG_THREAD
         return absl::FailedPreconditionError(
             "GpuDelegate must run on the same thread where it was "
             "initialized.");
@@ -229,10 +231,12 @@ class DelegateKernel {
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
     for (int i = 0; i < input_indices_.size(); ++i) {
+      std::cout << "(set)set input " << input_indices_[i] << "\n";
       RETURN_IF_ERROR(runner_->SetInputObject(
           i, GetTensorObject(input_indices_[i], context)));
     }
     for (int i = 0; i < output_indices_.size(); ++i) {
+      std::cout << "(set)set output " << output_indices_[i] << "\n";
       RETURN_IF_ERROR(runner_->SetOutputObject(
           i, GetTensorObject(output_indices_[i], context)));
     }
