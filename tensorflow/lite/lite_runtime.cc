@@ -937,8 +937,35 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
           }
         }
         break;
-      case INPUT_TYPE::LANENET144800:
-        memcpy(input_pointer, input.data, h * w * input.elemSize());
+      case INPUT_TYPE::LANENET144800:  // TODO (d904823) : Need to fix redundunt
+                                       // codes.
+        for (int i = 0; i < h; i++) {  // row
+          for (int j = 0; j < w; j++) {  // col
+            cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            *(input_pointer + i * w * 3 + j * 3) = ((float)pixel[0]) / 255.0;
+            *(input_pointer + i * w * 3 + j * 3 + 1) =
+                ((float)pixel[1]) / 255.0;
+            *(input_pointer + i * w * 3 + j * 3 + 2) =
+                ((float)pixel[2]) / 255.0;
+          }
+        }
+        if (use_two_interpreter) {
+          auto input_pointer_sub = (float*)input_tensor_sub->data.data;
+          int h = input_tensor_sub->dims->data[1];
+          int w = input_tensor_sub->dims->data[2];
+          for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+              cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
+              *(input_pointer_sub + i * w * 3 + j * 3) =
+                  ((float)pixel[0]) / 255.0;
+              *(input_pointer_sub + i * w * 3 + j * 3 + 1) =
+                  ((float)pixel[1]) / 255.0;
+              *(input_pointer_sub + i * w * 3 + j * 3 + 2) =
+                  ((float)pixel[2]) / 255.0;
+            }
+          }
+        }
+        break;
       default:
         break;
     }
@@ -1320,6 +1347,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      // if (subgraph->GetGraphid() == 1)  // Debug code in d9048239340
+      //   // PrintTensor(*subgraph->tensor(136),
+      //   //             false);  // Debug code in d9048239340
 // printf(" IVS %.6f ", response_time);
 #ifdef latency_measure
       timestamp_label_main_interpreter.push_back("IVs");
