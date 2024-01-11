@@ -15,9 +15,9 @@ limitations under the License.
 
 #include "tensorflow/lite/core/subgraph.h"
 
-#include <iostream>
 #include <algorithm>
 #include <cstdint>
+#include <iostream>
 
 #include "tensorflow/lite/arena_planner.h"
 #include "tensorflow/lite/builtin_ops.h"
@@ -210,7 +210,7 @@ Subgraph::Subgraph(ErrorReporter* error_reporter,
       subgraphs_(subgraphs),
       resources_(resources) {
   // TODO(b/161272052): Consider a better TfLiteContext initialization pattern:
-  //std::cout << "Subgraph constructor" << "\n";
+  // std::cout << "Subgraph constructor" << "\n";
   context_.impl_ = static_cast<void*>(this);
   context_.ResizeTensor = ResizeTensor;
   context_.ReportError = ReportErrorC;
@@ -230,11 +230,12 @@ Subgraph::Subgraph(ErrorReporter* error_reporter,
   nodes_and_registration().reserve(kTensorsReservedCapacity);
   // Invalid to call these these except from TfLiteDelegate
   SwitchToKernelContext();
-  //std::cout << "Subgraph constructor end" << "\n";
+  // std::cout << "Subgraph constructor end" << "\n";
 }
 
 Subgraph::~Subgraph() {
-  std::cout << "Subgraph " << graph_id_ << " destructed" << "\n";
+  std::cout << "Subgraph " << graph_id_ << " destructed"
+            << "\n";
   for (int node_index = 0; node_index < nodes_and_registration_.size();
        ++node_index) {
     CleanupNode(node_index);
@@ -406,7 +407,6 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
         break;
       case NodeSubset::kTfPartition: {
         int node_index;
-
         TfLiteDelegateParams* params =
             CreateDelegateParams(delegate, node_subset);
         TF_LITE_ENSURE_STATUS(AddNodeWithParameters(
@@ -482,9 +482,9 @@ TfLiteStatus Subgraph::GetExecutionPlan(struct TfLiteContext* context,
 }
 
 // Minsung
-void Subgraph::GetExecutionPlanSafe(TfLiteIntArray** execution_plan){
+void Subgraph::GetExecutionPlanSafe(TfLiteIntArray** execution_plan) {
   (*execution_plan) = TfLiteIntArrayCreate(execution_plan_.size());
-  for(int i = 0; i<execution_plan_.size(); ++i){
+  for (int i = 0; i < execution_plan_.size(); ++i) {
     (*execution_plan)->data[i] = execution_plan_[i];
   }
 }
@@ -554,20 +554,19 @@ TfLiteStatus Subgraph::SetOutputs(std::vector<int> outputs) {
   return kTfLiteOk;
 }
 
-void Subgraph::PushToInputs(int tensor){
-  for(int i=0; i<inputs_.size(); ++i){
-    if(inputs_[i] == tensor)
-      return;
+void Subgraph::PushToInputs(int tensor) {
+  for (int i = 0; i < inputs_.size(); ++i) {
+    if (inputs_[i] == tensor) return;
   }
   inputs_.push_back(tensor);
   return;
 }
 
-void Subgraph::PushToOutputs(int tensor){
-  for(int i=0; i<outputs_.size(); ++i){
-    if(outputs_[i] == tensor)
-      return;
-  }outputs_.push_back(tensor);
+void Subgraph::PushToOutputs(int tensor) {
+  for (int i = 0; i < outputs_.size(); ++i) {
+    if (outputs_[i] == tensor) return;
+  }
+  outputs_.push_back(tensor);
   return;
 }
 
@@ -718,7 +717,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
   TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
 
   state_ = kStateInvokable;
-  
+
   // Minsung
   // change the allocation flag
   is_allocated = true;
@@ -733,106 +732,117 @@ TfLiteStatus Subgraph::AllocateTensors() {
 }
 
 // TODO : Consider better logic for choosing hight, channel partitioning.
-TfLiteStatus Subgraph::PartitionChannel(){
-	std::vector<int> partitioning_plan;
-	std::vector<float> ratios;
+TfLiteStatus Subgraph::PartitionChannel() {
+  std::vector<int> partitioning_plan;
+  std::vector<float> ratios;
   int partitioning_ratio_ = GetPartitioningRatio();
-  std::cout << "Partition [sub-interpreter] ratio " << partitioning_ratio_ << "\n";
-  
-  if(partitioning_type != PartitioningType::CHANNEL_PARTITIONING) // this subgraph is hw
+  std::cout << "Partition [sub-interpreter] ratio " << partitioning_ratio_
+            << "\n";
+
+  if (partitioning_type !=
+      PartitioningType::CHANNEL_PARTITIONING)  // this subgraph is hw
     return kTfLiteOk;
 
-	for (int execution_plan_index = 0;
-			execution_plan_index < execution_plan_.size(); execution_plan_index++) {
-		int node_index = execution_plan_[execution_plan_index];
-		
-		TfLiteNode& node = nodes_and_registration_[node_index].first;
-		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-		
-		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
-			partitioning_plan.push_back(execution_plan_index);
-      ratios.push_back(1.0 - partitioning_ratio_ / 10.0);
-		}
-	}
-  for (int partitioning_plan_index = 0;
-		 	partitioning_plan_index < partitioning_plan.size(); partitioning_plan_index++) {
-		int node_index = partitioning_plan[partitioning_plan_index];
-		if (!(node_index < nodes_and_registration_.size())) {
-			std::cerr << "[" << node_index << "] layer is not exist." << "\n";
-			continue;
-		}
-		TfLiteNode& node = nodes_and_registration_[node_index].first;
-		const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+  for (int execution_plan_index = 0;
+       execution_plan_index < execution_plan_.size(); execution_plan_index++) {
+    int node_index = execution_plan_[execution_plan_index];
 
-		if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
-			for (int n = 1; n < node.inputs->size; ++n) { //change weight tensor 
-				int tensor_index = node.inputs->data[n];
-				TfLiteTensor& tensor = context_.tensors[tensor_index];
-				void** data = &tensor.data.data;
-				size_t bytes = tensor.bytes;
-				int* dims = (int*)tensor.dims;
-				
-				if (n == 1) {
-					int o = *(dims + 1);
-					int w = *(dims + 2);
-					int h = *(dims + 3);
-					int i = *(dims + 4);
-					int next_filter = w * h * i * ((int)bytes / (o * w * h * i));
-          // std::cout << "partitioning " << ratios[partitioning_plan_index] << "\n";
-					next_filter = (int)next_filter * ceil(o * (1 - ratios[partitioning_plan_index]));
-         	*data += next_filter; 
-				}
-				if (n == 2) {							//change bias tensor
-					int o = *(dims + 1);
-					int next_bias = (int)bytes / o;
-					next_bias = (int)next_bias * ceil(o * (1 - ratios[partitioning_plan_index]));
-					*data += next_bias;
-				}
-				*(dims + 1) *= ratios[partitioning_plan_index]; //change dim of weight & bias
-				int bytes_ = 1;
-				for(int i=0; i<tensor.dims->size; i++){ //change bytes of tensor
-					bytes_ *= tensor.dims->data[i];
-				}
-				tensor.bytes = bytes_*sizeof(float);
-			}
-			for (int n = 0; n < node.outputs->size; ++n) { //change output tensor
-				int tensor_index = node.outputs->data[n];
-				TfLiteTensor& tensor = context_.tensors[tensor_index];
-				int* dims = (int*)tensor.dims;
-				int partitioning_dims = (int)floor(*(dims + 4) * ratios[partitioning_plan_index]);
-				*(dims + 4) = partitioning_dims;
-				int bytes_ = 1;
-				for(int i=0; i<tensor.dims->size; i++){ //change bytes of tensor
-					bytes_ *= tensor.dims->data[i];
-				}
-				tensor.bytes = bytes_*sizeof(float);
-			}
-		}
-		else {
-			std::cerr << "[" << node_index << "] layer must be CONV_2D" << std::endl;
-			continue;
-		}
-	}
+    TfLiteNode& node = nodes_and_registration_[node_index].first;
+    const TfLiteRegistration& registration =
+        nodes_and_registration_[node_index].second;
+
+    if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
+      partitioning_plan.push_back(execution_plan_index);
+      ratios.push_back(1.0 - partitioning_ratio_ / 10.0);
+    }
+  }
+  for (int partitioning_plan_index = 0;
+       partitioning_plan_index < partitioning_plan.size();
+       partitioning_plan_index++) {
+    int node_index = partitioning_plan[partitioning_plan_index];
+    if (!(node_index < nodes_and_registration_.size())) {
+      std::cerr << "[" << node_index << "] layer is not exist."
+                << "\n";
+      continue;
+    }
+    TfLiteNode& node = nodes_and_registration_[node_index].first;
+    const TfLiteRegistration& registration =
+        nodes_and_registration_[node_index].second;
+
+    if (strcmp(GetOpName(registration), "CONV_2D") == 0) {
+      for (int n = 1; n < node.inputs->size; ++n) {  // change weight tensor
+        int tensor_index = node.inputs->data[n];
+        TfLiteTensor& tensor = context_.tensors[tensor_index];
+        void** data = &tensor.data.data;
+        size_t bytes = tensor.bytes;
+        int* dims = (int*)tensor.dims;
+
+        if (n == 1) {
+          int o = *(dims + 1);
+          int w = *(dims + 2);
+          int h = *(dims + 3);
+          int i = *(dims + 4);
+          int next_filter = w * h * i * ((int)bytes / (o * w * h * i));
+          // std::cout << "partitioning " << ratios[partitioning_plan_index] <<
+          // "\n";
+          next_filter = (int)next_filter *
+                        ceil(o * (1 - ratios[partitioning_plan_index]));
+          *data += next_filter;
+        }
+        if (n == 2) {  // change bias tensor
+          int o = *(dims + 1);
+          int next_bias = (int)bytes / o;
+          next_bias =
+              (int)next_bias * ceil(o * (1 - ratios[partitioning_plan_index]));
+          *data += next_bias;
+        }
+        *(dims + 1) *=
+            ratios[partitioning_plan_index];  // change dim of weight & bias
+        int bytes_ = 1;
+        for (int i = 0; i < tensor.dims->size; i++) {  // change bytes of tensor
+          bytes_ *= tensor.dims->data[i];
+        }
+        tensor.bytes = bytes_ * sizeof(float);
+      }
+      for (int n = 0; n < node.outputs->size; ++n) {  // change output tensor
+        int tensor_index = node.outputs->data[n];
+        TfLiteTensor& tensor = context_.tensors[tensor_index];
+        int* dims = (int*)tensor.dims;
+        int partitioning_dims =
+            (int)floor(*(dims + 4) * ratios[partitioning_plan_index]);
+        *(dims + 4) = partitioning_dims;
+        int bytes_ = 1;
+        for (int i = 0; i < tensor.dims->size; i++) {  // change bytes of tensor
+          bytes_ *= tensor.dims->data[i];
+        }
+        tensor.bytes = bytes_ * sizeof(float);
+      }
+    } else {
+      std::cerr << "[" << node_index << "] layer must be CONV_2D" << std::endl;
+      continue;
+    }
+  }
   return kTfLiteOk;
 }
 
-TfLiteStatus Subgraph::PartitionHeightTest(){
-  if(partitioning_type != PartitioningType::HEIGHT_PARTITIONING)
+TfLiteStatus Subgraph::PartitionHeightTest() {
+  if (partitioning_type != PartitioningType::HEIGHT_PARTITIONING)
     return kTfLiteOk;
   int partitioning_ratio = GetPartitioningRatio();
-  if(partitioning_ratio >= 10)
-    partitioning_ratio -= 10;
-  if(resource_type != ResourceType::CO_GPU){
+  if (partitioning_ratio >= 10) partitioning_ratio -= 10;
+  if (resource_type != ResourceType::CO_GPU) {
     partitioning_ratio = 10 - partitioning_ratio;
     PushPartitioningRatio(partitioning_ratio);
   }
   // FIX!
-  if(resource_type == ResourceType::CO_CPU || resource_type == ResourceType::CO_CPU_XNN){
+  if (resource_type == ResourceType::CO_CPU ||
+      resource_type == ResourceType::CO_CPU_XNN) {
     std::vector<int> tensors_already_partitioned;
-    std::cout << "Sub subgraph partitioning" << "\n";
+    std::cout << "Sub subgraph partitioning"
+              << "\n";
     std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
-    for(int execution_plan_idx = execution_plan_.size() - 1;
-            execution_plan_idx >= 0; execution_plan_idx--){
+    for (int execution_plan_idx = execution_plan_.size() - 1;
+         execution_plan_idx >= 0; execution_plan_idx--) {
       bool is_output_feature_same = false;
       // Calculate overlap and zero_padding_overlap.
       // And change dims of given tensor.
@@ -841,26 +851,30 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
       std::vector<int> input_tensor_indices;
       std::vector<int> new_input_dim, new_output_dim;
       TfLiteNode& node = nodes_and_registration_[node_index].first;
-      const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-      if(node.inputs->size > 0 && node.outputs->size > 0){
-        if(strcmp(GetOpName(registration), "CONCATENATION") == 0 ||
-            strcmp(GetOpName(registration), "ADD") == 0){
+      const TfLiteRegistration& registration =
+          nodes_and_registration_[node_index].second;
+      if (node.inputs->size > 0 && node.outputs->size > 0) {
+        if (strcmp(GetOpName(registration), "CONCATENATION") == 0 ||
+            strcmp(GetOpName(registration), "ADD") == 0) {
           // Need to change dims of both inputs for concatenation layer.
           input_tensor_indices.push_back(node.inputs->data[1]);
-        } // else just change first input tensor which is actual input of node.
+        }  // else just change first input tensor which is actual input of node.
         input_tensor_indices.push_back(node.inputs->data[0]);
         output_tensor_idx = node.outputs->data[0];
-      }else{
-        std::cout << "ERROR Node " << GetOpName(registration) 
-              << " input, output size not > 0" << "\n";
+      } else {
+        std::cout << "ERROR Node " << GetOpName(registration)
+                  << " input, output size not > 0"
+                  << "\n";
         return kTfLiteError;
       }
       int zero_padding_overlap = 0;
       int padding_overlap = 0;
-      int padding_layer_placeholder = 0; // we have to consider padding layer manually.
+      int padding_layer_placeholder =
+          0;  // we have to consider padding layer manually.
       bool is_last_output = false;
-      for(int idx=0; idx<input_tensor_indices.size(); ++idx){
-        std::cout << "==================================" << "\n";
+      for (int idx = 0; idx < input_tensor_indices.size(); ++idx) {
+        std::cout << "=================================="
+                  << "\n";
         std::cout << GetOpName(registration) << "\n";
         input_tensor_idx = input_tensor_indices[idx];
         TfLiteTensor* input_tensor = nullptr;
@@ -871,38 +885,43 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
             new_output_height, filter, stride, padding_type, padding_height,
             padding_width, padding_height_offset, padding_width_offset;
         // Get parameters of current looking layer.
-        if(!GetParamsForPartitioning(&registration, &node, &context_,
-                                    filter, stride, padding_type, padding_height,
-                                    padding_width, padding_height_offset,
-                                    padding_width_offset)){
-          std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
+        if (!GetParamsForPartitioning(&registration, &node, &context_, filter,
+                                      stride, padding_type, padding_height,
+                                      padding_width, padding_height_offset,
+                                      padding_width_offset)) {
+          std::cout << "GetParamsForPartitioning returned FALSE"
+                    << "\n";
           return kTfLiteError;
         }
         bool is_output_same = false;
-        if(padding_type == 1) // !! Important flag
+        if (padding_type == 1)  // !! Important flag
           is_output_same = true;
 
         // Divide last node's input and output tensor height.
         origin_output_height = output_tensor->dims->data[1];
-        if(execution_plan_idx == execution_plan_.size() - 1){
+        if (execution_plan_idx == execution_plan_.size() - 1) {
           is_last_output = true;
           // divide output tensor's dimension in last node.
-          new_output_height = std::round((origin_output_height * 0.1) * partitioning_ratio);
-        }else{
+          new_output_height =
+              std::round((origin_output_height * 0.1) * partitioning_ratio);
+        } else {
           is_last_output = false;
           new_output_height = origin_output_height;
         }
         // divide input tensor's dimension in node.
         origin_input_height = input_tensor->dims->data[1];
         bool need_to_be_partitioned = true;
-        for(int i=0; i<tensors_already_partitioned.size(); ++i){
-          if(tensors_already_partitioned[i] == input_tensor_idx){
-            need_to_be_partitioned = false; // in case of tensor already partitioned by primary concate layer.
+        for (int i = 0; i < tensors_already_partitioned.size(); ++i) {
+          if (tensors_already_partitioned[i] == input_tensor_idx) {
+            need_to_be_partitioned =
+                false;  // in case of tensor already partitioned by primary
+                        // concate layer.
           }
         }
-        if(need_to_be_partitioned)
-          new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
-        else  
+        if (need_to_be_partitioned)
+          new_input_height =
+              std::round((origin_input_height * 0.1) * partitioning_ratio);
+        else
           new_input_height = origin_input_height;
         // Get parameters(filter size, stride) of node.
         // padding info
@@ -910,141 +929,152 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
         // valid == 2
         // output_spatial_shape[i] = ceil(input_spatial_shape[i] / strides[i])
         // Use different function to calculate zero_padding for Conv and Pool.
-        switch (registration.builtin_code) //
+        switch (registration.builtin_code)  //
         {
-          
-        case kTfLiteBuiltinPad:
-        case kTfLiteBuiltinPadv2:
-          padding_layer_placeholder = origin_output_height - origin_input_height;
-          if(padding_layer_placeholder < 0){
-            std::cout << "padding layer placeholder error" << "\n";
-            padding_layer_placeholder = 1;
-          }
-          break;
-        case kTfLiteBuiltinDepthwiseConv2d:
-        case kTfLiteBuiltinConv2d:
-          zero_padding_overlap = 0;
-          if(!is_output_same)
-            padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
-                                                                  new_output_height);
-          break;
-        case kTfLiteBuiltinMaxPool2d:
-        case kTfLiteBuiltinAveragePool2d:
-          std::cout << "Pool padding calc" << "\n";
-          zero_padding_overlap = 0; // no 'same' option in pooling layer
-          padding_overlap = HW::GetOverlapPool(stride, filter, new_input_height,
-                                                                new_output_height);
-          break;
-        default:
-          break;
+          case kTfLiteBuiltinPad:
+          case kTfLiteBuiltinPadv2:
+            padding_layer_placeholder =
+                origin_output_height - origin_input_height;
+            if (padding_layer_placeholder < 0) {
+              std::cout << "padding layer placeholder error"
+                        << "\n";
+              padding_layer_placeholder = 1;
+            }
+            break;
+          case kTfLiteBuiltinDepthwiseConv2d:
+          case kTfLiteBuiltinConv2d:
+            zero_padding_overlap = 0;
+            if (!is_output_same)
+              padding_overlap = HW::GetOverlapConv(
+                  stride, filter, new_input_height, new_output_height);
+            break;
+          case kTfLiteBuiltinMaxPool2d:
+          case kTfLiteBuiltinAveragePool2d:
+            std::cout << "Pool padding calc"
+                      << "\n";
+            zero_padding_overlap = 0;  // no 'same' option in pooling layer
+            padding_overlap = HW::GetOverlapPool(
+                stride, filter, new_input_height, new_output_height);
+            break;
+          default:
+            break;
         }
-        // Calculate padding 
-        std::cout << "Params in layer : " << "\n" <<
-              " filter : " << filter << "\n" <<
-              " stride : " << stride << "\n" <<
-              " padding_type : " << padding_type << "\n" <<
-              " padding_height : " << padding_height << "\n" <<
-              " padding_width : " << padding_width << "\n" <<
-              " padding_height_offset : " << padding_height_offset << "\n" <<
-              " padding_witdh_offset : " << padding_width_offset << "\n" <<
-              " zero padding calculated : " << zero_padding_overlap << "\n";
+        // Calculate padding
+        std::cout << "Params in layer : "
+                  << "\n"
+                  << " filter : " << filter << "\n"
+                  << " stride : " << stride << "\n"
+                  << " padding_type : " << padding_type << "\n"
+                  << " padding_height : " << padding_height << "\n"
+                  << " padding_width : " << padding_width << "\n"
+                  << " padding_height_offset : " << padding_height_offset
+                  << "\n"
+                  << " padding_witdh_offset : " << padding_width_offset << "\n"
+                  << " zero padding calculated : " << zero_padding_overlap
+                  << "\n";
         int padding_to_add = (padding_overlap - padding_layer_placeholder);
         new_input_height += padding_to_add;
-        std::cout << "-----------------------------------" << "\n";
-        std::cout << "tensor : " << input_tensor_idx << "\n" <<
-                    " origin input_height : " << origin_input_height <<  "\n" <<
-                    " origin output_height : " << origin_output_height << "\n" <<
-                    " new input height : " << new_input_height << "\n" <<
-                    " new output height : " << new_output_height << "\n" <<
-                    " overlap to add : " << padding_overlap <<  "\n" <<
-                    " added zero padding : " << zero_padding_overlap <<  "\n";
+        std::cout << "-----------------------------------"
+                  << "\n";
+        std::cout << "tensor : " << input_tensor_idx << "\n"
+                  << " origin input_height : " << origin_input_height << "\n"
+                  << " origin output_height : " << origin_output_height << "\n"
+                  << " new input height : " << new_input_height << "\n"
+                  << " new output height : " << new_output_height << "\n"
+                  << " overlap to add : " << padding_overlap << "\n"
+                  << " added zero padding : " << zero_padding_overlap << "\n";
         // Change height of input tensor
-        for(int i=0; i<input_tensor->dims->size; ++i){
+        for (int i = 0; i < input_tensor->dims->size; ++i) {
           new_input_dim.push_back(input_tensor->dims->data[i]);
         }
-        if( (strcmp(GetOpName(registration), "PAD") == 0)){
+        if ((strcmp(GetOpName(registration), "PAD") == 0)) {
           new_input_dim[1] = origin_output_height + padding_to_add;
-        }else if(is_last_output ||
-            (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
+        } else if (is_last_output ||
+                   (new_input_height <= origin_input_height &&
+                    new_input_height >= origin_output_height)) {
           new_input_dim[1] = new_input_height;
           std::cout << "a1 " << new_input_dim[1] << "\n";
-        }else if( new_input_height < origin_output_height){ 
+        } else if (new_input_height < origin_output_height) {
           new_input_dim[1] = origin_output_height + padding_to_add;
-          std::cout << "a2 "<< new_input_dim[1] << "\n";
-        }
-        else{
-          std::cout << "calculated in height too big " << new_input_height <<
-                      " " <<  origin_input_height <<  "\n";
+          std::cout << "a2 " << new_input_dim[1] << "\n";
+        } else {
+          std::cout << "calculated in height too big " << new_input_height
+                    << " " << origin_input_height << "\n";
           new_input_dim[1] = new_input_height;
           // return kTfLiteError; (no return)
         }
         // Change height of output tensor if padding is 'same'
         // TODO : Fix duplicate code (newdims... Resize())
-        if(is_last_output || (new_input_height == new_output_height)){
-          for(int i=0; i<output_tensor->dims->size; ++i){
+        if (is_last_output || (new_input_height == new_output_height)) {
+          for (int i = 0; i < output_tensor->dims->size; ++i) {
             new_output_dim.push_back(output_tensor->dims->data[i]);
           }
-          if(is_last_output || 
-              (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
+          if (is_last_output || (new_input_height <= origin_input_height &&
+                                 new_input_height >= origin_output_height)) {
             new_output_dim[1] = new_input_height;
             std::cout << "b1 " << new_output_dim[1] << "\n";
-          }else if(new_input_height <= origin_input_height && new_input_height < origin_output_height){
+          } else if (new_input_height <= origin_input_height &&
+                     new_input_height < origin_output_height) {
             new_output_dim[1] = origin_output_height;
             std::cout << "b2 " << new_output_dim[1] << "\n";
-          }
-          else if(new_input_height > origin_input_height){
-            std::cout << "calculated out height too big " << new_input_height <<
-                        " " <<  new_output_dim[1] <<  "\n";
+          } else if (new_input_height > origin_input_height) {
+            std::cout << "calculated out height too big " << new_input_height
+                      << " " << new_output_dim[1] << "\n";
             new_output_dim[1] = new_input_height;
             // return kTfLiteError;
           }
-          std::cout << "resize output " << "\n";
+          std::cout << "resize output "
+                    << "\n";
           ResizeInputTensor(output_tensor_idx, new_output_dim);
         }
-        std::cout << "resize input " << "\n";
+        std::cout << "resize input "
+                  << "\n";
         ResizeInputTensor(input_tensor_idx, new_input_dim);
         new_input_dim.clear();
         new_output_dim.clear();
       }
       is_output_feature_same = false;
       zero_padding_overlap = 0;
-      if(registration.builtin_code == kTfLiteBuiltinConcatenation ||
-          registration.builtin_code == kTfLiteBuiltinAdd){
+      if (registration.builtin_code == kTfLiteBuiltinConcatenation ||
+          registration.builtin_code == kTfLiteBuiltinAdd) {
         tensors_already_partitioned.push_back(node.inputs->data[1]);
         tensors_already_partitioned.push_back(node.inputs->data[0]);
       }
     }
-    for(int execution_plan_idx = 0; execution_plan_idx<execution_plan_.size();
-          ++execution_plan_idx){
+    for (int execution_plan_idx = 0;
+         execution_plan_idx < execution_plan_.size(); ++execution_plan_idx) {
       int node_index = execution_plan_[execution_plan_idx];
       TfLiteNode& node = nodes_and_registration_[node_index].first;
-      const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+      const TfLiteRegistration& registration =
+          nodes_and_registration_[node_index].second;
       if (registration.custom_name != nullptr) {
         printf("Node %3zu %s ", node_index, registration.custom_name);
       } else {
-        printf("Node %3zu %s ", node_index, EnumNamesBuiltinOperator()[registration.builtin_code]);
+        printf("Node %3zu %s ", node_index,
+               EnumNamesBuiltinOperator()[registration.builtin_code]);
       }
       TfLiteIntArray* outputs = node.outputs;
-      for(int i=0; i<outputs->size; ++i){
+      for (int i = 0; i < outputs->size; ++i) {
         int tensor_index = outputs->data[i];
         TfLiteTensor* tensor_ = tensor(tensor_index);
         printf("Tensor %3zu %10zu bytes (%4.1f MB) ", tensor_index,
-            tensor_->bytes,
-            (static_cast<float>(tensor_->bytes) / (1 << 20)));
-        for(int k=0; k<tensor_->dims->size; k++){
+               tensor_->bytes,
+               (static_cast<float>(tensor_->bytes) / (1 << 20)));
+        for (int k = 0; k < tensor_->dims->size; k++) {
           std::cout << tensor_->dims->data[k] << " ";
-        } 
+        }
         std::cout << "\n";
       }
     }
-    return kTfLiteOk; 
+    return kTfLiteOk;
   }
   // Below is main interpreter side.
-  std::cout << "Main subgraph partitioning" << "\n";
+  std::cout << "Main subgraph partitioning"
+            << "\n";
   std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
   std::vector<int> tensors_already_partitioned;
-  for(int execution_plan_idx = execution_plan_.size() - 1;
-          execution_plan_idx >= 0; execution_plan_idx--){
+  for (int execution_plan_idx = execution_plan_.size() - 1;
+       execution_plan_idx >= 0; execution_plan_idx--) {
     bool is_output_feature_same = false;
     // Calculate overlap and zero_padding_overlap.
     // And change dims of given tensor.
@@ -1053,26 +1083,30 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     std::vector<int> input_tensor_indices;
     std::vector<int> new_input_dim, new_output_dim;
     TfLiteNode& node = nodes_and_registration_[node_index].first;
-    const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-    if(node.inputs->size > 0 && node.outputs->size > 0){
-      if(strcmp(GetOpName(registration), "CONCATENATION") == 0
-          || strcmp(GetOpName(registration), "ADD") == 0){
+    const TfLiteRegistration& registration =
+        nodes_and_registration_[node_index].second;
+    if (node.inputs->size > 0 && node.outputs->size > 0) {
+      if (strcmp(GetOpName(registration), "CONCATENATION") == 0 ||
+          strcmp(GetOpName(registration), "ADD") == 0) {
         // Need to change dims of both inputs for concatenation layer.
         input_tensor_indices.push_back(node.inputs->data[1]);
-      } // else just change first input tensor which is actual input of node.
+      }  // else just change first input tensor which is actual input of node.
       input_tensor_indices.push_back(node.inputs->data[0]);
       output_tensor_idx = node.outputs->data[0];
-    }else{
-      std::cout << "ERROR Node " << GetOpName(registration) 
-            << " input, output size not > 0" << "\n";
+    } else {
+      std::cout << "ERROR Node " << GetOpName(registration)
+                << " input, output size not > 0"
+                << "\n";
       return kTfLiteError;
     }
     int zero_padding_overlap = 0;
     int padding_overlap = 0;
-    int padding_layer_placeholder = 0; // we have to consider padding layer manually.
+    int padding_layer_placeholder =
+        0;  // we have to consider padding layer manually.
     bool is_last_output = false;
-    for(int idx=0; idx<input_tensor_indices.size(); ++idx){
-      std::cout << "==================================" << "\n";
+    for (int idx = 0; idx < input_tensor_indices.size(); ++idx) {
+      std::cout << "=================================="
+                << "\n";
       std::cout << GetOpName(registration) << "\n";
       input_tensor_idx = input_tensor_indices[idx];
       TfLiteTensor* input_tensor = nullptr;
@@ -1083,153 +1117,163 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
           new_output_height, filter, stride, padding_type, padding_height,
           padding_width, padding_height_offset, padding_width_offset;
       // Get parameters(filter size, stride) of node.
-      if(!GetParamsForPartitioning(&registration, &node, &context_,
-                                   filter, stride, padding_type, padding_height,
-                                   padding_width, padding_height_offset,
-                                   padding_width_offset)){
-        std::cout << "GetParamsForPartitioning returned FALSE" << "\n";
+      if (!GetParamsForPartitioning(&registration, &node, &context_, filter,
+                                    stride, padding_type, padding_height,
+                                    padding_width, padding_height_offset,
+                                    padding_width_offset)) {
+        std::cout << "GetParamsForPartitioning returned FALSE"
+                  << "\n";
         return kTfLiteError;
       }
       bool need_to_be_partitioned = true;
 
       // Check for 1x1 conv and output feature type ('same', 'valid')
-      if(padding_type == 1){
-        if(stride == 1 && filter == 1){
-          is_output_feature_same = false; // case of 1x1 conv
-        }else{
+      if (padding_type == 1) {
+        if (stride == 1 && filter == 1) {
+          is_output_feature_same = false;  // case of 1x1 conv
+        } else {
           is_output_feature_same = true;
-        }  
+        }
       }
 
       // First, divide last node's input and output tensor height.
       origin_output_height = output_tensor->dims->data[1];
-      if(execution_plan_idx == execution_plan_.size() - 1){
+      if (execution_plan_idx == execution_plan_.size() - 1) {
         is_last_output = true;
         // divide output tensor's dimension in last node.
-        new_output_height = std::round((origin_output_height * 0.1) * partitioning_ratio);
-      }else{
+        new_output_height =
+            std::round((origin_output_height * 0.1) * partitioning_ratio);
+      } else {
         is_last_output = false;
         new_output_height = origin_output_height;
       }
       // divide input tensor's dimension in node.
       origin_input_height = input_tensor->dims->data[1];
-      for(int i=0; i<tensors_already_partitioned.size(); ++i){
-        if(tensors_already_partitioned[i] == input_tensor_idx){
+      for (int i = 0; i < tensors_already_partitioned.size(); ++i) {
+        if (tensors_already_partitioned[i] == input_tensor_idx) {
           // in case of tensor already partitioned by primary concate layer.
-          need_to_be_partitioned = false; 
+          need_to_be_partitioned = false;
         }
       }
-      if(need_to_be_partitioned)
-        if(is_output_feature_same){ // 'same'
-          new_input_height = HW::GetInputHeightofSameFeatureConv(new_output_height, stride);
-        }else{ // 'valid'
-          new_input_height = std::round((origin_input_height  * 0.1) * partitioning_ratio);
+      if (need_to_be_partitioned)
+        if (is_output_feature_same) {  // 'same'
+          new_input_height =
+              HW::GetInputHeightofSameFeatureConv(new_output_height, stride);
+        } else {  // 'valid'
+          new_input_height =
+              std::round((origin_input_height * 0.1) * partitioning_ratio);
         }
-      else{ // no need to be partitioned (input height already partitoned)
+      else {  // no need to be partitioned (input height already partitoned)
         new_input_height = origin_input_height;
-      }  
-      
-      switch (registration.builtin_code) 
-      {
-      case kTfLiteBuiltinPad:
-      case kTfLiteBuiltinPadv2:
-        padding_layer_placeholder = origin_output_height - origin_input_height;
-        if(padding_layer_placeholder < 0){
-          std::cout << "padding layer placeholder error" << "\n";
-          padding_layer_placeholder = 0;
-        }
-        break;
-      case kTfLiteBuiltinDepthwiseConv2d:
-      case kTfLiteBuiltinConv2d:
-        std::cout << "Conv padding calc" << "\n";
-        // padding info
-        // same == 1
-        // valid == 2
-        if(padding_type == 1){
-          // if(new_input_height != origin_output_height && !is_last_output)
-          //   new_input_height = origin_output_height;
-          zero_padding_overlap = HW::GetZeroPaddingConv(stride, filter, new_input_height,
-                                                                    new_output_height);
-        }
-        padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
-                                                              new_output_height);
-        break;
-      case kTfLiteBuiltinMaxPool2d:
-      case kTfLiteBuiltinAveragePool2d:
-        std::cout << "Pool padding calc" << "\n";
-        zero_padding_overlap = 0; // no 'same' option in pooling layer
-        padding_overlap = HW::GetOverlapPool(stride, filter, new_input_height,
-                                                              new_output_height);
-        break;
-      default:
-        break;
       }
-    
-      std::cout << "Params in layer : " << "\n" <<
-                   " filter : " << filter << "\n" <<
-                   " stride : " << stride << "\n" <<
-                   " padding_type : " << padding_type << "\n" <<
-                   " padding_height : " << padding_height << "\n" <<
-                   " padding_width : " << padding_width << "\n" <<
-                   " padding_height_offset : " << padding_height_offset << "\n" <<
-                   " padding_witdh_offset : " << padding_width_offset << "\n" <<
-                   " zero padding calculated : " << zero_padding_overlap << "\n";
-      // Calculate padding 
-      
-      if(zero_padding_overlap != 0)
-        padding_overlap = 0;
-      int padding_to_add = (padding_overlap + zero_padding_overlap - padding_layer_placeholder);
+
+      switch (registration.builtin_code) {
+        case kTfLiteBuiltinPad:
+        case kTfLiteBuiltinPadv2:
+          padding_layer_placeholder =
+              origin_output_height - origin_input_height;
+          if (padding_layer_placeholder < 0) {
+            std::cout << "padding layer placeholder error"
+                      << "\n";
+            padding_layer_placeholder = 0;
+          }
+          break;
+        case kTfLiteBuiltinDepthwiseConv2d:
+        case kTfLiteBuiltinConv2d:
+          std::cout << "Conv padding calc"
+                    << "\n";
+          // padding info
+          // same == 1
+          // valid == 2
+          if (padding_type == 1) {
+            // if(new_input_height != origin_output_height && !is_last_output)
+            //   new_input_height = origin_output_height;
+            zero_padding_overlap = HW::GetZeroPaddingConv(
+                stride, filter, new_input_height, new_output_height);
+          }
+          padding_overlap = HW::GetOverlapConv(stride, filter, new_input_height,
+                                               new_output_height);
+          break;
+        case kTfLiteBuiltinMaxPool2d:
+        case kTfLiteBuiltinAveragePool2d:
+          std::cout << "Pool padding calc"
+                    << "\n";
+          zero_padding_overlap = 0;  // no 'same' option in pooling layer
+          padding_overlap = HW::GetOverlapPool(stride, filter, new_input_height,
+                                               new_output_height);
+          break;
+        default:
+          break;
+      }
+
+      std::cout << "Params in layer : "
+                << "\n"
+                << " filter : " << filter << "\n"
+                << " stride : " << stride << "\n"
+                << " padding_type : " << padding_type << "\n"
+                << " padding_height : " << padding_height << "\n"
+                << " padding_width : " << padding_width << "\n"
+                << " padding_height_offset : " << padding_height_offset << "\n"
+                << " padding_witdh_offset : " << padding_width_offset << "\n"
+                << " zero padding calculated : " << zero_padding_overlap
+                << "\n";
+      // Calculate padding
+
+      if (zero_padding_overlap != 0) padding_overlap = 0;
+      int padding_to_add =
+          (padding_overlap + zero_padding_overlap - padding_layer_placeholder);
       new_input_height += padding_to_add;
-      if(is_output_feature_same)
-        new_output_height += padding_to_add;
-      std::cout << "-----------------------------------" << "\n";
-      std::cout << "tensor : " << input_tensor_idx << "\n" <<
-                  " origin input_height : " << origin_input_height <<  "\n" <<
-                  " origin output_height : " << origin_output_height << "\n" <<
-                  " new input height : " << new_input_height << "\n" <<
-                  " new output height : " << new_output_height << "\n" <<
-                  " overlap to add : " << padding_overlap <<  "\n" <<
-                  " added zero padding : " << zero_padding_overlap <<  "\n";
+      if (is_output_feature_same) new_output_height += padding_to_add;
+      std::cout << "-----------------------------------"
+                << "\n";
+      std::cout << "tensor : " << input_tensor_idx << "\n"
+                << " origin input_height : " << origin_input_height << "\n"
+                << " origin output_height : " << origin_output_height << "\n"
+                << " new input height : " << new_input_height << "\n"
+                << " new output height : " << new_output_height << "\n"
+                << " overlap to add : " << padding_overlap << "\n"
+                << " added zero padding : " << zero_padding_overlap << "\n";
 
       // Change height of input tensor
-      for(int i=0; i<input_tensor->dims->size; ++i){
+      for (int i = 0; i < input_tensor->dims->size; ++i) {
         new_input_dim.push_back(input_tensor->dims->data[i]);
       }
-      if( (strcmp(GetOpName(registration), "PAD") == 0)){
+      if ((strcmp(GetOpName(registration), "PAD") == 0)) {
         new_input_dim[1] = origin_output_height + padding_to_add;
-      }else if(is_last_output ||
-          (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
+      } else if (is_last_output || (new_input_height <= origin_input_height &&
+                                    new_input_height >= origin_output_height)) {
         new_input_dim[1] = new_input_height;
         std::cout << "a1 " << new_input_dim[1] << "\n";
-      }else if( new_input_height < origin_output_height){ 
+      } else if (new_input_height < origin_output_height) {
         new_input_dim[1] = origin_output_height + padding_to_add;
-        std::cout << "a2 "<< new_input_dim[1] << "\n";
-      }
-      else{ // TODO : Need better logic here
-        std::cout << "calculated in height too big " << new_input_height <<
-                    " " <<  origin_input_height <<  "\n";
+        std::cout << "a2 " << new_input_dim[1] << "\n";
+      } else {  // TODO : Need better logic here
+        std::cout << "calculated in height too big " << new_input_height << " "
+                  << origin_input_height << "\n";
         new_input_dim[1] = new_input_height;
         // return kTfLiteError; (no return)
       }
       // Change height of output tensor if padding is 'same'
       // TODO : Fix duplicate code (newdims... Resize())
       // worked in yolo? ()
-      // if(is_last_output || (is_output_feature_same && new_input_height == new_output_height)){
-      if(is_last_output || is_output_feature_same){
-        for(int i=0; i<output_tensor->dims->size; ++i){
+      // if(is_last_output || (is_output_feature_same && new_input_height ==
+      // new_output_height)){
+      if (is_last_output || is_output_feature_same) {
+        for (int i = 0; i < output_tensor->dims->size; ++i) {
           new_output_dim.push_back(output_tensor->dims->data[i]);
         }
-        if(is_last_output || 
-            (new_input_height <= origin_input_height && new_input_height >= origin_output_height)){
+        if (is_last_output || (new_input_height <= origin_input_height &&
+                               new_input_height >= origin_output_height)) {
           new_output_dim[1] = new_input_height;
           std::cout << "b1 " << new_output_dim[1] << "\n";
-        }else if(new_input_height <= origin_input_height && new_input_height < origin_output_height){
+        } else if (new_input_height <= origin_input_height &&
+                   new_input_height < origin_output_height) {
           new_output_dim[1] = origin_output_height;
           std::cout << "b2 " << new_output_dim[1] << "\n";
-        }
-        else if(new_input_height > origin_input_height){ // TODO : Need better logic here
-          std::cout << "calculated out height too big " << new_input_height <<
-                      " " <<  new_output_dim[1] <<  "\n";
+        } else if (new_input_height >
+                   origin_input_height) {  // TODO : Need better logic here
+          std::cout << "calculated out height too big " << new_input_height
+                    << " " << new_output_dim[1] << "\n";
           new_output_dim[1] = new_input_height;
           // return kTfLiteError; (no return)
         }
@@ -1244,114 +1288,123 @@ TfLiteStatus Subgraph::PartitionHeightTest(){
     // See execution plan from current watching exectuion plan + 1 to end.
     // Then propagate dims which changed by zero_padding_overlap.
     // TODO : Fix duplicate code (consider better implementation)
-    if(is_output_feature_same){ // Case of padding type 'same'
-      for(int execution_plan_idx_inner = execution_plan_idx+1;
-          execution_plan_idx_inner < execution_plan_.size(); execution_plan_idx_inner++){
-        std::cout << "Propagate zero_padding_overlap "<< zero_padding_overlap <<
-                     " to node " << execution_plan_idx_inner << "\n";
+    if (is_output_feature_same) {  // Case of padding type 'same'
+      for (int execution_plan_idx_inner = execution_plan_idx + 1;
+           execution_plan_idx_inner < execution_plan_.size();
+           execution_plan_idx_inner++) {
+        std::cout << "Propagate zero_padding_overlap " << zero_padding_overlap
+                  << " to node " << execution_plan_idx_inner << "\n";
         int node_index = execution_plan_[execution_plan_idx_inner];
         int input_tensor_idx_, output_tensor_idx_;
         std::vector<int> input_tensor_indices_;
         TfLiteNode& node = nodes_and_registration_[node_index].first;
-        const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-        if(strcmp(GetOpName(registration), "CONCATENATION") == 0 ||
-            strcmp(GetOpName(registration), "ADD") == 0){
+        const TfLiteRegistration& registration =
+            nodes_and_registration_[node_index].second;
+        if (strcmp(GetOpName(registration), "CONCATENATION") == 0 ||
+            strcmp(GetOpName(registration), "ADD") == 0) {
           // Need to change dims of both inputs for concatenation layer.
           input_tensor_indices_.push_back(node.inputs->data[1]);
-        } // else just change first input tensor which is actual input of node.
+        }  // else just change first input tensor which is actual input of node.
         input_tensor_indices_.push_back(node.inputs->data[0]);
-        output_tensor_idx_ = node.outputs->data[0];    
+        output_tensor_idx_ = node.outputs->data[0];
         TfLiteTensor* input_tensor;
         TfLiteTensor* output_tensor;
         // change input tensor dim. (add zero_padding_overlap)
-        for(int idx=0; idx < input_tensor_indices_.size(); ++idx){
+        for (int idx = 0; idx < input_tensor_indices_.size(); ++idx) {
           std::cout << "tensor : " << input_tensor_indices_[idx] << "\n";
           input_tensor = tensor(input_tensor_indices_[idx]);
           std::vector<int> new_dim;
-          for(int i=0; i<input_tensor->dims->size; ++i){
+          for (int i = 0; i < input_tensor->dims->size; ++i) {
             new_dim.push_back(input_tensor->dims->data[i]);
           }
-          if(new_output_dim[1] > new_dim[1]){
+          if (new_output_dim[1] > new_dim[1]) {
             new_dim[1] = new_dim[1] + zero_padding_overlap;
           }
-          std::cout << "resize input zero padding (dim" << new_dim.size() << ")\n";
+          std::cout << "resize input zero padding (dim" << new_dim.size()
+                    << ")\n";
           ResizeInputTensor(input_tensor_indices_[idx], new_dim);
         }
         // change output tensor dim. (add zero_padding_overlap)
         output_tensor = tensor(output_tensor_idx_);
         std::vector<int> new_dim_;
-        for(int i=0; i<output_tensor->dims->size; ++i){
+        for (int i = 0; i < output_tensor->dims->size; ++i) {
           new_dim_.push_back(output_tensor->dims->data[i]);
         }
         new_dim_[1] = new_dim_[1] + zero_padding_overlap;
-        std::cout << "resize output zero_padding (dim" << new_dim_.size() << ")\n";
+        std::cout << "resize output zero_padding (dim" << new_dim_.size()
+                  << ")\n";
         ResizeInputTensor(output_tensor_idx_, new_dim_);
-        std::cout << "dddd22" << "\n";
+        std::cout << "dddd22"
+                  << "\n";
       }
     }
     new_input_dim.clear();
     new_output_dim.clear();
     is_output_feature_same = false;
     zero_padding_overlap = 0;
-    if(registration.builtin_code == kTfLiteBuiltinConcatenation ||
-                    registration.builtin_code == kTfLiteBuiltinAdd){
+    if (registration.builtin_code == kTfLiteBuiltinConcatenation ||
+        registration.builtin_code == kTfLiteBuiltinAdd) {
       tensors_already_partitioned.push_back(node.inputs->data[1]);
       tensors_already_partitioned.push_back(node.inputs->data[0]);
     }
   }
-  std::cout << "Height partitioning done" << "\n";
-  for(int execution_plan_idx = 0; execution_plan_idx<execution_plan_.size();
-        ++execution_plan_idx){
+  std::cout << "Height partitioning done"
+            << "\n";
+  for (int execution_plan_idx = 0; execution_plan_idx < execution_plan_.size();
+       ++execution_plan_idx) {
     int node_index = execution_plan_[execution_plan_idx];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
-    const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
+    const TfLiteRegistration& registration =
+        nodes_and_registration_[node_index].second;
     if (registration.custom_name != nullptr) {
       printf("Node %3zu %s ", node_index, registration.custom_name);
     } else {
-      printf("Node %3zu %s ", node_index, EnumNamesBuiltinOperator()[registration.builtin_code]);
+      printf("Node %3zu %s ", node_index,
+             EnumNamesBuiltinOperator()[registration.builtin_code]);
     }
     TfLiteIntArray* outputs = node.outputs;
-    for(int i=0; i<outputs->size; ++i){
+    for (int i = 0; i < outputs->size; ++i) {
       int tensor_index = outputs->data[i];
       TfLiteTensor* tensor_ = tensor(tensor_index);
       printf("Tensor %3zu %10zu bytes (%4.1f MB) ", tensor_index,
-          tensor_->bytes,
-          (static_cast<float>(tensor_->bytes) / (1 << 20)));
-      for(int k=0; k<tensor_->dims->size; k++){
+             tensor_->bytes, (static_cast<float>(tensor_->bytes) / (1 << 20)));
+      for (int k = 0; k < tensor_->dims->size; k++) {
         std::cout << tensor_->dims->data[k] << " ";
-      } 
+      }
       std::cout << "\n";
     }
   }
   return kTfLiteOk;
 }
 
-TfLiteStatus Subgraph::AllocateConcateTensors(){
-  // Must reallocate sub-interpreter's concatenation Right-side tensor manually. (afef0)
-  // Because TfLite doesn't allocate it. (it considers the tensor have already been allocated
-  // by previous subgraph.)
-  for(int execution_plan_idx = execution_plan_.size() -1;
-            execution_plan_idx >= 0; execution_plan_idx--){
+TfLiteStatus Subgraph::AllocateConcateTensors() {
+  // Must reallocate sub-interpreter's concatenation Right-side tensor manually.
+  // (afef0) Because TfLite doesn't allocate it. (it considers the tensor have
+  // already been allocated by previous subgraph.)
+  for (int execution_plan_idx = execution_plan_.size() - 1;
+       execution_plan_idx >= 0; execution_plan_idx--) {
     int node_index = execution_plan_[execution_plan_idx];
     int input_tensor_idx, output_tensor_idx;
     std::vector<int> input_tensor_indices;
     TfLiteNode& node = nodes_and_registration_[node_index].first;
-    const TfLiteRegistration& registration = nodes_and_registration_[node_index].second;
-    if(node.inputs->size > 0 && node.outputs->size > 0){
-      if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
+    const TfLiteRegistration& registration =
+        nodes_and_registration_[node_index].second;
+    if (node.inputs->size > 0 && node.outputs->size > 0) {
+      if (strcmp(GetOpName(registration), "CONCATENATION") == 0) {
         // Need to modify both inputs for concatenation layer.
         input_tensor_indices.push_back(node.inputs->data[0]);
         input_tensor_indices.push_back(node.inputs->data[1]);
       }
-    }else{
-      std::cout << "ERROR Node " << GetOpName(registration) 
-            << " input, output size not > 0" << "\n";
+    } else {
+      std::cout << "ERROR Node " << GetOpName(registration)
+                << " input, output size not > 0"
+                << "\n";
       return kTfLiteError;
     }
-    for(int idx=0; idx<input_tensor_indices.size(); ++idx){
+    for (int idx = 0; idx < input_tensor_indices.size(); ++idx) {
       input_tensor_idx = input_tensor_indices[idx];
       TfLiteTensor* input_tensor = tensor(input_tensor_idx);
-      if(input_tensor->data.data == nullptr){
+      if (input_tensor->data.data == nullptr) {
         size_t tensor_size = input_tensor->bytes;
         input_tensor->data.data = malloc(tensor_size);
       }
@@ -1361,20 +1414,23 @@ TfLiteStatus Subgraph::AllocateConcateTensors(){
 }
 
 // This function is deprecated.
-// No more use. 
+// No more use.
 TfLiteStatus Subgraph::ReplaceBufferofSameDims(TfLiteTensor* source,
-                                              TfLiteTensor* dest){
-  if(source->dims->size != dest->dims->size){
-    std::cout << "Dimension size does not match for buffer replace" << "\n";
+                                               TfLiteTensor* dest) {
+  if (source->dims->size != dest->dims->size) {
+    std::cout << "Dimension size does not match for buffer replace"
+              << "\n";
     return kTfLiteError;
   }
-  for(int i=0; i<source->dims->size; ++i){
-    if(source->dims->data[i] != dest->dims->data[i]){
-      std::cout << "Dimension does not match for buffer replace" << "\n";
-      std::cout << source->dims->data[i] << " != " << dest->dims->data[i] << "\n";
+  for (int i = 0; i < source->dims->size; ++i) {
+    if (source->dims->data[i] != dest->dims->data[i]) {
+      std::cout << "Dimension does not match for buffer replace"
+                << "\n";
+      std::cout << source->dims->data[i] << " != " << dest->dims->data[i]
+                << "\n";
       return kTfLiteError;
-    } 
-  } 
+    }
+  }
   printf("dest : %p ", dest->data.data);
   printf("source : %p \n", source->data.data);
   dest->data.data = source->data.data;
@@ -1572,7 +1628,7 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
 }
 
 // Minsung
-// Fixed to prapagate dims properly in HW partitioning, concatenation layer. 
+// Fixed to prapagate dims properly in HW partitioning, concatenation layer.
 // Need to change for other multi-input layers such as add.
 TfLiteStatus Subgraph::PrepareOpsStartingAt(
     int first_execution_plan_index, const std::vector<int>& execution_plan,
@@ -1602,32 +1658,33 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
     //   std::cout << "\n";
     // }
     EnsureTensorsVectorCapacity();
-    if(resource_type == ResourceType::CO_GPU || 
+    if (resource_type == ResourceType::CO_GPU ||
         resource_type == ResourceType::CO_CPU ||
-        resource_type == ResourceType::CO_CPU_XNN){
-      if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
+        resource_type == ResourceType::CO_CPU_XNN) {
+      if (strcmp(GetOpName(registration), "CONCATENATION") == 0) {
         std::vector<int> input_tensors;
-        for(int i=0; i<node.inputs->size; ++i)
+        for (int i = 0; i < node.inputs->size; ++i)
           input_tensors.push_back(node.inputs->data[i]);
-        if(input_tensors.size() != 2){
-          std::cout << "Number of input tensor != 2 for concatenate" 
-                    << " PrepareOpsStartingAt ERROR" << "\n";
+        if (input_tensors.size() != 2) {
+          std::cout << "Number of input tensor != 2 for concatenate"
+                    << " PrepareOpsStartingAt ERROR"
+                    << "\n";
           return kTfLiteError;
         }
-        TfLiteTensor* input_l = tensor(input_tensors[0]); 
+        TfLiteTensor* input_l = tensor(input_tensors[0]);
         TfLiteTensor* input_r = tensor(input_tensors[1]);
         std::vector<int> new_dims;
-        if(input_l->dims->data[1] < input_r->dims->data[1]){
+        if (input_l->dims->data[1] < input_r->dims->data[1]) {
           // In the input of concatenation b,h,w,c,
           // b,h,w must equal in both input tensors.
-          for(int i=0; i<input_l->dims->size-1; ++i){
+          for (int i = 0; i < input_l->dims->size - 1; ++i) {
             new_dims.push_back(input_l->dims->data[i]);
           }
           new_dims.push_back(input_r->dims->data[3]);
           ResizeInputTensor(input_tensors[1], new_dims);
           std::cout << "Resized input tensor " << input_tensors[1] << "\n";
-        }else if(input_l->dims->data[1] > input_r->dims->data[1]){
-          for(int i=0; i<input_r->dims->size-1; ++i){
+        } else if (input_l->dims->data[1] > input_r->dims->data[1]) {
+          for (int i = 0; i < input_r->dims->size - 1; ++i) {
             new_dims.push_back(input_r->dims->data[i]);
           }
           new_dims.push_back(input_l->dims->data[3]);
@@ -1689,7 +1746,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
       PrepareOpsStartingAt(next_execution_plan_index_to_prepare_,
                            execution_plan_, &last_exec_plan_index_prepared));
   next_execution_plan_index_to_prepare_ = last_exec_plan_index_prepared + 1;
-  
+
   // Execute arena allocations.
   TF_LITE_ENSURE_STATUS(memory_planner_->ExecuteAllocations(
       next_execution_plan_index_to_plan_allocation_,
@@ -1715,7 +1772,7 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
 }
 
 TfLiteStatus Subgraph::Invoke() {
-  //std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
+  // std::cout << "tensorflow/lite/core/subgraph.cc/Subgraph::Invoke()\n";
   std::vector<double> latency_per_node;
   if (!consistent_) {
     ReportError("Invoke called on model that is not consistent.");
@@ -1745,10 +1802,10 @@ TfLiteStatus Subgraph::Invoke() {
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
-  
+
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
-    //std::cout << "Invoke inside" << "\n";
+    // std::cout << "Invoke inside" << "\n";
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
       TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
       TF_LITE_ENSURE(&context_, next_execution_plan_index_to_prepare_ >=
@@ -1800,37 +1857,40 @@ TfLiteStatus Subgraph::Invoke() {
 
     EnsureTensorsVectorCapacity();
     tensor_resized_since_op_invoke_ = false;
-    // PrintInputTensor(node);
-    #ifdef LATENCY_MEASURE
-      struct timespec begin, end;
-      clock_gettime(CLOCK_MONOTONIC, &begin);
-    #endif
+// PrintInputTensor(node);
+#ifdef LATENCY_MEASURE
+    struct timespec begin, end;
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+#endif
     // std::cout << "OpInvoke " << GetOpName(registration) << "\n";
     if (OpInvoke(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-  
-    #ifdef LATENCY_MEASURE
-      clock_gettime(CLOCK_MONOTONIC, &end);
-      // if(strcmp(GetOpName(registration), "DELEGATE")){
-      //   response_time += (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      // }else{
-      //   if(response_time)
-      //     latency_per_node.push_back(response_time);
-      //   response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      //   latency_per_node.push_back(response_time);
-      //   response_time = 0;
-      // }
-      response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      latency_per_node.push_back(response_time);
-      // if(resource_type == ResourceType::CO_CPU||
-      //             resource_type == ResourceType::CPU)
-      //   printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
-      // else if(resource_type == ResourceType::CO_GPU ||
-      //             resource_type == ResourceType::GPU)
-      //   printf("%sInvoke Latency %.6f %s\n", C_BLUE, response_time, C_NRML);
-    #endif
+
+#ifdef LATENCY_MEASURE
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    // if(strcmp(GetOpName(registration), "DELEGATE")){
+    //   response_time += (end.tv_sec - begin.tv_sec) + ((end.tv_nsec -
+    //   begin.tv_nsec) / 1000000000.0);
+    // }else{
+    //   if(response_time)
+    //     latency_per_node.push_back(response_time);
+    //   response_time = (end.tv_sec - begin.tv_sec) + ((end.tv_nsec -
+    //   begin.tv_nsec) / 1000000000.0);
+    //   latency_per_node.push_back(response_time);
+    //   response_time = 0;
+    // }
+    response_time = (end.tv_sec - begin.tv_sec) +
+                    ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+    latency_per_node.push_back(response_time);
+    // if(resource_type == ResourceType::CO_CPU||
+    //             resource_type == ResourceType::CPU)
+    //   printf("%sInvoke Latency %.6f %s\n", C_YLLW, response_time, C_NRML);
+    // else if(resource_type == ResourceType::CO_GPU ||
+    //             resource_type == ResourceType::GPU)
+    //   printf("%sInvoke Latency %.6f %s\n", C_BLUE, response_time, C_NRML);
+#endif
 
     // Force execution prep for downstream ops if the latest op triggered the
     // resize of a dynamic tensor.
@@ -1852,17 +1912,17 @@ TfLiteStatus Subgraph::Invoke() {
       }
     }
   }
-  #ifdef LATENCY_MEASURE
-    std::ofstream latency_log;
-    latency_log.open("/home/nvidia/latency_per_node.txt", std::ios::app);
-    if(latency_log.is_open()){
-      for(int i=0; i<latency_per_node.size(); ++i){
-        latency_log << latency_per_node[i] << " ";
-      }
-      latency_log << "\n";
+#ifdef LATENCY_MEASURE
+  std::ofstream latency_log;
+  latency_log.open("/home/nvidia/latency_per_node.txt", std::ios::app);
+  if (latency_log.is_open()) {
+    for (int i = 0; i < latency_per_node.size(); ++i) {
+      latency_log << latency_per_node[i] << " ";
     }
-    latency_log.close();
-  #endif
+    latency_log << "\n";
+  }
+  latency_log.close();
+#endif
   return status;
 }
 
@@ -1942,9 +2002,8 @@ TfLiteStatus Subgraph::AddTensors(TfLiteContext* context, int tensors_to_add,
       ->AddTensors(tensors_to_add, first_new_tensor_index);
 }
 
-bool Subgraph::IsInvokable(){
-  if(state_ == kStateInvokable)
-    return true;
+bool Subgraph::IsInvokable() {
+  if (state_ == kStateInvokable) return true;
   return false;
 }
 
@@ -2301,41 +2360,43 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   if (state_ == kStateInvokableAndImmutable) {
     ReportError(
         "ModifyGraphWithDelegate is disallowed when graph is immutable.");
-	  return kTfLiteApplicationError;
+    return kTfLiteApplicationError;
   }
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
-    if(resource_type == ResourceType::CO_GPU){
+    if (resource_type == ResourceType::CO_GPU) {
       // Runtime filter modification for co-execution
       int partitioning_ratio = GetPartitioningRatio();
-      std::cout << "partitioning ratio : " << partitioning_ratio  << "\n";
-      if(partitioning_ratio < 10){  
+      std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
+      if (partitioning_ratio < 10) {
         // channel-wise partitioning(GPU)
         int conv_filter_before_modification = 0;
         int partitioning_plan = partitioning_ratio;
-        for (int node_index = 0;
-          node_index < nodes_and_registration_.size(); node_index++) {
+        for (int node_index = 0; node_index < nodes_and_registration_.size();
+             node_index++) {
           TfLiteNode& node = nodes_and_registration_[node_index].first;
           const TfLiteRegistration& registration =
               nodes_and_registration_[node_index].second;
           int tensor_filter = 0;
           int tensor_bias = 0;
-          if(!strcmp(GetOpName(registration), "CONV_2D")){
-            std::cout << "Layer " << node_index << " is CONV_2D" << "\n";
+          if (!strcmp(GetOpName(registration), "CONV_2D")) {
+            std::cout << "Layer " << node_index << " is CONV_2D"
+                      << "\n";
             tensor_filter = node.inputs->data[1];
             tensor_bias = node.inputs->data[2];
             conv_filter_before_modification =
-                  context_.tensors[tensor_filter].dims->data[0];
-            int modified_value = 
-                  ceil(conv_filter_before_modification*((float)partitioning_plan/10));
+                context_.tensors[tensor_filter].dims->data[0];
+            int modified_value = ceil(conv_filter_before_modification *
+                                      ((float)partitioning_plan / 10));
             context_.tensors[tensor_filter].dims->data[0] = modified_value;
             context_.tensors[tensor_bias].dims->data[0] = modified_value;
             int modified_bytes = 1 * sizeof(float);
-            for(int i=0; i<4; i++){
+            for (int i = 0; i < 4; i++) {
               modified_bytes *= context_.tensors[tensor_filter].dims->data[i];
             }
             context_.tensors[tensor_filter].bytes = modified_bytes;
-            context_.tensors[tensor_bias].bytes = modified_value * sizeof(float);
+            context_.tensors[tensor_bias].bytes =
+                modified_value * sizeof(float);
           }
         }
       }
@@ -2351,7 +2412,7 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
       ReportError(
           "Attempting to use a delegate that only supports static-sized "
           "tensors with a graph that has dynamic-sized tensors.");
-		return kTfLiteApplicationError;
+      return kTfLiteApplicationError;
     }
   }
   const bool was_invokable_before_delegate = state_ == kStateInvokable;
@@ -2370,9 +2431,9 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
       TF_LITE_ENSURE_STATUS(RemoveAllDelegates());
       ReportError(
           "Restored original execution plan after delegate application "
-          "failure."); 
+          "failure.");
       return kTfLiteDelegateError;
-    } 
+    }
     return kTfLiteOk;
   };
   TfLiteStatus status = delegate->Prepare(&context_, delegate);
@@ -2427,142 +2488,150 @@ TfLiteStatus Subgraph::SetCustomAllocationForTensor(
 }
 
 TfLiteStatus Subgraph::SetupSubgraphForJob(int job_id, int model_id,
-                                                         int graph_id){
+                                           int graph_id) {
   model_id_ = model_id;
   job_id_ = job_id;
   graph_id_ = graph_id;
 }
 
-std::vector<int> Subgraph::GetTensorShape(int tensor_index){
+std::vector<int> Subgraph::GetTensorShape(int tensor_index) {
   TfLiteTensor* tensor = &tensors_[tensor_index];
   std::vector<int> dims;
-  for(int i=0; i<tensor->dims->size; ++i){
+  for (int i = 0; i < tensor->dims->size; ++i) {
     dims.push_back(tensor->dims->data[i]);
   }
-  return dims;  
+  return dims;
 }
 
-TfLiteIntArray* Subgraph::GetInputTensorIndices(){
-  if(execution_plan_.size() > 0){
+TfLiteIntArray* Subgraph::GetInputTensorIndices() {
+  if (execution_plan_.size() > 0) {
     int node_index = execution_plan_[0];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     return node.inputs;
   }
 }
 
-int Subgraph::GetFirstInputTensorIndex(){
-  if(execution_plan_.size() > 0){
+int Subgraph::GetFirstInputTensorIndex() {
+  if (execution_plan_.size() > 0) {
     int node_index = execution_plan_[0];
     TfLiteNode& node = nodes_and_registration_[0].first;
     return node.inputs->data[0];
   }
 }
 
-int Subgraph::GetFirstOutputTensorIndex(){
-  if(execution_plan_.size() > 0){
+int Subgraph::GetFirstOutputTensorIndex() {
+  if (execution_plan_.size() > 0) {
     int node_index = execution_plan_[execution_plan_.size() - 1];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     return node.outputs->data[0];
   }
 }
 
-TfLiteIntArray* Subgraph::GetOutputTensorIndices(){
-  if(execution_plan_.size() > 0){
+TfLiteIntArray* Subgraph::GetOutputTensorIndices() {
+  if (execution_plan_.size() > 0) {
     int node_index = execution_plan_[execution_plan_.size() - 1];
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     return node.outputs;
   }
 }
 
-void Subgraph::PrintInputTensor(TfLiteNode& node){
+void Subgraph::PrintInputTensor(TfLiteNode& node) {
   std::cout << "[Print Input Tensor] \n";
   TfLiteTensor* temp = GetInputTensor(node);
   int tensor_index = GetInputTensorIndex(node);
-  int tensor_data_dims_size = temp->dims->size-1;
+  int tensor_data_dims_size = temp->dims->size - 1;
   int tensor_data_ch_size = temp->dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
   int tensor_axis;
-  for(int i=0; i< temp->dims->size; i++){
-    if(i == 1){
+  for (int i = 0; i < temp->dims->size; i++) {
+    if (i == 1) {
       tensor_axis = temp->dims->data[i];
     }
-    tensor_data_size *= temp->dims->data[i]; 
+    tensor_data_size *= temp->dims->data[i];
   }
   std::cout << "\n";
-  std::cout << "[" << tensor_index << "] Nunber of Tensors : "\
-                                           << tensor_data_size << "\n";
-  std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
+  std::cout << "[" << tensor_index
+            << "] Nunber of Tensors : " << tensor_data_size << "\n";
+  std::cout << "[" << tensor_index << "] Tensor DATA "
+            << "\n";
 
   PrintTensor(*temp);
 }
 
-void Subgraph::PrintOutputTensor(TfLiteNode& node){
+void Subgraph::PrintOutputTensor(TfLiteNode& node) {
   std::cout << "[Print Output Tensor] \n";
   TfLiteTensor* temp = GetOutputTensor(node);
   int tensor_index = GetOutputTensorIndex(node);
-  int tensor_data_dims_size = temp->dims->size-1;
+  int tensor_data_dims_size = temp->dims->size - 1;
   int tensor_data_ch_size = temp->dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
   int tensor_axis;
-  for(int i=0; i< temp->dims->size; i++){
-    if(i == 1){
+  for (int i = 0; i < temp->dims->size; i++) {
+    if (i == 1) {
       tensor_axis = temp->dims->data[i];
     }
-    tensor_data_size *= temp->dims->data[i]; 
+    tensor_data_size *= temp->dims->data[i];
   }
   std::cout << "\n";
-  std::cout << "[" << tensor_index << "] Nunber of Tensors : "\
-                                           << tensor_data_size << "\n";
-  std::cout << "[" << tensor_index << "] Tensor DATA " << "\n";
+  std::cout << "[" << tensor_index
+            << "] Nunber of Tensors : " << tensor_data_size << "\n";
+  std::cout << "[" << tensor_index << "] Tensor DATA "
+            << "\n";
 
-  PrintTensor(*temp);  
+  PrintTensor(*temp);
 }
 
-void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){
+void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node) {
   std::cout << "[Print Weight & Bias Tensor] \n";
   TfLiteTensor* weight = GetWeightTensor(node);
   TfLiteTensor* bias = GetBiasTensor(node);
-  if(weight == nullptr || bias == nullptr){
-    std::cout << "Print weight & bias ERROR. (nullptr)" << "\n";
+  if (weight == nullptr || bias == nullptr) {
+    std::cout << "Print weight & bias ERROR. (nullptr)"
+              << "\n";
     return;
   }
   int weight_tensor_idx = GetWeightTensorIdx(node);
   int bias_tensor_idx = GetBiasTensorIdx(node);
-  if(weight_tensor_idx == -1 || bias_tensor_idx == -1){
-    std::cout << "Print weight & bias ERROR. (-1)" << "\n";
+  if (weight_tensor_idx == -1 || bias_tensor_idx == -1) {
+    std::cout << "Print weight & bias ERROR. (-1)"
+              << "\n";
     return;
   }
 
-  int w_tensor_data_dims_size = weight->dims->size-1;
+  int w_tensor_data_dims_size = weight->dims->size - 1;
   int w_tensor_data_ch_size = weight->dims->data[w_tensor_data_dims_size];
   int w_tensor_data_size = 1;
   int w_tensor_axis;
-  for(int i=0; i< weight->dims->size; i++){
-    w_tensor_data_size *= weight->dims->data[i]; 
+  for (int i = 0; i < weight->dims->size; i++) {
+    w_tensor_data_size *= weight->dims->data[i];
   }
-  std::cout << "[Weight Tensors]" << "\n";
-  std::cout << "[" << weight_tensor_idx << "] Nunber of Tensors : "\
-                                           << w_tensor_data_size << "\n";
-  std::cout << "[" << weight_tensor_idx << "] Tensor DATA " << "\n";
+  std::cout << "[Weight Tensors]"
+            << "\n";
+  std::cout << "[" << weight_tensor_idx
+            << "] Nunber of Tensors : " << w_tensor_data_size << "\n";
+  std::cout << "[" << weight_tensor_idx << "] Tensor DATA "
+            << "\n";
 
   PrintWeightandBiasTensor(*weight);
 
-  std::cout << "[Bias Tensors]" << "\n";
-  int b_tensor_data_dims_size = bias->dims->size-1;
+  std::cout << "[Bias Tensors]"
+            << "\n";
+  int b_tensor_data_dims_size = bias->dims->size - 1;
   int b_tensor_data_ch_size = bias->dims->data[b_tensor_data_dims_size];
   int b_tensor_data_size = 1;
   int b_tensor_axis;
-  for(int i=0; i< bias->dims->size; i++){
-    b_tensor_data_size *= bias->dims->data[i]; 
+  for (int i = 0; i < bias->dims->size; i++) {
+    b_tensor_data_size *= bias->dims->data[i];
   }
-  std::cout << "[" << bias_tensor_idx << "] Nunber of Tensors : "\
-                                           << b_tensor_data_size << "\n";
-  std::cout << "[" << bias_tensor_idx << "] Tensor DATA " << "\n";
+  std::cout << "[" << bias_tensor_idx
+            << "] Nunber of Tensors : " << b_tensor_data_size << "\n";
+  std::cout << "[" << bias_tensor_idx << "] Tensor DATA "
+            << "\n";
 
   PrintWeightandBiasTensor(*bias);
   std::cout << "\n";
 }
- 
+
 // Minsung
 // Returns the bias tensor idx of given node if 'exists'
 // void Subgraph::PrintTensorSerial(TfLiteTensor& tensor){
@@ -2586,7 +2655,7 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){
 //     if(i == 1){
 //       tensor_axis = tensor.dims->data[i];
 //     }
-//     tensor_data_size *= tensor.dims->data[i]; 
+//     tensor_data_size *= tensor.dims->data[i];
 //   }
 //   std::cout << " Number of data : " << tensor_data_size << "\n";
 //   std::cout << " Tensor DATA " << "\n";
@@ -2599,7 +2668,7 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){
 //       for(int c=0; c<channel; ++c){
 //         for(int h=0; h<height; ++h){
 //           for(int w=0; w<width; ++w){
-//             int offset = b * height * width * channel + 
+//             int offset = b * height * width * channel +
 //                          c * height * width +
 //                          h * width +
 //                          w;
@@ -2621,34 +2690,36 @@ void Subgraph::PrintWeightandBiasTensor(TfLiteNode& node){
 //   }
 // }
 
-void Subgraph::PrintTensorSerial(TfLiteTensor& tensor){
-  std::cout << "[Print Tensor]" << "\n";
-  int tensor_channel_idx = tensor.dims->size-1;
+void Subgraph::PrintTensorSerial(TfLiteTensor& tensor) {
+  std::cout << "[Print Tensor]"
+            << "\n";
+  int tensor_channel_idx = tensor.dims->size - 1;
   int tensor_data_ch_size = tensor.dims->data[tensor_channel_idx];
   int tensor_data_size = 1;
   int tensor_axis;
-  for(int i=0; i< tensor.dims->size; i++){
-    if(i == 2){
+  for (int i = 0; i < tensor.dims->size; i++) {
+    if (i == 2) {
       tensor_axis = tensor.dims->data[i];
     }
-    tensor_data_size *= tensor.dims->data[i]; 
+    tensor_data_size *= tensor.dims->data[i];
   }
   std::cout << " Number of data : " << tensor_data_size << "\n";
-  std::cout << " Tensor DATA " << "\n";
-  if(tensor.type == TfLiteType::kTfLiteFloat32){
-    std::cout << "[FLOAT32 TENSOR]" << "\n";
+  std::cout << " Tensor DATA "
+            << "\n";
+  if (tensor.type == TfLiteType::kTfLiteFloat32) {
+    std::cout << "[FLOAT32 TENSOR]"
+              << "\n";
     auto data_st = (float*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
+    for (int i = 0; i < tensor_data_ch_size; i++) {
       std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        float data = *(data_st+(i+j*tensor_data_ch_size));
+      for (int j = 0; j < tensor_data_size / tensor_data_ch_size; j++) {
+        float data = *(data_st + (i + j * tensor_data_ch_size));
         if (data == 0) {
           printf("%0.6f ", data);
+        } else if (data != 0) {
+          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
         }
-        else if (data != 0) {
-            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
-        }
-        if (j % tensor_axis == tensor_axis-1) {
+        if (j % tensor_axis == tensor_axis - 1) {
           printf("\n");
         }
       }
@@ -2657,74 +2728,74 @@ void Subgraph::PrintTensorSerial(TfLiteTensor& tensor){
   }
 }
 
-void Subgraph::PrintTensor(TfLiteTensor& tensor){
-  std::cout << "[Print Tensor]" << "\n";
-  int tensor_data_dims_size = tensor.dims->size-1;
+void Subgraph::PrintTensor(TfLiteTensor& tensor) {
+  std::cout << "[Print Tensor]"
+            << "\n";
+  int tensor_data_dims_size = tensor.dims->size - 1;
   int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
   int tensor_axis;
-  for(int i=0; i< tensor.dims->size; i++){
-    if(i == 1){
+  for (int i = 0; i < tensor.dims->size; i++) {
+    if (i == 1) {
       tensor_axis = tensor.dims->data[i];
     }
-    tensor_data_size *= tensor.dims->data[i]; 
+    tensor_data_size *= tensor.dims->data[i];
   }
   std::cout << " Number of data : " << tensor_data_size << "\n";
-  std::cout << " Tensor DATA " << "\n";
-  if(tensor.type == TfLiteType::kTfLiteFloat32){
-    std::cout << "[FLOAT32 TENSOR]" << "\n";
+  std::cout << " Tensor DATA "
+            << "\n";
+  if (tensor.type == TfLiteType::kTfLiteFloat32) {
+    std::cout << "[FLOAT32 TENSOR]"
+              << "\n";
     auto data_st = (float*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
+    for (int i = 0; i < tensor_data_ch_size; i++) {
       std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        float data = *(data_st+(i+j*tensor_data_ch_size));
+      for (int j = 0; j < tensor_data_size / tensor_data_ch_size; j++) {
+        float data = *(data_st + (i + j * tensor_data_ch_size));
         if (data == 0) {
           printf("%0.6f ", data);
+        } else if (data != 0) {
+          printf("%s%0.6f%s ", C_GREN, data, C_NRML);
         }
-        else if (data != 0) {
-            printf("%s%0.6f%s ", C_GREN, data, C_NRML);
-        }
-        if (j % tensor_axis == tensor_axis-1) {
+        if (j % tensor_axis == tensor_axis - 1) {
           printf("\n");
         }
       }
       std::cout << "\n";
     }
-  }
-  else if(tensor.type == TfLiteType::kTfLiteInt8){
-    std::cout << "[INT8 TENSOR]" << "\n";
+  } else if (tensor.type == TfLiteType::kTfLiteInt8) {
+    std::cout << "[INT8 TENSOR]"
+              << "\n";
     auto data_st = (int8_t*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
+    for (int i = 0; i < tensor_data_ch_size; i++) {
       std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        int8_t data = *(data_st+(i+j*tensor_data_ch_size));
+      for (int j = 0; j < tensor_data_size / tensor_data_ch_size; j++) {
+        int8_t data = *(data_st + (i + j * tensor_data_ch_size));
         if (data == 0) {
           printf("%d ", data);
-        }
-        else if (data != 0) {
+        } else if (data != 0) {
           printf("%s%d%s ", C_GREN, data, C_NRML);
         }
-        if (j % tensor_axis == tensor_axis-1) {
+        if (j % tensor_axis == tensor_axis - 1) {
           printf("\n");
         }
       }
     }
     std::cout << "\n";
-  }
-  else if(tensor.type == TfLiteType::kTfLiteInt32){
-    std::cout << "[INT32 TENSOR]" << "\n";
+  } else if (tensor.type == TfLiteType::kTfLiteInt32) {
+    std::cout << "[INT32 TENSOR]"
+              << "\n";
     auto data_st = (int*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
+    for (int i = 0; i < tensor_data_ch_size; i++) {
       std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        int data = *(data_st+(i+j*tensor_data_ch_size));
+      for (int j = 0; j < tensor_data_size / tensor_data_ch_size; j++) {
+        int data = *(data_st + (i + j * tensor_data_ch_size));
         if (data == 0) {
           printf("%d ", data);
-        }
-        else if (data != 0) {
+        } else if (data != 0) {
           printf("%s%d%s ", C_GREN, data, C_NRML);
         }
-        if (j % tensor_axis == tensor_axis-1) {
+        if (j % tensor_axis == tensor_axis - 1) {
           printf("\n");
         }
       }
@@ -2733,72 +2804,71 @@ void Subgraph::PrintTensor(TfLiteTensor& tensor){
   }
 }
 
-void Subgraph::PrintWeightandBiasTensor(TfLiteTensor& tensor){
-  std::cout << "[Print Weight Tensor]" << "\n";
-  int tensor_data_dims_size = tensor.dims->size-4;
+void Subgraph::PrintWeightandBiasTensor(TfLiteTensor& tensor) {
+  std::cout << "[Print Weight Tensor]"
+            << "\n";
+  int tensor_data_dims_size = tensor.dims->size - 4;
   int tensor_data_ch_size = tensor.dims->data[tensor_data_dims_size];
   int tensor_data_size = 1;
   int tensor_axis = tensor.dims->data[1] * tensor.dims->data[2];
   int tensor_kernel_axis = tensor.dims->data[1];
-  for(int i=0; i< tensor.dims->size; i++){  
-    tensor_data_size *= tensor.dims->data[i]; 
+  for (int i = 0; i < tensor.dims->size; i++) {
+    tensor_data_size *= tensor.dims->data[i];
   }
   std::cout << " Number of data(numeric) : " << tensor_data_size << "\n";
   std::cout << " Number of kernel : " << tensor_data_size << "\n";
-  if(tensor.type == TfLiteType::kTfLiteFloat32){
-    std::cout << "[FLOAT32 TENSOR]" << "\n";
+  if (tensor.type == TfLiteType::kTfLiteFloat32) {
+    std::cout << "[FLOAT32 TENSOR]"
+              << "\n";
     auto data_st = (float*)tensor.data.data;
-    for(int j=0; j<tensor_data_size; j++){
-      float data = *(data_st+j);
-      if(j > 0 && j % tensor_kernel_axis == 0){
+    for (int j = 0; j < tensor_data_size; j++) {
+      float data = *(data_st + j);
+      if (j > 0 && j % tensor_kernel_axis == 0) {
         std::cout << "\n";
       }
       if (j % tensor_axis == 0) {
-        std::cout << "[Kernel : " << (int)(j / tensor_axis) << "] \n"; 
+        std::cout << "[Kernel : " << (int)(j / tensor_axis) << "] \n";
       }
       if (data == 0) {
         printf("%0.6f ", data);
-      }
-      else if (data != 0) {
+      } else if (data != 0) {
         printf("%s%0.6f%s ", C_GREN, data, C_NRML);
       }
     }
     std::cout << "\n";
-  }
-  else if(tensor.type == TfLiteType::kTfLiteInt8){
-    std::cout << "[INT8 TENSOR]" << "\n";
+  } else if (tensor.type == TfLiteType::kTfLiteInt8) {
+    std::cout << "[INT8 TENSOR]"
+              << "\n";
     auto data_st = (int8_t*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
+    for (int i = 0; i < tensor_data_ch_size; i++) {
       std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        int8_t data = *(data_st+j);
+      for (int j = 0; j < tensor_data_size / tensor_data_ch_size; j++) {
+        int8_t data = *(data_st + j);
         if (data == 0) {
           printf("%d ", data);
-        }
-        else if (data != 0) {
+        } else if (data != 0) {
           printf("%s%d%s ", C_GREN, data, C_NRML);
         }
-        if (j % tensor_axis == tensor_axis-1) {
+        if (j % tensor_axis == tensor_axis - 1) {
           printf("\n");
         }
       }
     }
     std::cout << "\n";
-  }
-  else if(tensor.type == TfLiteType::kTfLiteInt32){
-    std::cout << "[INT32 TENSOR]" << "\n";
+  } else if (tensor.type == TfLiteType::kTfLiteInt32) {
+    std::cout << "[INT32 TENSOR]"
+              << "\n";
     auto data_st = (int*)tensor.data.data;
-    for(int i=0; i<tensor_data_ch_size; i++){
+    for (int i = 0; i < tensor_data_ch_size; i++) {
       std::cout << "CH [" << i << "] \n";
-      for(int j=0; j<tensor_data_size/tensor_data_ch_size; j++){
-        int data = *(data_st+j);
+      for (int j = 0; j < tensor_data_size / tensor_data_ch_size; j++) {
+        int data = *(data_st + j);
         if (data == 0) {
           printf("%d ", data);
-        }
-        else if (data != 0) {
+        } else if (data != 0) {
           printf("%s%d%s ", C_GREN, data, C_NRML);
         }
-        if (j % tensor_axis == tensor_axis-1) {
+        if (j % tensor_axis == tensor_axis - 1) {
           printf("\n");
         }
       }

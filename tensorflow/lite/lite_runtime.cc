@@ -129,7 +129,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     model_type = MODEL_TYPE::MOBILENET;
   } else if (type == INPUT_TYPE::IMAGENET300) {
     model_type = MODEL_TYPE::EFFICIENTNET;
-  } else if (type == INPUT_TYPE::LANENET144800) {
+  } else if (type == INPUT_TYPE::LANENET_FRAME) {
     model_type = MODEL_TYPE::LANENET;
   }
   state = RuntimeState::INITIALIZE;
@@ -937,9 +937,12 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
           }
         }
         break;
-      case INPUT_TYPE::LANENET144800:  // TODO (d904823) : Need to fix redundunt
+      case INPUT_TYPE::LANENET_FRAME:  // TODO (d904823) : Need to fix redundunt
                                        // codes.
-        for (int i = 0; i < h; i++) {  // row
+        std::cout << "LANENET input"
+                  << " h " << h << " w " << w << "input size "
+                  << input.size.dims() << "\n";
+        for (int i = 0; i < h; i++) {    // row
           for (int j = 0; j < w; j++) {  // col
             cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
             *(input_pointer + i * w * 3 + j * 3) = ((float)pixel[0]) / 255.0;
@@ -947,6 +950,9 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
                 ((float)pixel[1]) / 255.0;
             *(input_pointer + i * w * 3 + j * 3 + 2) =
                 ((float)pixel[2]) / 255.0;
+            // *(input_pointer + i * w * 3 + j * 3) = 1;
+            // *(input_pointer + i * w * 3 + j * 3 + 1) = 1;
+            // *(input_pointer + i * w * 3 + j * 3 + 2) = 1;
           }
         }
         if (use_two_interpreter) {
@@ -1001,7 +1007,7 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
         }
         ////////////////////////////////////////////////////////////////////
         break;
-      case INPUT_TYPE::LANENET144800:
+      case INPUT_TYPE::LANENET_FRAME:
         memcpy(input_pointer, input_quant.data, h * w * input_quant.elemSize());
       default:
         break;
@@ -1337,19 +1343,18 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       // FeedDummyInputToTensor(subgraph->tensor(58));
       // Note : This latency measure is always on for GPU test.
       clock_gettime(CLOCK_MONOTONIC, &begin);
-
       if (subgraph->Invoke() != kTfLiteOk) {
         std::cout << "ERROR on invoking subgraph id " << subgraph->GetGraphid()
                   << "\n";
         return_state = kTfLiteError;
         break;
       }
+      // if (subgraph->GetGraphid() == 1)  // Debug code in d9048239340
+      //   PrintTensor(*subgraph->tensor(136),
+      //               false);  // Debug code in d9048239340
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      // if (subgraph->GetGraphid() == 1)  // Debug code in d9048239340
-      //   // PrintTensor(*subgraph->tensor(136),
-      //   //             false);  // Debug code in d9048239340
 // printf(" IVS %.6f ", response_time);
 #ifdef latency_measure
       timestamp_label_main_interpreter.push_back("IVs");

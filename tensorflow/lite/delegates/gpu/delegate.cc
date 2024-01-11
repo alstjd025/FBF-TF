@@ -276,11 +276,15 @@ class DelegateKernel {
     const auto inputs = graph->inputs();
     input_refs->reserve(inputs.size());
     for (const auto& input : inputs) {
+      std::cout << "GPU InitializeGraph input tensor " << input->tensor.ref
+                << "\n";
       input_refs->push_back(input->tensor.ref);
     }
     const auto outputs = graph->outputs();
     output_refs->reserve(outputs.size());
     for (const auto& output : outputs) {
+      std::cout << "GPU InitializeGraph output tensor " << output->tensor.ref
+                << "\n";
       output_refs->push_back(output->tensor.ref);
     }
 
