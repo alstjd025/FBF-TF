@@ -23,8 +23,8 @@ limitations under the License.
 #include <cstdlib>
 #include <functional>
 #include <memory>
-#include <vector>
 #include <mutex>
+#include <vector>
 
 #include "tensorflow/lite/allocation.h"
 #include "tensorflow/lite/c/common.h"  // IWYU pragma: export
@@ -36,8 +36,6 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/stderr_reporter.h"
 #include "tensorflow/lite/type_to_tflitetype.h"
-
-#include "tensorflow/lite/lite_scheduler.h"
 #include "tensorflow/lite/worker_core.h"
 
 namespace tflite {
@@ -203,8 +201,9 @@ class Interpreter {
 
   /// Minsung
   /// Acess to list of inputs in subgraph
-  const std::vector<int>& inputs(int subgraph_id_) { return subgraph_id(subgraph_id_)->inputs(); }
-
+  const std::vector<int>& inputs(int subgraph_id_) {
+    return subgraph_id(subgraph_id_)->inputs();
+  }
 
   /// Return the name of a given input. The given index must be between 0 and
   /// inputs().size().
@@ -222,7 +221,6 @@ class Interpreter {
   const std::vector<int>& outputs(int subgraph_id_) {
     return subgraph_id(subgraph_id_)->outputs();
   }
-
 
   /// Read only access to list of variable tensors.
   const std::vector<int>& variables() const {
@@ -243,8 +241,9 @@ class Interpreter {
 
   /// Minsung
   /// Return the number of ops in a subgraph
-  int nodes_size(int subgraph_id_) {return subgraph_id(subgraph_id_)->nodes_size();}
-
+  int nodes_size(int subgraph_id_) {
+    return subgraph_id(subgraph_id_)->nodes_size();
+  }
 
   /// WARNING: Experimental interface, subject to change
   const std::vector<int>& execution_plan() const {
@@ -252,7 +251,7 @@ class Interpreter {
   }
 
   // Minsung
-  // Returns the whole subgraphs id in vector 
+  // Returns the whole subgraphs id in vector
   void GetTotalSubgraphID(std::vector<int>& graph_ids);
 
 #ifndef DOXYGEN_
@@ -294,7 +293,6 @@ class Interpreter {
     return subgraph_id(subgraph_id_)->node_and_registration(node_index);
   }
 
-
   /// Perform a checked cast to the appropriate tensor type (mutable pointer
   /// version).
   template <class T>
@@ -323,8 +321,8 @@ class Interpreter {
   /// be between 0 and inputs().size().
   TfLiteTensor* input_tensor(size_t index) { return tensor(inputs()[index]); }
 
-  /// Return an immutable pointer to the given input tensor. The given index must
-  /// be between 0 and inputs().size().
+  /// Return an immutable pointer to the given input tensor. The given index
+  /// must be between 0 and inputs().size().
   const TfLiteTensor* input_tensor(size_t index) const {
     return tensor(inputs()[index]);
   }
@@ -412,8 +410,8 @@ class Interpreter {
   // Get the intermediate tensor range(means index range) from subgraphs
   // which shares same model id.
   // Used in allocatetensors.
-  TfLiteStatus GetIntermediateTensorRangeWithGraphSubset(int model_id, 
-                                                      int* begin, int*end);
+  TfLiteStatus GetIntermediateTensorRangeWithGraphSubset(int model_id,
+                                                         int* begin, int* end);
 
   /// Invoke the interpreter (run the whole graph in dependency order).
   ///
@@ -491,8 +489,11 @@ class Interpreter {
   // Minsung
   // Register given delegate object to this interpreter.
   // Currently only one deldegate.
-  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2, TfLiteDelegate* delegate3);
-  // TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate* delegate2);
+  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate,
+                                TfLiteDelegate* delegate2,
+                                TfLiteDelegate* delegate3);
+  // TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate*
+  // delegate2);
 
   // Owning handle to a TfLiteDelegate instance.
   using TfLiteDelegatePtr =
@@ -529,7 +530,7 @@ class Interpreter {
   TfLiteStatus EnsureTensorDataIsReadable(int tensor_index) {
     return primary_subgraph().EnsureTensorDataIsReadable(tensor_index);
   }
-  
+
   // Minsung
   // Create a new subgraph
   // Use only in interpreterbuilder
@@ -658,23 +659,16 @@ class Interpreter {
       return nullptr;
     return &*subgraphs_[subgraph_index];
   }
-
-  // Minsung
-  // Get a pointer to scheduler
-  LiteScheduler* GetScheduler() { return scheduler_; };
-
   // Minsung
   // Get a pointer to a subgraph of given id.
-  Subgraph* subgraph_id(int id){
-    if(subgraphs_size() > 0){
-      for(size_t i=0; i<subgraphs_.size(); ++i){
-        if(subgraphs_[i]->GetGraphid() == id)
-          return &*subgraphs_[i];
+  Subgraph* subgraph_id(int id) {
+    if (subgraphs_size() > 0) {
+      for (size_t i = 0; i < subgraphs_.size(); ++i) {
+        if (subgraphs_[i]->GetGraphid() == id) return &*subgraphs_[i];
       }
     }
     return nullptr;
   }
-
 
   /// WARNING: Experimental interface, subject to change
   Subgraph& primary_subgraph() {
@@ -690,12 +684,11 @@ class Interpreter {
   // Get the error reporter associated with this interpreter.
   ErrorReporter* error_reporter() const { return error_reporter_; }
 
-
   // Minsung
   // For job handling.
   // The job id is given by the number of jobs been created.
   /// WARNING: Must use these two functions together so that the
-  //  number of jobs  
+  //  number of jobs
   int GetNumJobsCreated() { return jobs_created; }
   int AddNumJobsCreated(int add) { jobs_created += add; }
   int GetAndAddNumJobsCreated(int add) {
@@ -708,9 +701,9 @@ class Interpreter {
 
   // Minsung
   // The subgraph id is given by the number of subgraphs been created.
-  int GetNumSubgraphsCreated() {return subgraphs_created; }
+  int GetNumSubgraphsCreated() { return subgraphs_created; }
   int AddNumSubgraphsCreated(int add) { subgraphs_created += add; }
-  int GetAndAddSubgraphsCreated(int add){
+  int GetAndAddSubgraphsCreated(int add) {
     LockJobs();
     int n = subgraphs_created;
     subgraphs_created += add;
@@ -720,9 +713,9 @@ class Interpreter {
 
   // Minsung
   // The worker id is given by the number of workers been created.
-  int GetNumWorkersCreated() {return workers_created;}
-  int AddNumWorkersCreated(int add) {workers_created += add;}
-  int GetAndAddWorkersCreated(int add){
+  int GetNumWorkersCreated() { return workers_created; }
+  int AddNumWorkersCreated(int add) { workers_created += add; }
+  int GetAndAddWorkersCreated(int add) {
     int n = workers_created;
     workers_created += add;
     return n;
@@ -730,9 +723,6 @@ class Interpreter {
 
   void SetInputType(INPUT_TYPE type) { input_type = type; }
   INPUT_TYPE GetInputType() { return input_type; }
-  
-
-
 
   // Minsung
   // Add a new job
@@ -740,14 +730,10 @@ class Interpreter {
 
   TfLiteStatus DeleteJob(int job_id);
 
-  void WakeScheduler();
-  void JoinScheduler();
-  void NotifyRescheduleToScheduler();
-
   // Minsung
   // Give jobs to workers
   TfLiteStatus GiveJob();
-  
+
   // Add a new subgraph (WARNING: use )
   TfLiteStatus AddNewSubgraph(tflite::Subgraph* new_subgraph);
 
@@ -788,7 +774,7 @@ class Interpreter {
 
   std::vector<cv::Mat> mnist_input;
   std::vector<cv::Mat> imagenet_input;
-  
+
 #endif  // DOXYGEN_SKIP
 
  private:
@@ -796,7 +782,6 @@ class Interpreter {
   friend class tflite::InterpreterTest;
   friend class tflite::TestDelegate;
   friend class tflite::delegates::InterpreterUtils;
-
 
   /// Set the value of an external context.
   static void SetExternalContext(struct TfLiteContext* context,
@@ -860,7 +845,8 @@ class Interpreter {
   // Minsung
   // Subgraph subsets
   // A pair contains model id, subgraph ids
-  // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are built
+  // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are
+  // built
   //     from a model id 1.
   // Assume that first subgraph of subset is input subgraph.
   // The subgraph which owns the output tensor depends on model stucture.
@@ -885,7 +871,7 @@ class Interpreter {
   // Jobs
   // these two variable shares same job's pointer
   // use job vector to modify specific job, use queue to allocate job to worker.
-  std::vector<tflite::Job*> job_vector; 
+  std::vector<tflite::Job*> job_vector;
   std::queue<tflite::Job*>* jobs;
   int jobs_created = 0;
   std::mutex job_mutex;
@@ -901,7 +887,6 @@ class Interpreter {
   // Minsung
   // Scheduler
   std::thread scheduler_thread;
-  LiteScheduler* scheduler_;
 
   // Minsung
   // Delegate

@@ -357,53 +357,53 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet) {
 }
 
 void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
-  for (int runtime_idx = 0; runtimes.size(); ++runtime_idx) {
-    if (runtimes[runtime_idx]->id == tx_packet.runtime_id) {
-      runtime_* working_runtime = runtimes[runtime_idx];
-      if (working_runtime->graph != nullptr) {
-        std::cout << "Scheudler: Runtime " << working_runtime->id
-                  << " already has graph."
-                  << "\n";
-        exit(-1);
-      }
-      // Create new graph structure for current runtime.
-      working_runtime->graph = new subgraph_graph;
-      working_runtime->graph->runtime_id = tx_packet.runtime_id;
-      if (tx_packet.partitioning_plan[0][TF_P_IDX_START] != TF_P_END_MASTER) {
-        // Insert first subgraph(root) to graph
-        subgraph_node* new_node = new subgraph_node;
-        new_node->node_start = tx_packet.partitioning_plan[0][TF_P_IDX_START];
-        new_node->node_end = tx_packet.partitioning_plan[0][TF_P_IDX_END];
-        new_node->resource_type =
-            tx_packet.partitioning_plan[0][TF_P_IDX_RESOURCE];
-        new_node->rank = 0;
-        working_runtime->graph->root = new_node;
-        working_runtime->graph->nodes.push_back(new_node);
-      }
-      int p_idx = 1;
-      while (tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] !=
-             TF_P_END_MASTER) {
-        if (tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] ==
-            TF_P_END_PLAN) {
-          p_idx++;
-          continue;
-        } else {
-          // Add new subgraph node
-          if (!AddSubgraphtoGraph(
-                  working_runtime->graph,
-                  tx_packet.partitioning_plan[p_idx][TF_P_IDX_START],
-                  tx_packet.partitioning_plan[p_idx][TF_P_IDX_END],
-                  tx_packet.partitioning_plan[p_idx][TF_P_IDX_RESOURCE])) {
-            std::cout << "AddSubgraphtoGraph ERROR"
-                      << "\n";
-            return;
-          }
-          p_idx++;
-        }
-      }
-      return;
-    }
-  }
+  // for (int runtime_idx = 0; runtimes.size(); ++runtime_idx) {
+  //   if (runtimes[runtime_idx]->id == tx_packet.runtime_id) {
+  //     runtime_* working_runtime = runtimes[runtime_idx];
+  //     if (working_runtime->graph != nullptr) {
+  //       std::cout << "Scheudler: Runtime " << working_runtime->id
+  //                 << " already has graph."
+  //                 << "\n";
+  //       exit(-1);
+  //     }
+  //     // Create new graph structure for current runtime.
+  //     working_runtime->graph = new subgraph_graph;
+  //     working_runtime->graph->runtime_id = tx_packet.runtime_id;
+  //     if (tx_packet.partitioning_plan[0][TF_P_IDX_START] != TF_P_END_MASTER) {
+  //       // Insert first subgraph(root) to graph
+  //       subgraph_node* new_node = new subgraph_node;
+  //       new_node->node_start = tx_packet.partitioning_plan[0][TF_P_IDX_START];
+  //       new_node->node_end = tx_packet.partitioning_plan[0][TF_P_IDX_END];
+  //       new_node->resource_type =
+  //           tx_packet.partitioning_plan[0][TF_P_IDX_RESOURCE];
+  //       new_node->rank = 0;
+  //       working_runtime->graph->root = new_node;
+  //       working_runtime->graph->nodes.push_back(new_node);
+  //     }
+  //     int p_idx = 1;
+  //     while (tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] !=
+  //            TF_P_END_MASTER) {
+  //       if (tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] ==
+  //           TF_P_END_PLAN) {
+  //         p_idx++;
+  //         continue;
+  //       } else {
+  //         // Add new subgraph node
+  //         if (!AddSubgraphtoGraph(
+  //                 working_runtime->graph,
+  //                 tx_packet.partitioning_plan[p_idx][TF_P_IDX_START],
+  //                 tx_packet.partitioning_plan[p_idx][TF_P_IDX_END],
+  //                 tx_packet.partitioning_plan[p_idx][TF_P_IDX_RESOURCE])) {
+  //           std::cout << "AddSubgraphtoGraph ERROR"
+  //                     << "\n";
+  //           return;
+  //         }
+  //         p_idx++;
+  //       }
+  //     }
+  //     return;
+  //   }
+  // }
 }
 
 bool TfScheduler::AddSubgraphtoGraph(subgraph_graph* graph, int s_node,
@@ -602,8 +602,6 @@ void TfScheduler::PrintRuntimeStates() {
   }
 }
 
-// STUB METHOD
-// STUB METHOD
 void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
   int layers = 0;
   for (int i = 0; i < 1000; ++i) {
@@ -616,40 +614,55 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
             << " layers in model"
             << "\n";
   std::string line;
+
   int arg = 0;
-  int idx = 0;
+  int line_iter = 0;
   int plan_idx = 0;
+  // get line
   while (getline(param_file, line)) {
-    arg = std::stoi(line);
-    // std::cout << arg << " " << idx << "\n";
-    switch (idx) {
-      case 0:
-        tx_p.partitioning_plan[plan_idx][TF_P_IDX_START] = arg;
-        if (arg == -1) {
-          idx = 0;
+    switch (line_iter)
+    {
+    case 0: 
+      for (int string_idx = 0; string_idx < line.length(); string_idx++) {
+        if (line[string_idx] != ' '){
+          arg = std::atoi(&line[string_idx]);
+          if(arg == -1) break;
+          tx_p.partitioning_plan[plan_idx] = arg;
           plan_idx++;
-          continue;
-        } else if (arg == -2) {
-          break;
-        } else
-          idx++;
+        }
+      }
+      if (arg == -1) {
+        line_iter = 0;
+        tx_p.partitioning_plan[plan_idx] = -3; // add seperator
         break;
-      case 1:
-        tx_p.partitioning_plan[plan_idx][TF_P_IDX_END] = arg;
-        idx++;
+      } else if (arg == -2) {
         break;
-      case 2:
-        tx_p.partitioning_plan[plan_idx][TF_P_IDX_RESOURCE] = arg;
-        idx++;
-        break;
-      case 3:
-        tx_p.partitioning_plan[plan_idx][TF_P_IDX_RATIO] = arg;
-        idx = 0;
-        plan_idx++;
-        break;
-      default:
-        break;
+      } else
+        line_iter++;
+      break;
+    case 1:
+      tx_p.partitioning_plan[plan_idx] = -1; // add seperator
+      plan_idx++;
+      tx_p.partitioning_plan[plan_idx] = std::stoi(line);
+      plan_idx++;
+      line_iter++;
+      break;
+    case 2:
+      tx_p.partitioning_plan[plan_idx] = std::stoi(line);;
+      plan_idx++;
+      tx_p.partitioning_plan[plan_idx] = -2; // add seperator
+      plan_idx++;
+      line_iter = 0;
+      break;
+    default:
+      break;
     }
+  }
+  std::cout << "packet ";
+  for(int i=0; i<1000; ++i){
+    std::cout << tx_p.partitioning_plan[i] << " ";
+    if(tx_p.partitioning_plan[i] == -3)
+      break;
   }
   param_file.close();
   OpenPartitioningParams();

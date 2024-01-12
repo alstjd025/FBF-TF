@@ -1,6 +1,5 @@
 #include "tensorflow/lite/lite_runtime.h"
 
-#include "tensorflow/lite/lite_scheduler.h"
 // #define YOLO_PARSER
 // #define mobilenet
 #define debug_print
