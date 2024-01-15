@@ -123,6 +123,7 @@ void TfScheduler::Work() {
         tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
 
         // Not done
+        std::cout << "CreateGraphofSubgraphs" << "\n";
         CreateGraphofSubgraphs(tx_packet);
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
           std::cout << "sock : " << runtime_addr.sun_path << " "
@@ -369,6 +370,9 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
   //     // Create new graph structure for current runtime.
   //     working_runtime->graph = new subgraph_graph;
   //     working_runtime->graph->runtime_id = tx_packet.runtime_id;
+
+
+
   //     if (tx_packet.partitioning_plan[0][TF_P_IDX_START] != TF_P_END_MASTER) {
   //       // Insert first subgraph(root) to graph
   //       subgraph_node* new_node = new subgraph_node;
@@ -614,43 +618,48 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
             << " layers in model"
             << "\n";
   std::string line;
-
   int arg = 0;
   int line_iter = 0;
   int plan_idx = 0;
+  bool seperator_flag = false;
   // get line
-  while (getline(param_file, line)) {
+  if(!param_file.is_open()){
+    std::cout << "Scheduler ERROR : Param file is not opened" << "\n";
+    exit(-1);
+  }
+  while (std::getline(param_file, line)) {
+    std::cout << line << "\n";
     switch (line_iter)
     {
-    case 0: 
-      for (int string_idx = 0; string_idx < line.length(); string_idx++) {
-        if (line[string_idx] != ' '){
-          arg = std::atoi(&line[string_idx]);
-          if(arg == -1) break;
+    case 0:
+      for (int string_idx = 0; string_idx < line.length(); string_idx++) {          
+        if(line[string_idx] == '*'){ // subgraph set end flag
+          tx_p.partitioning_plan[plan_idx] = -3;
+          plan_idx++;
+        }else if(line[string_idx] == '-'){ // master end falg
+          tx_p.partitioning_plan[plan_idx] = -4;
+          plan_idx++;
+        }else if(line[string_idx] == ' '){ // node seperator
+          continue;
+        }else{ // nodes
+          arg = std::stoi(&line[string_idx]);  
           tx_p.partitioning_plan[plan_idx] = arg;
           plan_idx++;
+          line_iter = 1;
         }
       }
-      if (arg == -1) {
-        line_iter = 0;
-        tx_p.partitioning_plan[plan_idx] = -3; // add seperator
-        break;
-      } else if (arg == -2) {
-        break;
-      } else
-        line_iter++;
       break;
     case 1:
-      tx_p.partitioning_plan[plan_idx] = -1; // add seperator
+      tx_p.partitioning_plan[plan_idx] = -1;
       plan_idx++;
       tx_p.partitioning_plan[plan_idx] = std::stoi(line);
       plan_idx++;
-      line_iter++;
+      line_iter = 2;
       break;
     case 2:
-      tx_p.partitioning_plan[plan_idx] = std::stoi(line);;
+      tx_p.partitioning_plan[plan_idx] = std::stoi(line);
       plan_idx++;
-      tx_p.partitioning_plan[plan_idx] = -2; // add seperator
+      tx_p.partitioning_plan[plan_idx] = -2;
       plan_idx++;
       line_iter = 0;
       break;
@@ -658,14 +667,15 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
       break;
     }
   }
-  std::cout << "packet ";
+
+  std::cout << "closed" << "\n";
   for(int i=0; i<1000; ++i){
+    // std::cout << "adsfasdf" << "\n";
     std::cout << tx_p.partitioning_plan[i] << " ";
-    if(tx_p.partitioning_plan[i] == -3)
+    if(tx_p.partitioning_plan[i] == -4)
       break;
   }
-  param_file.close();
-  OpenPartitioningParams();
+  return;
   // if(layers == 9){ // MNIST
 
   //   // tx_p.partitioning_plan[0][TF_P_IDX_START]    = 0;
