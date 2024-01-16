@@ -125,6 +125,7 @@ void TfScheduler::Work() {
         // Not done
         std::cout << "CreateGraphofSubgraphs" << "\n";
         CreateGraphofSubgraphs(tx_packet);
+        std::cout << "CreateGraphofSubgraphs done" << "\n";
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
           std::cout << "sock : " << runtime_addr.sun_path << " "
                     << runtime_addr.sun_family << "\n";
@@ -141,7 +142,9 @@ void TfScheduler::Work() {
         tx_packet.runtime_next_state = RuntimeState::INVOKE_;
 
         // not done
+        std::cout << "Prepare runtime " << "\n";
         PrepareRuntime(rx_packet);
+        std::cout << "Prepare runtime done" << "\n";
         PrintGraph(rx_packet.runtime_id);
 
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
@@ -358,60 +361,78 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet) {
 }
 
 void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
-  // for (int runtime_idx = 0; runtimes.size(); ++runtime_idx) {
-  //   if (runtimes[runtime_idx]->id == tx_packet.runtime_id) {
-  //     runtime_* working_runtime = runtimes[runtime_idx];
-  //     if (working_runtime->graph != nullptr) {
-  //       std::cout << "Scheudler: Runtime " << working_runtime->id
-  //                 << " already has graph."
-  //                 << "\n";
-  //       exit(-1);
-  //     }
-  //     // Create new graph structure for current runtime.
-  //     working_runtime->graph = new subgraph_graph;
-  //     working_runtime->graph->runtime_id = tx_packet.runtime_id;
-
-
-
-  //     if (tx_packet.partitioning_plan[0][TF_P_IDX_START] != TF_P_END_MASTER) {
-  //       // Insert first subgraph(root) to graph
-  //       subgraph_node* new_node = new subgraph_node;
-  //       new_node->node_start = tx_packet.partitioning_plan[0][TF_P_IDX_START];
-  //       new_node->node_end = tx_packet.partitioning_plan[0][TF_P_IDX_END];
-  //       new_node->resource_type =
-  //           tx_packet.partitioning_plan[0][TF_P_IDX_RESOURCE];
-  //       new_node->rank = 0;
-  //       working_runtime->graph->root = new_node;
-  //       working_runtime->graph->nodes.push_back(new_node);
-  //     }
-  //     int p_idx = 1;
-  //     while (tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] !=
-  //            TF_P_END_MASTER) {
-  //       if (tx_packet.partitioning_plan[p_idx][TF_P_IDX_START] ==
-  //           TF_P_END_PLAN) {
-  //         p_idx++;
-  //         continue;
-  //       } else {
-  //         // Add new subgraph node
-  //         if (!AddSubgraphtoGraph(
-  //                 working_runtime->graph,
-  //                 tx_packet.partitioning_plan[p_idx][TF_P_IDX_START],
-  //                 tx_packet.partitioning_plan[p_idx][TF_P_IDX_END],
-  //                 tx_packet.partitioning_plan[p_idx][TF_P_IDX_RESOURCE])) {
-  //           std::cout << "AddSubgraphtoGraph ERROR"
-  //                     << "\n";
-  //           return;
-  //         }
-  //         p_idx++;
-  //       }
-  //     }
-  //     return;
-  //   }
-  // }
+  for (int runtime_idx = 0; runtime_idx < runtimes.size(); ++runtime_idx) {
+    if (runtimes[runtime_idx]->id == tx_packet.runtime_id) {
+      runtime_* working_runtime = runtimes[runtime_idx];
+      if (working_runtime->graph != nullptr) {
+        std::cout << "Scheudler: Runtime " << working_runtime->id
+                  << " already has graph."
+                  << "\n";
+        exit(-1);
+      }
+      // Create new graph structure for current runtime.
+      working_runtime->graph = new subgraph_graph;
+      working_runtime->graph->runtime_id = tx_packet.runtime_id;
+      int working_idx = 0;
+      int current_value = tx_packet.partitioning_plan[working_idx]; // Get first value of partitioning plan
+      subgraph_node* new_node;
+      int start_node, end_node, partitioning_ratio, resource_type;
+      bool start_node_flag = true;
+      bool root_graph = true;
+      /* ex) 0 1 2 3 6 7 -1 0 0 -2 4 5 -1 0 0 -2 -3 0 1 2 3 6 7 -1 1 1 -2 -3 -4 */
+      while(current_value != -4){  
+        std::cout << "current_value : " << current_value << "\n";
+        if(current_value == -1){ // means end of node subset (initialize new subgraph_node)
+          end_node = tx_packet.partitioning_plan[working_idx - 1];
+          std::cout << "end node " << end_node << "\n"; 
+          start_node_flag = true; // refresh used flag
+          working_idx += 2;
+        }else if(current_value == -2){ // means end of resource & partitioning plan (add current subgraph node)
+          partitioning_ratio = tx_packet.partitioning_plan[working_idx - 1];
+          resource_type = tx_packet.partitioning_plan[working_idx - 2];
+          if(root_graph){ // add this graph to root graph.
+            std::cout << "add root graph" << "\n";
+            root_graph = false;
+            new_node->rank = 0;
+            new_node->partitioning_ratio = partitioning_ratio;
+            new_node->resource_type = resource_type;
+            new_node->node_start = start_node;
+            new_node->node_end = end_node;
+            working_runtime->graph->root = new_node;
+            working_runtime->graph->nodes.push_back(new_node);
+          }else{ // add this graph to leaf graph.
+            std::cout << "add graph" << "\n";
+            if(!AddSubgraphtoGraph(working_runtime->graph,
+                                   start_node,
+                                   end_node,
+                                   resource_type,
+                                   partitioning_ratio)){
+              std::cout << "AddSubgraphtoGraph ERROR" << "\n";
+              return;
+            }
+            std::cout << "add done" << "\n";
+          }
+        }else if(current_value != -3){ // means node subset (add)
+          if(start_node_flag){
+            new_node = new subgraph_node;
+            start_node = current_value;
+            std::cout << "start node " << current_value << "\n";
+            start_node_flag = false;
+            if(working_idx == 0) { root_graph = true; }
+          }
+        }
+        working_idx++;
+        current_value = tx_packet.partitioning_plan[working_idx];
+      }
+      std::cout << "adsf" << "\n";
+    }
+  }
+  return;
 }
 
 bool TfScheduler::AddSubgraphtoGraph(subgraph_graph* graph, int s_node,
-                                     int e_node, int resource_type) {
+                                     int e_node, int resource_type,
+                                     int partitioning_ratio) {
   subgraph_node* pointer = graph->root;
   subgraph_node* new_node;
   int new_rank = 0;
@@ -421,6 +442,7 @@ bool TfScheduler::AddSubgraphtoGraph(subgraph_graph* graph, int s_node,
   new_node->node_start = s_node;
   new_node->node_end = e_node;
   new_node->resource_type = resource_type;
+  new_node->partitioning_ratio = partitioning_ratio;
   if (new_rank ==
       0) {  // if rank is 0, just add node at the end of graph. (left to right)
     pointer->right = new_node;
@@ -668,13 +690,13 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     }
   }
 
-  std::cout << "closed" << "\n";
-  for(int i=0; i<1000; ++i){
-    // std::cout << "adsfasdf" << "\n";
-    std::cout << tx_p.partitioning_plan[i] << " ";
-    if(tx_p.partitioning_plan[i] == -4)
-      break;
-  }
+  // std::cout << "closed" << "\n";
+  // for(int i=0; i<1000; ++i){
+  //   // std::cout << "adsfasdf" << "\n";
+  //   std::cout << tx_p.partitioning_plan[i] << " ";
+  //   if(tx_p.partitioning_plan[i] == -4)
+  //     break;
+  // }
   return;
   // if(layers == 9){ // MNIST
 

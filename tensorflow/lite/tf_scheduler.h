@@ -40,8 +40,8 @@ namespace tflite{
     /* resource type of subgraph (CPU, GPU, CO-EX) */
     int resource_type = -1;   
 
-    /* processor type of subgraph (CPU, GPU, CO-EX) */ 
-    int processor_type = -1;
+    /* partitioning ratio for partitioned subgraph (for co-execution) */
+    int partitioning_ratio = -1;
 
     /* rank of subgraph in 'graph' (need for maintaining the graph struct)*/
     int rank = -1;   
@@ -95,6 +95,28 @@ namespace tflite{
       // refresh runtime state in scheduler.
       void RefreshRuntimeState(tf_packet& rx_p);
 
+      /* CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p)
+      Read partitioning parameters from file.
+      The parameter file must follow the format below.
+      format : node_subset /-1/ Resource type(CPU, GPU,,) / Partitioning ratio /-2/ :|(repeat)
+               /-3/ new node_subset(redundant subgraph set)/-1/ .. /-2/../-3/.... /-4/(end)
+              
+              Seperators
+              -1 : node subset seperator
+              -2 : partitioning, resource plan seperator (also seperates single subgraph)
+              -3 : subgraph subset seprator
+              -4 : EOF
+      ex)
+      0 1 2 3 6 7 -1 0 0 -2 4 5 -1 0 0 -2 -3 0 1 2 3 6 7 -1 15 4 -2 -3 -4
+      subgraph 1 : 0,1,2,3,6,7
+       - p_ratio : 0 (no partitioning)
+       - r_type  : 0 (CPU)
+      subgraph 2 : 4,5
+       - p_ratio : 0 (no partitioning)
+       - r_type  : 0 (CPU)
+      subgraph 1-2 : 0,1,2,3,6,7
+       - p_ratio : 15 (5:5)
+       - r_type  : 4 (CO-XNN)  */
       void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
 
       // Create a graph of subgraphs.
@@ -102,7 +124,7 @@ namespace tflite{
 
       // Add new graph node to graph.
       bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
-                              int resource_type);
+                              int resource_type, int partitioning_ratio);
 
       // Graph search functions.
       // Search the graph structure down to up & left to right.
