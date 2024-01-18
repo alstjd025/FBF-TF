@@ -58,7 +58,7 @@ limitations under the License.
 #include "tensorflow/lite/kmdebug.h"
 
 #define GPUONLY
-#define YOLO
+// #define YOLO
 
 namespace tflite {
 namespace gpu {
@@ -3061,21 +3061,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           // printf("FOUND A FALLBACK LAYER [MUL]... MAKE GPU DEL NODE \n");
         return false;
     }
-    #endif
-    #ifndef YOLO
    if(registration->builtin_code == 2){   
-      // std::cout << "Found a MUL" << "\n"; 
-    // 16 : SPLIT_V
-    // 2 : concatenate
-    //Hoon --------> CONCATENATE FALLBACK
-    // HOON  : 111->ELU  98->LeakyRELU
-    // HOON  :  3->CONV  9-> FullyCOnnected
-    // builtin_ops.h  . 2 or 0
         if(priority_partition_num ==0)
           printf("FOUND A FALLBACK LAYER [CONCATENATE]... MAKE GPU DEL NODE \n");
         return false;
     }
-
     #endif
 //    else {
       if (!status.ok()) {
@@ -3121,6 +3111,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           max_delegated_partitions, priority_partition_num); //make ops_to_replace (Tfliteintarray*)
           // N  == AND. maybe ..... TEST
 
+  std::cout << "\033[0;32m=== Fallback layers info ===\033[0m : " <<std::endl;
   if (!unsupported_nodes_info.empty()) {
     std::string unsupported = absl::StrJoin(unsupported_nodes_info, "\n");
     std::string error_message = absl::StrCat(
@@ -3139,6 +3130,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     absl::StrAppend(&error_message, " operations will run on the CPU.");
     TF_LITE_KERNEL_LOG(context, error_message.c_str());
   }
+  std::cout << "\033[0;32m======================================= \033[0m" <<std::endl;
 
   std::cout << ">>>>>>>>>>ops_to replace vector(nodes number for gpu delegation) is : ";
   //HOON : print vector ops_to_replace  // max patition option 3 -> 5 
@@ -3148,7 +3140,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   // }
   for (int i = 0; i < ops_to_replace.size(); i++) {
         // std::cout << ops_to_replace.at(i) << ' ';
-        printf("\033[0;31m%d\033[0m ", ops_to_replace.at(i));
+        printf("\033[0;32m%d\033[0m ", ops_to_replace.at(i));
     }
   // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
   // printf("\n(1) : End GetOpsToReplace logic\n");

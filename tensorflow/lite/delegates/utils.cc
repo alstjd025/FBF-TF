@@ -22,6 +22,8 @@ limitations under the License.
 #include "tensorflow/lite/context_util.h"
 
 #include "tensorflow/lite/kmdebug.h"
+// #define DOT
+
 
 namespace tflite {
 namespace delegates {
@@ -223,6 +225,14 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
   std::cout << "HOON : Largest Partitions logic " << std::endl;
   // HOON : maybe TODO
   std::vector<TfLiteDelegateParams*> sorted_partitions(partitions_);
+  std::cout << "\033[0;32m=== Delegated_partitions info ===\033[0m : " <<std::endl;
+  for(int j=0; j<sorted_partitions.size(); ++j){
+    for(int k=0; k<sorted_partitions[j]->nodes_to_replace->size; ++k){
+      std::cout << sorted_partitions[j]->nodes_to_replace->data[k] << " ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << "\033[0;32m======================================= \033[0m" <<std::endl;
   std::sort(sorted_partitions.begin(), sorted_partitions.end(),
             [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
               // Reverse sort
@@ -244,17 +254,20 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
 }
 // -------------------------------------------------------------------------------------------------------------
 
-
 // same two func .. ???  197
 // this func for default type
 std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
     int n, int priority_partition_num, int min_nodes_per_partition) {
   // HOON
-  // auto first_n_partitions =
-      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
-  std::cout << "Original GraphPartitionHelper" << std::endl;
+ #ifndef DOT
+  auto first_n_partitions =
+      GetFirstNLargestPartitions(n, min_nodes_per_partition);
+  #endif
+  #ifdef DOT
+  // std::cout << "FP16GraphPasrtitionHelper" << std::endl;
   auto first_n_partitions =
       GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
+  #endif
   std::vector<int> ops_to_replace;
   for (const auto p : first_n_partitions) {
     auto nodes = p->nodes_to_replace;
@@ -315,11 +328,15 @@ std::vector<int>
 FP16GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
     int n, int priority_partition_num, int min_nodes_per_partition) {
   // HOON
-  // auto first_n_partitions =
-      // GetFirstNLargestPartitions(n, min_nodes_per_partition);
+  #ifndef DOT
+  auto first_n_partitions =
+      GetFirstNLargestPartitions(n, min_nodes_per_partition);
+  #endif
+  #ifdef DOT
   // std::cout << "FP16GraphPasrtitionHelper" << std::endl;
   auto first_n_partitions =
       GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
+  #endif
   std::vector<int> ops_to_replace;
   if (first_n_partitions.empty()) return ops_to_replace;
 
