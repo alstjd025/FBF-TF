@@ -251,7 +251,7 @@ class TfLiteRuntime {
   TfLiteMergeTensor* merge_tensor = nullptr;
 
   // Subgraph partitioning
-  int partitioning_plan[1000][4];
+  int partitioning_plan[TF_P_PLAN_LENGTH];
 
   // sj
   std::vector<TfLiteDelegate*> delegate;

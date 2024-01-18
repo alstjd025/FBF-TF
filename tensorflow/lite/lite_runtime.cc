@@ -547,7 +547,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
 
   // copy the partitioning plan from scheduler.
   memcpy(partitioning_plan, rx_packet.partitioning_plan,
-         sizeof(int) * 1000 * 4);
+         sizeof(int) * TF_P_PLAN_LENGTH);
 
   if (ChangeStatewithPacket(rx_packet) != kTfLiteOk) {
     return kTfLiteError;
@@ -560,23 +560,24 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
 }
 
 TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
-  std::vector<std::vector<int>> raw_plan;
-  for (int i = 0; i < TF_P_PLAN_LENGTH; ++i) {
-    while (partitioning_plan[i][TF_P_IDX_START] != TF_P_END_MASTER) {
-      raw_plan.push_back(std::vector<int>());
-      if (partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN) {
-        raw_plan[i].push_back(TF_P_END_PLAN);
-        break;
-      }
-      for (int j = 0; j < TF_P_PLAN_SIZE; ++j) {  // third idx means processor.
-        raw_plan[i].push_back(partitioning_plan[i][j]);
-      }
-    }
-    interpreter_builder->CopyRawPartitioningPlan(raw_plan);
-    std::cout << "Runtime : CopyRawPartitioningPlan"
-              << "\n";
-    raw_plan.clear();
-  }
+  // Need refactor for new partitioning format.
+  // std::vector<std::vector<int>> raw_plan;
+  // for (int i = 0; i < TF_P_PLAN_LENGTH; ++i) {
+  //   while (partitioning_plan[i][TF_P_IDX_START] != TF_P_END_MASTER) {
+  //     raw_plan.push_back(std::vector<int>());
+  //     if (partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN) {
+  //       raw_plan[i].push_back(TF_P_END_PLAN);
+  //       break;
+  //     }
+  //     for (int j = 0; j < TF_P_PLAN_SIZE; ++j) {  // third idx means processor.
+  //       raw_plan[i].push_back(partitioning_plan[i][j]);
+  //     }
+  //   }
+  //   interpreter_builder->CopyRawPartitioningPlan(raw_plan);
+  //   std::cout << "Runtime : CopyRawPartitioningPlan"
+  //             << "\n";
+  //   raw_plan.clear();
+  // }
   Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
   if (origin_subgraph == nullptr) {
     std::cout << "Model id " << interpreter_builder->GetModelid()
@@ -619,25 +620,30 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
 }
 
 TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
+  std::cout << "PartitionCoSubgraphs" << "\n";
   std::vector<std::vector<int>> raw_plan;
   int inner_plan_idx = 0;
-  for (int i = 0; i < TF_P_PLAN_LENGTH; ++i) {
-    raw_plan.push_back(std::vector<int>());
-    inner_plan_idx = raw_plan.size() - 1;
-    if (partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN) {
-      raw_plan[inner_plan_idx].push_back(TF_P_END_PLAN);
-      interpreter_builder->CopyRawPartitioningPlan(raw_plan);
-      sub_builder->CopyRawPartitioningPlan(raw_plan);
-      raw_plan.clear();
-      inner_plan_idx = 0;
-      raw_plan.push_back(std::vector<int>());
-      i++;
-    }
-    if (partitioning_plan[i][TF_P_IDX_START] == TF_P_END_MASTER) break;
-    for (int j = 0; j < TF_P_PLAN_SIZE; ++j) {  // third idx means processor.
-      raw_plan[inner_plan_idx].push_back(partitioning_plan[i][j]);
-    }
+  std::vector<int> plan_from_scheduler;
+  for(int i=0; i < TF_P_PLAN_LENGTH; ++i){
+    plan_from_scheduler.push_back(partitioning_plan[i]);
   }
+  interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+  sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+  std::cout << "CopyRawPartitioningPlan Done" << "\n";
+  // // need to refactor for new partitioning format 
+  // for (int i = 0; i < TF_P_PLAN_LENGTH; ++i) {
+  //   raw_plan.push_back(std::vector<int>());
+  //   inner_plan_idx = raw_plan.size() - 1;
+  //   if (partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN) {
+  //     raw_plan[inner_plan_idx].push_back(TF_P_END_PLAN);
+  //     interpreter_builder->CopyRawPartitioningPlan(raw_plan);
+  //     sub_builder->CopyRawPartitioningPlan(raw_plan);
+  //     raw_plan.clear();
+  //     inner_plan_idx = 0;
+  //     raw_plan.push_back(std::vector<int>());
+  //     i++;
+  //   }
+  // }
 
   Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
   if (origin_subgraph == nullptr) {

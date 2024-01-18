@@ -379,17 +379,20 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
       int start_node, end_node, partitioning_ratio, resource_type;
       bool start_node_flag = true;
       bool root_graph = true;
-      /* ex) 0 1 2 3 6 7 -1 0 0 -2 4 5 -1 0 0 -2 -3 0 1 2 3 6 7 -1 1 1 -2 -3 -4 */
-      while(current_value != -4){  
+      while(current_value != PART_PARM_SEP_ENDP){  
         std::cout << "current_value : " << current_value << "\n";
-        if(current_value == -1){ // means end of node subset (initialize new subgraph_node)
+        if(current_value == PART_PARM_SEP_NODE){ // means end of node subset 
+                                                 // (initialize new subgraph_node)
           end_node = tx_packet.partitioning_plan[working_idx - 1];
           std::cout << "end node " << end_node << "\n"; 
           start_node_flag = true; // refresh used flag
           working_idx += 2;
-        }else if(current_value == -2){ // means end of resource & partitioning plan (add current subgraph node)
+        }else if(current_value == PART_PARM_SEP_RESR){ // means end of resource & partitioning plan 
+                                                       // (add current subgraph node)
           partitioning_ratio = tx_packet.partitioning_plan[working_idx - 1];
+          std::cout << "p_ratio " << partitioning_ratio << "\n";
           resource_type = tx_packet.partitioning_plan[working_idx - 2];
+          std::cout << "r_type " << resource_type << "\n";
           if(root_graph){ // add this graph to root graph.
             std::cout << "add root graph" << "\n";
             root_graph = false;
@@ -656,10 +659,10 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     case 0:
       for (int string_idx = 0; string_idx < line.length(); string_idx++) {          
         if(line[string_idx] == '*'){ // subgraph set end flag
-          tx_p.partitioning_plan[plan_idx] = -3;
+          tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
           plan_idx++;
         }else if(line[string_idx] == '-'){ // master end falg
-          tx_p.partitioning_plan[plan_idx] = -4;
+          tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
           plan_idx++;
         }else if(line[string_idx] == ' '){ // node seperator
           continue;
@@ -672,7 +675,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
       }
       break;
     case 1:
-      tx_p.partitioning_plan[plan_idx] = -1;
+      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_NODE;
       plan_idx++;
       tx_p.partitioning_plan[plan_idx] = std::stoi(line);
       plan_idx++;
@@ -681,7 +684,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     case 2:
       tx_p.partitioning_plan[plan_idx] = std::stoi(line);
       plan_idx++;
-      tx_p.partitioning_plan[plan_idx] = -2;
+      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_RESR;
       plan_idx++;
       line_iter = 0;
       break;

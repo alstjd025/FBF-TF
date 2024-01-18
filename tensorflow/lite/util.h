@@ -31,13 +31,14 @@ limitations under the License.
 #define TF_P_PLAN_LENGTH     1000
 #define TF_P_PLAN_SIZE       4
 
-// packet partitioning plan array idx
-#define TF_P_IDX_START       0
-#define TF_P_IDX_END         1
-#define TF_P_IDX_RESOURCE    2
-#define TF_P_IDX_RATIO       3
+// Partitioning parameter seperators.
+// See tf_scheduler.h for detailed descriptions.
+#define PART_PARM_SEP_NODE   -1   
+#define PART_PARM_SEP_RESR   -2
+#define PART_PARM_SEP_SUBG   -3
+#define PART_PARM_SEP_ENDP   -4
 
-// packet partitioning plan resource types
+// Packet partitioning plan resource types
 #define TF_P_PLAN_CPU        0
 #define TF_P_PLAN_GPU        1
 #define TF_P_PLAN_CO_E       2

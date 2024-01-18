@@ -208,30 +208,47 @@ InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model,
 InterpreterBuilder::~InterpreterBuilder() {}
 
 void InterpreterBuilder::CopyRawPartitioningPlan(
-                                    std::vector<std::vector<int>>& raw_plan){
+                                    std::vector<int>& raw_plan){
+  std::cout << "CopyRawPartitioningPlan" << "\n";
   ProfileData* dummy_profile = new ProfileData;
-  for(int i=0; i<raw_plan.size(); ++i){
-    if(raw_plan[i][TF_P_IDX_START] != TF_P_END_PLAN){
-      dummy_profile->layer_subsets.push_back(std::vector<int>());
-      dummy_profile->partitioning_ratios.push_back(std::vector<int>());
-      for(int j=raw_plan[i][TF_P_IDX_START]; j<raw_plan[i][TF_P_IDX_END]; ++j){
-        dummy_profile->layer_subsets[i].push_back(j);
+  
+  // Parse raw plan from scheduler
+  bool start_node_flag = true;
+  bool node_flag = true;
+  int partitioning_ratio, resource_plan, subgraph_idx;
+  std::vector<int> node_subset;
+  subgraph_idx = 0;
+  for(int idx=0; idx<TF_P_PLAN_LENGTH; ++idx){
+    int current_value = raw_plan[idx];
+    std::cout << "cur value " << current_value << "\n"; 
+    if(current_value == PART_PARM_SEP_ENDP) { break; } // met EOF
+    else if(current_value == PART_PARM_SEP_NODE){ 
+      node_flag = false;
+    }else if(current_value == PART_PARM_SEP_RESR){
+      partitioning_ratio = raw_plan[idx -1];
+      resource_plan = raw_plan[idx - 2];
+      // copy node subset
+      for(const auto value : node_subset){
+        dummy_profile->layer_subsets[subgraph_idx].push_back(value);
+        std::cout << "push node " << value << "\n";
       }
-      // MUST FIX TO SUPPORT CO_EXECUTION CPU AND GPU
-      // NEED REFACTOR (e7f75) 
-      dummy_profile->subset_resource.push_back(
-                              static_cast<ResourceType>(raw_plan[i][TF_P_IDX_RESOURCE]));
-      if(raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E ||
-          raw_plan[i][TF_P_IDX_RESOURCE] == TF_P_PLAN_CO_E_XNN){ // if subset is co-exetution subset
-        dummy_profile->partitioning_ratios[i].push_back(raw_plan[i][TF_P_IDX_RATIO]);
-      }else{
-        dummy_profile->partitioning_ratios[i].push_back(0);
+      dummy_profile->partitioning_ratios[subgraph_idx].push_back(partitioning_ratio);
+      dummy_profile->subset_resource.push_back(static_cast<ResourceType>(resource_plan));
+      subgraph_idx++;
+      node_subset.clear();
+      start_node_flag = true;
+      node_flag = true;
+    }else if (current_value == PART_PARM_SEP_SUBG){
+      continue;
+    }else{ // parse node subset
+      if(start_node_flag){
+        start_node_flag = false;
+        dummy_profile->layer_subsets.push_back(std::vector<int>());
+        dummy_profile->partitioning_ratios.push_back(std::vector<int>());
       }
-    }else{
-      break;
+      if(node_flag) { node_subset.push_back(current_value); }
     }
   }
-  // Minsung : for multiple partitioning plans
   dummy_profiles_.push_back(dummy_profile);
 }
 
@@ -537,10 +554,14 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     
     auto CreatePartitioningPlanFromProfile = 
         [&](const std::vector<ProfileData*>& profile){
+          std::cout << "CreatePartitioningPlan" << "\n";
       for(int k=0; k<profile.size(); ++k){
+        std::cout << "profile size : " << profile.size() << "\n";
         for(int i=0; i<profile[k]->layer_subsets.size(); ++i){ //graphs
+          std::cout << "subset size : " << profile[k]->layer_subsets.size() << "\n";
           SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
           new_plan->size = profile[k]->layer_subsets[i].size();
+          std::cout << "new plan size " << new_plan->size << "\n";
           new_plan->nodes = new int[new_plan->size];
 
           // Consider better implementation. (memory waste)

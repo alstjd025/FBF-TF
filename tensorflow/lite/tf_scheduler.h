@@ -95,9 +95,10 @@ namespace tflite{
       // refresh runtime state in scheduler.
       void RefreshRuntimeState(tf_packet& rx_p);
 
-      /* CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p)
+      ////////////////////////////////////////////////////////////////////////////////////////
+      /* Function description of CreatePartitioningPlan
       Read partitioning parameters from file.
-      The parameter file must follow the format below.
+      The parameter array follows the format below.
       format : node_subset /-1/ Resource type(CPU, GPU,,) / Partitioning ratio /-2/ :|(repeat)
                /-3/ new node_subset(redundant subgraph set)/-1/ .. /-2/../-3/.... /-4/(end)
               
@@ -106,17 +107,32 @@ namespace tflite{
               -2 : partitioning, resource plan seperator (also seperates single subgraph)
               -3 : subgraph subset seprator
               -4 : EOF
-      ex)
-      0 1 2 3 6 7 -1 0 0 -2 4 5 -1 0 0 -2 -3 0 1 2 3 6 7 -1 15 4 -2 -3 -4
+      ex) sample_param_file
+      0 1 2 3 6 7               ----- node subset 1
+      3                         ----- resource plan (CPU, GPU, CO-GPU, XNN,,)
+      15                        ----- partitioning ratio for co-execution (height, channel)
+      4 5                       ----- node subset 2
+      0                         ----- resource plan (CPU, GPU, CO-GPU, XNN,,)
+      0                         ----- partitioning ratio for co-execution (height, channel)
+      *                         ----- subset seperator
+      0 1 2 3 6 7               ----- node subset 1-1 (same node indices with different resource)
+      1                         ----- resource plan (CPU, GPU, CO-GPU, XNN,,)
+      1                         ----- partitioning ratio for co-execution (height, channel)
+      *                         ----- subset seperator
+      -                         ----- EOF
+      file will be parsed as array below
+      ary = [0 1 2 3 6 7 -1 0 0 -2 4 5 -1 0 0 -2 -3 0 1 2 3 6 7 -1 4 15 -2 -3 -4]
+      means,
       subgraph 1 : 0,1,2,3,6,7
-       - p_ratio : 0 (no partitioning)
        - r_type  : 0 (CPU)
+       - p_ratio : 0 (no partitioning)
       subgraph 2 : 4,5
-       - p_ratio : 0 (no partitioning)
        - r_type  : 0 (CPU)
+       - p_ratio : 0 (no partitioning)
       subgraph 1-2 : 0,1,2,3,6,7
-       - p_ratio : 15 (5:5)
-       - r_type  : 4 (CO-XNN)  */
+       - r_type  : 4 (CO-XNN) 
+       - p_ratio : 15 (5:5) */
+       ////////////////////////////////////////////////////////////////////////////////////////
       void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
 
       // Create a graph of subgraphs.
