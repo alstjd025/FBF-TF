@@ -3142,7 +3142,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
         // std::cout << ops_to_replace.at(i) << ' ';
         printf("\033[0;32m%d\033[0m ", ops_to_replace.at(i));
     }
-  // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+  printf("\n");
   // printf("\n(1) : End GetOpsToReplace logic\n");
   return ConvertVectorToTfLiteIntArray(ops_to_replace); // return tfliteintarray*
 }

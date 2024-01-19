@@ -1093,10 +1093,10 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
   int final_execution_index = execution_plan_.size()-1;
+  std::cout << "\033[0;32m=== Excution plan info ===\033[0m : \n";  
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     //if(eType == UnitType::GPU0)
-      //std::cout << "\n" << "Execution_Plan LOOP : " << execution_plan_index << "\n";
     //std::cout << "Number of Tensors in current Context : " << context_.tensors_size << "\n";
 
     if (execution_plan_index == next_execution_plan_index_to_prepare_) {
@@ -1105,6 +1105,7 @@ TfLiteStatus Subgraph::Invoke(UnitType eType, std::mutex& mtx_lock,
                                     execution_plan_index);
     }
     int node_index = execution_plan_[execution_plan_index];
+    std::cout << node_index << " "; // HOON
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration =
         nodes_and_registration_[node_index].second;

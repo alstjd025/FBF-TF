@@ -232,7 +232,7 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
     }
     std::cout << "\n";
   }
-  std::cout << "\033[0;32m======================================= \033[0m" <<std::endl;
+  // std::cout << "\033[0;32m======================================= \033[0m" <<std::endl;
   std::sort(sorted_partitions.begin(), sorted_partitions.end(),
             [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
               // Reverse sort
