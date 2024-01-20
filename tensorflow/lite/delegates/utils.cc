@@ -222,11 +222,12 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
   // high enough to cause latency issues. Also considering this is generally a
   // one-time work, we simply unconditionally sort partitions here according to
   // the size.
-  std::cout << "HOON : Largest Partitions logic " << std::endl;
+  // std::cout << "HOON : Largest Partitions logic " << std::endl;
   // HOON : maybe TODO
   std::vector<TfLiteDelegateParams*> sorted_partitions(partitions_);
   std::cout << "\033[0;32m=== Delegated_partitions info ===\033[0m : " <<std::endl;
   for(int j=0; j<sorted_partitions.size(); ++j){
+    std::cout << "[" << j << "] : ";
     for(int k=0; k<sorted_partitions[j]->nodes_to_replace->size; ++k){
       std::cout << sorted_partitions[j]->nodes_to_replace->data[k] << " ";
     }
@@ -295,6 +296,8 @@ TfLiteStatus GraphPartitionHelper::PrepareSupportedNodes(
   num_total_nodes_ = execution_plan->size;
   supported_nodes_ = TfLiteIntArrayCreate(num_total_nodes_);
   supported_nodes_->size = 0;
+  // 240121 : Check Fallback nodes 
+  std::cout << "\033[0;32m=== Fallback node number info ===\033[0m : " <<std::endl;
   for (int node_id : TfLiteIntArrayView(execution_plan)) {
     TfLiteNode* node;
     TfLiteRegistration* registration;
@@ -318,8 +321,10 @@ TfLiteStatus GraphPartitionHelper::PrepareSupportedNodes(
       node_info.append(": ");
       node_info.append(unsupported_details);
       unsupported_nodes_info->insert(node_info);
+      std::cout << node_id << " "; // HOON
     }
   }
+  std::cout << std::endl;
   return kTfLiteOk;
 }
 
@@ -420,6 +425,7 @@ bool FP16GraphPartitionHelper::IsNodeSupported(
     RemapFp16InputTensors(node, &orig_inputs);
   }
 
+  // HOONING (240121 ~ )
   const auto is_supported = GraphPartitionHelper::IsNodeSupported(
       context, node, registration, node_id, unsupported_details);
 

@@ -3029,7 +3029,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           TfLiteRegistration* registration,
           std::string* unsupported_details) -> bool {
     const auto status =
-        IsSupported(context, node, registration, allow_quant_ops);
+        IsSupported(context, node, registration, allow_quant_ops); //EZE
   // get op_name by registration->buitin_code
   if(priority_partition_num ==0)
   {
@@ -3078,10 +3078,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
  //   }
   }
   context->use_distribute_strategy_context = false; // HOON : just for debugging
+  // EZE (a kind of BUG - Fallback)
   if (!IsAllAllowedTensors(context, node->inputs, allow_quant_ops) ||
       !IsAllAllowedTensors(context, node->outputs, allow_quant_ops)) 
       {
-    printf("HOON : This layer is not supported in OPENGL delegation.");
+    // printf("HOON : This layer is not supported in OPENGL delegation.");
     if (unsupported_details) {
       *unsupported_details =
           "OP is supported, but tensor type isn't matched!";
@@ -3101,6 +3102,12 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   if (partition_helper.Partition(&unsupported_nodes_info) != kTfLiteOk) { //HOON
     return TfLiteIntArrayCreate(0);
   }
+  // ---------------------------
+  for(const std::string& node : unsupported_nodes_info){
+      // std::cout << "Unsupported Node : " << node << std::endl;
+      // TODO (240120) : Debugging each FALLBACK's layer number
+    }
+  // ---------------------------
 
   // By default, we simply get 1st largest partition as 'max_delegate_partions'
   // is set to 1 by default.
@@ -3111,10 +3118,10 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           max_delegated_partitions, priority_partition_num); //make ops_to_replace (Tfliteintarray*)
           // N  == AND. maybe ..... TEST
 
-  std::cout << "\033[0;32m=== Fallback layers info ===\033[0m : " <<std::endl;
+  std::cout << "\033[0;32m=== Fallback reason info ===\033[0m : " <<std::endl;
   if (!unsupported_nodes_info.empty()) {
-    std::string unsupported = absl::StrJoin(unsupported_nodes_info, "\n");
-    std::string error_message = absl::StrCat(
+    std::string unsupported = absl::StrJoin(unsupported_nodes_info, "\n"); // [A,B] --> "A B"
+    std::string error_message = absl::StrCat(  // string concatenation "A" + "B" --> "A B"
         "Following operations are not supported by GPU delegate:\n",
         unsupported, "\n");
     if (!ops_to_replace.empty()) {
@@ -3128,7 +3135,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
                       partition_helper.num_total_nodes());
     }
     absl::StrAppend(&error_message, " operations will run on the CPU.");
-    TF_LITE_KERNEL_LOG(context, error_message.c_str());
+    TF_LITE_KERNEL_LOG(context, error_message.c_str());  // Print 
   }
   std::cout << "\033[0;32m======================================= \033[0m" <<std::endl;
 
