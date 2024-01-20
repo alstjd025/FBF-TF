@@ -122,10 +122,8 @@ void TfScheduler::Work() {
         tx_packet.runtime_id = rx_packet.runtime_id;
         tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
 
-        // Not done
-        std::cout << "CreateGraphofSubgraphs" << "\n";
         CreateGraphofSubgraphs(tx_packet);
-        std::cout << "CreateGraphofSubgraphs done" << "\n";
+
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
           std::cout << "sock : " << runtime_addr.sun_path << " "
                     << runtime_addr.sun_family << "\n";
@@ -380,21 +378,16 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
       bool start_node_flag = true;
       bool root_graph = true;
       while(current_value != PART_PARM_SEP_ENDP){  
-        std::cout << "current_value : " << current_value << "\n";
         if(current_value == PART_PARM_SEP_NODE){ // means end of node subset 
                                                  // (initialize new subgraph_node)
           end_node = tx_packet.partitioning_plan[working_idx - 1];
-          std::cout << "end node " << end_node << "\n"; 
           start_node_flag = true; // refresh used flag
           working_idx += 2;
         }else if(current_value == PART_PARM_SEP_RESR){ // means end of resource & partitioning plan 
                                                        // (add current subgraph node)
           partitioning_ratio = tx_packet.partitioning_plan[working_idx - 1];
-          std::cout << "p_ratio " << partitioning_ratio << "\n";
           resource_type = tx_packet.partitioning_plan[working_idx - 2];
-          std::cout << "r_type " << resource_type << "\n";
           if(root_graph){ // add this graph to root graph.
-            std::cout << "add root graph" << "\n";
             root_graph = false;
             new_node->rank = 0;
             new_node->partitioning_ratio = partitioning_ratio;
@@ -404,7 +397,6 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
             working_runtime->graph->root = new_node;
             working_runtime->graph->nodes.push_back(new_node);
           }else{ // add this graph to leaf graph.
-            std::cout << "add graph" << "\n";
             if(!AddSubgraphtoGraph(working_runtime->graph,
                                    start_node,
                                    end_node,
@@ -413,13 +405,11 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
               std::cout << "AddSubgraphtoGraph ERROR" << "\n";
               return;
             }
-            std::cout << "add done" << "\n";
           }
         }else if(current_value != -3){ // means node subset (add)
           if(start_node_flag){
             new_node = new subgraph_node;
             start_node = current_value;
-            std::cout << "start node " << current_value << "\n";
             start_node_flag = false;
             if(working_idx == 0) { root_graph = true; }
           }
@@ -427,7 +417,6 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
         working_idx++;
         current_value = tx_packet.partitioning_plan[working_idx];
       }
-      std::cout << "adsf" << "\n";
     }
   }
   return;
@@ -653,7 +642,6 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     exit(-1);
   }
   while (std::getline(param_file, line)) {
-    std::cout << line << "\n";
     switch (line_iter)
     {
     case 0:{
@@ -666,9 +654,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
       }else{ // nodes
         std::stringstream s_stream(line); // parse line to stringstream.
         while(getline(s_stream, token, ' ')){
-          std::cout << "token : " << token <<" stoi " << std::stoi(token) << "\n"; 
           arg = std::stoi(token);  
-          std::cout << "arg " << arg << "\n";
           tx_p.partitioning_plan[plan_idx] = arg;
           plan_idx++;
           line_iter = 1;

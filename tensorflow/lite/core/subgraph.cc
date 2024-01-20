@@ -685,13 +685,11 @@ TfLiteStatus Subgraph::BytesRequired(TfLiteType type, const int* dims,
 }
 
 TfLiteStatus Subgraph::AllocateTensors() {
-  std::cout << "subgraph::AllocateTensors" << "\n";
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(), "AllocateTensors");
   if (!consistent_) {
     ReportError("AllocateTensors() called on inconsistent model.");
     return kTfLiteError;
   }
-  std::cout << "allocatenteosrs a" << "\n";
   // Restore delegation state if applicable.
   TF_LITE_ENSURE_STATUS(RedoAllDelegates());
 
@@ -709,7 +707,6 @@ TfLiteStatus Subgraph::AllocateTensors() {
     }
     return kTfLiteOk;
   }
-  std::cout << "allocatenteosrs b" << "\n";
   next_execution_plan_index_to_prepare_ = 0;
   next_execution_plan_index_to_plan_allocation_ = 0;
   next_original_execution_plan_index_to_prepare_ = 0;
@@ -717,8 +714,6 @@ TfLiteStatus Subgraph::AllocateTensors() {
     TF_LITE_ENSURE_STATUS(memory_planner_->ResetAllocations());
   }
   TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
-  std::cout << "allocatenteosrs c" << "\n";
-
   state_ = kStateInvokable;
 
   // Minsung
@@ -730,7 +725,6 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors();
-  std::cout << "subgraph::Allocatetensors done" << "\n";
   return kTfLiteOk;
 }
 
@@ -1636,13 +1630,8 @@ TfLiteStatus Subgraph::OpPrepare(const TfLiteRegistration& op_reg,
 TfLiteStatus Subgraph::PrepareOpsStartingAt(
     int first_execution_plan_index, const std::vector<int>& execution_plan,
     int* last_execution_plan_index_prepared) {
-  std::cout << "PrepareOpsStartingAt" << "\n";
   if (first_execution_plan_index == 0) {
     has_dynamic_tensors_ = false;
-  }
-  for(int ns=0; ns<nodes_and_registration_.size(); ++ns){
-    const TfLiteRegistration& reg = nodes_and_registration_[ns].second;
-    std::cout << "node " << ns << " " << GetOpName(reg) << "\n";
   }
   for (int execution_plan_index = first_execution_plan_index;
        execution_plan_index < execution_plan.size(); execution_plan_index++) {
@@ -1650,7 +1639,6 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration =
         nodes_and_registration_[node_index].second;
-    std::cout << "PrepareOpsStartingAt a" << "\n";
     // std::cout << "Prepare op : " << GetOpName(registration) << "\n";
     // if(strcmp(GetOpName(registration), "CONCATENATION") == 0){
     //   std::cout << "t:" << node.inputs->data[0] << " ";
@@ -1691,31 +1679,15 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
           }
           new_dims.push_back(input_r->dims->data[3]);
           ResizeInputTensor(input_tensors[1], new_dims);
-          std::cout << "Resized input tensor " << input_tensors[1] << "\n";
         } else if (input_l->dims->data[1] > input_r->dims->data[1]) {
           for (int i = 0; i < input_r->dims->size - 1; ++i) {
             new_dims.push_back(input_r->dims->data[i]);
           }
           new_dims.push_back(input_l->dims->data[3]);
           ResizeInputTensor(input_tensors[0], new_dims);
-          std::cout << "Resized input tensor " << input_tensors[0] << "\n";
         }
       }
     }
-    std::cout << "PrepareOpsStartingAt node :" << node_index << "\n";
-    std::cout << "Prepare op : " << GetOpName(registration) << "\n";
-    std::cout << "i:" << node.inputs->data[0] << " ";
-    std::cout << tensor(node.inputs->data[0])->dims->data[0] << " ";
-    std::cout << tensor(node.inputs->data[0])->dims->data[1] << " ";
-    std::cout << tensor(node.inputs->data[0])->dims->data[2] << " ";
-    std::cout << tensor(node.inputs->data[0])->dims->data[3] << " ";
-    std::cout << "\n";
-    std::cout << "o:" << node.outputs->data[0] << " ";
-    std::cout << tensor(node.outputs->data[0])->dims->data[0] << " ";
-    std::cout << tensor(node.outputs->data[0])->dims->data[1] << " ";
-    std::cout << tensor(node.outputs->data[0])->dims->data[2] << " ";
-    std::cout << tensor(node.outputs->data[0])->dims->data[3] << " ";
-    std::cout << "\n";
     if (OpPrepare(registration, &node) != kTfLiteOk) {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to prepare");
@@ -1725,18 +1697,15 @@ TfLiteStatus Subgraph::PrepareOpsStartingAt(
     // Discontinue if the node has dynamic outputs. Note that we don't
     // stop for dynamic temporary tensors since they won't affect the
     // sizes of other tensors in the graph.
-    std::cout << "PrepareOpsStartingAt c" << "\n";
     if (HasDynamicTensor(context_, node.outputs)) {
       has_dynamic_tensors_ = true;
       return kTfLiteOk;
     }
   }
-  std::cout << "PrepareOpsStartingAt done" << "\n";
   return kTfLiteOk;
 }
 
 TfLiteStatus Subgraph::PrepareOpsAndTensors() {
-  std::cout << "PrepareOpsAndTensors" << "\n";
   if (!memory_planner_) {
     memory_planner_.reset(new ArenaPlanner(
         &context_, std::unique_ptr<GraphInfo>(new InterpreterInfo(this)),
@@ -1745,7 +1714,6 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
     memory_planner_->PlanAllocations();
   }
 
-  std::cout << "PrepareOpsAndTensors a" << "\n";
   // Prepare original execution plan if any applied delegate wants it.
   // If any of the delegates is immutable, this won't be triggered
   // post-delegation (since we undo/redo delegation). For all other cases, other
@@ -1760,7 +1728,6 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
       }
     }
   }
-  std::cout << "PrepareOpsAndTensors b" << "\n";
   if (prepare_original_plan) {
     int last_original_exec_plan_index_prepared = 0;
     TF_LITE_ENSURE_STATUS(PrepareOpsStartingAt(
@@ -1770,26 +1737,15 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
         last_original_exec_plan_index_prepared + 1;
   }
   int last_exec_plan_index_prepared = 0;
-  std::cout << "PrepareOpsAndTensors c" << "\n";
-  std::cout << "execution_plan_" << "\n";
-  // execution_plan_.clear();
-  // execution_plan_.push_back(0);
-  // execution_plan_.push_back(3);
-  for(int i=0; i<execution_plan_.size(); ++i){
-    std::cout << execution_plan_[i] << " ";
-  }
-  std::cout << "\n";
   TF_LITE_ENSURE_STATUS(
       PrepareOpsStartingAt(next_execution_plan_index_to_prepare_,
                            execution_plan_, &last_exec_plan_index_prepared));
   next_execution_plan_index_to_prepare_ = last_exec_plan_index_prepared + 1;
-  std::cout << "PrepareOpsAndTensors d" << "\n";
 
   // Execute arena allocations.
   TF_LITE_ENSURE_STATUS(memory_planner_->ExecuteAllocations(
       next_execution_plan_index_to_plan_allocation_,
       last_exec_plan_index_prepared));
-  std::cout << "PrepareOpsAndTensors e" << "\n";
 
   // Ensure custom allocations are still valid for applicable tensors.
   // This causes some extra validations for cases with dynamic tensors, but the
@@ -1807,7 +1763,6 @@ TfLiteStatus Subgraph::PrepareOpsAndTensors() {
   next_execution_plan_index_to_plan_allocation_ =
       last_exec_plan_index_prepared + 1;
 
-  std::cout << "PrepareOpsAndTensors done" << "\n";
   return kTfLiteOk;
 }
 

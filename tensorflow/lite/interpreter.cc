@@ -364,34 +364,31 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
                     << "\n";
           return kTfLiteError;
         }
-        // Debug print
-        for(int k=0; k<shared_tensor_and_graph.size(); ++k){
-          if(shared_tensor_and_graph[k]->model_id == model_id){
-            for(int i=0;
-            i<shared_tensor_and_graph[k]->pair_tensor_graph.size(); ++i){
-              std::cout << "tensor : " <<
-              shared_tensor_and_graph[k]->pair_tensor_graph[i].first << "\n";
-              std::cout << "subgraphs : ";
-              for(int j=0;
-              j<shared_tensor_and_graph[k]->pair_tensor_graph[i].second.size();
-              ++j){
-                std::cout <<
-                shared_tensor_and_graph[k]->pair_tensor_graph[i].second[j] <<
-                " ";
-              }
-              std::cout << "\n";
-            }
-          }
-        }
+        // // Debug print
+        // for(int k=0; k<shared_tensor_and_graph.size(); ++k){
+        //   if(shared_tensor_and_graph[k]->model_id == model_id){
+        //     for(int i=0;
+        //     i<shared_tensor_and_graph[k]->pair_tensor_graph.size(); ++i){
+        //       std::cout << "tensor : " <<
+        //       shared_tensor_and_graph[k]->pair_tensor_graph[i].first << "\n";
+        //       std::cout << "subgraphs : ";
+        //       for(int j=0;
+        //       j<shared_tensor_and_graph[k]->pair_tensor_graph[i].second.size();
+        //       ++j){
+        //         std::cout <<
+        //         shared_tensor_and_graph[k]->pair_tensor_graph[i].second[j] <<
+        //         " ";
+        //       }
+        //       std::cout << "\n";
+        //     }
+        //   }
+        // }
         for (auto shared_tensor_and_graph_ : shared_tensor_and_graph) {
           if (shared_tensor_and_graph_->model_id == model_id) {
             for (int i = 0;
                  i < shared_tensor_and_graph_->pair_tensor_graph.size(); ++i) {
               int base_tensor =
                   shared_tensor_and_graph_->pair_tensor_graph[i].first;
-              std::cout << "base_tensor : " << base_tensor << "\n";
-              std::cout << input_tensor_begin_idx << " " << input_tensor_end_idx
-                        << "\n";
               if (base_tensor >= input_tensor_begin_idx &&
                   base_tensor <= input_tensor_end_idx) {
                 TfLiteTensor* working_tensor;
@@ -406,8 +403,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
                     subgraph_id(working_subgraph)->PushToOutputs(base_tensor);
                     working_tensor =
                         subgraph_id(working_subgraph)->tensor(base_tensor);
-                    std::cout << "subgraph " << working_subgraph
-                              << " push to outputs : " << base_tensor << "\n";
                     match_dims = subgraph_id(working_subgraph)
                                      ->GetTensorShape(base_tensor);
                   } else {
@@ -416,8 +411,6 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
                     subgraph_id(working_subgraph)
                         ->ResizeInputTensor(base_tensor, match_dims);
                     subgraph_id(working_subgraph)->PushToInputs(base_tensor);
-                    std::cout << "subgraph " << working_subgraph
-                              << " push to inputs : " << base_tensor << "\n";
                   }
                   if (subgraph_id(working_subgraph)->AllocateTensors() !=
                       kTfLiteOk)

@@ -209,7 +209,6 @@ InterpreterBuilder::~InterpreterBuilder() {}
 
 void InterpreterBuilder::CopyRawPartitioningPlan(
                                     std::vector<int>& raw_plan){
-  std::cout << "CopyRawPartitioningPlan" << "\n";
   ProfileData* dummy_profile = new ProfileData;
   
   // Parse raw plan from scheduler
@@ -552,14 +551,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     
     auto CreatePartitioningPlanFromProfile = 
         [&](const std::vector<ProfileData*>& profile){
-          std::cout << "CreatePartitioningPlan" << "\n";
       for(int k=0; k<profile.size(); ++k){
-        std::cout << "profile size : " << profile.size() << "\n";
         for(int i=0; i<profile[k]->layer_subsets.size(); ++i){ //graphs
-          std::cout << "subset size : " << profile[k]->layer_subsets.size() << "\n";
           SubgraphPartitioningPlan* new_plan = new SubgraphPartitioningPlan;
           new_plan->size = profile[k]->layer_subsets[i].size();
-          std::cout << "new plan size " << new_plan->size << "\n";
           new_plan->nodes = new int[new_plan->size];
 
           // Consider better implementation. (memory waste)
