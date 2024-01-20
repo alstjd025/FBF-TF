@@ -463,7 +463,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
 TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(
     int model_id, int* begin, int* end) {
   std::cout << "GetIntermediateTensorRangeWithGraphSubset" << "\n";
-  TfLiteIntArray* execution_plan = TfLiteIntArrayCreate(0);
+  TfLiteIntArray* execution_plan;
   int input_subgraph_id;
   int last_subgraph_id;
   primary_subgraph_->GetExecutionPlanSafe(&execution_plan);

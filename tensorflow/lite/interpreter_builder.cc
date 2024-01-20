@@ -709,10 +709,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       default:
         break;
       }
+      std::vector<int> nodes_to_parse;
       // Now setup nodes and tensors for new subgraph
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
         std::cout << "Working op " << working_op << "\n";        
+        nodes_to_parse.push_back(working_op);
         const auto* op = operators->Get(working_op);
         int op_index = op->opcode_index();
         /// get every tensor indices of all nodes
@@ -726,7 +728,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           input_tensor->push_back(FlatBufferIntArrayToVector(op->inputs())[0]);
           new_subgraph->SetActualInput(*input_tensor); // set 'actual' input tensors
         }  /// output tensor should be last node's output tensor in partitioning plan
-        if(j == num_nodes_in_partition - 1){
+        if(j == num_nodes_in_partition - 1){ // last iteration
           output_tensor = new std::vector<int>;
           output_tensor->push_back(FlatBufferIntArrayToVector(op->outputs())[0]);
           new_subgraph->SetActualOutput(*output_tensor); // set 'actual' output tensors
@@ -739,8 +741,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
                       std::vector<int>(input_tensor->begin(), input_tensor->end()));
           new_subgraph->SetOutputs(  // set 'all' output tensors
                       std::vector<int>(output_tensor->begin(), output_tensor->end()));
-          if (ParseNodes(operators, new_subgraph,
-                          nodes_in_partition[0], nodes_in_partition[j]) != kTfLiteOk)
+          // if (ParseNodes(operators, new_subgraph,
+          //                 nodes_in_partition[0], nodes_in_partition[j]) != kTfLiteOk)
+          //   return kTfLiteError;
+          if (ParseNodes(operators, new_subgraph, nodes_to_parse) != kTfLiteOk)
             return kTfLiteError;
           if (ParseTensors(buffers, tensors, new_subgraph, *tensors_) != kTfLiteOk)
             return kTfLiteError;
@@ -1119,6 +1123,74 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
           EnumNameBuiltinOperator(op_type));
     }
 
+    if (op_type == BuiltinOperator_CUSTOM) {
+      if (op->custom_options()) {
+        subgraph->AddNodeWithParameters(
+            FlatBufferIntArrayToVector(op->inputs()),
+            FlatBufferIntArrayToVector(op->outputs()),
+            FlatBufferIntArrayToVector(op->intermediates()),
+            reinterpret_cast<const char*>(op->custom_options()->data()),
+            op->custom_options()->size(), nullptr, registration);
+      } else {
+        subgraph->AddNodeWithParameters(
+            FlatBufferIntArrayToVector(op->inputs()),
+            FlatBufferIntArrayToVector(op->outputs()),
+            FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
+            nullptr, registration);
+      }
+    } else {
+      void* builtin_data = nullptr;
+      MallocDataAllocator malloc_allocator;
+      TF_LITE_ENSURE_STATUS(ParseOpData(op, op_type, error_reporter_,
+                                        &malloc_allocator, &builtin_data));
+      subgraph->AddNodeWithParameters(
+          FlatBufferIntArrayToVector(op->inputs()),
+          FlatBufferIntArrayToVector(op->outputs()),
+          FlatBufferIntArrayToVector(op->intermediates()), nullptr, 0,
+          builtin_data, registration);
+    }
+  }
+  return status;
+}
+
+TfLiteStatus InterpreterBuilder::ParseNodes(
+    const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
+    Subgraph* subgraph, std::vector<int>& nodes_to_parse) {
+  TfLiteStatus status = kTfLiteOk;
+
+  // Reduce the number of redundant allocations
+  if(nodes_to_parse.empty()){
+    std::cout << "InterpreterBuilder ERROR" << "\n";
+    std::cout << "Threre's no node to parse" << "\n";
+    status = kTfLiteError;
+  }
+  subgraph->ReserveNodes(nodes_to_parse.size());
+
+  for(int idx=0; idx<nodes_to_parse.size(); ++ idx){
+    int op_idx = nodes_to_parse[idx];
+    const auto* op = operators->Get(op_idx);
+    int opcode_idx = op->opcode_index();
+    if (opcode_idx < 0 || opcode_idx >= flatbuffer_op_index_to_registration_.size()) {
+      error_reporter_->Report("Missing registration for opcode_index %d\n",
+                              opcode_idx);
+      status = kTfLiteError;
+      continue;
+    }
+    const TfLiteRegistration* registration =
+        flatbuffer_op_index_to_registration_[opcode_idx];
+    if (registration == nullptr) {
+      error_reporter_->Report("Skipping op for opcode_index %d\n", opcode_idx);
+      status = kTfLiteError;
+      continue;
+    }
+
+    BuiltinOperator op_type =
+        static_cast<BuiltinOperator>(registration->builtin_code);
+    if (op_type != BuiltinOperator_CUSTOM && op->custom_options()) {
+      error_reporter_->Report(
+          "Found builtin operator %s with custom options.\n",
+          EnumNameBuiltinOperator(op_type));
+    }
     if (op_type == BuiltinOperator_CUSTOM) {
       if (op->custom_options()) {
         subgraph->AddNodeWithParameters(

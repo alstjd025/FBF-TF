@@ -143,11 +143,18 @@ class InterpreterBuilder {
       Subgraph* subgraph);
 
   // Minsung
-  // override function for multiple subgraph
+  // override function for multiple subgraphs.
+  // Parse every nodes with given op_start_index to op_end_index.
   TfLiteStatus ParseNodes(
     const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
     Subgraph* subgraph, int op_st, int op_end);
 
+  // Minsung
+  // override function for multiple subgraphs.
+  // Parse nodes with given node indicies.  
+  TfLiteStatus ParseNodes(
+    const flatbuffers::Vector<flatbuffers::Offset<Operator>>* operators,
+    Subgraph* subgraph, std::vector<int>& nodes_to_parse);
 
   // Minsung
   // override function for multiple subgraph
