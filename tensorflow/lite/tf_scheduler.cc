@@ -642,7 +642,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
   std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers
             << " layers in model"
             << "\n";
-  std::string line;
+  std::string line, token;
   int arg = 0;
   int line_iter = 0;
   int plan_idx = 0;
@@ -656,24 +656,26 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     std::cout << line << "\n";
     switch (line_iter)
     {
-    case 0:
-      for (int string_idx = 0; string_idx < line.length(); string_idx++) {          
-        if(line[string_idx] == '*'){ // subgraph set end flag
-          tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
-          plan_idx++;
-        }else if(line[string_idx] == '-'){ // master end falg
-          tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
-          plan_idx++;
-        }else if(line[string_idx] == ' '){ // node seperator
-          continue;
-        }else{ // nodes
-          arg = std::stoi(&line[string_idx]);  
+    case 0:{
+      if(line == "*"){ // subgraph set end flag
+        tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
+        plan_idx++;
+      }else if(line == "-"){ // master end falg
+        tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
+        plan_idx++;
+      }else{ // nodes
+        std::stringstream s_stream(line); // parse line to stringstream.
+        while(getline(s_stream, token, ' ')){
+          std::cout << "token : " << token <<" stoi " << std::stoi(token) << "\n"; 
+          arg = std::stoi(token);  
+          std::cout << "arg " << arg << "\n";
           tx_p.partitioning_plan[plan_idx] = arg;
           plan_idx++;
           line_iter = 1;
-        }
+        }  
       }
       break;
+    }
     case 1:
       tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_NODE;
       plan_idx++;
@@ -694,12 +696,12 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
   }
 
   // std::cout << "closed" << "\n";
-  // for(int i=0; i<1000; ++i){
-  //   // std::cout << "adsfasdf" << "\n";
-  //   std::cout << tx_p.partitioning_plan[i] << " ";
-  //   if(tx_p.partitioning_plan[i] == -4)
-  //     break;
-  // }
+  for(int i=0; i<1000; ++i){
+    // std::cout << "adsfasdf" << "\n";
+    std::cout << tx_p.partitioning_plan[i] << " ";
+    if(tx_p.partitioning_plan[i] == -4)
+      break;
+  }
   return;
   // if(layers == 9){ // MNIST
 

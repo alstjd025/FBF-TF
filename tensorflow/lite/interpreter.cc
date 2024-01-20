@@ -365,24 +365,24 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
           return kTfLiteError;
         }
         // Debug print
-        // for(int k=0; k<shared_tensor_and_graph.size(); ++k){
-        //   if(shared_tensor_and_graph[k]->model_id == model_id){
-        //     for(int i=0;
-        //     i<shared_tensor_and_graph[k]->pair_tensor_graph.size(); ++i){
-        //       std::cout << "tensor : " <<
-        //       shared_tensor_and_graph[k]->pair_tensor_graph[i].first << "\n";
-        //       std::cout << "subgraphs : ";
-        //       for(int j=0;
-        //       j<shared_tensor_and_graph[k]->pair_tensor_graph[i].second.size();
-        //       ++j){
-        //         std::cout <<
-        //         shared_tensor_and_graph[k]->pair_tensor_graph[i].second[j] <<
-        //         " ";
-        //       }
-        //       std::cout << "\n";
-        //     }
-        //   }
-        // }
+        for(int k=0; k<shared_tensor_and_graph.size(); ++k){
+          if(shared_tensor_and_graph[k]->model_id == model_id){
+            for(int i=0;
+            i<shared_tensor_and_graph[k]->pair_tensor_graph.size(); ++i){
+              std::cout << "tensor : " <<
+              shared_tensor_and_graph[k]->pair_tensor_graph[i].first << "\n";
+              std::cout << "subgraphs : ";
+              for(int j=0;
+              j<shared_tensor_and_graph[k]->pair_tensor_graph[i].second.size();
+              ++j){
+                std::cout <<
+                shared_tensor_and_graph[k]->pair_tensor_graph[i].second[j] <<
+                " ";
+              }
+              std::cout << "\n";
+            }
+          }
+        }
         for (auto shared_tensor_and_graph_ : shared_tensor_and_graph) {
           if (shared_tensor_and_graph_->model_id == model_id) {
             for (int i = 0;
@@ -462,16 +462,10 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
 
 TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(
     int model_id, int* begin, int* end) {
+  std::cout << "GetIntermediateTensorRangeWithGraphSubset" << "\n";
   TfLiteIntArray* execution_plan = TfLiteIntArrayCreate(0);
   int input_subgraph_id;
   int last_subgraph_id;
-  // for(auto subset : subgraph_subsets){
-  //   if(subset.first == model_id){
-  //     subgraph_id(subset.second[0])->GetExecutionPlanSafe(&execution_plan);
-  //     input_subgraph_id = subset.second[0];
-  //     last_subgraph_id = subset.second.back();
-  //   }
-  // }
   primary_subgraph_->GetExecutionPlanSafe(&execution_plan);
   if (execution_plan->size < 0) {
     std::cout << "[ERROR] Execution Plan size < 0 in subgraph 0"
@@ -509,6 +503,7 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(
     *end = node->outputs->data[0];
   }
   TfLiteIntArrayFree(execution_plan);
+  std::cout << "GetIntermediateTensorRangeWithGraphSubset done" << "\n";
   return kTfLiteOk;
 }
 

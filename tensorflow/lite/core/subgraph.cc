@@ -685,6 +685,7 @@ TfLiteStatus Subgraph::BytesRequired(TfLiteType type, const int* dims,
 }
 
 TfLiteStatus Subgraph::AllocateTensors() {
+  std::cout << "subgraph::AllocateTensors" << "\n";
   TFLITE_SCOPED_TAGGED_DEFAULT_PROFILE(profiler_.get(), "AllocateTensors");
   if (!consistent_) {
     ReportError("AllocateTensors() called on inconsistent model.");
@@ -727,7 +728,7 @@ TfLiteStatus Subgraph::AllocateTensors() {
   // variable tensors. They should call `ResetVariableTensors` directly
   // instead.
   ResetVariableTensors();
-
+  std::cout << "subgraph::Allocatetensors done" << "\n";
   return kTfLiteOk;
 }
 

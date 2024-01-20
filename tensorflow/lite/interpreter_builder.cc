@@ -220,7 +220,6 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
   subgraph_idx = 0;
   for(int idx=0; idx<TF_P_PLAN_LENGTH; ++idx){
     int current_value = raw_plan[idx];
-    std::cout << "cur value " << current_value << "\n"; 
     if(current_value == PART_PARM_SEP_ENDP) { break; } // met EOF
     else if(current_value == PART_PARM_SEP_NODE){ 
       node_flag = false;
@@ -230,7 +229,6 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
       // copy node subset
       for(const auto value : node_subset){
         dummy_profile->layer_subsets[subgraph_idx].push_back(value);
-        std::cout << "push node " << value << "\n";
       }
       dummy_profile->partitioning_ratios[subgraph_idx].push_back(partitioning_ratio);
       dummy_profile->subset_resource.push_back(static_cast<ResourceType>(resource_plan));
@@ -620,12 +618,15 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           default:
             break;
           }
+          std::cout << "nodes in subgraph : ";
           for(int j=0; j<profile[k]->layer_subsets[i].size(); ++j){ //layers 
             new_plan->nodes[j] = profile[k]->layer_subsets[i][j]; 
+            std::cout << new_plan->nodes[j] << " ";
             if(profile[k]->partitioning_ratios[i][0] != 0){
               new_plan->partitioning_ratios[j] = profile[k]->partitioning_ratios[i][0];
             }
           }
+          std::cout << "\n";
           master_partitioning_plan.push_back(new_plan);
         }
       }
@@ -711,7 +712,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       // Now setup nodes and tensors for new subgraph
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
-        // std::cout << "Working op " << working_op << "\n";        
+        std::cout << "Working op " << working_op << "\n";        
         const auto* op = operators->Get(working_op);
         int op_index = op->opcode_index();
         /// get every tensor indices of all nodes
@@ -788,6 +789,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     // Save shared intermediate tensor indices in interpreter's graph_and_shared_tensor.
     // Used when AllocateTensorsofAllSubgraphs called.
     // (to propagate tensor shapes)
+    std::cout << "bb" << "\n";
     for(size_t t=0; t<tensors->size(); ++t){
       std::pair<int, std::vector<int>> pair_tensor_graph;
       std::vector<int> sharing_subgraph_id;
@@ -803,6 +805,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       sharing_subgraph_id.clear();
     }
+    std::cout << "cc" << "\n";
     SharedTensorsInGraphs* temp = new SharedTensorsInGraphs;
     temp->pair_tensor_graph = shared_info;
     temp->model_id = model_id_;
@@ -814,6 +817,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     std::cout << "DeleteSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
+    std::cout << "dd" << "\n";
   // MUST CHECK
   // Does CPU-side interpreter need to call AllocateTensors twice?
   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
