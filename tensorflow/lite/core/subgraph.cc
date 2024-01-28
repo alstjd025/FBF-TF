@@ -393,8 +393,35 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
       node_subsets.size());
 
   execution_plan_.clear();
+  std::cout << "ReplaceNodes" << "\n";
+  for(auto& node_subset : node_subsets){
+    std::cout << "node subset.size : "<< node_subset.nodes.size() << "\n";
+    std::cout << "nodes included ";
+    for(auto node : node_subset.nodes)
+      std::cout << node << " ";
+    std::cout << "\n" << "outputs ";
+    for(auto output : node_subset.output_tensors)
+      std::cout << output << " ";
+    std::cout << "\n";
+    for(auto node : node_subset.nodes){
+      std::cout << node << " ";
+    }
+    std::cout << "\n";
+  }
 
   for (auto& node_subset : node_subsets) {
+    // Minsung
+    // for lanenet test only
+    // delete after test!!!!
+    // if(node_subset.nodes.size() == 12){
+    //   std::cout << "set output tensor manually 136 138 141 142" << "\n";
+      // node_subset.output_tensors.clear();
+      // node_subset.output_tensors.push_back(136);
+      // node_subset.output_tensors.push_back(138);
+      // node_subset.output_tensors.push_back(141);
+      // node_subset.output_tensors.push_back(142);
+    // }
+
     // Subsets claimed by the delegate should have a "macro" op created, the
     // other node_subsets (kTfNonPartition) just have their nodes added back to
     // the execution plan.
@@ -1797,7 +1824,7 @@ TfLiteStatus Subgraph::Invoke() {
   // Note that calling Invoke repeatedly will cause the original memory plan to
   // be reused, unless either ResizeInputTensor() or AllocateTensors() has been
   // called.
-
+  // std::cout << "Subgraph " << GetGraphid() << " execution plan " << execution_plan_.size() << "\n";
   for (int execution_plan_index = 0;
        execution_plan_index < execution_plan_.size(); execution_plan_index++) {
     // std::cout << "Invoke inside" << "\n";
@@ -1862,7 +1889,7 @@ TfLiteStatus Subgraph::Invoke() {
       return ReportOpError(&context_, node, registration, node_index,
                            "failed to invoke");
     }
-
+    // std::cout << "opinvoke done" << "\n";
 #ifdef LATENCY_MEASURE
     clock_gettime(CLOCK_MONOTONIC, &end);
     // if(strcmp(GetOpName(registration), "DELEGATE")){
@@ -1906,6 +1933,7 @@ TfLiteStatus Subgraph::Invoke() {
         }
       }
     }
+    // std::cout << "invoke " << execution_plan_index << " done\n";
   }
 #ifdef LATENCY_MEASURE
   std::ofstream latency_log;

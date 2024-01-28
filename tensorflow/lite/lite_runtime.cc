@@ -2,10 +2,10 @@
 
 // #define YOLO_PARSER
 // #define mobilenet
-#define debug_print
+// #define debug_print
 // #define latency_measure
 #define partitioning_profile
-#define lanenet_branch
+// #define lanenet_branch
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -944,9 +944,9 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
         break;
       case INPUT_TYPE::LANENET_FRAME:  // TODO (d904823) : Need to fix redundunt
                                        // codes.
-        std::cout << "LANENET input"
-                  << " h " << h << " w " << w << "input size "
-                  << input.size.dims() << "\n";
+        // std::cout << "LANENET input"
+        //           << " h " << h << " w " << w << "input size "
+        //           << input.size.dims() << "\n";
         for (int i = 0; i < h; i++) {    // row
           for (int j = 0; j < w; j++) {  // col
             cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
@@ -1190,12 +1190,13 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return_state = kTfLiteError;
         break;
       }
-      if (rx_packet.subgraph_ids[0][0] == -1) {
+      if (rx_packet.subgraph_ids[0][0] == -1) { // Single inference done.
 #ifdef debug_print
         std::cout << "Main Interpreter graph invoke done"
                   << "\n";
 #endif
-        subgraph_id = -1;
+        // initialize used variables.
+        subgraph_id = -1; 
         prev_subgraph_id = -1;
         prev_co_subgraph_id = -1;
         co_subgraph_id = -1;
@@ -1248,10 +1249,20 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return;
         // break;
       }
-      subgraph_id = rx_packet.subgraph_ids[0][0];
-      if (rx_packet.subgraph_ids[1][0] != -1)
-        co_subgraph_id = rx_packet.subgraph_ids[1][0];  // TEST
-      // interpreter->subgraph_id(subgraph_id)->SetResourceType(GPU); //TEST
+      #ifndef lanenet_branch
+        // Get main subgraph id to invoke.
+        subgraph_id = rx_packet.subgraph_ids[0][0];
+        // Get sub subgraph id to invoke if exists.
+        if (rx_packet.subgraph_ids[1][0] != -1)
+          co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
+      #endif // !1
+      #ifdef lanenet_branch
+        // Get main subgraph id to invoke.
+        subgraph_id = rx_packet.subgraph_ids[0][0];
+        // Get sub subgraph id to invoke if exists.
+        if (subgraph_id != 1) // Hardcoded part for lanenet
+          co_subgraph_id = 2; 
+      #endif // DEBUG
       bool merged = false;
       // Check if co execution. If so, give co-execution graph to
       // sub-interpreter and notify.
@@ -1295,18 +1306,30 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
                                              (end.tv_nsec / 1000000000.0));
 #endif
       }
+      #ifdef lanenet_branch
 
-      if (subgraph->GetResourceType() == CO_GPU) {
+      // Main interpreter : invoke graph1 (xnn)
+      // sub interpreter : invoke graph2 (gpu)
+      if (subgraph->GetGraphid() == 1) {
         // wake cpu thread here
-        if (prev_subgraph_id != -1) {
-          // Consider intermediate tensor is located in prev-previous subgraph?
-          // (99462)
-          main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
-        }
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
       }
+      #endif
+      #ifndef lanenet_branch
+        if (subgraph->GetResourceType() == CO_GPU) {
+          // wake cpu thread here
+          if (prev_subgraph_id != -1) {
+            // Consider intermediate tensor is located in prev-previous subgraph?
+            // (99462)
+            main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
+          }
+          std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
+          invoke_cpu = true;
+          invoke_sync_cv.notify_one();
+        }
+      #endif
       // if not co-execution, it needs additional imtermediate data copy.
       if (prev_subgraph_id != -1 && !merged) {
 #ifdef debug_print
@@ -1345,7 +1368,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       std::cout << "[Main interpreter] Invoke subgraph "
                 << subgraph->GetGraphid() << "\n";
 #endif
-      // FeedDummyInputToTensor(subgraph->tensor(58));
+      // FeedDummyInputToTensor(subgraph->tensor(136));
       // Note : This latency measure is always on for GPU test.
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if (subgraph->Invoke() != kTfLiteOk) {
@@ -1360,6 +1383,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+#ifdef debug_print
+      std::cout << "[Main interpreter] Invoke subgraph "
+                << subgraph->GetGraphid() << " done \n";
+#endif
 // printf(" IVS %.6f ", response_time);
 #ifdef latency_measure
       timestamp_label_main_interpreter.push_back("IVs");

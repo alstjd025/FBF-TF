@@ -231,12 +231,12 @@ class DelegateKernel {
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
     for (int i = 0; i < input_indices_.size(); ++i) {
-      std::cout << "(set)set input " << input_indices_[i] << "\n";
+      // std::cout << "(set)set input " << input_indices_[i] << "\n";
       RETURN_IF_ERROR(runner_->SetInputObject(
           i, GetTensorObject(input_indices_[i], context)));
     }
     for (int i = 0; i < output_indices_.size(); ++i) {
-      std::cout << "(set)set output " << output_indices_[i] << "\n";
+      // std::cout << "(set)set output " << output_indices_[i] << "\n";
       RETURN_IF_ERROR(runner_->SetOutputObject(
           i, GetTensorObject(output_indices_[i], context)));
     }

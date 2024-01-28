@@ -3057,12 +3057,6 @@ TfLiteIntArray* Delegate::PrepareOpsToDelegate(TfLiteContext* context) {
             &execution_plan->data[execution_plan->size],
             &nodes_to_delegate->data[0]);
 #endif
-  std::cout << "nodes_to_delegate" << "\n";
-  for(int i=0; i<nodes_to_delegate->size; ++i){
-    std::cout << nodes_to_delegate->data[i] << " ";
-    if(nodes_to_delegate->data[i] == 28) std::cout << "\n";
-  }
-  std::cout << "\n";
   return nodes_to_delegate;
 }
 

@@ -118,7 +118,7 @@ namespace tflite{
       *                         ----- subset seperator
       0 1 2 3 6 7               ----- node subset 1-1 (same node indices with different resource)
       1                         ----- resource plan (CPU, GPU, CO-GPU, XNN,,)
-      1                         ----- partitioning ratio for co-execution (height, channel)
+      15                        ----- partitioning ratio for co-execution (height, channel)
       *                         ----- subset seperator
       -                         ----- EOF
       file will be parsed as array below
