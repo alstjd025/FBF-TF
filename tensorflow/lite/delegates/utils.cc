@@ -22,7 +22,7 @@ limitations under the License.
 #include "tensorflow/lite/context_util.h"
 
 #include "tensorflow/lite/kmdebug.h"
-// #define DOT
+#define DOT
 
 
 namespace tflite {
@@ -105,17 +105,21 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
   //           });
 
   // DEBUGGING : partition_num is 7 ... not 36... 
+  // for(int j=0; j<sorted_partitions.size(); ++j){
+  //   for(int k=0; k<sorted_partitions[j]->nodes_to_replace->size; ++k){
+  //     std::cout << sorted_partitions[j]->nodes_to_replace->data[k] << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
+  std::cout << "\033[0;32m=== Delegated_partitions info ===\033[0m : " <<std::endl;
   for(int j=0; j<sorted_partitions.size(); ++j){
+    std::cout << "[" << j << "] : ";
     for(int k=0; k<sorted_partitions[j]->nodes_to_replace->size; ++k){
       std::cout << sorted_partitions[j]->nodes_to_replace->data[k] << " ";
     }
     std::cout << "\n";
   }
   // 
-
-
-
-
 
   std::vector<TfLiteDelegateParams*> results;
   auto p_it = sorted_partitions.begin();
