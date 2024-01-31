@@ -23,7 +23,7 @@ limitations under the License.
 
 #include "tensorflow/lite/kmdebug.h"
 #define DOT
-
+#define lane
 
 namespace tflite {
 namespace delegates {
@@ -317,16 +317,42 @@ TfLiteStatus GraphPartitionHelper::PrepareSupportedNodes(
     }
 
     std::string unsupported_details;
-    if (IsNodeSupported(context_, node, registration, node_id,
-                        &unsupported_details)) {
-      supported_nodes_->data[supported_nodes_->size++] = node_id;
-    } else if (unsupported_nodes_info) {
+    #ifdef lane
+    if (node_id == 63){
       std::string node_info = GetOpNameByRegistration(*registration);
       node_info.append(": ");
       node_info.append(unsupported_details);
       unsupported_nodes_info->insert(node_info);
       std::cout << node_id << " "; // HOON
     }
+    else{
+      if (IsNodeSupported(context_, node, registration, node_id,
+                        &unsupported_details)) {
+      supported_nodes_->data[supported_nodes_->size++] = node_id;
+      } 
+      else if (unsupported_nodes_info) {
+        std::string node_info = GetOpNameByRegistration(*registration);
+        node_info.append(": ");
+        node_info.append(unsupported_details);
+        unsupported_nodes_info->insert(node_info);
+        std::cout << node_id << " "; // HOON
+        } 
+    }
+    #endif
+    #ifndef lane
+    if (IsNodeSupported(context_, node, registration, node_id,
+                        &unsupported_details)) {
+      supported_nodes_->data[supported_nodes_->size++] = node_id;
+    } 
+    
+    else if (unsupported_nodes_info) {
+      std::string node_info = GetOpNameByRegistration(*registration);
+      node_info.append(": ");
+      node_info.append(unsupported_details);
+      unsupported_nodes_info->insert(node_info);
+      std::cout << node_id << " "; // HOON
+    }
+    #endif
   }
   std::cout << std::endl;
   return kTfLiteOk;
