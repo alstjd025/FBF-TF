@@ -691,19 +691,17 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
 TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
   TfLiteStatus status = kTfLiteOk;
   std::cout << "graph_id : " << graph_id << "\n";
-  if (delegate_provided_ != nullptr) {
+  if (gpu_delegate_ != nullptr && xnn_delegate_ != nullptr) {
     // delegate gpu
     if (subgraph_id(graph_id)->GetResourceType() == GPU ||
         subgraph_id(graph_id)->GetResourceType() == CO_GPU)
       status =
-          subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_);
+          subgraph_id(graph_id)->ModifyGraphWithDelegate(gpu_delegate_);
     // delegate xnn
-    else if (subgraph_id(graph_id)->GetResourceType() == CPU_XNN)
+    else if (subgraph_id(graph_id)->GetResourceType() == CPU_XNN ||
+              subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN)
       status =
-          subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_2);
-    else if (subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN)
-      status =
-          subgraph_id(graph_id)->ModifyGraphWithDelegate(delegate_provided_3);
+          subgraph_id(graph_id)->ModifyGraphWithDelegate(xnn_delegate_);
   } else {
     std::cout << "No delegate exists in this interpreter"
               << "\n";
@@ -713,12 +711,10 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
   return status;
 }
 // Minsung
-TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* delegate,
-                                           TfLiteDelegate* delegate2,
-                                           TfLiteDelegate* delegate3) {
-  delegate_provided_ = delegate;
-  delegate_provided_2 = delegate2;
-  delegate_provided_3 = delegate3;
+TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* gpu_delegate,
+                                           TfLiteDelegate* xnn_delegate) {
+  gpu_delegate_ = gpu_delegate;
+  xnn_delegate_ = xnn_delegate;
   is_gpu_delegate_prepared = true;
   return kTfLiteOk;
 }

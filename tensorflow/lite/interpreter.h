@@ -489,9 +489,8 @@ class Interpreter {
   // Minsung
   // Register given delegate object to this interpreter.
   // Currently only one deldegate.
-  TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate,
-                                TfLiteDelegate* delegate2,
-                                TfLiteDelegate* delegate3);
+  TfLiteStatus RegisterDelegate(TfLiteDelegate* gpu_delegate,
+                                TfLiteDelegate* xnn_delegate);
   // TfLiteStatus RegisterDelegate(TfLiteDelegate* delegate, TfLiteDelegate*
   // delegate2);
 
@@ -890,9 +889,10 @@ class Interpreter {
 
   // Minsung
   // Delegate
-  TfLiteDelegate* delegate_provided_ = nullptr;
-  TfLiteDelegate* delegate_provided_2 = nullptr;
-  TfLiteDelegate* delegate_provided_3 = nullptr;
+
+  TfLiteDelegate* gpu_delegate_ = nullptr;
+  TfLiteDelegate* xnn_delegate_ = nullptr;
+
   int test_value = 0;
   // Minsung
   // Subgraphs

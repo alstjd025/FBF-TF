@@ -156,16 +156,11 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
-  TfLiteXNNPackDelegateOptions co_xnnpack_options =
-      TfLiteXNNPackDelegateOptionsDefault();
 
   xnnpack_options.num_threads = 6;
-  co_xnnpack_options.num_threads = 3;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
-  co_xnn_delegate = TfLiteXNNPackDelegateCreate(&co_xnnpack_options);
-  interpreter->RegisterDelegate(gpu_delegate, xnn_delegate, co_xnn_delegate);
-  sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate,
-                                    co_xnn_delegate);
+  interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
+  sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
   if (InitializeUDS() != kTfLiteOk) {
     std::cout << "UDS socker init ERROR"
               << "\n";
