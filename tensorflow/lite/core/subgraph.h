@@ -189,6 +189,14 @@ class Subgraph {
   void PushPartitioningRatio(int r) { partitioning_ratio = r; }
 
   // Minsung
+  // Save origin input tensor height before height partitioning.
+  void SetOriginInputHeight(int h) { origin_input_height = h; }
+  
+  // Minsung
+  // Return origin input tensor height before height partitioning.
+  int GetOriginInputHeight() { return origin_input_height; }
+
+  // Minsung
   // Returns partitioning ratio vector of current subgraph.
   int GetPartitioningRatio() { return partitioning_ratio; }
 
@@ -1006,6 +1014,11 @@ class Subgraph {
   std::vector<int> partitioning_ratios;
   int partitioning_ratio = 0;
 
+  // Minsung
+  // Origin input tensor height.
+  // This value is used for merging height partitioned data.
+  int origin_input_height = 0;
+  
   // Minsung
   // Flag for profiling
   bool is_profiled = false;

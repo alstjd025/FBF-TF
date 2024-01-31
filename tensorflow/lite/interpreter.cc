@@ -383,6 +383,10 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
         //     }
         //   }
         // }
+        
+        // Description
+        // First, propagate primiray subgraphs output dims to other subgraphs.
+        // than allocate tensors.
         for (auto shared_tensor_and_graph_ : shared_tensor_and_graph) {
           if (shared_tensor_and_graph_->model_id == model_id) {
             for (int i = 0;
@@ -428,6 +432,7 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
         return kTfLiteOk;
       }
     }
+    // Second, partition subgraphs and allocate again.
     for (int subgraph_idx = 0; subgraph_idx < subset.second.size();
          ++subgraph_idx) {
       int working_subgraph_id = subset.second[subgraph_idx];

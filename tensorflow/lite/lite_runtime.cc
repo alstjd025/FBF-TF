@@ -2,7 +2,7 @@
 
 // #define YOLO_PARSER
 // #define mobilenet
-// #define debug_print
+#define debug_print
 // #define latency_measure
 #define partitioning_profile
 // #define lanenet_branch
@@ -817,9 +817,10 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
       use_two_interpreter = true;
     }
   }
-
+  
   TfLiteTensor* input_tensor = nullptr;
   TfLiteTensor* input_tensor_sub = nullptr;
+  
   input_tensor = interpreter->input_tensor_of_model(0);
   if (use_two_interpreter) {
     input_tensor_sub = sub_interpreter->input_tensor_of_model(0);
@@ -1684,9 +1685,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
     for (int i = 0; i < dest_tensor->dims->size; ++i) {
       tensor_data_size *= dest_tensor->dims->data[i];
     }
-    // WRONG MERGE
-    // WRONG MERGE
-    // WRONG MERGE
     // Note : max pricision side is front channel.
     int tensor_data_per_ch = tensor_data_size / dest_ch;
     for (int i = 0; i < tensor_data_per_ch;
@@ -1704,6 +1702,7 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
   } else if (partitioned_type ==
              PartitioningType::HEIGHT_PARTITIONING) {  // Merge HW-partitioned
                                                        // data
+    
     int dest_ht = dest_tensor->dims->data[1];
     int min_tensor_ht = min_precision_tensor->dims->data[1];
     int max_tensor_ht = max_precision_tensor->dims->data[1];
@@ -2518,8 +2517,10 @@ void TfLiteRuntime::FeedDummyInputToTensor(TfLiteTensor* tensor) {
   auto generator = std::bind(distribution, engine);
   float* buffer = new float[data_size];
   for (int i = 0; i < data_size; ++i) buffer[i] = float(generator());
+  if(tensor->data.data == nullptr)
+    tensor->data.data = new float[data_size];
   memcpy((float*)tensor->data.data, buffer, data_size * sizeof(float));
-  // printf("\n");
+ 
 }
 
 }  // namespace tflite

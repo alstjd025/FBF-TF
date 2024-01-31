@@ -1358,8 +1358,6 @@ TfLiteStatus Subgraph::PartitionHeightTest() {
         std::cout << "resize output zero_padding (dim" << new_dim_.size()
                   << ")\n";
         ResizeInputTensor(output_tensor_idx_, new_dim_);
-        std::cout << "dddd22"
-                  << "\n";
       }
     }
     new_input_dim.clear();
