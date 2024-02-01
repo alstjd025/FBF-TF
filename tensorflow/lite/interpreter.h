@@ -889,7 +889,6 @@ class Interpreter {
 
   // Minsung
   // Delegate
-
   TfLiteDelegate* gpu_delegate_ = nullptr;
   TfLiteDelegate* xnn_delegate_ = nullptr;
 

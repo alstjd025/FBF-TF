@@ -46,6 +46,11 @@ typedef struct TfLiteMergeTensor {
   bool is_used = false;
 } TfLiteMergeTensor;
 
+typedef struct TfLiteExecutionPlan {
+  int model_id;
+  
+} TfLiteExecutionPlan;
+
 class LiteScheduler;
 // class YOLO_Parser;
 

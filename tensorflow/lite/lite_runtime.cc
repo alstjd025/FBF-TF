@@ -5,7 +5,7 @@
 #define debug_print
 // #define latency_measure
 #define partitioning_profile
-// #define lanenet_branch
+#define yolo_branch
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1019,6 +1019,15 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
 TfLiteStatus TfLiteRuntime::Invoke() {
   TfLiteStatus return_state_sub = TfLiteStatus::kTfLiteOk;
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
+
+#ifdef yolo_branch
+  Subgraph* temp_subgraph = interpreter->subgraph_id(7);
+  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
+
+  Subgraph* temp_subgraph = interpreter->subgraph_id(8);
+  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
+#endif
+
 #ifdef latency_measure
   struct timespec begin, end;
   clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -1078,7 +1087,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
   while (true) {
     if (type == InterpreterType::SUB_INTERPRETER) {
       if (sub_interpreter->subgraphs_size() < 1) {
-        // std::cout << "No invokable subgraph for cpu" << "\n";
         break;
       }
       // sync with gpu here (notified by gpu)
@@ -1096,9 +1104,17 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
 #ifdef debug_print
       std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
 #endif
+
+#ifdef yolo_branch
+      if(co_subgraph_id == 7){
+        subgraph = interpreter->subgraph_id(co_subgraph_id);
+      }else{
+        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
+      }
+#endif
+#ifndef yolo_branch
       subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      // TfLiteTensor* input_t = subgraph->tensor(0);
-      // PrintTensorSerial(*input_t);
+#endif 
       if (main_execution_graph != nullptr) {
 #ifdef debug_print
         std::cout << "sub CopyIntermediateDataIfNeeded"
@@ -1132,20 +1148,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       clock_gettime(CLOCK_MONOTONIC, &begin);
 #endif
       clock_gettime(CLOCK_MONOTONIC, &begin);
-      // if(co_subgraph_id == 1){
-      //   TfLiteTensor* input_t = subgraph->tensor(0);
-      //   PrintTensorSerial(*input_t);
-      // }
       if (subgraph->Invoke() != kTfLiteOk) {
         std::cout << "ERROR on invoking CPU subgraph " << subgraph->GetGraphid()
                   << "\n";
         return_state = kTfLiteError;
         return;
       }
-      // if(co_subgraph_id == 1){
-      //   TfLiteTensor* input_t = subgraph->tensor(70);
-      //   PrintTensorSerial(*input_t);
-      // }
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
@@ -1186,6 +1194,19 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return_state = kTfLiteError;
         break;
       }
+      #ifdef yolo_branch // test code for branch execution.
+        // Get main subgraph id to invoke.
+        subgraph_id = rx_packet.subgraph_ids[0][0];
+        // Get sub subgraph id to invoke if exists.
+        if (subgraph_id == 7) // Hardcoded part for lanenet
+          co_subgraph_id = 8;
+        else if (subgraph_id == 8)
+          subgraph_id = 9;
+        else if(subgraph_id == 9){
+          return_state = kTfLiteOk;
+          rx_packet.subgraph_ids[0][0] = -1;
+        }
+      #endif // test code for branch execution.
       if (rx_packet.subgraph_ids[0][0] == -1) { // Single inference done.
 #ifdef debug_print
         std::cout << "Main Interpreter graph invoke done"
@@ -1245,20 +1266,13 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return;
         // break;
       }
-      #ifndef lanenet_branch
+      #ifndef yolo_branch
         // Get main subgraph id to invoke.
         subgraph_id = rx_packet.subgraph_ids[0][0];
         // Get sub subgraph id to invoke if exists.
         if (rx_packet.subgraph_ids[1][0] != -1)
           co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
-      #endif // !1
-      #ifdef lanenet_branch
-        // Get main subgraph id to invoke.
-        subgraph_id = rx_packet.subgraph_ids[0][0];
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id != 1) // Hardcoded part for lanenet
-          co_subgraph_id = 2; 
-      #endif // DEBUG
+      #endif 
       bool merged = false;
       // Check if co execution. If so, give co-execution graph to
       // sub-interpreter and notify.
@@ -1302,30 +1316,17 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
                                              (end.tv_nsec / 1000000000.0));
 #endif
       }
-      #ifdef lanenet_branch
-
-      // Main interpreter : invoke graph1 (xnn)
-      // sub interpreter : invoke graph2 (gpu)
-      if (subgraph->GetGraphid() == 1) {
+      if (subgraph->GetResourceType() == CO_GPU) {
         // wake cpu thread here
+        if (prev_subgraph_id != -1) {
+          // Consider intermediate tensor is located in prev-previous subgraph?
+          // (99462)
+          main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
+        }
         std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
         invoke_cpu = true;
         invoke_sync_cv.notify_one();
       }
-      #endif
-      #ifndef lanenet_branch
-        if (subgraph->GetResourceType() == CO_GPU) {
-          // wake cpu thread here
-          if (prev_subgraph_id != -1) {
-            // Consider intermediate tensor is located in prev-previous subgraph?
-            // (99462)
-            main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
-          }
-          std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-          invoke_cpu = true;
-          invoke_sync_cv.notify_one();
-        }
-      #endif
       // if not co-execution, it needs additional imtermediate data copy.
       if (prev_subgraph_id != -1 && !merged) {
 #ifdef debug_print
@@ -1544,7 +1545,7 @@ void YOLO_Parser::make_real_bbox_loc_vector(
   }
 }
 ////////////////////////////////////////////////////////////////////
-// Description below is conceptual.
+// Conceptual description.
 // Get dest subgraphs('D')'s next subgraph. (subgraph 'Dn')
 // Compare input & output dims between 'Dn' and 'S'(source subgraph, probabily
 // cpu side) Merge 'S' and 'D's output tensor to 'Dn's input tensor. NEED TO FIX

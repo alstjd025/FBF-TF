@@ -207,7 +207,8 @@ typedef enum InterpreterType{
 typedef enum PartitioningType{
   NO_PARTITIONING,
   HEIGHT_PARTITIONING,
-  CHANNEL_PARTITIONING
+  CHANNEL_PARTITIONING,
+  BRANCH_PARALLEL
 } PartitioningType;
 
 // ResourceType for subgraph
