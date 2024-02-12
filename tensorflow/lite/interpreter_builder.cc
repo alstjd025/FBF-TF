@@ -861,8 +861,7 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
       else{
         new_subgraph->SetExperimentalFlagFalse();
         std::cout << "SetExperimentalFlagFalse" << "\n";
-      } 
-
+      }
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"

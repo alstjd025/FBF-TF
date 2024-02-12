@@ -2,10 +2,10 @@
 
 // #define YOLO_PARSER
 // #define mobilenet
-#define debug_print
+// #define debug_print
 // #define latency_measure
 #define partitioning_profile
-#define yolo_branch
+// #define yolo_branch
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1024,7 +1024,7 @@ TfLiteStatus TfLiteRuntime::Invoke() {
   Subgraph* temp_subgraph = interpreter->subgraph_id(7);
   temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
 
-  Subgraph* temp_subgraph = interpreter->subgraph_id(8);
+  temp_subgraph = interpreter->subgraph_id(8);
   temp_subgraph->SetResourceType(ResourceType::CO_GPU);
 #endif
 
@@ -1197,14 +1197,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       #ifdef yolo_branch // test code for branch execution.
         // Get main subgraph id to invoke.
         subgraph_id = rx_packet.subgraph_ids[0][0];
+        if(rx_packet.subgraph_ids[1][0] != -1)
+          co_subgraph_id = rx_packet.subgraph_ids[1][0];
         // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 7) // Hardcoded part for lanenet
-          co_subgraph_id = 8;
-        else if (subgraph_id == 8)
-          subgraph_id = 9;
-        else if(subgraph_id == 9){
-          return_state = kTfLiteOk;
-          rx_packet.subgraph_ids[0][0] = -1;
+        if (subgraph_id == 7){ // Hardcoded part for lanenet
+          co_subgraph_id = 7;
+          subgraph_id = 8;
         }
       #endif // test code for branch execution.
       if (rx_packet.subgraph_ids[0][0] == -1) { // Single inference done.
@@ -1553,6 +1551,30 @@ void YOLO_Parser::make_real_bbox_loc_vector(
 TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
     int prev_sub_subgraph, int prev_main_subgraph, int dest_subgraph_,
     TfLiteMergeTensor* buffer_tensor) {
+#ifdef yolo_branch
+  if(dest_subgraph_ == 9){
+    std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
+    " dest " << dest_subgraph_ <<"\n";
+    if(buffer_tensor != nullptr){
+      free(buffer_tensor->tensor->data.data);
+      free(buffer_tensor->tensor->dims);
+      free(buffer_tensor->tensor);
+      free(buffer_tensor);
+    }
+    buffer_tensor = nullptr;
+    Subgraph* main_dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
+    // Copy from main-subgraph
+    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_main_subgraph, buffer_tensor)
+       != kTfLiteOk){
+      return kTfLiteError;
+    }
+    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_sub_subgraph, buffer_tensor)
+       != kTfLiteOk){
+      return kTfLiteError;
+    }
+    return kTfLiteOk;
+  }
+#endif
   Subgraph* min_precision_subgraph =
       sub_interpreter->subgraph_id(prev_sub_subgraph);
   Subgraph* max_precision_subgraph =
@@ -1785,11 +1807,13 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(
     for (int i = 0; i < dest_tensor_idx.size(); ++i) {
       for (int j = 0; j < source_tensor_idx.size(); ++j) {
 #ifdef debug_print
-        std::cout << "source : " << source_tensor_idx[j] << " "
-                  << " dest " << dest_tensor_idx[i] << "\n";
 #endif
-        if (source_tensor_idx[j] == dest_tensor_idx[i])
-          dest_tensor_indices.push_back(dest_tensor_idx[i]);
+    // Check if source or dest tensor's allocation type is kTfLiteMmapRo.
+    // If so, no copy occurs since it is not intermediate tensor.
+    // (ambiguous logic. consider better impl)
+        if (source_tensor_idx[j] == dest_tensor_idx[i] &&
+            dest_graph->tensor(source_tensor_idx[j])->allocation_type
+            != kTfLiteMmapRo) { dest_tensor_indices.push_back(dest_tensor_idx[i]); }
       }
     }
     if (dest_tensor_indices.empty()) {
@@ -1801,7 +1825,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(
     }
     for (int i = 0; i < dest_tensor_indices.size(); ++i) {
 #ifdef debug_print
-      std::cout << "Copy tensor " << dest_tensor_indices[i] << "\n";
+      std::cout << "Main sub Copy tensor " << dest_tensor_indices[i] << "\n";
 #endif
       TfLiteTensor* source_tensor = nullptr;
       if (merge_tensor != nullptr) {
@@ -1879,20 +1903,19 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(
     std::vector<int> dest_tensor_idx = dest_subgraph->inputs();
     for (int i = 0; i < dest_tensor_idx.size(); ++i) {
       for (int j = 0; j < source_tensor_idx.size(); ++j) {
-#ifdef debug_print
-        std::cout << "source : " << source_tensor_idx[j] << " "
-                  << " dest " << dest_tensor_idx[i] << "\n";
-#endif
-        if (source_tensor_idx[j] == dest_tensor_idx[i]) {
-          dest_tensor_indices.push_back(dest_tensor_idx[i]);
-        }
+      // Check if source or dest tensor's allocation type is kTfLiteMmapRo.
+      // If so, no copy occurs since it is not intermediate tensor.
+      // (ambiguous logic. consider better impl)
+      if (source_tensor_idx[j] == dest_tensor_idx[i] &&
+          dest_subgraph->tensor(source_tensor_idx[j])->allocation_type
+          != kTfLiteMmapRo) { dest_tensor_indices.push_back(dest_tensor_idx[i]); }
       }
     }
     if (dest_tensor_indices.empty()) {
-      std::cout << "Output tensor of subgraph [" << source_subgraph
+      std::cout << "Output tensor of subgraph [" << source_subgraph->GetGraphid()
                 << "] cannot"
                 << " found a matching input tensor in subgraph ["
-                << dest_subgraph << "]\n";
+                << dest_subgraph->GetGraphid() << "]\n";
       return kTfLiteError;
     }
 
@@ -1901,7 +1924,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(
     for (int copy_tensor_idx = 0; copy_tensor_idx < dest_tensor_indices.size();
          ++copy_tensor_idx) {
 #ifdef debug_print
-      std::cout << "Merge tensor " << dest_tensor_indices[copy_tensor_idx]
+      std::cout << "Sub sub Copy tensor " << dest_tensor_indices[copy_tensor_idx]
                 << "\n";
 #endif
       TfLiteTensor* source_tensor = nullptr;
@@ -1957,7 +1980,7 @@ TfLiteStatus TfLiteRuntime::CopyIntermediateDataIfNeeded(
         memcpy(data_dest, data_source + offset,
                dest_data_size * (sizeof(float)));
 #ifdef debug_print
-        std::cout << "Copied intermediate data from main graph"
+        std::cout << "[Sub] Copied intermediate data from main graph"
                   << "\n";
 #endif
       }
