@@ -6,6 +6,7 @@
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
+#define yolo_branch_only
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -1028,6 +1029,14 @@ TfLiteStatus TfLiteRuntime::Invoke() {
   temp_subgraph->SetResourceType(ResourceType::CO_GPU);
 #endif
 
+#ifdef yolo_branch_only
+  Subgraph* temp_subgraph = interpreter->subgraph_id(2);
+  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
+
+  temp_subgraph = interpreter->subgraph_id(3);
+  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
+#endif
+
 #ifdef latency_measure
   struct timespec begin, end;
   clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -1086,9 +1095,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
   int prev_co_subgraph_id = -1;
   while (true) {
     if (type == InterpreterType::SUB_INTERPRETER) {
-      if (sub_interpreter->subgraphs_size() < 1) {
-        break;
-      }
+      // No more use?
+      // if (sub_interpreter->subgraphs_size() < 1) {
+      //   break;
+      // }
       // sync with gpu here (notified by gpu)
       std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
       invoke_sync_cv.wait(lock_invoke, [&] { return invoke_cpu; });
@@ -1112,7 +1122,14 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
       }
 #endif
-#ifndef yolo_branch
+#ifdef yolo_branch_only
+      if(co_subgraph_id == 2){
+        subgraph = interpreter->subgraph_id(co_subgraph_id);
+      }else{
+        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
+      }
+#endif
+#if !defined (yolo_branch) && !defined (yolo_branch_only)
       subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
 #endif 
       if (main_execution_graph != nullptr) {
@@ -1194,17 +1211,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return_state = kTfLiteError;
         break;
       }
-      #ifdef yolo_branch // test code for branch execution.
-        // Get main subgraph id to invoke.
-        subgraph_id = rx_packet.subgraph_ids[0][0];
-        if(rx_packet.subgraph_ids[1][0] != -1)
-          co_subgraph_id = rx_packet.subgraph_ids[1][0];
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 7){ // Hardcoded part for lanenet
-          co_subgraph_id = 7;
-          subgraph_id = 8;
-        }
-      #endif // test code for branch execution.
       if (rx_packet.subgraph_ids[0][0] == -1) { // Single inference done.
 #ifdef debug_print
         std::cout << "Main Interpreter graph invoke done"
@@ -1264,13 +1270,26 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return;
         // break;
       }
-      #ifndef yolo_branch
         // Get main subgraph id to invoke.
         subgraph_id = rx_packet.subgraph_ids[0][0];
         // Get sub subgraph id to invoke if exists.
-        if (rx_packet.subgraph_ids[1][0] != -1)
+        if (rx_packet.subgraph_ids[1][0] != -1){
           co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
-      #endif 
+        }
+#ifdef yolo_branch // test code for branch execution.
+        // Get sub subgraph id to invoke if exists.
+        if (subgraph_id == 7){ // Hardcoded part for yolo.
+          co_subgraph_id = 7;
+          subgraph_id = 8;
+        }
+#endif // test code for branch execution.
+#ifdef yolo_branch_only
+        // Get sub subgraph id to invoke if exists.
+        if (subgraph_id == 2){ // Hardcoded part for yolo.
+          co_subgraph_id = 2;
+          subgraph_id = 3;
+        }
+#endif
       bool merged = false;
       // Check if co execution. If so, give co-execution graph to
       // sub-interpreter and notify.
@@ -1551,6 +1570,30 @@ void YOLO_Parser::make_real_bbox_loc_vector(
 TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
     int prev_sub_subgraph, int prev_main_subgraph, int dest_subgraph_,
     TfLiteMergeTensor* buffer_tensor) {
+#ifdef yolo_branch_only
+  if(dest_subgraph_ == 4){
+    std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
+    " dest " << dest_subgraph_ <<"\n";
+    if(buffer_tensor != nullptr){
+      free(buffer_tensor->tensor->data.data);
+      free(buffer_tensor->tensor->dims);
+      free(buffer_tensor->tensor);
+      free(buffer_tensor);
+    }
+    buffer_tensor = nullptr;
+    Subgraph* main_dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
+    // Copy from main-subgraph
+    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_main_subgraph, buffer_tensor)
+       != kTfLiteOk){
+      return kTfLiteError;
+    }
+    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_sub_subgraph, buffer_tensor)
+       != kTfLiteOk){
+      return kTfLiteError;
+    }
+    return kTfLiteOk;
+  }
+#endif
 #ifdef yolo_branch
   if(dest_subgraph_ == 9){
     std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
