@@ -752,6 +752,10 @@ class Interpreter {
   // Invoke test
   TfLiteStatus DebugInvoke();
 
+  // Minsung
+  // Only call in CreateSubgraphFromFlatBuffer()
+  void SaveOriginTensorDims(Subgraph* origin_graph);
+
   void PrintSubgraphInfo();
 
   // lock jobs
@@ -773,6 +777,10 @@ class Interpreter {
 
   std::vector<cv::Mat> mnist_input;
   std::vector<cv::Mat> imagenet_input;
+
+  // Origin tensor dimesions for general purpose.
+  // Initialize in origin subgraph generation stage.
+  std::vector<TfLiteIntArray*> tensor_origin_dims;
 
 #endif  // DOXYGEN_SKIP
 

@@ -823,6 +823,18 @@ void Interpreter::PrintSubgraphInfo() {
   }
 }
 
+void Interpreter::SaveOriginTensorDims(Subgraph* origin_graph){
+  std::vector<TfLiteTensor> tensors = origin_graph->tensors();
+  for(const auto tensor : tensors){
+    int dim_size = tensor.dims->size;
+    TfLiteIntArray* new_ary = TfLiteIntArrayCreate(dim_size);
+    for(int i=0; i<dim_size; ++i){
+      new_ary->data[i] = tensor.dims->data[i];
+    }
+    tensor_origin_dims.push_back(new_ary);
+  }
+}
+
 TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job) {
   LockJobs();
   jobs->push(new_job);

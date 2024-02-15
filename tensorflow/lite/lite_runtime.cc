@@ -6,7 +6,8 @@
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
-#define yolo_branch_only
+// #define yolo_branch_only
+#define lanenet_branch
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -818,6 +819,9 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
   TfLiteTensor* input_tensor_sub = nullptr;
   
   input_tensor = interpreter->input_tensor_of_model(0);
+  #ifdef lanenet_branch // use only for lanenet test(temporal)
+    interpreter->subgraph_id(3)->tensor(0)->data.data = input_tensor->data.data;
+  #endif
   if (use_two_interpreter) {
     input_tensor_sub = sub_interpreter->input_tensor_of_model(0);
   }
@@ -1632,181 +1636,192 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
     return kTfLiteError;
   }
   std::vector<int> dest_tensor_indicies = dest_subgraph->inputs();
+  std::vector<int> main_source_tensor_indicies = max_precision_subgraph->outputs();
+  std::vector<int> sub_source_tensor_indicies = min_precision_subgraph->outputs();
 
+  /* Deprecated mathod
   int dest_tensor_idx = dest_subgraph->GetInputTensorIndex();
   int min_precision_tensor_idx =
       min_precision_subgraph->GetFirstOutputTensorIndex();  // for uint model
   int max_precision_tensor_idx =
       max_precision_subgraph->GetFirstOutputTensorIndex();
   int dequant_reference_tensor_idx = 0;
-  partitioned_type = max_precision_subgraph->GetPartitioningType();
-#ifdef debug_print
-  std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
-            << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
-#endif
-  TfLiteTensor* min_precision_tensor =
-      min_precision_subgraph->tensor(min_precision_tensor_idx);
-  TfLiteTensor* max_precision_tensor =
-      max_precision_subgraph->tensor(max_precision_tensor_idx);
-  TfLiteTensor* dest_tensor = nullptr;
-  if (buffer_tensor != nullptr) {
-    dest_tensor = buffer_tensor->tensor;
-    buffer_tensor->is_used = true;
-    buffer_tensor->tensor_idx = dest_tensor_idx;
-    buffer_tensor->partition_type = partitioned_type;
-    // initialize merge tensor
-    int new_size = 1;
-    std::vector<int> new_dim;
-    dest_tensor->dims = TfLiteIntArrayCreate(4);
-    dest_tensor->dims->data[0] = max_precision_tensor->dims->data[0];
-    dest_tensor->dims->data[2] = max_precision_tensor->dims->data[2];
-    if (partitioned_type == PartitioningType::CHANNEL_PARTITIONING) {
-      dest_tensor->dims->data[1] = max_precision_tensor->dims->data[1];
-      dest_tensor->dims->data[3] = max_precision_tensor->dims->data[3] +
-                                   min_precision_tensor->dims->data[3];
-    } else {  // HW partitioned
-      dest_tensor->dims->data[3] = max_precision_tensor->dims->data[3];
-      // Assume that H,W always same in the origin shape of tensor.
-      dest_tensor->dims->data[1] = max_precision_tensor->dims->data[2];
+  */
+ for(auto dest_tensor_idx : dest_tensor_indicies){
+    int min_precision_tensor_idx = dest_tensor_idx;  // for uint model
+    int max_precision_tensor_idx = dest_tensor_idx;
+    int dequant_reference_tensor_idx = 0;
+    partitioned_type = max_precision_subgraph->GetPartitioningType();
+  #ifdef debug_print
+    std::cout << "Merge two tensors, " << min_precision_tensor_idx << " "
+              << max_precision_tensor_idx << " to " << dest_tensor_idx << "\n";
+  #endif
+    TfLiteTensor* min_precision_tensor =
+        min_precision_subgraph->tensor(min_precision_tensor_idx);
+    TfLiteIntArray* min_precision_tensor_dim = min_precision_tensor->dims;
+    TfLiteTensor* max_precision_tensor =
+        max_precision_subgraph->tensor(max_precision_tensor_idx);
+    TfLiteIntArray* max_precision_tensor_dim = max_precision_tensor->dims;
+    TfLiteIntArray* dest_tensor_dim = dest_subgraph->tensor(dest_tensor_idx)->dims;
+    TfLiteTensor* dest_tensor = nullptr;
+    if (buffer_tensor != nullptr) {
+      dest_tensor = buffer_tensor->tensor;
+      buffer_tensor->is_used = true;
+      buffer_tensor->tensor_idx = dest_tensor_idx;
+      buffer_tensor->partition_type = partitioned_type;
+      // initialize merge tensor
+      int new_size = 1;
+      std::vector<int> new_dim;
+      dest_tensor->dims = TfLiteIntArrayCreate(4);
+      dest_tensor->dims->data[0] = max_precision_tensor->dims->data[0];
+      dest_tensor->dims->data[2] = max_precision_tensor->dims->data[2];
+      if (partitioned_type == PartitioningType::CHANNEL_PARTITIONING) {
+        dest_tensor->dims->data[1] = max_precision_tensor->dims->data[1];
+        dest_tensor->dims->data[3] = max_precision_tensor->dims->data[3] +
+                                    min_precision_tensor->dims->data[3];
+      } else {  // HW partitioned
+        dest_tensor->dims->data[1] = interpreter->tensor_origin_dims[dest_tensor_idx]->data[1];
+        dest_tensor->dims->data[3] = interpreter->tensor_origin_dims[dest_tensor_idx]->data[3];
+      }
+      for (int i = 0; i < 4; ++i) {
+        new_size *= dest_tensor->dims->data[i];
+      }
+      dest_tensor->type = kTfLiteFloat32;
+      dest_tensor->data.data = new float[new_size];
+      dest_tensor->bytes = static_cast<size_t>(new_size * sizeof(float));
+    } else {
+      dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
     }
-    for (int i = 0; i < 4; ++i) {
-      new_size *= dest_tensor->dims->data[i];
+    int quantization_param_tensor_idx =
+        min_precision_subgraph->GetFirstInputTensorIndex();
+    TfLiteTensor* dequant_reference_tensor = nullptr;
+    if (min_precision_subgraph->tensor(quantization_param_tensor_idx)
+            ->quantization.type == kTfLiteAffineQuantization) {
+      dequant_reference_tensor =
+          min_precision_subgraph->tensor(quantization_param_tensor_idx);
+    } else {
+      quantization_param_tensor_idx =
+          max_precision_subgraph->GetFirstInputTensorIndex();
+      dequant_reference_tensor =
+          max_precision_subgraph->tensor(quantization_param_tensor_idx);
     }
-    dest_tensor->type = kTfLiteFloat32;
-    dest_tensor->data.data = new float[new_size];
-    dest_tensor->bytes = static_cast<size_t>(new_size * sizeof(float));
-  } else {
-    dest_tensor = dest_subgraph->tensor(dest_tensor_idx);
-  }
-  int quantization_param_tensor_idx =
-      min_precision_subgraph->GetFirstInputTensorIndex();
-  TfLiteTensor* dequant_reference_tensor = nullptr;
-  if (min_precision_subgraph->tensor(quantization_param_tensor_idx)
-          ->quantization.type == kTfLiteAffineQuantization) {
-    dequant_reference_tensor =
-        min_precision_subgraph->tensor(quantization_param_tensor_idx);
-  } else {
-    quantization_param_tensor_idx =
-        max_precision_subgraph->GetFirstInputTensorIndex();
-    dequant_reference_tensor =
-        max_precision_subgraph->tensor(quantization_param_tensor_idx);
-  }
 
-  if (dest_tensor == nullptr || min_precision_tensor == nullptr ||
-      max_precision_tensor == nullptr) {
-    std::cout << "MergeCoExecutionData ERROR"
-              << "\n";
-    std::cout << "Tensor NULLPTR"
-              << "\n";
-    return kTfLiteError;
-  }
-
-  // This flag means that the tensor is de-quantized temporary for merge.
-  // Restore to the original buffer after merge.
-  float* dequantized_buffer = nullptr;
-
-  if (min_precision_tensor->type == kTfLiteUInt8 ||
-      min_precision_tensor->type == kTfLiteInt8) {
-    dequantized_buffer = (float*)DequantizeGivenTensorWithReference(
-        min_precision_tensor, dequant_reference_tensor);
-    if (dequantized_buffer == nullptr) {
-      std::cout << "DeQuantizeGivenTensor returned nullptr ERROR"
+    if (dest_tensor == nullptr || min_precision_tensor == nullptr ||
+        max_precision_tensor == nullptr) {
+      std::cout << "MergeCoExecutionData ERROR"
+                << "\n";
+      std::cout << "Tensor NULLPTR"
                 << "\n";
       return kTfLiteError;
     }
-  }
-  // minimum precision side data buffer.
-  float* data_min;
-  if (dequantized_buffer != nullptr) {
-    data_min = dequantized_buffer;
-  } else {
-    data_min = (float*)min_precision_tensor->data.data;
-  }
-  // max precision side data buffer.
-  float* data_max = (float*)max_precision_tensor->data.data;
 
-  // destination buffer.
-  float* data_dest = (float*)dest_tensor->data.data;
+    // This flag means that the tensor is de-quantized temporary for merge.
+    // Restore to the original buffer after merge.
+    float* dequantized_buffer = nullptr;
 
-  // check dims
-  if (partitioned_type == PartitioningType::CHANNEL_PARTITIONING) {
-    // Merge CW-partitioned data
-    int dest_ch, min_tensor_ch, max_tensor_ch;
-    dest_ch = dest_tensor->dims->data[3];
-    min_tensor_ch = min_precision_tensor->dims->data[3];
-    max_tensor_ch = max_precision_tensor->dims->data[3];
-    // std::cout << "min_tensor_ch " << min_tensor_ch << " max_tensor_ch " <<
-    // max_tensor_ch << "\n";
-    if ((min_tensor_ch + max_tensor_ch) != dest_ch) {
-      std::cout << "Tensor dim [OCH] min_prec + max_prec != dest ERROR"
-                << "\n";
-      return kTfLiteError;
-    }
-    int tensor_data_size = 1;
-    for (int i = 0; i < dest_tensor->dims->size; ++i) {
-      tensor_data_size *= dest_tensor->dims->data[i];
-    }
-    // Note : max pricision side is front channel.
-    int tensor_data_per_ch = tensor_data_size / dest_ch;
-    for (int i = 0; i < tensor_data_per_ch;
-         ++i) {  // copy minimum precision side data
-      memcpy(data_dest + (dest_ch * i), data_max + (max_tensor_ch * i),
-             max_tensor_ch * sizeof(float));
-    }
-
-    for (int i = 0; i < tensor_data_per_ch;
-         ++i) {  // copy minimum precision side data
-      memcpy(data_dest + max_tensor_ch + (dest_ch * i),
-             data_min + (min_tensor_ch * i), min_tensor_ch * sizeof(float));
-    }
-
-  } else if (partitioned_type ==
-             PartitioningType::HEIGHT_PARTITIONING) {  // Merge HW-partitioned
-                                                       // data
-    
-    int dest_ht = dest_tensor->dims->data[1];
-    int min_tensor_ht = min_precision_tensor->dims->data[1];
-    int max_tensor_ht = max_precision_tensor->dims->data[1];
-    int tensor_dest_data_size = 1;
-    int min_precision_data_size = 1;
-    int max_precision_data_size = 1;
-
-    // Calculate data size to copy.
-    for (int i = 0; i < dest_tensor->dims->size; ++i) {
-      tensor_dest_data_size *= dest_tensor->dims->data[i];
-    }
-    for (int i = 0; i < max_precision_tensor->dims->size; ++i) {
-      max_precision_data_size *= max_precision_tensor->dims->data[i];
-    }
-    for (int i = 0; i < min_precision_tensor->dims->size; ++i) {
-      min_precision_data_size *= min_precision_tensor->dims->data[i];
-    }
-    // Need to drop padding data before merge if it's not fit with destination
-    // tensor. Drop minimum precision data because it is dequantized and might
-    // drop accuracy.
-
-    if ((min_tensor_ht + max_tensor_ht) != dest_ht) {
-      float drop_height = ((min_tensor_ht + max_tensor_ht) - dest_ht);
-      int dropped_max_data_size =
-          (max_precision_data_size + min_precision_data_size) -
-          tensor_dest_data_size;
-      max_precision_data_size -= dropped_max_data_size;
-      if (drop_height < 0) {
-        std::cout << "Wrong drop in HW merging ERROR on graph"
+    if (min_precision_tensor->type == kTfLiteUInt8 ||
+        min_precision_tensor->type == kTfLiteInt8) {
+      dequantized_buffer = (float*)DequantizeGivenTensorWithReference(
+          min_precision_tensor, dequant_reference_tensor);
+      if (dequantized_buffer == nullptr) {
+        std::cout << "DeQuantizeGivenTensor returned nullptr ERROR"
                   << "\n";
-        std::cout << "min sub: " << min_precision_subgraph->GetGraphid()
-                  << " h: " << min_tensor_ht
-                  << " max sub: " << max_precision_subgraph->GetGraphid()
-                  << " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
         return kTfLiteError;
       }
-      memcpy(data_dest, data_max, sizeof(float) * max_precision_data_size);
-      memcpy(data_dest + max_precision_data_size, data_min,
-             sizeof(float) * (tensor_dest_data_size - max_precision_data_size));
-    } else {  // No need to drop (fits with destination tensor).
-      memcpy(data_dest, data_max, sizeof(float) * max_precision_data_size);
-      memcpy(data_dest + max_precision_data_size, data_min,
-             sizeof(float) * min_precision_data_size);
+    }
+    // minimum precision side data buffer.
+    float* data_min;
+    if (dequantized_buffer != nullptr) {
+      data_min = dequantized_buffer;
+    } else {
+      data_min = (float*)min_precision_tensor->data.data;
+    }
+    // max precision side data buffer.
+    float* data_max = (float*)max_precision_tensor->data.data;
+
+    // destination buffer.
+    float* data_dest = (float*)dest_tensor->data.data;
+
+    // check dims
+    if (partitioned_type == PartitioningType::CHANNEL_PARTITIONING) {
+      // Merge CW-partitioned data
+      int dest_ch, min_tensor_ch, max_tensor_ch;
+      dest_ch = dest_tensor->dims->data[3];
+      min_tensor_ch = min_precision_tensor->dims->data[3];
+      max_tensor_ch = max_precision_tensor->dims->data[3];
+      // std::cout << "min_tensor_ch " << min_tensor_ch << " max_tensor_ch " <<
+      // max_tensor_ch << "\n";
+      if ((min_tensor_ch + max_tensor_ch) != dest_ch) {
+        std::cout << "Tensor dim [OCH] min_prec + max_prec != dest ERROR"
+                  << "\n";
+        return kTfLiteError;
+      }
+      int tensor_data_size = 1;
+      for (int i = 0; i < dest_tensor->dims->size; ++i) {
+        tensor_data_size *= dest_tensor->dims->data[i];
+      }
+      // Note : max pricision side is front channel.
+      int tensor_data_per_ch = tensor_data_size / dest_ch;
+      for (int i = 0; i < tensor_data_per_ch;
+          ++i) {  // copy minimum precision side data
+        memcpy(data_dest + (dest_ch * i), data_max + (max_tensor_ch * i),
+              max_tensor_ch * sizeof(float));
+      }
+
+      for (int i = 0; i < tensor_data_per_ch;
+          ++i) {  // copy minimum precision side data
+        memcpy(data_dest + max_tensor_ch + (dest_ch * i),
+              data_min + (min_tensor_ch * i), min_tensor_ch * sizeof(float));
+      }
+
+    } else if (partitioned_type ==
+              PartitioningType::HEIGHT_PARTITIONING) {  // Merge HW-partitioned
+                                                        // data
+      
+      int dest_ht = dest_tensor->dims->data[1];
+      int min_tensor_ht = min_precision_tensor_dim->data[1];
+      int max_tensor_ht = max_precision_tensor_dim->data[1];
+      int tensor_dest_data_size = 1;
+      int min_precision_data_size = 1;
+      int max_precision_data_size = 1;
+
+      // Calculate data size to copy.
+      for (int i = 0; i < dest_tensor->dims->size; ++i) {
+        tensor_dest_data_size *= dest_tensor->dims->data[i];
+      }
+      for (int i = 0; i < max_precision_tensor->dims->size; ++i) {
+        max_precision_data_size *= max_precision_tensor->dims->data[i];
+      }
+      for (int i = 0; i < min_precision_tensor->dims->size; ++i) {
+        min_precision_data_size *= min_precision_tensor->dims->data[i];
+      }
+      // Need to drop padding data before merge if it's not fit with destination
+      // tensor. Drop minimum precision data because it is dequantized and might
+      // drop accuracy.
+
+      if ((min_tensor_ht + max_tensor_ht) != dest_ht) {
+        float drop_height = ((min_tensor_ht + max_tensor_ht) - dest_ht);
+        int dropped_max_data_size =
+            (max_precision_data_size + min_precision_data_size) -
+            tensor_dest_data_size;
+        max_precision_data_size -= dropped_max_data_size;
+        if (drop_height < 0) {
+          std::cout << "Wrong drop in HW merging ERROR on graph"
+                    << "\n";
+          std::cout << "min sub: " << min_precision_subgraph->GetGraphid()
+                    << " h: " << min_tensor_ht
+                    << " max sub: " << max_precision_subgraph->GetGraphid()
+                    << " h: " << max_tensor_ht << " dest: " << dest_ht << "\n";
+          return kTfLiteError;
+        }
+        memcpy(data_dest, data_max, sizeof(float) * max_precision_data_size);
+        memcpy(data_dest + max_precision_data_size, data_min,
+              sizeof(float) * (tensor_dest_data_size - max_precision_data_size));
+      } else {  // No need to drop (fits with destination tensor).
+        memcpy(data_dest, data_max, sizeof(float) * max_precision_data_size);
+        memcpy(data_dest + max_precision_data_size, data_min,
+              sizeof(float) * min_precision_data_size);
+      }
     }
   }
 #ifdef debug_print
