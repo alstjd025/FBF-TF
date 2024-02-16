@@ -1033,6 +1033,15 @@ TfLiteStatus TfLiteRuntime::Invoke() {
   temp_subgraph->SetResourceType(ResourceType::CO_GPU);
 #endif
 
+#ifdef lanenet_branch
+  Subgraph* temp_subgraph = interpreter->subgraph_id(4);
+  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
+
+  temp_subgraph = interpreter->subgraph_id(5);
+  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
+#endif
+
+
 #ifdef yolo_branch_only
   Subgraph* temp_subgraph = interpreter->subgraph_id(2);
   temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
@@ -1126,6 +1135,13 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
       }
 #endif
+#ifdef lanenet_branch
+      if(co_subgraph_id == 4){
+        subgraph = interpreter->subgraph_id(co_subgraph_id);
+      }else{
+        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
+      }
+#endif
 #ifdef yolo_branch_only
       if(co_subgraph_id == 2){
         subgraph = interpreter->subgraph_id(co_subgraph_id);
@@ -1133,7 +1149,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
       }
 #endif
-#if !defined (yolo_branch) && !defined (yolo_branch_only)
+#if !defined (yolo_branch) && !defined (yolo_branch_only) && !defined(lanenet_branch)
       subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
 #endif 
       if (main_execution_graph != nullptr) {
@@ -1285,6 +1301,13 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         if (subgraph_id == 7){ // Hardcoded part for yolo.
           co_subgraph_id = 7;
           subgraph_id = 8;
+        }
+#endif // test code for branch execution.
+#ifdef lanenet_branch // test code for branch execution.
+        // Get sub subgraph id to invoke if exists.
+        if (subgraph_id == 4){ // Hardcoded part for yolo.
+          co_subgraph_id = 4;
+          subgraph_id = 5;
         }
 #endif // test code for branch execution.
 #ifdef yolo_branch_only
