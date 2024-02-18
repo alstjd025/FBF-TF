@@ -7,7 +7,7 @@
 #define partitioning_profile
 // #define yolo_branch
 // #define yolo_branch_only
-#define lanenet_branch
+// #define lanenet_branch
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -128,6 +128,8 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     model_type = MODEL_TYPE::YOLO;
   } else if (type == INPUT_TYPE::IMAGENET224) {
     model_type = MODEL_TYPE::MOBILENET;
+  } else if (type == INPUT_TYPE::IMAGENET256) {
+    model_type = MODEL_TYPE::MOVENET;
   } else if (type == INPUT_TYPE::IMAGENET300) {
     model_type = MODEL_TYPE::EFFICIENTNET;
   } else if (type == INPUT_TYPE::LANENET_FRAME) {
@@ -860,6 +862,34 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
         }
         break;
       case INPUT_TYPE::IMAGENET224:
+        for (int i = 0; i < h; i++) {    // row
+          for (int j = 0; j < w; j++) {  // col
+            cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            *(input_pointer + i * w * 3 + j * 3) = ((float)pixel[0]) / 255.0;
+            *(input_pointer + i * w * 3 + j * 3 + 1) =
+                ((float)pixel[1]) / 255.0;
+            *(input_pointer + i * w * 3 + j * 3 + 2) =
+                ((float)pixel[2]) / 255.0;
+          }
+        }
+        if (use_two_interpreter) {
+          auto input_pointer_sub = (float*)input_tensor_sub->data.data;
+          int h = input_tensor_sub->dims->data[1];
+          int w = input_tensor_sub->dims->data[2];
+          for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+              cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
+              *(input_pointer_sub + i * w * 3 + j * 3) =
+                  ((float)pixel[0]) / 255.0;
+              *(input_pointer_sub + i * w * 3 + j * 3 + 1) =
+                  ((float)pixel[1]) / 255.0;
+              *(input_pointer_sub + i * w * 3 + j * 3 + 2) =
+                  ((float)pixel[2]) / 255.0;
+            }
+          }
+        }
+        break;
+      case INPUT_TYPE::IMAGENET256:
         for (int i = 0; i < h; i++) {    // row
           for (int j = 0; j < w; j++) {  // col
             cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);

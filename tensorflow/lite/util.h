@@ -274,6 +274,7 @@ typedef struct ProfileData{
 typedef enum INPUT_TYPE{
   MNIST,
   IMAGENET224,
+  IMAGENET256,
   IMAGENET300,
   IMAGENET416,
   COCO416,
@@ -348,7 +349,8 @@ typedef enum MODEL_TYPE{
   MOBILENET,
   EFFICIENTNET,
   YOLO,
-  LANENET
+  LANENET,
+  MOVENET
 } MODEL_TYPE;
 
 ////////////////////////////////////////////////////////////////////
