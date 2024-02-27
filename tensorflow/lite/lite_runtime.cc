@@ -7,7 +7,7 @@
 #define partitioning_profile
 // #define yolo_branch
 // #define yolo_branch_only
-// #define lanenet_branch
+#define lanenet_branch
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
