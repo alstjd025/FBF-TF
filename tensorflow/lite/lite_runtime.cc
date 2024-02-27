@@ -8,7 +8,7 @@
 // #define yolo_branch
 // #define yolo_branch_only
 //#define lanenet_branch
-
+#define center_branch
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
             << "\n";
@@ -134,6 +134,8 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     model_type = MODEL_TYPE::EFFICIENTNET;
   } else if (type == INPUT_TYPE::LANENET_FRAME) {
     model_type = MODEL_TYPE::LANENET;
+  } else if (type == INPUT_TYPE::CENTER) {
+    model_type = MODEL_TYPE::CENTERNET;
   }
   state = RuntimeState::INITIALIZE;
   uds_runtime_filename = uds_runtime;
@@ -161,7 +163,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
 
-  xnnpack_options.num_threads = 7;
+  xnnpack_options.num_threads = 8;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
   interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
   sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
@@ -1008,6 +1010,34 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
           }
         }
         break;
+      case INPUT_TYPE::CENTER:
+        for (int i = 0; i < h; i++) {    // row
+          for (int j = 0; j < w; j++) {  // col
+            cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
+            *(input_pointer + i * w * 3 + j * 3) = ((float)pixel[0]) / 255.0;
+            *(input_pointer + i * w * 3 + j * 3 + 1) =
+                ((float)pixel[1]) / 255.0;
+            *(input_pointer + i * w * 3 + j * 3 + 2) =
+                ((float)pixel[2]) / 255.0;
+          }
+        }
+        if (use_two_interpreter) {
+          auto input_pointer_sub = (float*)input_tensor_sub->data.data;
+          int h = input_tensor_sub->dims->data[1];
+          int w = input_tensor_sub->dims->data[2];
+          for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+              cv::Vec3b pixel = input.at<cv::Vec3b>(i + (w - h), j);
+              *(input_pointer_sub + i * w * 3 + j * 3) =
+                  ((float)pixel[0]) / 255.0;
+              *(input_pointer_sub + i * w * 3 + j * 3 + 1) =
+                  ((float)pixel[1]) / 255.0;
+              *(input_pointer_sub + i * w * 3 + j * 3 + 2) =
+                  ((float)pixel[2]) / 255.0;
+            }
+          }
+        }
+        break;
       default:
         break;
     }
@@ -1077,6 +1107,14 @@ TfLiteStatus TfLiteRuntime::Invoke() {
   temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
 
   temp_subgraph = interpreter->subgraph_id(3);
+  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
+#endif
+
+#ifdef center_branch
+  Subgraph* temp_subgraph = interpreter->subgraph_id(3);
+  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
+
+  temp_subgraph = interpreter->subgraph_id(4);
   temp_subgraph->SetResourceType(ResourceType::CO_GPU);
 #endif
 
@@ -1179,7 +1217,14 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
       }
 #endif
-#if !defined (yolo_branch) && !defined (yolo_branch_only) && !defined(lanenet_branch)
+#ifdef center_branch
+      if(co_subgraph_id == 3){
+        subgraph = interpreter->subgraph_id(co_subgraph_id);
+      }else{
+        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
+      }
+#endif
+#if !defined (yolo_branch) && !defined (yolo_branch_only) && !defined(lanenet_branch) && !defined(center_branch)
       subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
 #endif 
       if (main_execution_graph != nullptr) {
@@ -1345,6 +1390,13 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         if (subgraph_id == 2){ // Hardcoded part for yolo.
           co_subgraph_id = 2;
           subgraph_id = 3;
+        }
+#endif
+#ifdef center_branch 
+        // Get sub subgraph id to invoke if exists.
+        if (subgraph_id == 3){ // Hardcoded part for yolo.
+          co_subgraph_id = 3;
+          subgraph_id = 4;
         }
 #endif
       bool merged = false;
@@ -1653,6 +1705,30 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
 #endif
 #ifdef yolo_branch
   if(dest_subgraph_ == 9){
+    std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
+    " dest " << dest_subgraph_ <<"\n";
+    if(buffer_tensor != nullptr){
+      free(buffer_tensor->tensor->data.data);
+      free(buffer_tensor->tensor->dims);
+      free(buffer_tensor->tensor);
+      free(buffer_tensor);
+    }
+    buffer_tensor = nullptr;
+    Subgraph* main_dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
+    // Copy from main-subgraph
+    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_main_subgraph, buffer_tensor)
+       != kTfLiteOk){
+      return kTfLiteError;
+    }
+    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_sub_subgraph, buffer_tensor)
+       != kTfLiteOk){
+      return kTfLiteError;
+    }
+    return kTfLiteOk;
+  }
+#endif
+#ifdef center_branch
+  if(dest_subgraph_ == 5){
     std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
     " dest " << dest_subgraph_ <<"\n";
     if(buffer_tensor != nullptr){
