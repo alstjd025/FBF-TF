@@ -7,7 +7,7 @@
 #define partitioning_profile
 // #define yolo_branch
 // #define yolo_branch_only
-#define lanenet_branch
+//#define lanenet_branch
 
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
@@ -161,7 +161,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
 
-  xnnpack_options.num_threads = 6;
+  xnnpack_options.num_threads = 7;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
   interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
   sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
