@@ -494,7 +494,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
     std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
-  //interpreter_->SaveOriginTensorDims (modified_subgraph);
+  interpreter_->SaveOriginTensorDims (modified_subgraph);
   std::cout << "Interpreterbuilder : Registered default job and subgraph" << "\n";
   std::cout << "New Graph id : " << modified_subgraph->GetGraphid() << "\n";
   std::cout << "New Graph model id : " << modified_subgraph->GetModelid() << "\n";

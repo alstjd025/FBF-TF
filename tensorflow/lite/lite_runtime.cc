@@ -7,8 +7,9 @@
 #define partitioning_profile
 // #define yolo_branch
 // #define yolo_branch_only
-//#define lanenet_branch
-#define center_branch
+// #define lanenet_branch
+// #define center_branch
+
 void PrintTensor(TfLiteTensor& tensor) {
   std::cout << "[Print Tensor]"
             << "\n";
@@ -134,7 +135,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     model_type = MODEL_TYPE::EFFICIENTNET;
   } else if (type == INPUT_TYPE::LANENET_FRAME) {
     model_type = MODEL_TYPE::LANENET;
-  } else if (type == INPUT_TYPE::CENTER) {
+  } else if (type == INPUT_TYPE::CENTERNET_FRAME) {
     model_type = MODEL_TYPE::CENTERNET;
   }
   state = RuntimeState::INITIALIZE;
@@ -1010,7 +1011,7 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
           }
         }
         break;
-      case INPUT_TYPE::CENTER:
+      case INPUT_TYPE::CENTERNET_FRAME:
         for (int i = 0; i < h; i++) {    // row
           for (int j = 0; j < w; j++) {  // col
             cv::Vec3b pixel = input.at<cv::Vec3b>(i, j);
