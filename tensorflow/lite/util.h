@@ -279,6 +279,7 @@ typedef enum INPUT_TYPE{
   IMAGENET416,
   COCO416,
   LANENET_FRAME,
+  CENTERNET_FRAME,
   USER
 }INPUT_TYPE;
 
@@ -350,7 +351,8 @@ typedef enum MODEL_TYPE{
   EFFICIENTNET,
   YOLO,
   LANENET,
-  MOVENET
+  MOVENET,
+  CENTERNET,
 } MODEL_TYPE;
 
 ////////////////////////////////////////////////////////////////////
