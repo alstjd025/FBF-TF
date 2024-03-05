@@ -6,7 +6,7 @@
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
-#define yolo_branch_only
+// #define yolo_branch_only
 // #define lanenet_branch
 // #define center_branch
 
@@ -1820,6 +1820,9 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
   int dequant_reference_tensor_idx = 0;
   */
  for(auto dest_tensor_idx : dest_tensor_indicies){
+  // check if dest tensor is not intermediate data tensor.
+    if(dest_subgraph->tensor(dest_tensor_idx)->allocation_type == kTfLiteMmapRo)
+      continue; // then, continue.
     int min_precision_tensor_idx = dest_tensor_idx;  // for uint model
     int max_precision_tensor_idx = dest_tensor_idx;
     int dequant_reference_tensor_idx = 0;
