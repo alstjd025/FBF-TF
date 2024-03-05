@@ -413,14 +413,18 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
     // Minsung
     // for lanenet test only
     // delete after test!!!!
-    // if(node_subset.nodes.size() == 12){
-    //   std::cout << "set output tensor manually 136 138 141 142" << "\n";
-      // node_subset.output_tensors.clear();
-      // node_subset.output_tensors.push_back(136);
-      // node_subset.output_tensors.push_back(138);
-      // node_subset.output_tensors.push_back(141);
-      // node_subset.output_tensors.push_back(142);
-    // }
+    if(node_subset.output_tensors[0] == 373){ 
+      node_subset.output_tensors.push_back(371);                       
+    }
+    if(node_subset.output_tensors[0] == 331){       
+      node_subset.output_tensors.push_back(408); 
+      node_subset.output_tensors.push_back(328); 
+      // node_subset.output_tensors.push_back(323);                           
+      // node_subset.output_tensors.push_back(324);   
+    } 
+    if(node_subset.output_tensors[0] == 509){       
+      node_subset.output_tensors.push_back(497);                           
+    }
 
     // Subsets claimed by the delegate should have a "macro" op created, the
     // other node_subsets (kTfNonPartition) just have their nodes added back to

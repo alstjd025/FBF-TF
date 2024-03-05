@@ -87,7 +87,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
       .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .experimental_flags = 1,
-      .max_delegated_partitions = 1000,
+      .max_delegated_partitions = 1,
   };
   MyDelegate = TfLiteGpuDelegateV2Create(&options);
   // interpreter->RegisterDelegate(MyDelegate);
@@ -157,7 +157,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
       .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .experimental_flags = 1,
-      .max_delegated_partitions = 1000,
+      .max_delegated_partitions = 1,
   };
   gpu_delegate = TfLiteGpuDelegateV2Create(&options);
 
@@ -1730,8 +1730,6 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
 #endif
 #ifdef center_branch
   if(dest_subgraph_ == 5){
-    std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
-    " dest " << dest_subgraph_ <<"\n";
     if(buffer_tensor != nullptr){
       free(buffer_tensor->tensor->data.data);
       free(buffer_tensor->tensor->dims);

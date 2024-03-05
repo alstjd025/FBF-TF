@@ -2853,7 +2853,9 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     // CODE FOR FALLBACK TEST
     if (context->experimental_flag) {
       if (registration->builtin_code == 0 ||
-          registration->builtin_code == 18) {  // check if ADD or mullayer
+          registration->builtin_code == 18 ||
+          registration->builtin_code == 82 ||
+          registration->builtin_code == 83) {  // check if ADD or mullayer
         // if(false){ //check if ADD layer
         printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
         return false;
