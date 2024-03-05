@@ -52,16 +52,6 @@ int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
   return v;
 }
 
-void TfScheduler::SysMonitor() {
-  std::cout << "[Scheduler] System monitoring started"
-            << "\n";
-  // std::thread cpu_monitor_daemon, gpu_monitor_daemon;
-  // cpu_monitor_daemon = std::thread(&GetCPUUtilization, cpu_util);
-  // gpu_monitor_daemon = std::thread(&GetGPUUtilization, gpu_util);
-  // cpu_monitor_daemon.join();
-  // gpu_monitor_daemon.join();
-}
-
 void TfScheduler::Work() {
   monitor = new LiteSysMonitor();
   bool run = true;
@@ -264,6 +254,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   // NEED_REFACTOR (02634) : Must change to use obvious resource type.
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
+  std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
   if (gpu_util > gpu_thresh && cpu_util < cpu_thresh) {
     // Use CPU
     next_resource_plan = TF_P_PLAN_CPU;

@@ -230,6 +230,12 @@ typedef enum ResourceType{
 // #define TF_P_PLAN_CPU_XNN    3
 // #define TF_P_PLAN_CO_E_XNN   4
 
+typedef enum DelegateType{
+  XNN_DELEGATE,
+  GPU_DELEGATE,
+  NO_DELEGATE,
+} DelegateType;
+
 typedef enum RuntimeState{
   INITIALIZE,
   NEED_PROFILE,
@@ -354,6 +360,12 @@ typedef enum MODEL_TYPE{
   MOVENET,
   CENTERNET,
 } MODEL_TYPE;
+
+typedef struct DelegateWrapper{
+  TfLiteDelegate* delegate;
+  DelegateType delegate_type = DelegateType::NO_DELEGATE;
+  int prefered_utilization = 0;
+} DelegateWrapper;
 
 ////////////////////////////////////////////////////////////////////
 }  // namespace tflite

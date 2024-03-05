@@ -6,7 +6,7 @@
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
-// #define yolo_branch_only
+#define yolo_branch_only
 // #define lanenet_branch
 // #define center_branch
 
@@ -146,7 +146,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   // use Class Delegation
   TfLiteDelegate* gpu_delegate = NULL;
   TfLiteDelegate* xnn_delegate = NULL;
-  TfLiteDelegate* co_xnn_delegate = NULL;
+  
   int32_t num_threads;
 
   const TfLiteGpuDelegateOptionsV2 options = {
@@ -161,13 +161,55 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   };
   gpu_delegate = TfLiteGpuDelegateV2Create(&options);
 
+  DelegateWrapper* new_delegate = new DelegateWrapper;
+  new_delegate->delegate = gpu_delegate;
+  new_delegate->delegate_type = DelegateType::GPU_DELEGATE;
+  interpreter->RegisterDelegate(new_delegate);
+
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
-
-  xnnpack_options.num_threads = 8;
+  xnnpack_options.num_threads = 4;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
-  interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
-  sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
+  new_delegate = new DelegateWrapper;
+  new_delegate->delegate = xnn_delegate;
+  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
+  new_delegate->prefered_utilization = 0;
+  interpreter->RegisterDelegate(new_delegate);
+  sub_interpreter->RegisterDelegate(new_delegate);
+
+  TfLiteXNNPackDelegateOptions xnnpack_options_ =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options_.num_threads = 3;
+  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options_);
+  new_delegate = new DelegateWrapper;
+  new_delegate->prefered_utilization = 3;
+  new_delegate->delegate = xnn_delegate;
+  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
+  interpreter->RegisterDelegate(new_delegate);
+  sub_interpreter->RegisterDelegate(new_delegate);
+
+  TfLiteXNNPackDelegateOptions xnnpack_options__ =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options__.num_threads = 2;
+  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options__);
+  new_delegate = new DelegateWrapper;
+  new_delegate->prefered_utilization = 4;
+  new_delegate->delegate = xnn_delegate;
+  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
+  interpreter->RegisterDelegate(new_delegate);
+  sub_interpreter->RegisterDelegate(new_delegate);
+
+  TfLiteXNNPackDelegateOptions xnnpack_options___ =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options___.num_threads = 1;
+  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options___);
+  new_delegate = new DelegateWrapper;
+  new_delegate->prefered_utilization = 5;
+  new_delegate->delegate = xnn_delegate;
+  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
+  interpreter->RegisterDelegate(new_delegate);
+  sub_interpreter->RegisterDelegate(new_delegate);
+
   if (InitializeUDS() != kTfLiteOk) {
     std::cout << "UDS socker init ERROR"
               << "\n";
@@ -1682,8 +1724,8 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
     TfLiteMergeTensor* buffer_tensor) {
 #ifdef yolo_branch_only
   if(dest_subgraph_ == 4){
-    std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
-    " dest " << dest_subgraph_ <<"\n";
+    // std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
+    // " dest " << dest_subgraph_ <<"\n";
     if(buffer_tensor != nullptr){
       free(buffer_tensor->tensor->data.data);
       free(buffer_tensor->tensor->dims);

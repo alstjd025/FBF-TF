@@ -186,7 +186,7 @@ class Subgraph {
 
   // Minsung
   // Pushs partitioning ratio to partitioning_ratio_vector of current subgraph.
-  void PushPartitioningRatio(int r) { partitioning_ratio = r; }
+  void PushExternalParameter(int r) { partitioning_ratio = r; }
 
   // Minsung
   // Returns partitioning ratio vector of current subgraph.

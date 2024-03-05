@@ -44,7 +44,11 @@ namespace tflite{
     int partitioning_ratio = -1;
 
     /* rank of subgraph in 'graph' (need for maintaining the graph struct)*/
-    int rank = -1;   
+    int rank = -1;
+
+    int maximum_gpu_utilization = 0;   
+    int maximum_cpu_utilization = 0;   
+    float average_latency = 0;
 
     subgraph_node* right =  nullptr;
     subgraph_node* left =  nullptr;
@@ -76,8 +80,6 @@ namespace tflite{
       void PrintRuntimeStates();
 
       void Work();
-
-      void SysMonitor();
 
       void OpenPartitioningParams();
 

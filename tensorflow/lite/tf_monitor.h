@@ -38,7 +38,7 @@ class LiteSysMonitor{
 
 
     struct cpuusage GetCPUusageFromCpustat(struct cpustat s);
-    float CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev);
+    long double CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev);
 
     std::ofstream log_File; 
   private:

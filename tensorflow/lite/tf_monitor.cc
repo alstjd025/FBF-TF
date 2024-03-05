@@ -1,6 +1,6 @@
 #include "tensorflow/lite/tf_monitor.h"
 #define nvidia
-#define MONITORING_PERIOD_MS 5 // < 5 is not stable.
+#define MONITORING_PERIOD_MS 100 // < 5 is not stable.
 
 namespace tflite{
 
@@ -58,13 +58,13 @@ struct cpuusage LiteSysMonitor::GetCPUusageFromCpustat(struct cpustat s) {
 
 
 
-float LiteSysMonitor::CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev) {
+long double LiteSysMonitor::CpuUsageGetDiff(struct cpuusage now, struct cpuusage prev) {
   // the number of ticks that passed by since the last measurement.
   const unsigned long long workingtime = now.workingtime - prev.workingtime;
   const unsigned long long alltime = workingtime + (now.idletime - prev.idletime);
   // they are divided by themselves - so the unit does not matter.
   // printf("CPU Usage: %.0Lf%%\n", (long double)workingtime / alltime * 100.0L);
-  return (float)(workingtime / alltime * 100.0L);
+  return (long double)workingtime / alltime * 100.0L;
 }
 
 // Simply parses /proc/stat.
@@ -92,7 +92,7 @@ void LiteSysMonitor::GetCPUUtilization() {
       if (strcmp(c.name, "cpu") == 0) {
         struct cpuusage now = GetCPUusageFromCpustat(c);
         cpu_util_ratio = CpuUsageGetDiff(now, prev);
-        // std::cout << "CPU Usage: " << cpu_util_ratio << "% \n";
+        // std::cout << "CPU Usage: " << (int)cpu_util_ratio << "% \n";
         prev = now;
         break;
       }
