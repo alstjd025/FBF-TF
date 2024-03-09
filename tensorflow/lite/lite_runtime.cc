@@ -157,14 +157,14 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
       .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .experimental_flags = 1,
-      .max_delegated_partitions = 1,
+      .max_delegated_partitions = 1000,
   };
   gpu_delegate = TfLiteGpuDelegateV2Create(&options);
 
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
 
-  xnnpack_options.num_threads = 8;
+  xnnpack_options.num_threads = 4;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
   interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);
   sub_interpreter->RegisterDelegate(gpu_delegate, xnn_delegate);

@@ -409,23 +409,32 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
     std::cout << "\n";
   }
 
-  for (auto& node_subset : node_subsets) {
-    // Minsung
-    // for lanenet test only
-    // delete after test!!!!
+  for (auto& node_subset : node_subsets) {  
+    // output_tensor for final output
     if(node_subset.output_tensors[0] == 373){ 
       node_subset.output_tensors.push_back(371);                       
     }
     if(node_subset.output_tensors[0] == 331){       
       node_subset.output_tensors.push_back(408); 
-      node_subset.output_tensors.push_back(328); 
-      // node_subset.output_tensors.push_back(323);                           
-      // node_subset.output_tensors.push_back(324);   
+      node_subset.output_tensors.push_back(328);             
     } 
     if(node_subset.output_tensors[0] == 509){       
       node_subset.output_tensors.push_back(497);                           
     }
-
+    // output_tensor for residual connection(when branch execution)
+    if(node_subset.output_tensors[0] == 464){                                                          
+      node_subset.output_tensors.push_back(308);          
+      node_subset.output_tensors.push_back(311);                  
+    }
+    if(node_subset.output_tensors[0] == 500){             
+      node_subset.output_tensors.push_back(314);                                   
+      node_subset.output_tensors.push_back(411);                                         
+    }
+    // output_tensor for backbone residual connection
+    // if(node_subset.output_tensors[0] == 238){                                        
+    //   node_subset.output_tensors.push_back(250);                           
+    //   node_subset.output_tensors.push_back(266);                           
+    // }
     // Subsets claimed by the delegate should have a "macro" op created, the
     // other node_subsets (kTfNonPartition) just have their nodes added back to
     // the execution plan.

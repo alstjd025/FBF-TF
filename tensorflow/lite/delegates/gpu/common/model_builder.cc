@@ -2850,14 +2850,21 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
           std::string* unsupported_details) -> bool {
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
-    // CODE FOR FALLBACK TEST
+    // CODE FOR FALLBACK TEST    
+    context->experimental_flag = true;
     if (context->experimental_flag) {
       if (registration->builtin_code == 0 ||
-          registration->builtin_code == 18 ||
-          registration->builtin_code == 82 ||
-          registration->builtin_code == 83) {  // check if ADD or mullayer
+          registration->builtin_code == 18) {  // check if ADD or mullayer
         // if(false){ //check if ADD layer
         printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
+        return false;
+      }
+      if (registration->builtin_code == 82 ||
+          registration->builtin_code == 83 ||
+          registration->builtin_code == 39 ||
+          registration->builtin_code == 59 ||
+          registration->builtin_code == 22) {  // check if ADD or mullayer        
+        printf("FOUND Reduce_Max, PACK, TRANSPOSE, NEG, RESHAPE\n");
         return false;
       }
     }
