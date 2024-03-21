@@ -850,6 +850,9 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
   for(auto new_subgraph : new_subgraphs){
     // sj
     // To check whether subgraphs need delegation
+    double response_time = 0;
+    struct timespec begin, end; 
+    clock_gettime(CLOCK_MONOTONIC, &begin);
     std::cout << "resource type : " << new_subgraph->GetResourceType() << "\n";
     if(new_subgraph->GetResourceType() == ResourceType::GPU ||
       new_subgraph->GetResourceType() == ResourceType::CO_GPU ||
@@ -865,11 +868,16 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
         new_subgraph->SetExperimentalFlagFalse();
         std::cout << "SetExperimentalFlagFalse" << "\n";
       }
+
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){
           std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
                   << " Delegate" << "\n";
       }
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      printf("Delegate %.6f ", response_time);
+      response_time = (end.tv_sec - begin.tv_sec) +
+                ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
     }
   }
   return kTfLiteOk;

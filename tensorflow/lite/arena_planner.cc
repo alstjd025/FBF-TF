@@ -353,4 +353,12 @@ TfLiteStatus ArenaPlanner::ResolveTensorAllocation(int tensor_index) {
   return kTfLiteOk;
 }
 
+size_t ArenaPlanner::GetRWAllocationSize(){
+  return arena_.GetBufferSize();
+}
+
+size_t ArenaPlanner::GetPersistentAllocationSize(){
+  return persistent_arena_.GetBufferSize();
+}
+
 }  // namespace tflite

@@ -576,6 +576,10 @@ class Subgraph {
   // Return experimental flag of context (for delegate)
   bool ReturnExperimentalFlag() { return context_.experimental_flag; }
 
+  size_t GetArenaRWBufferSize() { return memory_planner_.get()->GetRWAllocationSize(); } 
+  size_t GetArenaPersistentBufferSize() { 
+      return memory_planner_.get()->GetPersistentAllocationSize(); } 
+
  private:
   // SubgraphAwareProfiler wraps an actual TFLite profiler, such as a
   // BufferedProfiler instance, and takes care of event profiling/tracing in a

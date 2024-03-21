@@ -1,0 +1,109 @@
+Interpreter has 8 subgraphs
+======================================
+Subgraph ID 1 has 237 tensors and 9 nodes
+Node   0 PAD Tensor  63    1140912 bytes ( 1.1 MB)  1 228 417 3
+Node   1 CONV_2D Tensor  64    3008512 bytes ( 2.9 MB)  1 113 208 32
+Node   2 LEAKY_RELU Tensor  65    3008512 bytes ( 2.9 MB)  1 113 208 32
+Node   3 PAD Tensor  66    3049728 bytes ( 2.9 MB)  1 114 209 32
+Node   4 CONV_2D Tensor  67    1490944 bytes ( 1.4 MB)  1 56 104 64
+Node   5 LEAKY_RELU Tensor  68    1490944 bytes ( 1.4 MB)  1 56 104 64
+Node   6 CONV_2D Tensor  69    1490944 bytes ( 1.4 MB)  1 56 104 64
+Node   7 LEAKY_RELU Tensor  70    1490944 bytes ( 1.4 MB)  1 56 104 64
+Node   8 TfLiteGpuDelegateV2 Tensor  70    1490944 bytes ( 1.4 MB)  1 56 104 64
+
+======================================
+Subgraph ID 2 has 234 tensors and 1 nodes
+Node   0 SPLIT Tensor  71    1384448 bytes ( 1.3 MB)  1 104 104 32
+Tensor  72    1384448 bytes ( 1.3 MB)  1 104 104 32
+
+======================================
+Subgraph ID 3 has 237 tensors and 12 nodes
+Node   0 CONV_2D Tensor  73    1384448 bytes ( 1.3 MB)  1 104 104 32
+Node   1 LEAKY_RELU Tensor  74    1384448 bytes ( 1.3 MB)  1 104 104 32
+Node   2 CONV_2D Tensor  75    1384448 bytes ( 1.3 MB)  1 104 104 32
+Node   3 LEAKY_RELU Tensor  76    1384448 bytes ( 1.3 MB)  1 104 104 32
+Node   4 CONCATENATION Tensor  77    2768896 bytes ( 2.6 MB)  1 104 104 64
+Node   5 CONV_2D Tensor  78    2768896 bytes ( 2.6 MB)  1 104 104 64
+Node   6 LEAKY_RELU Tensor  79    2768896 bytes ( 2.6 MB)  1 104 104 64
+Node   7 CONCATENATION Tensor  80    5537792 bytes ( 5.3 MB)  1 104 104 128
+Node   8 MAX_POOL_2D Tensor  81    1384448 bytes ( 1.3 MB)  1 52 52 128
+Node   9 CONV_2D Tensor  82    1384448 bytes ( 1.3 MB)  1 52 52 128
+Node  10 LEAKY_RELU Tensor  83    1384448 bytes ( 1.3 MB)  1 52 52 128
+Node  11 TfLiteGpuDelegateV2 Tensor  83    1384448 bytes ( 1.3 MB)  1 52 52 128
+ 
+======================================
+Subgraph ID 4 has 234 tensors and 1 nodes
+Node   0 SPLIT Tensor  84     692224 bytes ( 0.7 MB)  1 52 52 64
+Tensor  85     692224 bytes ( 0.7 MB)  1 52 52 64
+
+======================================
+Subgraph ID 5 has 237 tensors and 12 nodes
+Node   0 CONV_2D Tensor  86     692224 bytes ( 0.7 MB)  1 52 52 64
+Node   1 LEAKY_RELU Tensor  87     692224 bytes ( 0.7 MB)  1 52 52 64
+Node   2 CONV_2D Tensor  88     692224 bytes ( 0.7 MB)  1 52 52 64
+Node   3 LEAKY_RELU Tensor  89     692224 bytes ( 0.7 MB)  1 52 52 64
+Node   4 CONCATENATION Tensor  90    1384448 bytes ( 1.3 MB)  1 52 52 128
+Node   5 CONV_2D Tensor  91    1384448 bytes ( 1.3 MB)  1 52 52 128
+Node   6 LEAKY_RELU Tensor  92    1384448 bytes ( 1.3 MB)  1 52 52 128
+Node   7 CONCATENATION Tensor  93    2768896 bytes ( 2.6 MB)  1 52 52 256
+Node   8 MAX_POOL_2D Tensor  94     692224 bytes ( 0.7 MB)  1 26 26 256
+Node   9 CONV_2D Tensor  95     692224 bytes ( 0.7 MB)  1 26 26 256
+Node  10 LEAKY_RELU Tensor  96     692224 bytes ( 0.7 MB)  1 26 26 256
+Node  11 TfLiteGpuDelegateV2 Tensor  96     692224 bytes ( 0.7 MB)  1 26 26 256
+
+======================================
+Subgraph ID 6 has 234 tensors and 1 nodes
+Node   0 SPLIT Tensor  97     346112 bytes ( 0.3 MB)  1 26 26 128
+Tensor  98     346112 bytes ( 0.3 MB)  1 26 26 128
+
+======================================
+Subgraph ID 7 has 239 tensors and 23 nodes
+Node   0 CONV_2D Tensor  99     346112 bytes ( 0.3 MB)  1 26 26 128
+Node   1 LEAKY_RELU Tensor 100     346112 bytes ( 0.3 MB)  1 26 26 128
+Node   2 CONV_2D Tensor 101     346112 bytes ( 0.3 MB)  1 26 26 128
+Node   3 LEAKY_RELU Tensor 102     346112 bytes ( 0.3 MB)  1 26 26 128
+Node   4 CONCATENATION Tensor 103     692224 bytes ( 0.7 MB)  1 26 26 256
+Node   5 CONV_2D Tensor 104     692224 bytes ( 0.7 MB)  1 26 26 256
+Node   6 LEAKY_RELU Tensor 105     692224 bytes ( 0.7 MB)  1 26 26 256
+Node   7 CONCATENATION Tensor 106    1384448 bytes ( 1.3 MB)  1 26 26 512
+Node   8 MAX_POOL_2D Tensor 107     346112 bytes ( 0.3 MB)  1 13 13 512
+Node   9 CONV_2D Tensor 108     346112 bytes ( 0.3 MB)  1 13 13 512
+Node  10 LEAKY_RELU Tensor 109     346112 bytes ( 0.3 MB)  1 13 13 512
+Node  11 CONV_2D Tensor 110     173056 bytes ( 0.2 MB)  1 13 13 256
+Node  12 LEAKY_RELU Tensor 111     173056 bytes ( 0.2 MB)  1 13 13 256
+Node  13 CONV_2D Tensor 112     346112 bytes ( 0.3 MB)  1 13 13 512
+Node  14 LEAKY_RELU Tensor 113     346112 bytes ( 0.3 MB)  1 13 13 512
+Node  15 CONV_2D Tensor 114      86528 bytes ( 0.1 MB)  1 13 13 128
+Node  16 LEAKY_RELU Tensor 115      86528 bytes ( 0.1 MB)  1 13 13 128
+Node  17 RESIZE_BILINEAR Tensor 116     346112 bytes ( 0.3 MB)  1 26 26 128 
+Node  18 CONCATENATION Tensor 117    1038336 bytes ( 1.0 MB)  1 26 26 384
+Node  19 CONV_2D Tensor 118     692224 bytes ( 0.7 MB)  1 26 26 256
+Node  20 LEAKY_RELU Tensor 119     692224 bytes ( 0.7 MB)  1 26 26 256
+Node  21 CONV_2D Tensor 120     172380 bytes ( 0.2 MB)  1 13 13 255
+Node  22 TfLiteGpuDelegateV2 Tensor 119     692224 bytes ( 0.7 MB)  1 26 26 256
+Tensor 120     172380 bytes ( 0.2 MB)  1 13 13 255
+
+======================================
+
+
+
+
+
+
+
+
+
+
+
+
+Interpreter has 1 subgraphs
+======================================
+Subgraph ID 1 has 237 tensors and 8 nodes
+Node   0 PAD Tensor  63    1100880 bytes ( 1.0 MB)  1 220 417 3
+Node   1 CONV_2D Tensor  64    2902016 bytes ( 2.8 MB)  1 109 208 32
+Node   2 LEAKY_RELU Tensor  65    2902016 bytes ( 2.8 MB)  1 109 208 32
+Node   3 PAD Tensor  66    2942720 bytes ( 2.8 MB)  1 110 209 32
+Node   4 CONV_2D Tensor  67    1437696 bytes ( 1.4 MB)  1 54 104 64
+Node   5 LEAKY_RELU Tensor  68    1437696 bytes ( 1.4 MB)  1 54 104 64
+Node   6 CONV_2D Tensor  69    1437696 bytes ( 1.4 MB)  1 54 104 64
+Node   7 LEAKY_RELU Tensor  70    1437696 bytes ( 1.4 MB)  1 54 104 64

@@ -59,6 +59,11 @@ class MemoryPlanner {
 
   // Returns true if the non-persistent memory is available.
   virtual bool HasNonPersistentMemory() = 0;
+
+  // Minsung
+  // Returns allocation size
+  virtual size_t GetRWAllocationSize() = 0;
+  virtual size_t GetPersistentAllocationSize() = 0;
 };
 
 }  // namespace tflite

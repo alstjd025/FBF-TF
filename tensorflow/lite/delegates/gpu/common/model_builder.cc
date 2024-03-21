@@ -2855,7 +2855,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
       if (registration->builtin_code == 0 ||
           registration->builtin_code == 18) {  // check if ADD or mullayer
         // if(false){ //check if ADD layer
-        printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
+        // printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
         return false;
       }
     }
@@ -2888,11 +2888,11 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
   std::vector<int> ops_to_replace =
       partition_helper.GetNodesOfFirstNLargestPartitions(
           max_delegated_partitions);
-  std::cout << "ops to replace : ";
-  for (int i = 0; i < ops_to_replace.size(); ++i) {
-    std::cout << ops_to_replace[i] << " ";
-  }
-  std::cout << "\n";
+  // std::cout << "ops to replace : ";
+  // for (int i = 0; i < ops_to_replace.size(); ++i) {
+  //   std::cout << ops_to_replace[i] << " ";
+  // }
+  // std::cout << "\n";
   if (!unsupported_nodes_info.empty()) {
     std::string unsupported = absl::StrJoin(unsupported_nodes_info, "\n");
     std::string error_message = absl::StrCat(

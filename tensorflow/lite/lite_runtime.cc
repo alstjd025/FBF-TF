@@ -160,12 +160,10 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
       .max_delegated_partitions = 1000,
   };
   gpu_delegate = TfLiteGpuDelegateV2Create(&options);
-
   DelegateWrapper* new_delegate = new DelegateWrapper;
   new_delegate->delegate = gpu_delegate;
   new_delegate->delegate_type = DelegateType::GPU_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
-
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
   xnnpack_options.num_threads = 4;

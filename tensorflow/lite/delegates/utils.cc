@@ -83,13 +83,13 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
                      right->nodes_to_replace->size;
             });
 
-  std::cout << "Partitions for gpu delegate" << "\n";
-  for(int i=0; i<sorted_partitions.size(); ++i){
-    for(int j=0; j<sorted_partitions[i]->nodes_to_replace->size; ++j){
-      std::cout << sorted_partitions[i]->nodes_to_replace->data[j] << " ";
-    }
-    std::cout << "\n";
-  }
+  // std::cout << "Partitions for gpu delegate" << "\n";
+  // for(int i=0; i<sorted_partitions.size(); ++i){
+  //   for(int j=0; j<sorted_partitions[i]->nodes_to_replace->size; ++j){
+  //     std::cout << sorted_partitions[i]->nodes_to_replace->data[j] << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
 
   std::vector<TfLiteDelegateParams*> results;
   auto p_it = sorted_partitions.begin();

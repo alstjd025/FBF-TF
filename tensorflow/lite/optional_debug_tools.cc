@@ -247,6 +247,8 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
     int node_size = interpreter->nodes_size(subgraph_id);
     printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
         tensor_size, node_size);
+    printf("RW buffer size : %dbytes \n",interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize());
+    printf("Persistent buffer size : %dbytes \n",interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize());
     printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
     std::cout << "Resource type : " 
           << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";

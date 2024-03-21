@@ -393,21 +393,21 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
       node_subsets.size());
 
   execution_plan_.clear();
-  std::cout << "ReplaceNodes" << "\n";
-  for(auto& node_subset : node_subsets){
-    std::cout << "node subset.size : "<< node_subset.nodes.size() << "\n";
-    std::cout << "nodes included ";
-    for(auto node : node_subset.nodes)
-      std::cout << node << " ";
-    std::cout << "\n" << "outputs ";
-    for(auto output : node_subset.output_tensors)
-      std::cout << output << " ";
-    std::cout << "\n";
-    for(auto node : node_subset.nodes){
-      std::cout << node << " ";
-    }
-    std::cout << "\n";
-  }
+  // std::cout << "ReplaceNodes" << "\n";
+  // for(auto& node_subset : node_subsets){
+  //   std::cout << "node subset.size : "<< node_subset.nodes.size() << "\n";
+  //   std::cout << "nodes included ";
+  //   for(auto node : node_subset.nodes)
+  //     std::cout << node << " ";
+  //   std::cout << "\n" << "outputs ";
+  //   for(auto output : node_subset.output_tensors)
+  //     std::cout << output << " ";
+  //   std::cout << "\n";
+  //   for(auto node : node_subset.nodes){
+  //     std::cout << node << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
 
   for (auto& node_subset : node_subsets) {
     // Minsung
