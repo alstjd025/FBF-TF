@@ -1,6 +1,8 @@
 #include "tensorflow/lite/tf_monitor.h"
 #define nvidia
 #define MONITORING_PERIOD_MS 100 // < 5 is not stable.
+#define Experiment
+
 
 namespace tflite{
 
@@ -69,6 +71,22 @@ long double LiteSysMonitor::CpuUsageGetDiff(struct cpuusage now, struct cpuusage
 
 // Simply parses /proc/stat.
 void LiteSysMonitor::GetCPUUtilization() {
+  #ifdef Experiment
+  while(1){
+    std::ifstream cpu_util;
+    cpu_util.open("cpu_util");
+    if (!cpu_util.is_open()) {
+      std::cout << "CPU util file open error" << "\n";
+      return;
+    }
+    int ratio = 0;
+    cpu_util >> ratio;
+    cpu_util_ratio = float(ratio);
+    cpu_util.close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
+  }
+  #endif
+  #ifndef Experiment
   struct cpuusage prev = {0};
   const int stat = open("/proc/stat", O_RDONLY);
   assert(stat != -1);
@@ -100,9 +118,26 @@ void LiteSysMonitor::GetCPUUtilization() {
     fclose(f);
     std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
   }
+  #endif // !Experiment
 }
 
 void LiteSysMonitor::GetGPUUtilization() {
+  #ifdef Experiment
+  while(1){
+    std::ifstream gpu_util;
+    gpu_util.open(("gpu_util"));
+    if (!gpu_util.is_open()) {
+      std::cout << "GPU util file open error" << "\n";
+      return;
+    }
+    int ratio = 0;
+    gpu_util >> ratio;
+    gpu_util_ratio = float(ratio);
+    gpu_util.close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
+  }
+  #endif
+  #ifndef Experiment
   struct cpuusage prev = {0};
   const int stat = open("/sys/devices/gpu.0/load", O_RDONLY);
   assert(stat != -1);
@@ -127,6 +162,7 @@ void LiteSysMonitor::GetGPUUtilization() {
     fclose(f);
     std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
   }
+  #endif
 }
 
 } // namespace tflite

@@ -173,6 +173,12 @@ namespace tflite{
     size_t addr_size;
     struct sockaddr_un scheduler_addr;
 
+    int first_counter = 0;
+    int second_counter = 0;
+    int third_counter = 0;
+    int fourth_counter = 0;
+    int fifth_counter = 0;
+
     std::vector<runtime_*> runtimes;
     int runtimes_created = 0;
 

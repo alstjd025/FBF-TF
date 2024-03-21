@@ -238,6 +238,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   // case of final subgraph
   if (prev_base_subgraph->right == nullptr) {
+    std::cout << "end" << "\n";
     next_subgraphs_to_invoke.first = -1;
     next_subgraphs_to_invoke.second = -1;
     return next_subgraphs_to_invoke;
@@ -252,27 +253,40 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   next_subgraph_to_invoke = next_base_subgraph;
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.
   // NEED_REFACTOR (02634) : Must change to use obvious resource type.
+  int next_cpu_resource = 0;
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
-  std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
-  if (gpu_util > gpu_thresh && cpu_util < cpu_thresh) {
+  // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
+  if (gpu_util == 0 && cpu_util == 400) {
     // Use CPU
-    next_resource_plan = TF_P_PLAN_CPU;
-  } else if (gpu_util < gpu_thresh && cpu_util > cpu_thresh) {
-    // Use GPU
     next_resource_plan = TF_P_PLAN_GPU;
-  } else if (gpu_util > gpu_thresh && cpu_util > cpu_thresh) {
+    std::cout << "USE GPU" << "\n";
+  } else if (gpu_util == 100 && cpu_util == 0) {
+    // Use GPU
+    next_resource_plan = TF_P_PLAN_CPU_XNN;
+    std::cout << "USE CPU" << "\n";
+  } else if (gpu_util == 100 && cpu_util == 200) {
     // Use Co-execution
-    next_resource_plan = TF_P_PLAN_CO_E;
+    cpu_usage_flag = true;
+    std::cout << "USE CPU200" << "\n";
   } else {
     // base plan
+    cpu_usage_flag = false;
+    std::cout << "USE BASE" << "\n";
     next_resource_plan = next_base_subgraph->resource_type;
   }
+
+  // if(cpu_util > 99){
+  //   next_cpu_resource = 2;
+  // }
 
   // TODO (f85fa) : Fix graph searching, especially in co-execution.
   // Search for matching subgraph.
   while (next_subgraph_to_invoke != nullptr) {
-    if (next_subgraph_to_invoke->resource_type == next_resource_plan) {
+    if(cpu_usage_flag){
+      if(next_subgraph_to_invoke->partitioning_ratio == 2)
+        break;
+    }else if (next_subgraph_to_invoke->resource_type == next_resource_plan) {
       break;
     }
     if (next_subgraph_to_invoke->down != nullptr) {

@@ -700,13 +700,21 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
             SearchAndReturnProperDelegate(DelegateType::GPU_DELEGATE, 0));
     }
     // delegate xnn
-    else if (subgraph_id(graph_id)->GetResourceType() == CPU_XNN ||
-              subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN){
+    else if (subgraph_id(graph_id)->GetResourceType() == CPU_XNN){
       int prefered_utilization = 0;
-      if(subgraph_id(graph_id)->GetPartitioningRatio() >= 10 && subgraph_id(graph_id)->GetPartitioningRatio() < 20)
         prefered_utilization = subgraph_id(graph_id)->GetPartitioningRatio();
       std::cout << "prefered_utilization " << prefered_utilization << "\n";
-      status = subgraph_id(graph_id)->ModifyGraphWithDelegate(SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
+      status = 
+        subgraph_id(graph_id)->ModifyGraphWithDelegate(
+          SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
+    }else if (subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN){
+      int prefered_utilization = 0;
+        // prefered_utilization = subgraph_id(graph_id)->GetPartitioningRatio();
+      std::cout << "prefered_utilization " << prefered_utilization << "\n";
+      status = 
+        subgraph_id(graph_id)->ModifyGraphWithDelegate(
+          SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
+
     }
   } else {
     std::cout << "No delegate exists in this interpreter"

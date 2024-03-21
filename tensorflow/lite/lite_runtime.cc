@@ -177,34 +177,34 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
 
-  TfLiteXNNPackDelegateOptions xnnpack_options_ =
-      TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options_.num_threads = 3;
-  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options_);
-  new_delegate = new DelegateWrapper;
-  new_delegate->prefered_utilization = 3;
-  new_delegate->delegate = xnn_delegate;
-  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
-  interpreter->RegisterDelegate(new_delegate);
-  sub_interpreter->RegisterDelegate(new_delegate);
+  // TfLiteXNNPackDelegateOptions xnnpack_options_ =
+  //     TfLiteXNNPackDelegateOptionsDefault();
+  // xnnpack_options_.num_threads = 3;
+  // xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options_);
+  // new_delegate = new DelegateWrapper;
+  // new_delegate->prefered_utilization = 3;
+  // new_delegate->delegate = xnn_delegate;
+  // new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
+  // interpreter->RegisterDelegate(new_delegate);
+  // sub_interpreter->RegisterDelegate(new_delegate);
 
-  TfLiteXNNPackDelegateOptions xnnpack_options__ =
-      TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options__.num_threads = 2;
-  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options__);
-  new_delegate = new DelegateWrapper;
-  new_delegate->prefered_utilization = 4;
-  new_delegate->delegate = xnn_delegate;
-  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
-  interpreter->RegisterDelegate(new_delegate);
-  sub_interpreter->RegisterDelegate(new_delegate);
+  // TfLiteXNNPackDelegateOptions xnnpack_options__ =
+  //     TfLiteXNNPackDelegateOptionsDefault();
+  // xnnpack_options__.num_threads = 2;
+  // xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options__);
+  // new_delegate = new DelegateWrapper;
+  // new_delegate->prefered_utilization = 4;
+  // new_delegate->delegate = xnn_delegate;
+  // new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
+  // interpreter->RegisterDelegate(new_delegate);
+  // sub_interpreter->RegisterDelegate(new_delegate);
 
   TfLiteXNNPackDelegateOptions xnnpack_options___ =
       TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options___.num_threads = 1;
+  xnnpack_options___.num_threads = 2;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options___);
   new_delegate = new DelegateWrapper;
-  new_delegate->prefered_utilization = 5;
+  new_delegate->prefered_utilization = 2;
   new_delegate->delegate = xnn_delegate;
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
@@ -1449,6 +1449,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
 #ifdef debug_print
       std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
 #endif
+      // std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
       // if previous subgraph was co-execution, merge co-exectuion data here.
       if (prev_subgraph_id != subgraph_id && prev_subgraph_id != -1 &&
           interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() ==
@@ -1836,6 +1837,9 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
     TfLiteIntArray* min_precision_tensor_dim = min_precision_tensor->dims;
     TfLiteTensor* max_precision_tensor =
         max_precision_subgraph->tensor(max_precision_tensor_idx);
+    if(min_precision_tensor->data.data == nullptr || 
+        max_precision_tensor->data.data == nullptr)
+        continue;
     TfLiteIntArray* max_precision_tensor_dim = max_precision_tensor->dims;
     TfLiteIntArray* dest_tensor_dim = dest_subgraph->tensor(dest_tensor_idx)->dims;
     TfLiteTensor* dest_tensor = nullptr;

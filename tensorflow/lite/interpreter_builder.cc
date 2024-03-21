@@ -618,9 +618,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           for(int j=0; j<profile[k]->layer_subsets[i].size(); ++j){ //layers 
             new_plan->nodes[j] = profile[k]->layer_subsets[i][j]; 
             std::cout << new_plan->nodes[j] << " ";
-            if(profile[k]->partitioning_ratios[i][0] != 0){
-              new_plan->partitioning_ratios[j] = profile[k]->partitioning_ratios[i][0];
-            }
+            new_plan->partitioning_ratios[j] = profile[k]->partitioning_ratios[i][0];
           }
           std::cout << "\n";
           master_partitioning_plan.push_back(new_plan);
