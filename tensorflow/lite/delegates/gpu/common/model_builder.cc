@@ -2851,6 +2851,7 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
     // CODE FOR FALLBACK TEST
+    context->experimental_flag = true; //EZE for lanenet, yolo
     if (context->experimental_flag) {
       if (registration->builtin_code == 0 ||
           registration->builtin_code == 18) {  // check if ADD or mullayer

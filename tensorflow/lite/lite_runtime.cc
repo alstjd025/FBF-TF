@@ -849,6 +849,7 @@ void TfLiteRuntime::SetInputType(INPUT_TYPE input_type_) {
 // MUST_REFACTOR (628b2) : MUST refactor for sub-interpreter input.
 void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
                                            cv::Mat& input_quant) {
+                          // std::cout << "<<<<<<<<<<<<<<<<<<<>>>>>>>> copyihnput\n.";
   bool use_two_interpreter = false;
   ResourceType primary_resource =
       interpreter->primary_subgraph().GetResourceType();
@@ -864,8 +865,9 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
   TfLiteTensor* input_tensor_sub = nullptr;
   
   input_tensor = interpreter->input_tensor_of_model(0);
+  //  interpreter->subgraph_id(3)->tensor(0)->data.data = input_tensor->data.data; // EZE
   #ifdef lanenet_branch // use only for lanenet test(temporal)
-    interpreter->subgraph_id(3)->tensor(0)->data.data = input_tensor->data.data;
+    // interpreter->subgraph_id(3)->tensor(0)->data.data = input_tensor->data.data;
   #endif
   if (use_two_interpreter) {
     input_tensor_sub = sub_interpreter->input_tensor_of_model(0);
@@ -1533,7 +1535,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       std::cout << "[Main interpreter] Invoke subgraph "
                 << subgraph->GetGraphid() << "\n";
 #endif
-      // FeedDummyInputToTensor(subgraph->tensor(136));
+      #ifdef lanenet_branch
+      if (subgraph_id ==1 || subgraph_id == 3) FeedDummyInputToTensor(subgraph->tensor(0));
+      #endif
       // Note : This latency measure is always on for GPU test.
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if (subgraph->Invoke() != kTfLiteOk) {
@@ -1747,8 +1751,8 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
 #endif
 #ifdef yolo_branch
   if(dest_subgraph_ == 9){
-    std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
-    " dest " << dest_subgraph_ <<"\n";
+    // std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
+    // " dest " << dest_subgraph_ <<"\n";
     if(buffer_tensor != nullptr){
       free(buffer_tensor->tensor->data.data);
       free(buffer_tensor->tensor->dims);

@@ -18,6 +18,7 @@ limitations under the License.
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <iostream>
 
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/graph_info.h"
@@ -68,6 +69,7 @@ class ArenaPlanner : public MemoryPlanner {
   // Returns allocation size
   size_t GetRWAllocationSize() override;
   size_t GetPersistentAllocationSize() override;
+  void FreeRWArena() override;
 
   // Returns the base arena location for a given allocation type.
   std::intptr_t BasePointer(TfLiteAllocationType type);

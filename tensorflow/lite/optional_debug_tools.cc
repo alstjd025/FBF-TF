@@ -238,8 +238,9 @@ void PrintInterpreterStateV2(Interpreter* interpreter) {
 // Simplified version of PrintInterpreterStateV2
 void PrintInterpreterStateV3(Interpreter* interpreter) {
   int subgraph_size = interpreter->subgraphs_size();
+  int TOTAL_buffer_size = 0;
   printf("Interpreter has %d subgraphs\n", subgraph_size);
-  //interpreter->PrintSubgraphInfo();
+  interpreter->PrintSubgraphInfo();
   for(int subgraph_index=0; subgraph_index < subgraph_size; ++subgraph_index){
     std::cout << "======================================" << "\n";
     int subgraph_id = interpreter->subgraph(subgraph_index)->GetGraphid();
@@ -247,8 +248,11 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
     int node_size = interpreter->nodes_size(subgraph_id);
     printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
         tensor_size, node_size);
-    printf("RW buffer size : %dbytes \n",interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize());
-    printf("Persistent buffer size : %dbytes \n",interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize());
+    printf("RW buffer size : %dbytes\n",interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize());
+    printf("Persistent buffer size : %dbytes\n",interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize());
+    int overall_buffer_size = interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize() + interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize();
+    // printf("\033[0;31m[BEFORE] Subgraph[%d]'s memory overhead : %4.1f MB \033[0m\n",subgraph_id,
+    //     static_cast<float>(overall_buffer_size) / (1 << 20)); // EZE
     printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
     std::cout << "Resource type : " 
           << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";
@@ -300,10 +304,18 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
            (static_cast<float>(tensor->bytes) / (1 << 20)));
       printf("%p ", tensor->data.data);
       PrintTfLiteIntVector(tensor->dims);
+      if(tensor->allocation_type == 1){ // FOR kTfLiteMmapRo [weight, bias, etc_params]
+        overall_buffer_size += tensor->bytes;
+      }
     }
     printf("\n");
+    printf("\033[0;31m[AFTER] Subgraph[%d]'s memory overhead : %4.1f MB \033[0m\n",subgraph_id,
+          static_cast<float>(overall_buffer_size) / (1 << 20)); // EZE
+    TOTAL_buffer_size += overall_buffer_size;
   }
+ printf("\033[0;32m[AFTER] TOTAL memory overhead : %4.1f MB \033[0m\n", static_cast<float>(TOTAL_buffer_size) / (1 << 20)); // EZE
 }
+
 
 void PrintInterpreterStateSimple(Interpreter* interpreter,
                                  Interpreter* sub_interpreter

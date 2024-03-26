@@ -361,4 +361,11 @@ size_t ArenaPlanner::GetPersistentAllocationSize(){
   return persistent_arena_.GetBufferSize();
 }
 
+void ArenaPlanner::FreeRWArena(){
+  if(arena_.ReleaseBuffer() != kTfLiteOk){
+    std::cout << "Arena release failed" << "\n";
+  }
+  std::cout << "Arena release complete" << "\n";
+}
+
 }  // namespace tflite

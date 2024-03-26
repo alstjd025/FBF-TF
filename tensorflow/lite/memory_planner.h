@@ -64,6 +64,7 @@ class MemoryPlanner {
   // Returns allocation size
   virtual size_t GetRWAllocationSize() = 0;
   virtual size_t GetPersistentAllocationSize() = 0;
+  virtual void FreeRWArena() = 0;
 };
 
 }  // namespace tflite

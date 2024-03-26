@@ -421,6 +421,12 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
       // node_subset.output_tensors.push_back(141);
       // node_subset.output_tensors.push_back(142);
     // }
+    // if(node_subset.output_tensors[0] == 138){
+    //   node_subset.output_tensors.clear();
+    //   node_subset.output_tensors.push_back(136);
+    //   node_subset.output_tensors.push_back(138);
+    // }
+    
 
     // Subsets claimed by the delegate should have a "macro" op created, the
     // other node_subsets (kTfNonPartition) just have their nodes added back to

@@ -579,6 +579,7 @@ class Subgraph {
   size_t GetArenaRWBufferSize() { return memory_planner_.get()->GetRWAllocationSize(); } 
   size_t GetArenaPersistentBufferSize() { 
       return memory_planner_.get()->GetPersistentAllocationSize(); } 
+  void FreeArenaAllocation() { memory_planner_.get()->FreeRWArena();}
 
  private:
   // SubgraphAwareProfiler wraps an actual TFLite profiler, such as a

@@ -1,5 +1,5 @@
 #include "tensorflow/lite/tf_monitor.h"
-#define nvidia
+// #define nvidia
 #define MONITORING_PERIOD_MS 100 // < 5 is not stable.
 #define Experiment
 
