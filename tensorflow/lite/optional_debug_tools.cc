@@ -251,8 +251,9 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
     printf("RW buffer size : %dbytes\n",interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize());
     printf("Persistent buffer size : %dbytes\n",interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize());
     int overall_buffer_size = interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize() + interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize();
-    // printf("\033[0;31m[BEFORE] Subgraph[%d]'s memory overhead : %4.1f MB \033[0m\n",subgraph_id,
-    //     static_cast<float>(overall_buffer_size) / (1 << 20)); // EZE
+    printf("[BEFOR] Get memory size allocated by arena buffer : %.2f MB\n", static_cast<float>(overall_buffer_size) / (1 << 20));
+    printf("\033[0;31m[BEFORE] Subgraph[%d]'s memory overhead : %4.1f MB \033[0m\n",subgraph_id,
+        static_cast<float>(overall_buffer_size) / (1 << 20)); // EZE
     printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
     std::cout << "Resource type : " 
           << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";
@@ -308,14 +309,12 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
         overall_buffer_size += tensor->bytes;
       }
     }
-    printf("\n");
     printf("\033[0;31m[AFTER] Subgraph[%d]'s memory overhead : %4.1f MB \033[0m\n",subgraph_id,
           static_cast<float>(overall_buffer_size) / (1 << 20)); // EZE
     TOTAL_buffer_size += overall_buffer_size;
   }
  printf("\033[0;32m[AFTER] TOTAL memory overhead : %4.1f MB \033[0m\n", static_cast<float>(TOTAL_buffer_size) / (1 << 20)); // EZE
 }
-
 
 void PrintInterpreterStateSimple(Interpreter* interpreter,
                                  Interpreter* sub_interpreter

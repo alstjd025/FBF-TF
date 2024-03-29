@@ -927,18 +927,19 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   /////////////////////////////////////////////////////////////////////////////////
 
   
-  /////////////////////////////////////////////////////////////////////////////////
+ /////////////////////////////////////////////////////////////////////////////////
   // EZE 
   // 1. Detect candidated subgraphs (check each subgraphs' output tensor & each subgraph's resource type) 
   // 2. Make candidate subgraph's tensor-data memory free (should use ARENA allocation method)
   // 3. Make candidate subgraph's tensor-data memory point to mother subgraph tensor-data 
+  // ++ start subgraph id "0"
   printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
   int tensor_output_id = -1;
   ResourceType resource_type = ResourceType::CPU;
   for (int k=0;k<subgraphs_created.size();k++){
     tensor_output_id = subgraphs_created[k]->GetFirstOutputTensorIndex();
     resource_type = subgraphs_created[k]->GetResourceType();
-    for (int j=k-1;j>0;j--){
+    for (int j=k-1;j>=0;j--){
       if ((tensor_output_id == subgraphs_created[j]->GetFirstOutputTensorIndex()) 
       && (resource_type == subgraphs_created[j]->GetResourceType())){
         std::cout << "FIND CANDIDATE subgraph : " << k;
