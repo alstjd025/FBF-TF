@@ -57,8 +57,7 @@ limitations under the License.
 
 #include "tensorflow/lite/kmdebug.h"
 
-// #define GPUONLY
-// #define YOLO
+#define YOLO
 
 namespace tflite {
 namespace gpu {

@@ -23,7 +23,7 @@ limitations under the License.
 
 #include "tensorflow/lite/kmdebug.h"
 #define DOT
-#define lane
+// #define lane
 
 namespace tflite {
 namespace delegates {
@@ -75,36 +75,17 @@ TfLiteStatus GraphPartitionHelper::Partition(
   return kTfLiteOk;
 }
 
-
-// HOON : Delegate Optimizing Test  by mnist_12.tflite
-// 1. klargest
-// 2. ksmallest
-// 3. custom method (***)
-// (3) TODO 230403 ~ 
-///
-// update algo for choosing more than "1" delegation node
-// --------------------------------------------------------------------------------------------------------------
-
-
 std::vector<TfLiteDelegateParams*>
-GraphPartitionHelper::GetFirstNSmallestPartitions(
+GraphPartitionHelper::GetCustomNPartitions(
     int n,  int priority_partition_num, int min_nodes_per_partition) const {
   // In general, the number of partitions in a delegate is never likely to be
   // high enough to cause latency issues. Also considering this is generally a
   // one-time work, we simply unconditionally sort partitions here according to
   // the size.
 
-  // HOON : maybe TODO
-  // std::cout << "HOON : Smallest Partitions logic " << std::endl;
   std::vector<TfLiteDelegateParams*> sorted_partitions(partitions_);
-  // std::sort(sorted_partitions.begin(), sorted_partitions.end(),
-  //           [](TfLiteDelegateParams* left, TfLiteDelegateParams* right) {
-  //             // Reverse sort
-  //             return left->nodes_to_replace->size <
-  //                    right->nodes_to_replace->size;
-  //           });
-
-  // DEBUGGING : partition_num is 7 ... not 36... 
+ 
+  // DEBUG
   // for(int j=0; j<sorted_partitions.size(); ++j){
   //   for(int k=0; k<sorted_partitions[j]->nodes_to_replace->size; ++k){
   //     std::cout << sorted_partitions[j]->nodes_to_replace->data[k] << " ";
@@ -123,29 +104,11 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
 
   std::vector<TfLiteDelegateParams*> results;
   auto p_it = sorted_partitions.begin();
-  const int total = sorted_partitions.size(); // maybe... "n" is max_delegated_option
-  // in mnist_13.tflite
-  // 2*9 / 3*4 / 6*1
-  // 2/2/2/2/2/2/2/2/2/ 3/3/3/3/ 6   ===> 14 num
-  // add parameter "i" ??  
-
-  // for (int i = 0; i < std::min(total, n); ++i, ++p_it) { 
-    // auto* p = (*p_it);
-    // if (p->nodes_to_replace->size < min_nodes_per_partition) {
-      // break;
-    // }
-    // results.push_back(p);
-  // }
-  // HOON TODO (~230406s)
-  // change below algo using "priority_partition_num" custom parameter  
-//CHOOSE "1" delegation node algo
-//-------------------------------------------------------------------------------------------
+  const int total = sorted_partitions.size();  
   if(n==1){
-   // move vector pointer as long as priority_partition_num
     for (int num=0;num<priority_partition_num;++num){
       ++p_it;
     }
-
     for (int i = 0; i < std::min(total, n); ++i, ++p_it) { 
       auto* p = (*p_it);
       if (p->nodes_to_replace->size < min_nodes_per_partition) {
@@ -155,30 +118,16 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
     }
     return results;
   }
-// -----------------------------------------------------------------------------------------
-//CHOSSE "N" delegation node algo
-
-// TODO ( 2 STEP)
-// 1 STEP : make whole vector which containes all of cases ... ex) [ (1,2,3), (1,2,4), (1,2,5) ...] 
-// 2 STEP : use prority_parttion num for index in whole_vector ... and just make it for ops_to_replace
-
-  // 230411 ~~~ TODO
-  //    1/1/1/1/1/1/1/1/1/2/2/2/2/3
-  else
-  {
-    // STEP 1
-    std::vector<int> b; // get b by sorted_partitions ---> ex) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
-    big_v = delegation_node_accepter(-1, b, n, total); // ---> ex) [ (0,2,13), (1,2,4), (1,2,5) ...] 
-    // STEP 2
-    // printf("%d\n",priority_partition_num);
-    std::vector<int> target_v = big_v[priority_partition_num]; // [0,3]
+  else {
+    std::vector<int> b; 
+    big_v = delegation_node_accepter(-1, b, n, total); 
+    std::vector<int> target_v = big_v[priority_partition_num];
     std:: cout << "Combination Case (by delegation_node_accepter) is : ";
     for (int i :target_v) printf("\033[0;31m%d\033[0m  , ",  i);
     std::cout << std::endl;
-    // ex ==> target_v[3] == "1 13 " ................HOONING
     for (int i = 0; i < std::min(total, n); ++i) { 
-      auto p_it = sorted_partitions.begin();  // SOLVED :  move "pointer initial" code to here
-      for (int num=0;num < target_v[i];++num){ //HOONING : target_v [ ?? ]
+      auto p_it = sorted_partitions.begin();  
+      for (int num=0;num < target_v[i];++num){ 
       ++p_it;
       }
       auto* p = (*p_it);
@@ -186,38 +135,27 @@ GraphPartitionHelper::GetFirstNSmallestPartitions(
         break;
       }
       results.push_back(p);
-      //auto p_it = sorted_partitions.begin();
+     
     }
-    big_v.clear(); //HOONING 230413
+    big_v.clear();
     b.clear();
     return results;
   }
-  }
-  
+}
 std::vector<std::vector<int>> big_v;
 // --------------------------------------------------------------------------------------------
 std::vector<std::vector<int>>GraphPartitionHelper::delegation_node_accepter(int start , std::vector<int> b, int n, int total) const{
     if (b.size() == n) {
     		big_v.push_back(b);
-        // for (int i :b) std::cout << i << " "; 
-        // std::cout << "good" << big_v.size() << std::endl;
-        // for(int i=0 ; i < big_v.size(); i++){
-          // std::cout << "vector " << i << std::endl;
-        // }
-        // printf("\nHOONING\n"); // good
     		return big_v;
     	}
-    	for (int i = start + 1; i < total; i++) 
-    	{
+    	for (int i = start + 1; i < total; i++)  {
     		b.push_back(i);
     		delegation_node_accepter(i, b, n, total);
     		b.pop_back();
     	}
     	return big_v; 
 }
-
-
-
 
 std::vector<TfLiteDelegateParams*>
 GraphPartitionHelper::GetFirstNLargestPartitions(
@@ -259,7 +197,6 @@ GraphPartitionHelper::GetFirstNLargestPartitions(
 }
 // -------------------------------------------------------------------------------------------------------------
 
-// same two func .. ???  197
 // this func for default type
 std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
     int n, int priority_partition_num, int min_nodes_per_partition) {
@@ -271,7 +208,7 @@ std::vector<int> GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
   #ifdef DOT
   // std::cout << "FP16GraphPasrtitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
+      GetCustomNPartitions(n, priority_partition_num, min_nodes_per_partition);
   #endif
   std::vector<int> ops_to_replace;
   for (const auto p : first_n_partitions) {
@@ -300,7 +237,6 @@ TfLiteStatus GraphPartitionHelper::PrepareSupportedNodes(
   num_total_nodes_ = execution_plan->size;
   supported_nodes_ = TfLiteIntArrayCreate(num_total_nodes_);
   supported_nodes_->size = 0;
-  // 240121 : Check Fallback nodes 
   std::cout << "\033[0;32m=== Fallback node number info ===\033[0m : " <<std::endl;
   for (int node_id : TfLiteIntArrayView(execution_plan)) {
     TfLiteNode* node;
@@ -370,7 +306,7 @@ FP16GraphPartitionHelper::GetNodesOfFirstNLargestPartitionsImpl(
   #ifdef DOT
   // std::cout << "FP16GraphPasrtitionHelper" << std::endl;
   auto first_n_partitions =
-      GetFirstNSmallestPartitions(n, priority_partition_num, min_nodes_per_partition);
+      GetCustomNPartitions(n, priority_partition_num, min_nodes_per_partition);
   #endif
   std::vector<int> ops_to_replace;
   if (first_n_partitions.empty()) return ops_to_replace;

@@ -80,7 +80,7 @@ class GraphPartitionHelper {
       int n = std::numeric_limits<int>::max(), int priority_partition_num=0,
       int min_nodes_per_partition = 0) const;
   // HOON
-  std::vector<TfLiteDelegateParams*> GetFirstNSmallestPartitions(
+  std::vector<TfLiteDelegateParams*> GetCustomNPartitions(
       int n = std::numeric_limits<int>::max(), int priority_partition_num=0,
       int min_nodes_per_partition = 0) const;
 
