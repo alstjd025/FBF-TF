@@ -393,8 +393,8 @@ void YOLO_Parser::PerformNMSUsingResults(
 
     NonMaximumSuppression(bounding_boxes, iou_threshold);
 
-    printf("\033[0;32mAfter NMS : \033[0m");
-    printf("Number of bounding boxes after NMS: %d\n",bounding_boxes.size());
+    // printf("\033[0;32mAfter NMS : \033[0m");
+    // printf("Number of bounding boxes after NMS: %d\n",bounding_boxes.size());
     result_boxes = bounding_boxes;
     bounding_boxes.clear();
   }

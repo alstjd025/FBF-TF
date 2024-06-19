@@ -1,5 +1,7 @@
 #include "tensorflow/lite/tf_scheduler.h"
 
+#define UT 1
+
 namespace tflite {
 
 TfScheduler::TfScheduler(){};
@@ -11,8 +13,8 @@ TfScheduler::TfScheduler(const char* uds_file_name,
 
   scheduler_fd = socket(PF_FILE, SOCK_DGRAM, 0);
   if (scheduler_fd == -1) {
-    std::cout << "Socker create ERROR"
-              << "\n";
+// //     std::cout << "Socker create ERROR"
+//               << "\n";
     exit(-1);
   }
   addr_size = sizeof(scheduler_addr);
@@ -23,8 +25,8 @@ TfScheduler::TfScheduler(const char* uds_file_name,
 
   if (bind(scheduler_fd, (struct sockaddr*)&scheduler_addr,
            sizeof(scheduler_addr)) == -1) {
-    std::cout << "Socket bind ERROR"
-              << "\n";
+// //     std::cout << "Socket bind ERROR"
+//               << "\n";
     exit(-1);
   }
   cpu_util = new float;
@@ -32,8 +34,8 @@ TfScheduler::TfScheduler(const char* uds_file_name,
   param_file_name = partitioning_params;
   OpenPartitioningParams();
 
-  std::cout << "Scheduler initializaing done"
-            << "\n";
+// //   std::cout << "Scheduler initializaing done"
+//             << "\n";
 };
 
 int TfScheduler::SendPacketToRuntime(tf_packet& tx_p,
@@ -60,22 +62,22 @@ void TfScheduler::Work() {
     struct sockaddr_un runtime_addr;
     memset(&rx_packet, 0, sizeof(tf_packet));
     if (ReceivePacketFromRuntime(rx_packet, runtime_addr) == -1) {
-      std::cout << "Receive failed"
-                << "\n";
+// //       std::cout << "Receive failed"
+//                 << "\n";
       return;
     }
-    // std::cout << "Recieved packet from runtime " << rx_packet.runtime_id <<
+// //     // std::cout << "Recieved packet from runtime " << rx_packet.runtime_id <<
     // "\n";
 
     // do next work by received runtime state.
     switch (rx_packet.runtime_current_state) {
       case RuntimeState::INITIALIZE: {
-        std::cout << "runtime init"
-                  << "\n";
+// //         std::cout << "runtime init"
+//                   << "\n";
         for (auto runtime : runtimes) {
           if (runtime->id == rx_packet.runtime_id) {
-            std::cout << "Runtime " << runtime->id << " already registered."
-                      << "\n";
+// //             std::cout << "Runtime " << runtime->id << " already registered."
+//                       << "\n";
             break;
           }
         }
@@ -93,15 +95,15 @@ void TfScheduler::Work() {
         tx_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
 
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "Sending packet to " << new_runtime->id << " Failed"
-                    << "\n";
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
-          printf("errno : %d \n", errno);
+// //           std::cout << "Sending packet to " << new_runtime->id << " Failed"
+//                     << "\n";
+// //           std::cout << "sock : " << runtime_addr.sun_path << " "
+//                     << runtime_addr.sun_family << "\n";
+//           printf("errno : %d \n", errno);
           return;
         }
         runtimes.push_back(new_runtime);
-        std::cout << "Registered new runtime " << new_runtime->id << " \n";
+// //         std::cout << "Registered new runtime " << new_runtime->id << " \n";
         break;
       }
       case RuntimeState::NEED_PROFILE: {
@@ -115,9 +117,9 @@ void TfScheduler::Work() {
         CreateGraphofSubgraphs(tx_packet);
 
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
-          printf("errno : %d \n", errno);
+// //           std::cout << "sock : " << runtime_addr.sun_path << " "
+//                     << runtime_addr.sun_family << "\n";
+//           printf("errno : %d \n", errno);
           return;
         }
         break;
@@ -130,21 +132,21 @@ void TfScheduler::Work() {
         tx_packet.runtime_next_state = RuntimeState::INVOKE_;
 
         // not done
-        std::cout << "Prepare runtime " << "\n";
+// //         std::cout << "Prepare runtime " << "\n";
         PrepareRuntime(rx_packet);
-        std::cout << "Prepare runtime done" << "\n";
+// //         std::cout << "Prepare runtime done" << "\n";
         PrintGraph(rx_packet.runtime_id);
 
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
-          printf("errno : %d \n", errno);
+// //           std::cout << "sock : " << runtime_addr.sun_path << " "
+//                     << runtime_addr.sun_family << "\n";
+//           printf("errno : %d \n", errno);
           return;
         }
         break;
       }
       case RuntimeState::INVOKE_: {
-        // std::cout << "runtime invoke" << "\n";
+// //         // std::cout << "runtime invoke" << "\n";
         RefreshRuntimeState(rx_packet);
         tf_packet tx_packet;
         tx_packet.runtime_id = rx_packet.runtime_id;
@@ -156,16 +158,16 @@ void TfScheduler::Work() {
         tx_packet.subgraph_ids[1][0] = next_subgraph_to_invoke.second;
 
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
-          printf("errno : %d \n", errno);
+// //           std::cout << "sock : " << runtime_addr.sun_path << " "
+//                     << runtime_addr.sun_family << "\n";
+//           printf("errno : %d \n", errno);
           return;
         }
         break;
       }
       case RuntimeState::TERMINATE: {
-        std::cout << "Scheduler got terminate signal"
-                  << "\n";
+// //         std::cout << "Scheduler got terminate signal"
+//                   << "\n";
         run = false;
         break;
       }
@@ -189,8 +191,8 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
     if (runtimes[i]->id == runtime_id) runtime = runtimes[i];
   }
   if (runtime == nullptr) {
-    std::cout << "Cannot find matching runtime in SearchNextSubgraphtoInvoke()"
-              << "\n";
+// //     std::cout << "Cannot find matching runtime in SearchNextSubgraphtoInvoke()"
+//               << "\n";
     exit(-1);
   }
 
@@ -222,6 +224,9 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   // In case only one subgraph exists.
   if (runtime->graph->nodes.size() == 1) {
+    float c_util = monitor->GetCPUUtil();
+    float g_util = monitor->GetGPUUtil();
+// //     // std::cout << "(111) CPU : " << c_util << " GPU : " << g_util << "\n"; 
     next_subgraphs_to_invoke.first = runtime->graph->nodes[0]->subgraph_id;
     next_subgraphs_to_invoke.second = runtime->graph->nodes[0]->co_subgraph_id;
 
@@ -238,7 +243,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   // case of final subgraph
   if (prev_base_subgraph->right == nullptr) {
-    std::cout << "end" << "\n";
+// //     std::cout << "end" << "\n";
     next_subgraphs_to_invoke.first = -1;
     next_subgraphs_to_invoke.second = -1;
     return next_subgraphs_to_invoke;
@@ -249,43 +254,39 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
     next_base_subgraph = prev_base_subgraph->right;
   }
 
+////////////////////////////////////////////////////////////////////////////////////
   int next_resource_plan = -1;
+  int prefered_utilization = 0;
   next_subgraph_to_invoke = next_base_subgraph;
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.
   // NEED_REFACTOR (02634) : Must change to use obvious resource type.
   int next_cpu_resource = 0;
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
-  // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
-  if (gpu_util == 0 && cpu_util == 400) {
-    // Use CPU
-    next_resource_plan = TF_P_PLAN_GPU;
-    std::cout << "USE GPU" << "\n";
-  } else if (gpu_util == 100 && cpu_util == 0) {
-    // Use GPU
-    next_resource_plan = TF_P_PLAN_CPU_XNN;
-    std::cout << "USE CPU" << "\n";
-  } else if (gpu_util == 100 && cpu_util == 200) {
-    // Use Co-execution
+  // std::cout << "GPU CPU " << gpu_util << cpu_util << std::endl;
+  if (gpu_util > 70 && next_subgraph_to_invoke->subgraph_id == 1) { // EZE FINAL
+    // get candidate
     cpu_usage_flag = true;
-    std::cout << "USE CPU200" << "\n";
-  } else {
+    prefered_utilization = UT;
+    next_resource_plan = TF_P_PLAN_CPU_XNN;
+// //     std::cout << "USE CPU" << "\n";
+  }
+  else {
     // base plan
     cpu_usage_flag = false;
-    std::cout << "USE BASE" << "\n";
+// //     std::cout << "USE BASE" << "\n";
     next_resource_plan = next_base_subgraph->resource_type;
   }
-
-  // if(cpu_util > 99){
-  //   next_cpu_resource = 2;
-  // }
-
   // TODO (f85fa) : Fix graph searching, especially in co-execution.
   // Search for matching subgraph.
   while (next_subgraph_to_invoke != nullptr) {
     if(cpu_usage_flag){
-      if(next_subgraph_to_invoke->partitioning_ratio == 2)
+//       // printf("EZE : next_subgraph_to_inoke's partitioning_Ratio : %d\n", next_subgraph_to_invoke->partitioning_ratio);
+      next_subgraph_to_invoke->partitioning_ratio = prefered_utilization;
+      if(next_subgraph_to_invoke->partitioning_ratio == prefered_utilization){
+        next_subgraph_to_invoke->resource_type  = 3;
         break;
+      }
     }else if (next_subgraph_to_invoke->resource_type == next_resource_plan) {
       break;
     }
@@ -296,16 +297,18 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
       break;
     }
   }
+////////////////////////////////////////////////////////////////////////////////////
 
-  // std::cout << "set next_subgraph_to_invoke id " <<
-  // next_subgraph_to_invoke->subgraph_id << "\n"; std::cout << "set
-  // next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id
-  // << "\n"; std::cout << "set next_subgraph_to_invoke resource_type " <<
-  // next_subgraph_to_invoke->resource_type << "\n";
+
+// //   std::cout << "set next_subgraph_to_invoke id " <<
+//   next_subgraph_to_invoke->subgraph_id << "\n"; 
+// //   std::cout << "set next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id
+// //   << "\n"; std::cout << "set next_subgraph_to_invoke resource_type " << 
+//   next_subgraph_to_invoke->resource_type << "\n";
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
-
+// //   std::cout << "........................................\n";
   return next_subgraphs_to_invoke;
 }
 
@@ -318,8 +321,8 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet) {
   // TODO(28caeaf) : Read the subgraph ids from packet and make it as
   // linked-list?
   if (runtime == nullptr) {
-    std::cout << "Cannot find matching runtime in PrepareRuntime()"
-              << "\n";
+// //     std::cout << "Cannot find matching runtime in PrepareRuntime()"
+//               << "\n";
     exit(-1);
   }
   std::queue<int> co_subgraph_ids;
@@ -356,9 +359,9 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet) {
   }
 
   if ((subgraph_ids.size() - num_co_subs) != runtime->graph->nodes.size()) {
-    std::cout << "Subgraph ids from runtime and existing graph"
-              << " does not match"
-              << "\n";
+// //     std::cout << "Subgraph ids from runtime and existing graph"
+//               << " does not match"
+//               << "\n";
     return;
   }
 }
@@ -368,9 +371,9 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
     if (runtimes[runtime_idx]->id == tx_packet.runtime_id) {
       runtime_* working_runtime = runtimes[runtime_idx];
       if (working_runtime->graph != nullptr) {
-        std::cout << "Scheudler: Runtime " << working_runtime->id
-                  << " already has graph."
-                  << "\n";
+// //         std::cout << "Scheudler: Runtime " << working_runtime->id
+//                   << " already has graph."
+//                   << "\n";
         exit(-1);
       }
       // Create new graph structure for current runtime.
@@ -407,7 +410,7 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
                                    end_node,
                                    resource_type,
                                    partitioning_ratio)){
-              std::cout << "AddSubgraphtoGraph ERROR" << "\n";
+// //               std::cout << "AddSubgraphtoGraph ERROR" << "\n";
               return;
             }
           }
@@ -501,8 +504,8 @@ subgraph_node* TfScheduler::SearchAndReturnNodeWithID(subgraph_node* root,
       node = node->down;
     }
   }
-  std::cout << "Cannot find matching subgraph in graph"
-            << "\n";
+// //   std::cout << "Cannot find matching subgraph in graph"
+//             << "\n";
   return nullptr;
 }
 
@@ -512,14 +515,14 @@ void TfScheduler::PrintGraph(int runtime_id) {
     if (runtimes[i]->id == runtime_id) runtime = runtimes[i];
   }
 
-  std::cout << "Prints subgraphs in runtime " << runtime->graph->runtime_id
-            << "\n";
+// //   std::cout << "Prints subgraphs in runtime " << runtime->graph->runtime_id
+//             << "\n";
   for (int i = 0; i < runtime->graph->nodes.size(); ++i) {
-    std::cout << "Main subgraph ID " << runtime->graph->nodes[i]->subgraph_id
-              << " ";
-    std::cout << "Co subgraph ID " << runtime->graph->nodes[i]->co_subgraph_id
-              << " ";
-    std::cout << "RANK " << runtime->graph->nodes[i]->rank << "\n";
+// //     std::cout << "Main subgraph ID " << runtime->graph->nodes[i]->subgraph_id
+//               << " ";
+// //     std::cout << "Co subgraph ID " << runtime->graph->nodes[i]->co_subgraph_id
+//               << " ";
+// //     std::cout << "RANK " << runtime->graph->nodes[i]->rank << "\n";
   }
 }
 
@@ -614,14 +617,14 @@ void TfScheduler::ReleaseResource(ResourceType type) {
 }
 
 void TfScheduler::PrintRuntimeStates() {
-  std::cout << "===================================";
-  std::cout << "TfScheduler has " << runtimes.size() << " runtimes"
-            << "\n";
+// //   std::cout << "===================================";
+// //   std::cout << "TfScheduler has " << runtimes.size() << " runtimes"
+//             << "\n";
   for (int i = 0; i < runtimes.size(); ++i) {
-    std::cout << "===================================";
-    std::cout << "Runtime ID : " << runtimes[i]->id << "\n";
-    std::cout << "Runtime State : " << runtimes[i]->state << "\n";
-    std::cout << "Socket path :" << runtimes[i]->addr.sun_path << "\n";
+// //     std::cout << "===================================";
+// //     std::cout << "Runtime ID : " << runtimes[i]->id << "\n";
+// //     std::cout << "Runtime State : " << runtimes[i]->state << "\n";
+// //     std::cout << "Socket path :" << runtimes[i]->addr.sun_path << "\n";
   }
 }
 
@@ -633,9 +636,9 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     else
       break;
   }
-  std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers
-            << " layers in model"
-            << "\n";
+// //   std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers
+//             << " layers in model"
+//             << "\n";
   std::string line, token;
   int arg = 0;
   int line_iter = 0;
@@ -643,7 +646,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
   bool seperator_flag = false;
   // get line
   if(!param_file.is_open()){
-    std::cout << "Scheduler ERROR : Param file is not opened" << "\n";
+// //     std::cout << "Scheduler ERROR : Param file is not opened" << "\n";
     exit(-1);
   }
   while (std::getline(param_file, line)) {
@@ -686,10 +689,10 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     }
   }
 
-  // std::cout << "closed" << "\n";
+// //   // std::cout << "closed" << "\n";
   for(int i=0; i<1000; ++i){
-    // std::cout << "adsfasdf" << "\n";
-    std::cout << tx_p.partitioning_plan[i] << " ";
+// //     // std::cout << "adsfasdf" << "\n";
+// //     std::cout << tx_p.partitioning_plan[i] << " ";
     if(tx_p.partitioning_plan[i] == -4)
       break;
   }
@@ -1080,8 +1083,8 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
 }
 
 TfScheduler::~TfScheduler() {
-  std::cout << "Scheduler Terminated"
-            << "\n";
+// //   std::cout << "Scheduler Terminated"
+//             << "\n";
 };
 
 }  // namespace tflite

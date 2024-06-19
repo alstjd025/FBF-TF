@@ -91,8 +91,8 @@ Interpreter::Interpreter(ErrorReporter* error_reporter)
   // Prod logging is useful for mobile platforms where scraping console logs is
   // critical for debugging.
 
-  std::cout << "Interpreter : Initializing default tflite interpreter"
-            << "\n";
+// //   std::cout << "Interpreter : Initializing default tflite interpreter"
+//             << "\n";
 #if defined(TFLITE_IS_MOBILE_PLATFORM)
   TFLITE_LOG_PROD_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
 #else
@@ -124,7 +124,7 @@ Interpreter::Interpreter(ErrorReporter* error_reporter)
 
   // THIS CODE IS DEPRECATED
   // scheduler_ = new LiteScheduler(this); //create scheduler thread here
-  // std::cout << "Interperter Created with new job queue and scheduler" <<
+// //   // std::cout << "Interperter Created with new job queue and scheduler" <<
   // "\n";
 }
 
@@ -134,8 +134,8 @@ Interpreter::Interpreter(bool use_job) {
   // Prod logging is useful for mobile platforms where scraping console logs is
   // critical for debugging.
 
-  std::cout << "Interpreter : Initializing modified tflite interpreter"
-            << "\n";
+// //   std::cout << "Interpreter : Initializing modified tflite interpreter"
+//             << "\n";
 #if defined(TFLITE_IS_MOBILE_PLATFORM)
   TFLITE_LOG_PROD_ONCE(TFLITE_LOG_INFO, "Initialized TensorFlow Lite runtime.");
 #else
@@ -167,7 +167,7 @@ Interpreter::Interpreter(bool use_job) {
 
   // THIS CODE IS DEPRECATED
   // scheduler_ = new LiteScheduler(this); //create scheduler thread here
-  // std::cout << "Interperter Created with new job queue and scheduler" <<
+// //   // std::cout << "Interperter Created with new job queue and scheduler" <<
   // "\n";
 }
 
@@ -191,8 +191,8 @@ Interpreter::~Interpreter() {
       internal_context->ClearCaches();
     }
   }
-  std::cout << "Interpreter destructor called"
-            << "\n";
+// //   std::cout << "Interpreter destructor called"
+//             << "\n";
 }
 
 void Interpreter::SetExternalContext(TfLiteExternalContextType type,
@@ -321,22 +321,22 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
         subgraph->GetResourceType() == ResourceType::CO_GPU) {
       if (subgraph->GetPartitioningType() ==
           PartitioningType::HEIGHT_PARTITIONING) {
-        std::cout << "Height partition on subgraph " << subgraph->GetGraphid()
-                  << "\n";
+// //         std::cout << "Height partition on subgraph " << subgraph->GetGraphid()
+//                   // << "\n";
         if (subgraph->PartitionHeightTest() != kTfLiteOk) {
-          std::cout << "Height partitioning TEST returned ERROR"
-                    << "\n";
+// //           std::cout << "Height partitioning TEST returned ERROR"
+//                     // << "\n";
           return kTfLiteError;
         }
         if (subgraph->AllocateTensors() != kTfLiteOk) {
-          std::cout << "AllocateTensors after HeightPartitioning returned ERROR"
-                    << "\n";
+// //           std::cout << "AllocateTensors after HeightPartitioning returned ERROR"
+//                     // << "\n";
           return kTfLiteError;
         }
         if (subgraph->AllocateConcateTensors() != kTfLiteOk) {
-          std::cout << "AllocateConcateTensors after HeightPartitioning "
-                       "returned ERROR"
-                    << "\n";
+// //           std::cout << "AllocateConcateTensors after HeightPartitioning "
+                    //    "returned ERROR"
+//                     // << "\n";
           return kTfLiteError;
         }
       }
@@ -350,9 +350,9 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
         primary_working_subgraph =
             subgraph_id(subset.second[0]);  // Allocate first subgraph
         if (primary_working_subgraph->AllocateTensors() != kTfLiteOk) {
-          std::cout << "AllocateTensors of graph [" << subset.second[0] << "] "
-                    << "returned ERROR"
-                    << "\n";
+// //           std::cout << "AllocateTensors of graph [" << subset.second[0] << "] "
+//                     // << "returned ERROR"
+//                     // << "\n";
           return kTfLiteError;
         }
         // Resize intermediate shared tensors with GetIntermediateTensorRange()
@@ -360,8 +360,8 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
         if (GetIntermediateTensorRangeWithGraphSubset(
                 model_id, &input_tensor_begin_idx, &input_tensor_end_idx) !=
             kTfLiteOk) {
-          std::cout << "GetIntermediateTensorRangeWithGraphSubset ERROR"
-                    << "\n";
+// //           std::cout << "GetIntermediateTensorRangeWithGraphSubset ERROR"
+//                     // << "\n";
           return kTfLiteError;
         }
         // // Debug print
@@ -369,17 +369,17 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
         //   if(shared_tensor_and_graph[k]->model_id == model_id){
         //     for(int i=0;
         //     i<shared_tensor_and_graph[k]->pair_tensor_graph.size(); ++i){
-        //       std::cout << "tensor : " <<
-        //       shared_tensor_and_graph[k]->pair_tensor_graph[i].first << "\n";
-        //       std::cout << "subgraphs : ";
+// //         //       std::cout << "tensor : " <<
+//         //       shared_tensor_and_graph[k]->pair_tensor_graph[i].first << "\n";
+// //         //       std::cout << "subgraphs : ";
         //       for(int j=0;
         //       j<shared_tensor_and_graph[k]->pair_tensor_graph[i].second.size();
         //       ++j){
-        //         std::cout <<
-        //         shared_tensor_and_graph[k]->pair_tensor_graph[i].second[j] <<
+// //         //         std::cout <<
+//         //         shared_tensor_and_graph[k]->pair_tensor_graph[i].second[j] <<
         //         " ";
         //       }
-        //       std::cout << "\n";
+// //         //       std::cout << "\n";
         //     }
         //   }
         // }
@@ -427,8 +427,8 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
           }
         }
       } else {
-        std::cout << "Interpreter : no registerd subgraph of "
-                  << "model id [" << model_id << "] no allocation occurs.\n";
+// //         std::cout << "Interpreter : no registerd subgraph of "
+//                   // << "model id [" << model_id << "] no allocation occurs.\n";
         return kTfLiteOk;
       }
     }
@@ -438,15 +438,15 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
       int working_subgraph_id = subset.second[subgraph_idx];
       Subgraph* working_subgraph = subgraph_id(working_subgraph_id);
       if (HeightPartitionandAllocateIfNeed(working_subgraph) != kTfLiteOk) {
-        std::cout << "HeightPartitionAndAllocateIfNeed returned ERROR"
-                  << "\n";
+// //         std::cout << "HeightPartitionAndAllocateIfNeed returned ERROR"
+//                   // << "\n";
         return kTfLiteError;
       }
       // Minsung
       if (working_subgraph->AllocateConcateTensors() != kTfLiteOk) {
-        std::cout
-            << "AllocateConcateTensors after HeightPartitioning returned ERROR"
-            << "\n";
+//         std::cout
+//             // << "AllocateConcateTensors after HeightPartitioning returned ERROR"
+//             // << "\n";
         return kTfLiteError;
       }
       if (!working_subgraph->IsInvokable()) {
@@ -460,14 +460,14 @@ TfLiteStatus Interpreter::AllocateTensorsofSubsets(int model_id) {
 
 TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(
     int model_id, int* begin, int* end) {
-  std::cout << "GetIntermediateTensorRangeWithGraphSubset" << "\n";
+// //   std::cout << "GetIntermediateTensorRangeWithGraphSubset" << "\n";
   TfLiteIntArray* execution_plan;
   int input_subgraph_id;
   int last_subgraph_id;
   primary_subgraph_->GetExecutionPlanSafe(&execution_plan);
   if (execution_plan->size < 0) {
-    std::cout << "[ERROR] Execution Plan size < 0 in subgraph 0"
-              << "\n";
+// //     std::cout << "[ERROR] Execution Plan size < 0 in subgraph 0"
+//               // << "\n";
     return kTfLiteError;
   }
   TfLiteNode* node;
@@ -501,7 +501,7 @@ TfLiteStatus Interpreter::GetIntermediateTensorRangeWithGraphSubset(
     *end = node->outputs->data[0];
   }
   TfLiteIntArrayFree(execution_plan);
-  std::cout << "GetIntermediateTensorRangeWithGraphSubset done" << "\n";
+// //   std::cout << "GetIntermediateTensorRangeWithGraphSubset done" << "\n";
   return kTfLiteOk;
 }
 
@@ -569,8 +569,8 @@ TfLiteStatus Interpreter::Invoke() {
 TfLiteStatus Interpreter::DebugInvoke() {
   for (int i = 0; i < subgraphs_.size(); ++i) {
     if (subgraphs_[i]->Invoke() != kTfLiteOk) {
-      std::cout << "Subgraph [" << i << "] returned Error"
-                << "\n";
+// //       std::cout << "Subgraph [" << i << "] returned Error"
+//                 // << "\n";
       return kTfLiteError;
     }
   }
@@ -690,7 +690,7 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
 
 TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
   TfLiteStatus status = kTfLiteOk;
-  std::cout << "Delegate graph_id : " << graph_id << "\n";
+// //   std::cout << "Delegate graph_id : " << graph_id << "\n";
   if (!delegates_prepared.empty()) {
     // delegate gpu
     if (subgraph_id(graph_id)->GetResourceType() == GPU ||
@@ -703,22 +703,22 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
     else if (subgraph_id(graph_id)->GetResourceType() == CPU_XNN){
       int prefered_utilization = 0;
         prefered_utilization = subgraph_id(graph_id)->GetPartitioningRatio();
-      std::cout << "prefered_utilization " << prefered_utilization << "\n";
+// //       std::cout << "prefered_utilization " << prefered_utilization << "\n";
       status = 
         subgraph_id(graph_id)->ModifyGraphWithDelegate(
           SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
     }else if (subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN){
       int prefered_utilization = 0;
         // prefered_utilization = subgraph_id(graph_id)->GetPartitioningRatio();
-      std::cout << "prefered_utilization " << prefered_utilization << "\n";
+// //       std::cout << "prefered_utilization " << prefered_utilization << "\n";
       status = 
         subgraph_id(graph_id)->ModifyGraphWithDelegate(
           SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
 
     }
   } else {
-    std::cout << "No delegate exists in this interpreter"
-              << "\n";
+// //     std::cout << "No delegate exists in this interpreter"
+//               << "\n";
     return kTfLiteError;
   }
   if (status != kTfLiteOk) return status;
@@ -726,7 +726,7 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
 }
 // Minsung
 TfLiteStatus Interpreter::RegisterDelegate(DelegateWrapper* new_delegate) {
-  std::cout << "register delegate" << "\n";
+// //   std::cout << "register delegate" << "\n";
   delegates_prepared.push_back(new_delegate);
   return kTfLiteOk;
 }
@@ -735,7 +735,7 @@ TfLiteDelegate* Interpreter::SearchAndReturnProperDelegate(DelegateType type, in
   for(int i=0; i<delegates_prepared.size(); ++i){
     if(delegates_prepared[i]->prefered_utilization == utilization
         && delegates_prepared[i]->delegate_type == type){
-      std::cout << "delegate i " << i << " type : " << type << " util " << utilization << "\n";
+// //       std::cout << "delegate i " << i << " type : " << type << " util " << utilization << "\n";
       return delegates_prepared[i]->delegate;
     }
     
@@ -846,10 +846,10 @@ TfLiteTensor* Interpreter::input_tensor_of_model(int model_id) {
 }
 
 void Interpreter::PrintSubgraphInfo() {
-  std::cout << "Interpreter: subgraph size:" << subgraphs_.size() << "\n";
+// //   std::cout << "Interpreter: subgraph size:" << subgraphs_.size() << "\n";
   for (int i = 0; i < subgraphs_.size(); ++i) {
-    std::cout << "id : " << subgraphs_[i]->GetGraphid()
-              << " model : " << subgraphs_[i]->GetModelid() << "\n";
+// //     std::cout << "id : " << subgraphs_[i]->GetGraphid()
+//               << " model : " << subgraphs_[i]->GetModelid() << "\n";
   }
 }
 
@@ -976,22 +976,22 @@ void Interpreter::EnqueueJobs() {
   LockJobs();
   if (!jobs->empty() || job_vector.empty()) {
     UnlockJobs();
-    std::cout << "Job queue or vector ERROR"
-              << "\n";
+// //     std::cout << "Job queue or vector ERROR"
+//               << "\n";
     return;
   }
   for (size_t i = 0; i < job_vector.size(); ++i) {
     if (job_vector[i]->state == JobState::READY) {
       jobs->push(job_vector[i]);
-      std::cout << "Interpreter : Enqueued Job " << job_vector[i]->job_id
-                << " to global job queue"
-                << "\n";
-      std::cout << "Interpreter : Job [" << job_vector[i]->job_id << "] "
-                << "has subgraphs : ";
+// //       std::cout << "Interpreter : Enqueued Job " << job_vector[i]->job_id
+//                 << " to global job queue"
+//                 << "\n";
+// //       std::cout << "Interpreter : Job [" << job_vector[i]->job_id << "] "
+//                 << "has subgraphs : ";
       for (size_t j = 0; j < job_vector[i]->subgraphs.size(); ++j) {
-        std::cout << job_vector[i]->subgraphs[j].first << " ";
+// //         std::cout << job_vector[i]->subgraphs[j].first << " ";
       }
-      std::cout << "\n";
+// //       std::cout << "\n";
     }
   }
   UnlockJobs();
@@ -1001,20 +1001,20 @@ TfLiteStatus Interpreter::GiveJob() {
   LockJobs();
   int worker_idx = 0;
   while (!jobs->empty() && !workers.empty()) {
-    std::cout << "Interperter : give job"
-              << "\n";
-    std::cout << "Interpreter : job queue has " << jobs->size() << " jobs\n";
+// //     std::cout << "Interperter : give job"
+//               << "\n";
+// //     std::cout << "Interpreter : job queue has " << jobs->size() << " jobs\n";
     Job* job = jobs->front();
-    std::cout << "Interpreter : job state : " << job->state << "\n";
+// //     std::cout << "Interpreter : job state : " << job->state << "\n";
     if (job->state == JobState::DONE) {
       jobs->pop();
       continue;
     } else if (job->state == JobState::READY) {
-      std::cout << "Interpreter : give job " << job->job_id << " to worker "
-                << worker_idx << "\n";
+// //       std::cout << "Interpreter : give job " << job->job_id << " to worker "
+//                 << worker_idx << "\n";
       workers[worker_idx]->GiveJob(job);
-      std::cout << "give job"
-                << "\n";
+// //       std::cout << "give job"
+//                 << "\n";
       worker_idx++;
       jobs->pop();
     }
@@ -1027,7 +1027,7 @@ TfLiteStatus Interpreter::DoInvoke() {
   for (int i = 0; i < workers.size(); ++i) {
     Worker* worker_ = workers[i];
     if (worker_->HaveJob() && worker_->state != WorkerState::WORKING) {
-      std::cout << "Interpreter : wake worker " << i << "\n";
+// //       std::cout << "Interpreter : wake worker " << i << "\n";
       worker_->ChangeStateTo(WorkerState::WORKING);
       worker_->WakeWorker();
     }
@@ -1041,7 +1041,7 @@ tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id) {
       int graph_id = subgraph_subsets[i].second[j];
       Subgraph* working_graph = subgraph_id(graph_id);
       if (working_graph == nullptr) {
-        std::cout << "Cannot get pointer to subgraph " << graph_id << "\n";
+// //         std::cout << "Cannot get pointer to subgraph " << graph_id << "\n";
         return nullptr;
       }
       if (working_graph->GetModelid() != id) continue;

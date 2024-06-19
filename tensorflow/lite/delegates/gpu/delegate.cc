@@ -162,14 +162,14 @@ class DelegateKernel {
     input_indices_.reserve(input_refs.size());
     for (uint32_t tensor_index : input_refs) {
       const int64_t object_index = input_indices_.size();
-      std::cout << "(Prepare)input index " << tensor_index << "\n";
+      // std::cout << "(Prepare)input index " << tensor_index << "\n";
       input_indices_.push_back(tensor_index);
       RETURN_IF_ERROR(
           builder->SetInputObjectDef(object_index, GetObjectDef(tensor_index)));
     }
     output_indices_.reserve(output_refs.size());
     for (uint32_t tensor_index : output_refs) {
-      std::cout << "(Prepare)output index " << tensor_index << "\n";
+      // std::cout << "(Prepare)output index " << tensor_index << "\n";
       const int64_t object_index = output_indices_.size();
       output_indices_.push_back(tensor_index);
       RETURN_IF_ERROR(builder->SetOutputObjectDef(object_index,

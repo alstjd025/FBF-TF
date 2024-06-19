@@ -1,7 +1,7 @@
 #include "tensorflow/lite/tf_monitor.h"
-// #define nvidia
+#define nvidia
 #define MONITORING_PERIOD_MS 100 // < 5 is not stable.
-#define Experiment
+// #define Experiment
 
 
 namespace tflite{
@@ -9,7 +9,7 @@ namespace tflite{
 LiteSysMonitor::LiteSysMonitor(){
   log_File.open("utilization.txt");
   
-  std::cout << "System monitoring started" << "\n";
+  // std::cout << "System monitoring started" << "\n";
   CPU_daemon = std::thread(&LiteSysMonitor::GetCPUUtilization, this);
   #ifdef nvidia
     GPU_daemon = std::thread(&LiteSysMonitor::GetGPUUtilization, this);
@@ -24,7 +24,7 @@ LiteSysMonitor::LiteSysMonitor(){
 
 LiteSysMonitor::~LiteSysMonitor(){
   // must terminate CPU_daemon & GPU_daemon here.
-  std::cout << "System monitoring terminated" << "\n";
+  // std::cout << "System monitoring terminated" << "\n";
 }
 
 float LiteSysMonitor::GetCPUUtil(){

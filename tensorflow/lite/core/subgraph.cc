@@ -394,6 +394,8 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
 
   execution_plan_.clear();
   // std::cout << "ReplaceNodes" << "\n";
+  // EZE
+
   // for(auto& node_subset : node_subsets){
   //   std::cout << "node subset.size : "<< node_subset.nodes.size() << "\n";
   //   std::cout << "nodes included ";
@@ -408,25 +410,31 @@ TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels(
   //   }
   //   std::cout << "\n";
   // }
+  
+  // printf("111111<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+  // for(auto &node_subset : node_subsets){
+  //   std::cout << "IIIIIIIIIII : ";
+  //   for(int i=0;i<node_subset.input_tensors.size();i++)
+  //     std::cout << " " << node_subset.input_tensors[i];
+  //   std::cout << std::endl;
+
+  //   if(node_subset.output_tensors.size()>0){
+  //     if(node_subset.output_tensors[0] == 72)         
+  //       node_subset.output_tensors.push_back(71);
+  //     if(node_subset.output_tensors[0] == 85)         
+  //       node_subset.output_tensors.push_back(84);
+  //     if(node_subset.output_tensors[0] == 98)         
+  //       node_subset.output_tensors.push_back(97);
+  //   }
+  // }
+
 
   for (auto& node_subset : node_subsets) {
     // Minsung
     // for lanenet test only
     // delete after test!!!!
-    // if(node_subset.nodes.size() == 12){
-    //   std::cout << "set output tensor manually 136 138 141 142" << "\n";
-      // node_subset.output_tensors.clear();
-      // node_subset.output_tensors.push_back(136);
-      // node_subset.output_tensors.push_back(138);
-      // node_subset.output_tensors.push_back(141);
-      // node_subset.output_tensors.push_back(142);
-    // }
-    // if(node_subset.output_tensors[0] == 138){
-    //   node_subset.output_tensors.clear();
-    //   node_subset.output_tensors.push_back(136);
-    //   node_subset.output_tensors.push_back(138);
-    // }
-    
+    // std::cout << "<<<<<<<<<<<<<<<<<< Each node subset's output tensor : " << node_subset.output_tensors[0] << std::endl;
+
 
     // Subsets claimed by the delegate should have a "macro" op created, the
     // other node_subsets (kTfNonPartition) just have their nodes added back to

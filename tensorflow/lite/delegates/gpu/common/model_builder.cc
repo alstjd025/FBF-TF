@@ -2851,12 +2851,13 @@ TfLiteIntArray* GetOpsToReplace(TfLiteContext* context, bool allow_quant_ops,
     const auto status =
         IsSupported(context, node, registration, allow_quant_ops);
     // CODE FOR FALLBACK TEST
-    context->experimental_flag = true; //EZE for lanenet, yolo
+    context->experimental_flag = true;
     if (context->experimental_flag) {
       if (registration->builtin_code == 0 ||
           registration->builtin_code == 18) {  // check if ADD or mullayer
-        // if(false){ //check if ADD layer
-        // printf("FOUND AN ADD or MUL LAYER... MAKE FALLBACK\n");
+        return false;
+      }
+      if (node->outputs->data[0] == 105) {  
         return false;
       }
     }

@@ -34,6 +34,8 @@ limitations under the License.
 #include "tensorflow/lite/util.h"
 #include "tensorflow/lite/version.h"
 
+#define THREAD 6
+
 // aligned_alloc is available (via cstdlib/stdlib.h) with C++17/C11.
 #if __cplusplus >= 201703L || __STDC_VERSION__ >= 201112L
 #if !defined(__ANDROID__) || __ANDROID_API__ >= 28
@@ -387,17 +389,17 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   // 6. Store the Job and subgraph to given interpreter.
 
   if(!interpreter_){
-    std::cout << "No interpreter ERROR" << "\n";
+//     std::cout << "No interpreter ERROR" << "\n";
     return kTfLiteError;
   }
 
   if(!model_){
-    std::cout << "No model ERROR" << "\n";
+//     std::cout << "No model ERROR" << "\n";
     return kTfLiteError;
   }
 
   if(BuildLocalIndexToRegistrationMapping() != kTfLiteOk){
-    std::cout << "Registration Failed" << "\n";
+//     std::cout << "Registration Failed" << "\n";
     return kTfLiteError;
   }
 
@@ -458,7 +460,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
     }
   }
   modified_subgraph->SetVariables(std::move(variables));
-  std::cout << "Interpreterbuilder : created modified subgraph" << "\n";
+//   // std::cout << "Interpreterbuilder : created modified subgraph" << "\n";
   // Minsung
   // Is this necessary?
   if (num_fp32_tensors_ > 0) {
@@ -474,30 +476,30 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
   // Minsung
   // Allocate the new subgraph
   if(modified_subgraph->AllocateTensors() != kTfLiteOk){
-    std::cout << "Subgraph allocation failed" << "\n";
+//     // std::cout << "Subgraph allocation failed" << "\n";
     return kTfLiteError;
   }
-  std::cout << "Interpreterbuilder : Allocated tensors" << "\n";
+//   // std::cout << "Interpreterbuilder : Allocated tensors" << "\n";
   // Minsung
   // Create a new job from subgraph.
   Job* new_job = new Job;
   if(BindSubgraphWithDefaultJob(modified_subgraph, new_job)
       != kTfLiteOk){
-    std::cout << "BindSubgraphWithDefaultJob ERROR" << "\n";
+//     // std::cout << "BindSubgraphWithDefaultJob ERROR" << "\n";
     return kTfLiteError; 
   }
-  std::cout << "Interpreterbuilder : Created subgraph with default job" << "\n";
+//   // std::cout << "Interpreterbuilder : Created subgraph with default job" << "\n";
   // Minsung
   // Store the job and subgraph to interpreter.
   if(RegisterJobAndSubgraphDefault(modified_subgraph, new_job)
       != kTfLiteOk){
-    std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
+//     // std::cout << "RegisterJobAndSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
   interpreter_->SaveOriginTensorDims (modified_subgraph);
-  std::cout << "Interpreterbuilder : Registered default job and subgraph" << "\n";
-  std::cout << "New Graph id : " << modified_subgraph->GetGraphid() << "\n";
-  std::cout << "New Graph model id : " << modified_subgraph->GetModelid() << "\n";
+//   // std::cout << "Interpreterbuilder : Registered default job and subgraph" << "\n";
+//   // std::cout << "New Graph id : " << modified_subgraph->GetGraphid() << "\n";
+//   // std::cout << "New Graph model id : " << modified_subgraph->GetModelid() << "\n";
   return kTfLiteOk;
 }
 
@@ -508,7 +510,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphForStress(){
 TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
                                       tflite::Subgraph* profiled_subgraph){
   if(!profiled_subgraph->IsProfiled()){
-    std::cout << "InterpreterBuilder : Subgraph is not profiled \n";
+//     // std::cout << "InterpreterBuilder : Subgraph is not profiled \n";
     return kTfLiteError;
   }
   int ancient_subgraph_output_tensor = profiled_subgraph->GetFirstOutputTensorIndex();
@@ -617,18 +619,18 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           default:
             break;
           }
-          std::cout << "nodes in subgraph : ";
+//           // std::cout << "nodes in subgraph : ";
           for(int j=0; j<profile[k]->layer_subsets[i].size(); ++j){ //layers 
             new_plan->nodes[j] = profile[k]->layer_subsets[i][j]; 
-            std::cout << new_plan->nodes[j] << " ";
+//             // std::cout << new_plan->nodes[j] << " ";
             new_plan->partitioning_ratios[j] = profile[k]->partitioning_ratios[i][0];
           }
-          // std::cout << "\n";
-          // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
-          // std::cout << "HH\n";
+//           // std::cout << "\n";
+//           // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
+//           // std::cout << "HH\n";
           master_partitioning_plan.push_back(new_plan);
         }
-        // std::cout << "ZZZ\n";
+//         // std::cout << "ZZZ\n";
       }
       return;
     };
@@ -656,7 +658,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       /// Make a new subgraph
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
       subgraphs_created.push_back(new_subgraph);
-      // std::cout << "LLLLLLLll " << subgraphs_created.size();
+//       // std::cout << "LLLLLLLll " << subgraphs_created.size();
       if(!prev_queue.empty()){ // make linked-list structure of subgraphs
         prev_queue.front()->SetNextSubgraph(new_subgraph);
         new_subgraph->SetPrevSubgraph(prev_queue.front());
@@ -673,12 +675,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         new_subgraph->SetResourceType(ResourceType::CPU);
         new_subgraph->PushExternalParameter(
           master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
-        new_subgraph->context()->recommended_num_threads = 6;
+        new_subgraph->context()->recommended_num_threads = THREAD;
         break;
       case ResourceType::GPU:
         // Set this sugraph for gpu subgraph
         new_subgraph->SetResourceType(ResourceType::GPU);
-        new_subgraph->context()->recommended_num_threads = 6;  
+        new_subgraph->context()->recommended_num_threads = THREAD;  
         break;
       case ResourceType::CO_CPU:
         new_subgraph->SetResourceType(ResourceType::CO_CPU);
@@ -688,7 +690,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);
-        new_subgraph->context()->recommended_num_threads = 6;
+        new_subgraph->context()->recommended_num_threads = THREAD;
         break;
       case ResourceType::CO_GPU:
         new_subgraph->SetResourceType(ResourceType::CO_GPU);
@@ -698,13 +700,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);        
-          new_subgraph->context()->recommended_num_threads = 6;  
+          new_subgraph->context()->recommended_num_threads = THREAD;  
         break;
       case ResourceType::CPU_XNN:
         new_subgraph->SetResourceType(ResourceType::CPU_XNN);
         new_subgraph->PushExternalParameter(
           master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
-        new_subgraph->context()->recommended_num_threads = 6;
+        new_subgraph->context()->recommended_num_threads = THREAD;
         break;
       case ResourceType::CO_CPU_XNN:
         new_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
@@ -720,12 +722,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       }
       std::vector<int> nodes_to_parse;
       // Now setup nodes and tensors for new subgraph
-      std::cout << std::endl;
-      std::cout << "partitioning_iteration : " <<partition_itr << std::endl;  // EZE
+//       // std::cout << std::endl;
+//       // std::cout << "partitioning_iteration : " <<partition_itr << std::endl;  // EZE
 
       for(int j=0; j < num_nodes_in_partition; ++j){
-        // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
-        // std::cout << "HHH : " << j << std::endl;  // 
+//         // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
+//         // std::cout << "HHH : " << j << std::endl;  // 
         int working_op = nodes_in_partition[j];
         nodes_to_parse.push_back(working_op);
         const auto* op = operators->Get(working_op);
@@ -769,7 +771,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
             }
           }
           new_subgraph->SetVariables(std::move(variables));
-          std::cout << "Interpreterbuilder : created new subgraph" << "\n";
+//           // std::cout << "Interpreterbuilder : created new subgraph" << "\n";
         }
       }
       // tmp_input_tensor = input_tensor;
@@ -789,27 +791,27 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
     }
-    // std::cout << "\n<<<<<<<<<<>>>>>>>>>\n";
-    // std::cout << subgraphs_created.size() << std::endl;
+//     // std::cout << "\n<<<<<<<<<<>>>>>>>>>\n";
+//     // std::cout << subgraphs_created.size() << std::endl;
     // for (int i;i<subgraphs_created.size();i++){
-    //   std::cout << ".............." << i << std::endl;  // subgraphs_created.size == 0..??
+//     //   std::cout << ".............." << i << std::endl;  // subgraphs_created.size == 0..??
     // }
-    std::cout << "HHHHHHH : Make Subgraph candidates END\n";
+//     // std::cout << "HHHHHHH : Make Subgraph candidates END\n";
     // Partitioning iteration ends
     // "Job is deprecated"
     tflite::Job* new_job = new tflite::Job;
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){
-      std::cout << "BindSubgraphWithJob ERROR" << "\n";
+//       // std::cout << "BindSubgraphWithJob ERROR" << "\n";
       return kTfLiteError;
     }
     if(RegisterJobAndSubgraphs(subgraphs_created, new_job) !=
         kTfLiteOk){
-      std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
+//       // std::cout << "RegisterJobAndSubgraphs ERROR" << "\n";
       return kTfLiteError;
     }
-    interpreter_->PrintSubgraphInfo(); 
-    std::cout << "RegisterJobAndSubgraphs" << "\n";
+    // interpreter_->PrintSubgraphInfo(); 
+//     // std::cout << "RegisterJobAndSubgraphs" << "\n";
     // Fill shared tensor bucket  
     for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
       for(size_t j=0; j<subgraph_and_tensors[graph_idx].second.size(); ++j){
@@ -842,40 +844,40 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
     (interpreter_)->shared_tensor_and_graph.push_back(temp);
   }
   
-  std::cout << "USE INTERPRETER API (before Deletesubgraph)\n";
+//   // std::cout << "USE INTERPRETER API (before Deletesubgraph)\n";
   std::vector<int> subgraph_set;
   interpreter_->GetTotalSubgraphID(subgraph_set);
-  std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
+//   // std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
   
   // Delete old subgraph and move it to interpreter's primary subgraph.
   if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
       != kTfLiteOk){
-    std::cout << "DeleteSubgraph ERROR" << "\n";
+//     // std::cout << "DeleteSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
 
- std::cout << "USE INTERPRETER API (After Deletesubgraph)\n";
+// //  std::cout << "USE INTERPRETER API (After Deletesubgraph)\n";
   // std::vector<int> subgraph_set;
   interpreter_->GetTotalSubgraphID(subgraph_set);
-  std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
+//   // std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
 
   // MUST CHECK
   // Does CPU-side interpreter need to call AllocateTensors twice?
-  std::cout << "model_id : " << model_id_ << std::endl;
+//   // std::cout << "model_id : " << model_id_ << std::endl;
   if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
-    std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
+//     // std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
   }
-  std::cout << "Allocated tensors" << "\n";
+//   // std::cout << "Allocated tensors" << "\n";
   if(is_sub_interpreter){ // If Co-execution CPU InterpreterBuilder
     if(PartitionChannels((subgraphs_created)) != kTfLiteOk){
-      std::cout << "Partition channel-wise for cpu ERROR" << "\n";
+//       // std::cout << "Partition channel-wise for cpu ERROR" << "\n";
       return kTfLiteError;
     }
     // need to reallocate if tensor shapes are changed.
     // BUT NEED CHECK
     // if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){ 
-    //   std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
+//     //   std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     //   return kTfLiteError; // TEST
     // }
   }
@@ -904,17 +906,17 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   // for (int k=mother_subgraph_size;k<subgraphs_created.size();k++){
   //   tensor_output_id = subgraphs_created[k]->GetFirstOutputTensorIndex();
   //   resource_type = subgraphs_created[k]->GetResourceType();
-  //   // std::cout << "CANDIDATES tensor size : " << tensor_overall_size << std::endl;
+//   //   // std::cout << "CANDIDATES tensor size : " << tensor_overall_size << std::endl;
   //   for (int j : mother_subgraph_id_vector){
   //     if ((tensor_output_id == subgraphs_created[j]->GetFirstOutputTensorIndex()) 
   //     && (resource_type == subgraphs_created[j]->GetResourceType())){
-  //       std::cout << "FIND CANDIDATE subgraph : " << k;
-  //       std::cout << ", AND CANDIDATE's mother subgraph : " << j;
-  //       std::cout << " OVERALL tensor size : "<<subgraphs_created[j]->tensors_size() << std::endl;
-  //       std::cout << " OUTPUT tensor id : "<< subgraphs_created[k]->GetFirstOutputTensorIndex()<< std::endl;
-  //       std::cout << "Arena before" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
+//   //       std::cout << "FIND CANDIDATE subgraph : " << k;
+//   //       std::cout << ", AND CANDIDATE's mother subgraph : " << j;
+//   //       std::cout << " OVERALL tensor size : "<<subgraphs_created[j]->tensors_size() << std::endl;
+//   //       std::cout << " OUTPUT tensor id : "<< subgraphs_created[k]->GetFirstOutputTensorIndex()<< std::endl;
+//   //       std::cout << "Arena before" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
   //       subgraphs_created[k]->FreeArenaAllocation();
-  //       std::cout << "Arena after" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
+//   //       std::cout << "Arena after" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
   //       for (int n=0;n<subgraphs_created[k]->tensors().size(); n++){          
   //           subgraphs_created[k]->tensors()[n].data.data = subgraphs_created[j]->tensors()[n].data.data;
   //           subgraphs_created[k]->tensors()[n].bytes = subgraphs_created[j]->tensors()[n].bytes;
@@ -933,39 +935,39 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   // 2. Make candidate subgraph's tensor-data memory free (should use ARENA allocation method)
   // 3. Make candidate subgraph's tensor-data memory point to mother subgraph tensor-data 
   // ++ start subgraph id "0"
-  printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
-  int tensor_output_id = -1;
-  ResourceType resource_type = ResourceType::CPU;
-  for (int k=0;k<subgraphs_created.size();k++){
-    tensor_output_id = subgraphs_created[k]->GetFirstOutputTensorIndex();
-    resource_type = subgraphs_created[k]->GetResourceType();
-    for (int j=k-1;j>=0;j--){
-      if ((tensor_output_id == subgraphs_created[j]->GetFirstOutputTensorIndex()) 
-      && (resource_type == subgraphs_created[j]->GetResourceType())){
-        std::cout << "FIND CANDIDATE subgraph : " << k;
-        std::cout << ", AND CANDIDATE's mother subgraph : " << j;
-        std::cout << " OVERALL tensor size : "<<subgraphs_created[j]->tensors_size() << std::endl;
-        std::cout << " OUTPUT tensor id : "<< subgraphs_created[k]->GetFirstOutputTensorIndex()<< std::endl;
-        std::cout << "Arena before" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
-        subgraphs_created[k]->FreeArenaAllocation();
-        std::cout << "Arena after" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
-        for (int n=0;n<subgraphs_created[k]->tensors().size(); n++){          
-            subgraphs_created[k]->tensors()[n].data.data = subgraphs_created[j]->tensors()[n].data.data;
-            subgraphs_created[k]->tensors()[n].bytes = subgraphs_created[j]->tensors()[n].bytes;
-            subgraphs_created[k]->tensors()[n].allocation_type = kTfLiteCustom;
-        }
-      }
-    }
-  }
-  printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
+  // printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
+  // int tensor_output_id = -1;
+  // ResourceType resource_type = ResourceType::CPU;
+  // for (int k=0;k<subgraphs_created.size();k++){
+  //   tensor_output_id = subgraphs_created[k]->GetFirstOutputTensorIndex();
+  //   resource_type = subgraphs_created[k]->GetResourceType();
+  //   for (int j=k-1;j>=0;j--){
+  //     if ((tensor_output_id == subgraphs_created[j]->GetFirstOutputTensorIndex()) 
+  //     && (resource_type == subgraphs_created[j]->GetResourceType())){
+//   //       std::cout << "FIND CANDIDATE subgraph : " << k;
+//   //       std::cout << ", AND CANDIDATE's mother subgraph : " << j;
+//   //       std::cout << " OVERALL tensor size : "<<subgraphs_created[j]->tensors_size() << std::endl;
+//   //       std::cout << " OUTPUT tensor id : "<< subgraphs_created[k]->GetFirstOutputTensorIndex()<< std::endl;
+//   //       std::cout << "Arena before" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
+  //       subgraphs_created[k]->FreeArenaAllocation();
+//   //       std::cout << "Arena after" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
+  //       for (int n=0;n<subgraphs_created[k]->tensors().size(); n++){          
+  //           subgraphs_created[k]->tensors()[n].data.data = subgraphs_created[j]->tensors()[n].data.data;
+  //           subgraphs_created[k]->tensors()[n].bytes = subgraphs_created[j]->tensors()[n].bytes;
+  //           subgraphs_created[k]->tensors()[n].allocation_type = kTfLiteCustom;
+  //       }
+  //     }
+  //   }
+  // }
+  // printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
   /////////////////////////////////////////////////////////////////////////////////
 
   if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){
-    std::cout << "DelegateOldSubgraphs ERROR" << "\n";
+//     // std::cout << "DelegateOldSubgraphs ERROR" << "\n";
     return kTfLiteError;
   }
-  std::cout << "Delegate tensors" << "\n";
-  std::cout << "Interpreterbuilder: Subgraphs created" << "\n";
+//   // std::cout << "Delegate tensors" << "\n";
+//   // std::cout << "Interpreterbuilder: Subgraphs created" << "\n";
   return kTfLiteOk;
 }
 
@@ -977,7 +979,7 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
     double response_time = 0;
     struct timespec begin, end; 
     clock_gettime(CLOCK_MONOTONIC, &begin);
-    std::cout << "resource type : " << new_subgraph->GetResourceType() << "\n";
+//     // std::cout << "resource type : " << new_subgraph->GetResourceType() << "\n";
     if(new_subgraph->GetResourceType() == ResourceType::GPU ||
       new_subgraph->GetResourceType() == ResourceType::CO_GPU ||
       new_subgraph->GetResourceType() == ResourceType::CPU_XNN ||
@@ -986,20 +988,20 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
       // Experimental flag for ADD, MUL fallback handle in YOLO.
       if(interpreter_->GetInputType() == INPUT_TYPE::COCO416){
         new_subgraph->SetExperimentalFlagTrue();
-        std::cout << "SetExperimentalFlagTrue" << "\n";
+//         // std::cout << "SetExperimentalFlagTrue" << "\n";
       }
       else{
         new_subgraph->SetExperimentalFlagFalse();
-        std::cout << "SetExperimentalFlagFalse" << "\n";
+//         // std::cout << "SetExperimentalFlagFalse" << "\n";
       }
 
       if(interpreter_->ModifyGraphWithDelegateImpl(new_subgraph->GetGraphid())
         != kTfLiteOk){
-          std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
-                  << " Delegate" << "\n";
+//           // std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
+          //         << " Delegate" << "\n";
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
-      printf("Delegate %.6f ", response_time);
+      // printf("Delegate %.6f ", response_time);
       response_time = (end.tv_sec - begin.tv_sec) +
                 ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
     }
@@ -1015,8 +1017,8 @@ TfLiteStatus InterpreterBuilder::PartitionChannels(
         // Fixed for CO_CPU_XNN.. (785a4) MINSUNG
         new_subgraph->GetResourceType() == ResourceType::CO_CPU_XNN){
       if(new_subgraph->PartitionChannel() != kTfLiteOk){
-          std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
-                   << " Partition in channel-wise" << "\n";
+//           // std::cout << "Graph ID " << new_subgraph->GetGraphid() << "Failed to"
+          //          << " Partition in channel-wise" << "\n";
           return kTfLiteError;
       }
     }
@@ -1060,7 +1062,7 @@ TfLiteStatus InterpreterBuilder::BindSubgraphWithJob(
     new_job->job_id = new_subgraphs[i]->GetJobid();
     new_job->subgraphs.push_back(
                     std::pair<int, int>(new_subgraphs[i]->GetGraphid(), -1));
-    std::cout << "Created new subgraph of id [" << new_subgraphs[i]->GetGraphid() << "]" <<"\n"; 
+//     // std::cout << "Created new subgraph of id [" << new_subgraphs[i]->GetGraphid() << "]" <<"\n"; 
   }
   // Make a new job
   new_job->cpu_affinity.push_back(DEFAULT_AFFINITY);
@@ -1077,31 +1079,31 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphDefault(
                     tflite::Subgraph* new_subgraph,
                     tflite::Job* new_job){
   if(new_job->job_id != new_subgraph->GetJobid()){
-    std::cout << "Job ID MISSMATCH" << "\n";
+//     std::cout << "Job ID MISSMATCH" << "\n";
     return kTfLiteError;
   }
   if(new_job->model_id != new_subgraph->GetModelid()){
-    std::cout << "Model ID MISSMATCH" << "\n";
+//     std::cout << "Model ID MISSMATCH" << "\n";
     return kTfLiteError;
   }
   if(new_job->subgraphs[0].first != new_subgraph->GetGraphid()){
-    std::cout << "Graph ID MISSMATCH" << "\n";
+//     std::cout << "Graph ID MISSMATCH" << "\n";
     return kTfLiteError;
   }
   if(interpreter_->AddNewJob(new_job) != kTfLiteOk){
-    std::cout << "AddNewJob Error" << "\n";
+//     std::cout << "AddNewJob Error" << "\n";
     return kTfLiteError;
   }
   if(interpreter_->AddNewSubgraph(new_subgraph) != kTfLiteOk){
-    std::cout << "AddNewSubgraph ERROR" << "\n";
+//     std::cout << "AddNewSubgraph ERROR" << "\n";
     return kTfLiteError;
   }
   if(interpreter_->RegisterSubgraphSubsets(new_subgraph) != kTfLiteOk){
-    std::cout << "Registersubgraph ERROR" << "\n";
+//     std::cout << "Registersubgraph ERROR" << "\n";
     return kTfLiteError;
   }
   #ifdef DEBUG
-    std::cout "Add new subgraph and job" << "\n";
+//     std::cout "Add new subgraph and job" << "\n";
   #endif
 
   return kTfLiteOk;
@@ -1112,35 +1114,35 @@ TfLiteStatus InterpreterBuilder::RegisterJobAndSubgraphs(
                         tflite::Job* new_job){
   int idx = 0;
   if(interpreter_->AddNewJob(new_job) != kTfLiteOk){
-    std::cout << "AddNewJob Error" << "\n";
+//     std::cout << "AddNewJob Error" << "\n";
     return kTfLiteError;
   }
   for(size_t i=0; i<new_subgraphs.size(); ++i){
     if(new_job->job_id != new_subgraphs[i]->GetJobid()){
-      std::cout << "Job ID MISSMATCH" << "\n";
+//       std::cout << "Job ID MISSMATCH" << "\n";
       return kTfLiteError;
     }
     if(new_job->model_id != new_subgraphs[i]->GetModelid()){
-      std::cout << "Model ID MISSMATCH" << "\n";
+//       std::cout << "Model ID MISSMATCH" << "\n";
       return kTfLiteError;
     }
     if(new_job->subgraphs[idx].first != new_subgraphs[i]->GetGraphid()){
-      std::cout << "Graph ID MISSMATCH" << "\n";
+//       std::cout << "Graph ID MISSMATCH" << "\n";
       return kTfLiteError;
     }
     if(interpreter_->AddNewSubgraph(new_subgraphs[i]) != kTfLiteOk){
-      std::cout << "AddNewSubgraph ERROR" << "\n";
+//       std::cout << "AddNewSubgraph ERROR" << "\n";
       return kTfLiteError;
     }
     if(interpreter_->RegisterSubgraphSubsets(new_subgraphs[i]) != kTfLiteOk){
-      std::cout << "Registersubgraph ERROR" << "\n";
+//       std::cout << "Registersubgraph ERROR" << "\n";
       return kTfLiteError;
     }
     idx++;
   }
 
   #ifdef DEBUG
-    std::cout "Add new subgraph and job" << "\n";
+//     std::cout "Add new subgraph and job" << "\n";
   #endif
   return kTfLiteOk;  
 }
@@ -1285,8 +1287,8 @@ TfLiteStatus InterpreterBuilder::ParseNodes(
 
   // Reduce the number of redundant allocations
   if(nodes_to_parse.empty()){
-    std::cout << "InterpreterBuilder ERROR" << "\n";
-    std::cout << "Threre's no node to parse" << "\n";
+//     std::cout << "InterpreterBuilder ERROR" << "\n";
+//     std::cout << "Threre's no node to parse" << "\n";
     status = kTfLiteError;
   }
   subgraph->ReserveNodes(nodes_to_parse.size());
@@ -1718,7 +1720,7 @@ TfLiteStatus InterpreterBuilder::operator()(
 
 TfLiteStatus InterpreterBuilder::operator()(
     std::unique_ptr<Interpreter>* interpreter, int num_threads) {
-  std::cout << "Interpreterbuilder creates subgraph" << "\n";
+//   std::cout << "Interpreterbuilder creates subgraph" << "\n";
   if (!interpreter) {
     error_reporter_->Report(
         "Null output pointer passed to InterpreterBuilder.");
@@ -1829,7 +1831,7 @@ TfLiteStatus InterpreterBuilder::operator()(
 
   if (ApplyDelegates(interpreter_, num_threads) != kTfLiteOk)
     return cleanup_and_error();
-  std::cout << "Interpreterbuilder creates subgraph done" << "\n";
+//   std::cout << "Interpreterbuilder creates subgraph done" << "\n";
   return kTfLiteOk;
 }
 
