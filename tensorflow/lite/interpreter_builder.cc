@@ -662,6 +662,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
       case ResourceType::CPU:
         // Set this sugraph for cpu subgraph
         new_subgraph->SetResourceType(ResourceType::CPU);
+<<<<<<< Updated upstream
+=======
+        new_subgraph->PushExternalParameter(
+          master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
+>>>>>>> Stashed changes
         new_subgraph->context()->recommended_num_threads = 4;
         break;
       case ResourceType::GPU:
@@ -691,6 +696,11 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         break;
       case ResourceType::CPU_XNN:
         new_subgraph->SetResourceType(ResourceType::CPU_XNN);
+<<<<<<< Updated upstream
+=======
+        new_subgraph->PushExternalParameter(
+          master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
+>>>>>>> Stashed changes
         new_subgraph->context()->recommended_num_threads = 4;
         break;
       case ResourceType::CO_CPU_XNN:

@@ -44,6 +44,8 @@ namespace gpu {
 namespace gl {
 namespace {
 
+GlBuffer* share_ptr = nullptr;
+
 struct TextureF16Maker {
   absl::Status operator()(const uint3& size) const {
     return CreateReadOnlyImageTextureF16(size, data, gl_texture);
@@ -204,6 +206,7 @@ Runtime::Runtime(const RuntimeOptions& options, const GpuInfo& gpu_info,
 absl::Status Runtime::AddProgram(const GlShader& shader,
                                  const std::vector<Variable>& parameters,
                                  const std::vector<Object>& objects,
+                                 std::pair<bool, bool> boolDelegated_,
                                  const uint3& num_workgroups) {
   GlProgram program;
   RETURN_IF_ERROR(GlProgram::CreateWithShader(shader, &program));
@@ -220,7 +223,17 @@ absl::Status Runtime::AddProgram(const GlShader& shader,
   for (auto& object : objects) {
     auto& program = programs_.back();
     BindFunc binding_func;
-    if (IsRef(object)) {
+    if (IsRef(object)) {     
+      // if (boolDelegated_.second && object.binding == 1) { 
+      //   share_ptr = external_objects_->FindBuffer(GetRef(object));
+      //   printf("다음 커널에 공유할 버퍼의 id:%u\n", share_ptr->id());            
+      // }      
+      // else if (boolDelegated_.first && object.binding == 0) {    
+      //   binding_func = [=]() { return share_ptr->BindToIndex(object.binding); };
+      //   printf("지난 커널에서 가져온 input 버퍼 id:%u\n", share_ptr->id());
+      //   program.bindings.push_back(std::move(binding_func));
+      //   continue;
+      // }    
       // Reference object could be provided externally as a model input/output
       // but also for debugging purposes. Otherwise all references are collected
       // and allocated later.
@@ -596,7 +609,7 @@ absl::Status Runtime::Execute() {
     double response_time = 0.0;
     struct timespec begin, end;
   #endif
-
+  printf("program.size():%zu\n", programs_.size());
   for (const auto& descriptor : programs_) {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());

@@ -369,9 +369,13 @@ class InferenceRunnerImpl : public InferenceRunner {
 
   absl::Status Initialize(const std::vector<TensorTieDef>& inputs,
                           const std::vector<TensorTieDef>& outputs,
-                          TensorTieFactory* tie_factory) {
+                          TensorTieFactory* tie_factory,
+                          const std::pair<bool, bool>& boolDelegated) {
     RETURN_IF_ERROR(LinkTensors(inputs, tie_factory, &inputs_));
     RETURN_IF_ERROR(LinkTensors(outputs, tie_factory, &outputs_));
+    ////
+    boolDelegated_ = boolDelegated;
+    ////
     for (const auto& def : outputs) {
       output_to_cpu_ |= def.external_def.object_def.object_type ==
                         gpu::ObjectType::CPU_MEMORY;
@@ -427,7 +431,8 @@ class InferenceRunnerImpl : public InferenceRunner {
       #ifdef latency_measure
         clock_gettime(CLOCK_MONOTONIC, &begin);
       #endif
-
+      ////
+      // if(!boolDelegated_.first)
       RETURN_IF_ERROR(obj->CopyFromExternalObject());
       
       #ifdef latency_measure
@@ -459,7 +464,8 @@ class InferenceRunnerImpl : public InferenceRunner {
       #ifdef latency_measure
         clock_gettime(CLOCK_MONOTONIC, &begin);
       #endif
-
+      ////
+      // if(!boolDelegated_.second)
       RETURN_IF_ERROR(obj->CopyToExternalObject());
 
       #ifdef latency_measure
@@ -515,6 +521,9 @@ class InferenceRunnerImpl : public InferenceRunner {
 
   std::unique_ptr<Runtime> runtime_;
   std::unique_ptr<ObjectManager> objects_;
+  ////
+  std::pair<bool, bool> boolDelegated_;
+  ////
   std::vector<std::unique_ptr<TensorTie>> inputs_;
   std::vector<std::unique_ptr<TensorTie>> outputs_;
   bool output_to_cpu_ = false;
@@ -608,7 +617,12 @@ class InferenceBuilderImpl : public InferenceBuilder {
     Runtime* runtime_ptr = runtime.get();
     auto runner_impl = absl::make_unique<InferenceRunnerImpl>(
         std::move(runtime), std::move(external_objects));
-    RETURN_IF_ERROR(runner_impl->Initialize(inputs_, outputs_, &tie_factory_));
+    ////
+    std::pair<bool, bool> boolDelegated;
+    boolDelegated.first = graph_.prev_delegated;
+    boolDelegated.second = graph_.next_delegated;
+    ////
+    RETURN_IF_ERROR(runner_impl->Initialize(inputs_, outputs_, &tie_factory_, boolDelegated));
     RETURN_IF_ERROR(
         compiler->Compile(graph_, {}, [&](ShaderCode code) -> absl::Status {
           auto workgroup = workgroup_calculator->Calculate(code);
@@ -629,7 +643,7 @@ class InferenceBuilderImpl : public InferenceBuilder {
           }
           auto num_workgroups = DivideRoundUp(code.workload, workgroup);
           return runtime_ptr->AddProgram(shaders[shader_index], code.parameters,
-                                         code.objects, num_workgroups);
+                                         code.objects, boolDelegated, num_workgroups);
         }));
     RETURN_IF_ERROR(runtime_ptr->PrepareForExecution());
     *runner = std::move(runner_impl);

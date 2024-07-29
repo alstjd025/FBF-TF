@@ -49,6 +49,7 @@ class Runtime {
   absl::Status AddProgram(const GlShader& shader,
                           const std::vector<Variable>& parameters,
                           const std::vector<Object>& objects,
+                          std::pair<bool, bool> boolDelegated_,
                           const uint3& num_workgroups);
 
   // Needs to be called once all programs and shaders has been added to runtime.

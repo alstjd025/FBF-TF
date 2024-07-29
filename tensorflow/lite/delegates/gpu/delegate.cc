@@ -270,7 +270,10 @@ class DelegateKernel {
     } else {
       RETURN_IF_ERROR(BuildFinalModel(context, delegate_params, graph));
     }
-
+    ////
+    graph->prev_delegated = context->prev_delegated;
+    graph->next_delegated = context->next_delegated;
+    ////
     input_refs->clear();
     output_refs->clear();
     const auto inputs = graph->inputs();

@@ -164,6 +164,9 @@ class GraphFloat32 {
 
   absl::Status MakeExactCopy(GraphFloat32* model) const;
 
+  bool prev_delegated;
+  bool next_delegated;
+  
  private:
   struct NodeDef {
     std::vector<Value*> inputs;

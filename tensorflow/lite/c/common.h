@@ -825,6 +825,10 @@ typedef struct TfLiteContext {
   // Experimental API
   // default value is false
   bool experimental_flag;
+
+  bool prev_delegated;
+  bool next_delegated;
+
 } TfLiteContext;
 
 typedef struct TfLiteRegistration {

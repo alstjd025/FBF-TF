@@ -731,13 +731,13 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
             << "\n";
   std::cout << "MAX precicion interpreter state"
             << "\n";
-  PrintInterpreterStateV3(interpreter);
+  // PrintInterpreterStateV3(interpreter);
   PrintInterpreterStateDimandSize(interpreter);
   std::cout << "====================="
             << "\n";
   std::cout << "MIN precicion interpreter state"
             << "\n";
-  PrintInterpreterStateV3(sub_interpreter);
+  // PrintInterpreterStateV3(sub_interpreter);
   PrintInterpreterStateDimandSize(sub_interpreter);
   std::cout << "Successfully partitioned subgraph"
             << "\n";

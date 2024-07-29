@@ -690,18 +690,32 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
 
 TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
   TfLiteStatus status = kTfLiteOk;
-  std::cout << "graph_id : " << graph_id << "\n";
-  if (gpu_delegate_ != nullptr && xnn_delegate_ != nullptr) {
+  std::cout << "Delegate graph_id : " << graph_id << "\n";
+  if (!delegates_prepared.empty()) {
     // delegate gpu
     if (subgraph_id(graph_id)->GetResourceType() == GPU ||
-        subgraph_id(graph_id)->GetResourceType() == CO_GPU)
+        subgraph_id(graph_id)->GetResourceType() == CO_GPU){
       status =
-          subgraph_id(graph_id)->ModifyGraphWithDelegate(gpu_delegate_);
+          subgraph_id(graph_id)->ModifyGraphWithDelegate(
+            SearchAndReturnProperDelegate(DelegateType::GPU_DELEGATE, 0));
+    }
     // delegate xnn
-    else if (subgraph_id(graph_id)->GetResourceType() == CPU_XNN ||
-              subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN)
-      status =
-          subgraph_id(graph_id)->ModifyGraphWithDelegate(xnn_delegate_);
+    else if (subgraph_id(graph_id)->GetResourceType() == CPU_XNN){
+      int prefered_utilization = 0;
+        prefered_utilization = subgraph_id(graph_id)->GetPartitioningRatio();
+      std::cout << "prefered_utilization " << prefered_utilization << "\n";
+      status = 
+        subgraph_id(graph_id)->ModifyGraphWithDelegate(
+          SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
+    }else if (subgraph_id(graph_id)->GetResourceType() == CO_CPU_XNN){
+      int prefered_utilization = 0;
+        // prefered_utilization = subgraph_id(graph_id)->GetPartitioningRatio();
+      std::cout << "prefered_utilization " << prefered_utilization << "\n";
+      status = 
+        subgraph_id(graph_id)->ModifyGraphWithDelegate(
+          SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
+
+    }
   } else {
     std::cout << "No delegate exists in this interpreter"
               << "\n";
@@ -711,12 +725,28 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
   return status;
 }
 // Minsung
-TfLiteStatus Interpreter::RegisterDelegate(TfLiteDelegate* gpu_delegate,
-                                           TfLiteDelegate* xnn_delegate) {
-  gpu_delegate_ = gpu_delegate;
-  xnn_delegate_ = xnn_delegate;
-  is_gpu_delegate_prepared = true;
+TfLiteStatus Interpreter::RegisterDelegate(DelegateWrapper* new_delegate) {
+  std::cout << "register delegate" << "\n";
+  delegates_prepared.push_back(new_delegate);
   return kTfLiteOk;
+}
+
+TfLiteDelegate* Interpreter::SearchAndReturnProperDelegate(DelegateType type, int utilization){
+  for(int i=0; i<delegates_prepared.size(); ++i){
+    if(delegates_prepared[i]->prefered_utilization == utilization
+        && delegates_prepared[i]->delegate_type == type){
+      std::cout << "delegate i " << i << " type : " << type << " util " << utilization << "\n";
+      return delegates_prepared[i]->delegate;
+    }
+    
+  }
+  // for(auto delegation : delegates_prepared){
+  //   if(delegation->prefered_utilization == utilization
+  //       && delegation->delegate_type == type){
+  //     return delegation->delegate;
+  //   }
+  // }
+  return nullptr;
 }
 
 TfLiteStatus Interpreter::RemoveAllDelegates() {
