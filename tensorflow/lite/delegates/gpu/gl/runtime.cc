@@ -18,7 +18,8 @@ limitations under the License.
 #include <algorithm>
 #include <cstdint>
 #include <vector>
-
+#include <unordered_map>
+#include <utility>
 #include "absl/strings/str_cat.h"
 #include "tensorflow/lite/delegates/gpu/common/data_type.h"
 #include "tensorflow/lite/delegates/gpu/common/gpu_info.h"
@@ -43,6 +44,64 @@ namespace tflite {
 namespace gpu {
 namespace gl {
 namespace {
+
+class BufferStorage2 {
+public:
+    BufferStorage2() {}
+
+    GlBuffer* findBuffer(int id) {
+        auto it = data_.find(id);
+        if (it != data_.end())
+            return it->second;
+        return nullptr;
+    }
+    void updateBuffer(int id, GlBuffer* buffer) {
+        data_[id] = buffer;
+    }
+    ~BufferStorage2() {
+        for (auto& pair : data_) {
+            delete pair.second;
+        }
+    }
+private:
+    std::unordered_map<int, GlBuffer*> data_;
+};
+
+class BufferStorage3 {
+public:
+    BufferStorage3() {}
+
+    GlBuffer* findBuffer(int id, uint32_t ref) {
+        for (const auto& pair : data_) {
+            if (pair.first.first == id && pair.first.second == ref) {
+                return pair.second;
+            }
+        }
+        return nullptr;
+    }
+    void updateBuffer(int id, uint32_t ref, GlBuffer* buffer) {
+        data_[std::make_pair(id, ref)] = buffer;
+    }
+    ~BufferStorage3() {
+        for (auto& pair : data_) {
+            delete pair.second;
+        }
+    }
+private:
+    struct hash_pair {
+        template <class T1, class T2>
+        std::size_t operator () (const std::pair<T1, T2>& p) const {
+            auto h1 = std::hash<T1>{}(p.first);
+            auto h2 = std::hash<T2>{}(p.second);
+            return h1 ^ (h2 << 1); // or use boost::hash_combine
+        }
+    };
+    using BufferMap = std::unordered_map<std::pair<int, uint32_t>, GlBuffer*, hash_pair>;
+    BufferMap data_;
+};
+
+BufferStorage2 candidate_RO;
+BufferStorage3 candidate_temp;
 
 struct TextureF16Maker {
   absl::Status operator()(const uint3& size) const {
@@ -248,15 +307,25 @@ absl::Status Runtime::AddProgram(const GlShader& shader,
   return absl::OkStatus();
 }
 
-absl::Status Runtime::AllocateInternalObject(const Object& object) {
+absl::Status Runtime::AllocateInternalObject(const Object& object, const int FirstOutput) {
   const ObjectRef ref = GetRef(object);
   switch (object.object_type) {
     case ObjectType::BUFFER: {
-      GlBuffer gl_buffer;
-      RETURN_IF_ERROR(CreateReadWriteShaderStorageBuffer<uint8_t>(
-          ByteSizeOf(object), &gl_buffer));
-      RETURN_IF_ERROR(
-          internal_objects_.RegisterBuffer(ref, std::move(gl_buffer)));
+      GlBuffer* temp_ptr = candidate_temp.findBuffer(FirstOutput, ref);
+      if (temp_ptr) {
+        RETURN_IF_ERROR(
+            internal_objects_.RegisterBuffer(ref, std::move(*temp_ptr)));  
+        printf("Use parent Temp Buffer --------------------%d\n", temp_ptr->id());
+      }
+      else {
+        auto new_buffer_ptr = std::make_unique<GlBuffer>(); 
+        RETURN_IF_ERROR(CreateReadWriteShaderStorageBuffer<uint8_t>(
+            ByteSizeOf(object), new_buffer_ptr.get()));
+        printf("Allocate New Temp Buffer --------------------%d\n", new_buffer_ptr->id());
+        RETURN_IF_ERROR(
+            internal_objects_.RegisterBuffer(ref, std::move(*new_buffer_ptr)));
+        candidate_temp.updateBuffer(FirstOutput, ref, new_buffer_ptr.release());
+      }
       break;
     }
     case ObjectType::TEXTURE: {
@@ -302,14 +371,23 @@ absl::Status Runtime::AllocateConstObject(const Object& object, uint32_t* id) {
   return absl::OkStatus();
 }
 
-absl::Status Runtime::PrepareForExecution() {
+absl::Status Runtime::PrepareForExecution(int FirstOutput) {
   if (shared_readonly_buffer_ && !shared_readonly_buffer_->empty()) {
-    GlBuffer shared_buffer;
-    RETURN_IF_ERROR(
-        shared_readonly_buffer_->CreateSharedGlBuffer(&shared_buffer));
+    GlBuffer* buffer_ptr = candidate_RO.findBuffer(FirstOutput);
+    GlBuffer* shared_buffer;
+    if (!buffer_ptr) {
+      auto new_buffer = std::make_unique<GlBuffer>();
+      RETURN_IF_ERROR(shared_readonly_buffer_->CreateSharedGlBuffer(new_buffer.get()));
+      candidate_RO.updateBuffer(FirstOutput, new_buffer.get());
+      printf("Allocate New Const Buffer --------------------%d\n", new_buffer->id());
+      shared_buffer = new_buffer.release();
+    }
+    else {
+      shared_buffer = buffer_ptr;
+      printf("Use parent Const Buffer --------------------%d\n", shared_buffer->id());
+    }
     shared_readonly_buffer_.reset(nullptr);
-    RETURN_IF_ERROR(const_objects_.RegisterBuffer(next_const_id_++,
-                                                  std::move(shared_buffer)));
+    RETURN_IF_ERROR(const_objects_.RegisterBuffer(next_const_id_++, std::move(*shared_buffer)));                               
   }
 
   if (options_.reuse_internal_objects) {
@@ -318,7 +396,7 @@ absl::Status Runtime::PrepareForExecution() {
     std::vector<Object> shared_objects;
     RETURN_IF_ERROR(AssignInternalObjects(&shared_objects));
     for (const Object& object : shared_objects) {
-      RETURN_IF_ERROR(AllocateInternalObject(object));
+      RETURN_IF_ERROR(AllocateInternalObject(object, FirstOutput));
     }
   }
 
@@ -332,7 +410,7 @@ absl::Status Runtime::PrepareForExecution() {
           MakeBindingFunc(object, ref, internal_objects_, &binding);
       if (!status.ok()) {
         if (absl::IsNotFound(status)) return status;
-        RETURN_IF_ERROR(AllocateInternalObject(object));
+        RETURN_IF_ERROR(AllocateInternalObject(object, FirstOutput));
         RETURN_IF_ERROR(
             MakeBindingFunc(object, ref, internal_objects_, &binding));
       }

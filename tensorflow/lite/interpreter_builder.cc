@@ -673,12 +673,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
         new_subgraph->SetResourceType(ResourceType::CPU);
         new_subgraph->PushExternalParameter(
           master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
-        new_subgraph->context()->recommended_num_threads = 6;
+        new_subgraph->context()->recommended_num_threads = 4;
         break;
       case ResourceType::GPU:
         // Set this sugraph for gpu subgraph
         new_subgraph->SetResourceType(ResourceType::GPU);
-        new_subgraph->context()->recommended_num_threads = 6;  
+        new_subgraph->context()->recommended_num_threads = 4;  
         break;
       case ResourceType::CO_CPU:
         new_subgraph->SetResourceType(ResourceType::CO_CPU);
@@ -688,7 +688,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);
-        new_subgraph->context()->recommended_num_threads = 6;
+        new_subgraph->context()->recommended_num_threads = 4;
         break;
       case ResourceType::CO_GPU:
         new_subgraph->SetResourceType(ResourceType::CO_GPU);
@@ -698,13 +698,13 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
           new_subgraph->SetPartitioningType(PartitioningType::HEIGHT_PARTITIONING);
         else
           new_subgraph->SetPartitioningType(PartitioningType::CHANNEL_PARTITIONING);        
-          new_subgraph->context()->recommended_num_threads = 6;  
+          new_subgraph->context()->recommended_num_threads = 4;  
         break;
       case ResourceType::CPU_XNN:
         new_subgraph->SetResourceType(ResourceType::CPU_XNN);
         new_subgraph->PushExternalParameter(
           master_partitioning_plan[partition_itr]->partitioning_ratios[0]);
-        new_subgraph->context()->recommended_num_threads = 6;
+        new_subgraph->context()->recommended_num_threads = 4;
         break;
       case ResourceType::CO_CPU_XNN:
         new_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
@@ -933,31 +933,31 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
   // 2. Make candidate subgraph's tensor-data memory free (should use ARENA allocation method)
   // 3. Make candidate subgraph's tensor-data memory point to mother subgraph tensor-data 
   // ++ start subgraph id "0"
-  printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
-  int tensor_output_id = -1;
-  ResourceType resource_type = ResourceType::CPU;
-  for (int k=0;k<subgraphs_created.size();k++){
-    tensor_output_id = subgraphs_created[k]->GetFirstOutputTensorIndex();
-    resource_type = subgraphs_created[k]->GetResourceType();
-    for (int j=k-1;j>=0;j--){
-      if ((tensor_output_id == subgraphs_created[j]->GetFirstOutputTensorIndex()) 
-      && (resource_type == subgraphs_created[j]->GetResourceType())){
-        std::cout << "FIND CANDIDATE subgraph : " << k;
-        std::cout << ", AND CANDIDATE's mother subgraph : " << j;
-        std::cout << " OVERALL tensor size : "<<subgraphs_created[j]->tensors_size() << std::endl;
-        std::cout << " OUTPUT tensor id : "<< subgraphs_created[k]->GetFirstOutputTensorIndex()<< std::endl;
-        std::cout << "Arena before" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
-        subgraphs_created[k]->FreeArenaAllocation();
-        std::cout << "Arena after" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
-        for (int n=0;n<subgraphs_created[k]->tensors().size(); n++){          
-            subgraphs_created[k]->tensors()[n].data.data = subgraphs_created[j]->tensors()[n].data.data;
-            subgraphs_created[k]->tensors()[n].bytes = subgraphs_created[j]->tensors()[n].bytes;
-            subgraphs_created[k]->tensors()[n].allocation_type = kTfLiteCustom;
-        }
-      }
-    }
-  }
-  printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
+  // printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
+  // int tensor_output_id = -1;
+  // ResourceType resource_type = ResourceType::CPU;
+  // for (int k=0;k<subgraphs_created.size();k++){
+  //   tensor_output_id = subgraphs_created[k]->GetFirstOutputTensorIndex();
+  //   resource_type = subgraphs_created[k]->GetResourceType();
+  //   for (int j=k-1;j>=0;j--){
+  //     if ((tensor_output_id == subgraphs_created[j]->GetFirstOutputTensorIndex()) 
+  //     && (resource_type == subgraphs_created[j]->GetResourceType())){
+  //       std::cout << "FIND CANDIDATE subgraph : " << k;
+  //       std::cout << ", AND CANDIDATE's mother subgraph : " << j;
+  //       std::cout << " OVERALL tensor size : "<<subgraphs_created[j]->tensors_size() << std::endl;
+  //       std::cout << " OUTPUT tensor id : "<< subgraphs_created[k]->GetFirstOutputTensorIndex()<< std::endl;
+  //       std::cout << "Arena before" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
+  //       subgraphs_created[k]->FreeArenaAllocation();
+  //       std::cout << "Arena after" << subgraphs_created[k]->GetArenaRWBufferSize() << "\n";
+  //       for (int n=0;n<subgraphs_created[k]->tensors().size(); n++){          
+  //           subgraphs_created[k]->tensors()[n].data.data = subgraphs_created[j]->tensors()[n].data.data;
+  //           subgraphs_created[k]->tensors()[n].bytes = subgraphs_created[j]->tensors()[n].bytes;
+  //           subgraphs_created[k]->tensors()[n].allocation_type = kTfLiteCustom;
+  //       }
+  //     }
+  //   }
+  // }
+  // printf("\033[0;31m<<<<<<<<<<SUBGRAPHS_CREATED_SIZE : %d>>>>>>>>>>\033[0m\n",subgraphs_created.size());
   /////////////////////////////////////////////////////////////////////////////////
 
   if(DelegateSubgraphs(subgraphs_created) != kTfLiteOk){

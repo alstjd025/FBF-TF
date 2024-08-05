@@ -249,6 +249,7 @@ class DelegateKernel {
     default_object_def.data_layout = DataLayout::BHWC;
     default_object_def.object_type = ObjectType::CPU_MEMORY;
     default_object_def.user_provided = true;
+    default_object_def.tensor_index = index;
     return default_object_def;
   }
 

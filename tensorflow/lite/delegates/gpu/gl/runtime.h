@@ -52,7 +52,7 @@ class Runtime {
                           const uint3& num_workgroups);
 
   // Needs to be called once all programs and shaders has been added to runtime.
-  absl::Status PrepareForExecution();
+  absl::Status PrepareForExecution(int FirstOutput);
 
   // Executes all compiled programs.
   // TODO(akulik): add more controls over execution. Execution policy?
@@ -74,7 +74,7 @@ class Runtime {
   }
 
  private:
-  absl::Status AllocateInternalObject(const Object& object);
+  absl::Status AllocateInternalObject(const Object& object, const int FirstOutput);
 
   absl::Status AllocateConstObject(const Object& object, uint32_t* id);
 

@@ -42,6 +42,53 @@ namespace tflite {
 namespace gpu {
 namespace gl {
 namespace {
+// Candidates share buffers of parent subgraph.
+class BufferStorage {
+public:
+    BufferStorage() {}
+
+    GlBuffer* findInternal(int id) {
+        auto it = data_.find(id);
+        if (it != data_.end() && it->second.first != nullptr)
+            return it->second.first;
+        return nullptr;
+    }
+    GlBuffer* findExternal(int id) {
+        auto it = data_.find(id);
+        if (it != data_.end() && it->second.second != nullptr)
+            return it->second.second;
+        return nullptr;
+    }
+    void updateInternal(int id, GlBuffer* internal) {
+        auto it = data_.find(id);
+        if (it != data_.end())
+            it->second.first = internal;
+        else
+            data_[id] = std::make_pair(internal, nullptr);
+    }
+    void updateExternal(int id, GlBuffer* external) {
+        auto it = data_.find(id);
+        if (it != data_.end())
+            it->second.second = external;
+        else
+            data_[id] = std::make_pair(nullptr, external);
+    }
+
+    ~BufferStorage() {
+        for (auto& pair : data_) {
+            delete pair.second.first;
+            delete pair.second.second;
+        }
+    }
+
+private:
+    using GlBufferPair = std::pair<GlBuffer*, GlBuffer*>;
+    using GlBufferMap = std::unordered_map<int, GlBufferPair>;
+
+    GlBufferMap data_;
+};
+
+BufferStorage candidate_buffer;
 
 std::string GetShaderHeader(uint3 localsize) {
   return absl::StrCat("#version 310 es\nlayout(local_size_x = ", localsize.x,
@@ -160,7 +207,8 @@ class DefaultTensorTie : public TensorTie {
   absl::Status Init(TensorObjectConverterBuilder* converter_builder) {
     // First check is an object is user provided.
     const auto& external_def = def().external_def.object_def;
-
+    // Give tensor index to internal_def.
+    def().internal_def.object_def.tensor_index = external_def.tensor_index;
     const bool is_same_def = IsSameDef();
 
     if (!is_same_def) {
@@ -200,10 +248,20 @@ class DefaultTensorTie : public TensorTie {
     }
     switch (d.object_def.object_type) {
       case gpu::ObjectType::OPENGL_SSBO: {
-        GlBuffer ssbo;
-        RETURN_IF_ERROR(MaybeAllocateGlBuffer(d, &ssbo));
-        internal_obj_ = OpenGlBuffer{ssbo.id()};
-        RETURN_IF_ERROR(objects_->RegisterBuffer(def().id, std::move(ssbo)));
+        GlBuffer* buffer_ptr = candidate_buffer.findInternal(d.object_def.tensor_index);
+        if (!buffer_ptr) {
+          auto ssbo_ptr = std::make_unique<GlBuffer>();
+          RETURN_IF_ERROR(MaybeAllocateGlBuffer(d, ssbo_ptr.get()));
+          internal_obj_ = OpenGlBuffer{ssbo_ptr->id()};
+          printf("Allocate New Internal Buffer --------------------%d\n", ssbo_ptr->id());
+          RETURN_IF_ERROR(objects_->RegisterBuffer(def().id, std::move(*ssbo_ptr)));
+          candidate_buffer.updateInternal(d.object_def.tensor_index, ssbo_ptr.release());
+        }
+        else {          
+          internal_obj_ = OpenGlBuffer{buffer_ptr->id()};
+          printf("Use parent Internal buffer ---------------------------%d\n", buffer_ptr->id());
+          RETURN_IF_ERROR(objects_->RegisterBuffer(def().id, std::move(*buffer_ptr)));    
+        }
         break;
       }
       // TODO(akulik): support textures as internal object when compiler permits
@@ -223,10 +281,19 @@ class DefaultTensorTie : public TensorTie {
         break;
       }
       case gpu::ObjectType::OPENGL_SSBO: {
-        RETURN_IF_ERROR(MaybeAllocateGlBuffer(d, &external_ssbo_));
-        external_obj_ = OpenGlBuffer{external_ssbo_.id()};
-        GlBuffer bbb;
-        RETURN_IF_ERROR(WrapSSBO(OpenGlBuffer{external_ssbo_.id()}, &bbb));
+        GlBuffer* buffer_ptr_ = candidate_buffer.findExternal(d.object_def.tensor_index);
+        if (!buffer_ptr_) {
+          RETURN_IF_ERROR(MaybeAllocateGlBuffer(d, &external_ssbo_));
+          printf("Allocate New External Buffer --------------------%d\n", external_ssbo_.id());
+          external_obj_ = OpenGlBuffer{external_ssbo_.id()};
+          auto bbb = std::make_unique<GlBuffer>();
+          RETURN_IF_ERROR(WrapSSBO(OpenGlBuffer{external_ssbo_.id()}, bbb.get()));
+          candidate_buffer.updateExternal(d.object_def.tensor_index, bbb.release());
+        }
+        else {
+          external_obj_ = OpenGlBuffer(buffer_ptr_->id());
+          printf("Use parent External buffer ---------------------------%d\n", buffer_ptr_->id());
+        }
         break;
       }
       default:
@@ -631,7 +698,7 @@ class InferenceBuilderImpl : public InferenceBuilder {
           return runtime_ptr->AddProgram(shaders[shader_index], code.parameters,
                                          code.objects, num_workgroups);
         }));
-    RETURN_IF_ERROR(runtime_ptr->PrepareForExecution());
+    RETURN_IF_ERROR(runtime_ptr->PrepareForExecution(graph_.outputs()[0]->tensor.ref));
     *runner = std::move(runner_impl);
     return absl::OkStatus();
   }
