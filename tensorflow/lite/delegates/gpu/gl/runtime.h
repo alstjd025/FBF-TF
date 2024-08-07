@@ -43,7 +43,7 @@ namespace gl {
 class Runtime {
  public:
   Runtime(const RuntimeOptions& options, const GpuInfo& gpu_info,
-          CommandQueue* command_queue, const ObjectManager* external_objects);
+          CommandQueue* command_queue, const ObjectManager* external_objects, const int FirstOutput);
 
   // Takes parameters and objects and prepares GL program.
   absl::Status AddProgram(const GlShader& shader,
@@ -52,7 +52,7 @@ class Runtime {
                           const uint3& num_workgroups);
 
   // Needs to be called once all programs and shaders has been added to runtime.
-  absl::Status PrepareForExecution(int FirstOutput);
+  absl::Status PrepareForExecution();
 
   // Executes all compiled programs.
   // TODO(akulik): add more controls over execution. Execution policy?
@@ -74,7 +74,7 @@ class Runtime {
   }
 
  private:
-  absl::Status AllocateInternalObject(const Object& object, const int FirstOutput);
+  absl::Status AllocateInternalObject(const Object& object);
 
   absl::Status AllocateConstObject(const Object& object, uint32_t* id);
 
@@ -87,6 +87,7 @@ class Runtime {
   const GpuInfo gpu_info_;
   const ObjectManager* external_objects_;
   CommandQueue* command_queue_;
+  const int FirstOutput_;
 
   ObjectManager internal_objects_;
   ObjectManager const_objects_;

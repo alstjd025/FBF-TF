@@ -48,23 +48,19 @@ namespace {
 class BufferStorage2 {
 public:
     BufferStorage2() {}
-
-    GlBuffer* findBuffer(int id) {
+    SharedBufferData* findBuffer(int id) {
         auto it = data_.find(id);
-        if (it != data_.end())
-            return it->second;
+        if (it != data_.end()) {
+            return it->second.get(); // This returns the pointer directly
+        }
         return nullptr;
     }
-    void updateBuffer(int id, GlBuffer* buffer) {
-        data_[id] = buffer;
+    void updateBuffer(int id, std::unique_ptr<SharedBufferData> buffer) {
+        data_[id] = std::move(buffer);
     }
-    ~BufferStorage2() {
-        for (auto& pair : data_) {
-            delete pair.second;
-        }
-    }
+    ~BufferStorage2() {}
 private:
-    std::unordered_map<int, GlBuffer*> data_;
+    std::unordered_map<int, std::unique_ptr<SharedBufferData>> data_;
 };
 
 class BufferStorage3 {
@@ -249,14 +245,22 @@ absl::Status MakeBindingFunc(const Object& object, uint32_t id,
 
 Runtime::Runtime(const RuntimeOptions& options, const GpuInfo& gpu_info,
                  CommandQueue* command_queue,
-                 const ObjectManager* external_objects)
+                 const ObjectManager* external_objects,
+                 const int FirstOutput)
     : options_(options),
       gpu_info_(gpu_info),
       external_objects_(external_objects),
-      command_queue_(command_queue) {
+      command_queue_(command_queue),
+      FirstOutput_(FirstOutput) {
   programs_.reserve(256);
   if (options_.bundle_readonly_objects) {
-    shared_readonly_buffer_ = absl::make_unique<SharedBufferData>();
+    SharedBufferData* buffer_ptr = candidate_RO.findBuffer(FirstOutput_);
+    if (!buffer_ptr) {
+        shared_readonly_buffer_ = std::make_unique<SharedBufferData>();
+        candidate_RO.updateBuffer(FirstOutput_, std::make_unique<SharedBufferData>(*shared_readonly_buffer_));
+    } else {
+        shared_readonly_buffer_ = std::make_unique<SharedBufferData>(*buffer_ptr);
+    }
   }
 }
 
@@ -307,11 +311,11 @@ absl::Status Runtime::AddProgram(const GlShader& shader,
   return absl::OkStatus();
 }
 
-absl::Status Runtime::AllocateInternalObject(const Object& object, const int FirstOutput) {
+absl::Status Runtime::AllocateInternalObject(const Object& object) {
   const ObjectRef ref = GetRef(object);
   switch (object.object_type) {
     case ObjectType::BUFFER: {
-      GlBuffer* temp_ptr = candidate_temp.findBuffer(FirstOutput, ref);
+      GlBuffer* temp_ptr = candidate_temp.findBuffer(FirstOutput_, ref);
       if (temp_ptr) {
         RETURN_IF_ERROR(
             internal_objects_.RegisterBuffer(ref, std::move(*temp_ptr)));  
@@ -324,7 +328,7 @@ absl::Status Runtime::AllocateInternalObject(const Object& object, const int Fir
         printf("Allocate New Temp Buffer --------------------%d\n", new_buffer_ptr->id());
         RETURN_IF_ERROR(
             internal_objects_.RegisterBuffer(ref, std::move(*new_buffer_ptr)));
-        candidate_temp.updateBuffer(FirstOutput, ref, new_buffer_ptr.release());
+        candidate_temp.updateBuffer(FirstOutput_, ref, new_buffer_ptr.release());
       }
       break;
     }
@@ -371,23 +375,15 @@ absl::Status Runtime::AllocateConstObject(const Object& object, uint32_t* id) {
   return absl::OkStatus();
 }
 
-absl::Status Runtime::PrepareForExecution(int FirstOutput) {
+absl::Status Runtime::PrepareForExecution() {
   if (shared_readonly_buffer_ && !shared_readonly_buffer_->empty()) {
-    GlBuffer* buffer_ptr = candidate_RO.findBuffer(FirstOutput);
-    GlBuffer* shared_buffer;
-    if (!buffer_ptr) {
-      auto new_buffer = std::make_unique<GlBuffer>();
-      RETURN_IF_ERROR(shared_readonly_buffer_->CreateSharedGlBuffer(new_buffer.get()));
-      candidate_RO.updateBuffer(FirstOutput, new_buffer.get());
-      printf("Allocate New Const Buffer --------------------%d\n", new_buffer->id());
-      shared_buffer = new_buffer.release();
-    }
-    else {
-      shared_buffer = buffer_ptr;
-      printf("Use parent Const Buffer --------------------%d\n", shared_buffer->id());
-    }
+    GlBuffer shared_buffer;
+    RETURN_IF_ERROR(
+        shared_readonly_buffer_->CreateSharedGlBuffer(&shared_buffer));
+    printf("Allocate Const Buffer -----------------%d\n", shared_buffer.id());
     shared_readonly_buffer_.reset(nullptr);
-    RETURN_IF_ERROR(const_objects_.RegisterBuffer(next_const_id_++, std::move(*shared_buffer)));                               
+    RETURN_IF_ERROR(const_objects_.RegisterBuffer(next_const_id_++,
+                                                  std::move(shared_buffer)));                            
   }
 
   if (options_.reuse_internal_objects) {
@@ -396,7 +392,7 @@ absl::Status Runtime::PrepareForExecution(int FirstOutput) {
     std::vector<Object> shared_objects;
     RETURN_IF_ERROR(AssignInternalObjects(&shared_objects));
     for (const Object& object : shared_objects) {
-      RETURN_IF_ERROR(AllocateInternalObject(object, FirstOutput));
+      RETURN_IF_ERROR(AllocateInternalObject(object));
     }
   }
 
@@ -410,7 +406,7 @@ absl::Status Runtime::PrepareForExecution(int FirstOutput) {
           MakeBindingFunc(object, ref, internal_objects_, &binding);
       if (!status.ok()) {
         if (absl::IsNotFound(status)) return status;
-        RETURN_IF_ERROR(AllocateInternalObject(object, FirstOutput));
+        RETURN_IF_ERROR(AllocateInternalObject(object));
         RETURN_IF_ERROR(
             MakeBindingFunc(object, ref, internal_objects_, &binding));
       }

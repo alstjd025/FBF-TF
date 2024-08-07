@@ -671,7 +671,7 @@ class InferenceBuilderImpl : public InferenceBuilder {
     RuntimeOptions runtime_options;
     auto runtime =
         absl::make_unique<Runtime>(runtime_options, *gpu_info_,
-                                   env_options_.queue, external_objects.get());
+                                   env_options_.queue, external_objects.get(), graph_.outputs()[0]->tensor.ref);
     Runtime* runtime_ptr = runtime.get();
     auto runner_impl = absl::make_unique<InferenceRunnerImpl>(
         std::move(runtime), std::move(external_objects));
@@ -698,7 +698,7 @@ class InferenceBuilderImpl : public InferenceBuilder {
           return runtime_ptr->AddProgram(shaders[shader_index], code.parameters,
                                          code.objects, num_workgroups);
         }));
-    RETURN_IF_ERROR(runtime_ptr->PrepareForExecution(graph_.outputs()[0]->tensor.ref));
+    RETURN_IF_ERROR(runtime_ptr->PrepareForExecution());
     *runner = std::move(runner_impl);
     return absl::OkStatus();
   }

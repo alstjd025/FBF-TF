@@ -1,6 +1,6 @@
 #include "tensorflow/lite/lite_runtime.h"
 
-// #define YOLO_PARSER
+#define YOLO_PARSER
 // #define mobilenet
 // #define debug_print
 // #define latency_measure
@@ -1410,6 +1410,15 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       }
         // Get main subgraph id to invoke.
         subgraph_id = rx_packet.subgraph_ids[0][0];
+        // if (subgraph_id == 1){         
+        //   subgraph_id = 8;
+        // }
+        // if (subgraph_id == 3){         
+        //   subgraph_id = 10;
+        // }
+        // if (subgraph_id == 5){         
+        //   subgraph_id = 12;
+        // }
         // Get sub subgraph id to invoke if exists.
         if (rx_packet.subgraph_ids[1][0] != -1){
           co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
