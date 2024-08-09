@@ -542,12 +542,12 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
             << "\n";
   std::cout << "Full precision interpreter"
             << "\n";
-  PrintInterpreterStateV3(interpreter);
+  // PrintInterpreterStateV3(interpreter);
   std::cout << "============================"
             << "\n";
   std::cout << "Minimal precision interpreter"
             << "\n";
-  PrintInterpreterStateV3(sub_interpreter);
+  // PrintInterpreterStateV3(sub_interpreter);
   interpreter->PrintSubgraphInfo();
 #endif
 
@@ -772,13 +772,13 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
   std::cout << "MAX precicion interpreter state"
             << "\n";
   // PrintInterpreterStateV3(interpreter);
-  PrintInterpreterStateDimandSize(interpreter);
+  // PrintInterpreterStateDimandSize(interpreter);
   std::cout << "====================="
             << "\n";
   std::cout << "MIN precicion interpreter state"
             << "\n";
   // PrintInterpreterStateV3(sub_interpreter);
-  PrintInterpreterStateDimandSize(sub_interpreter);
+  // PrintInterpreterStateDimandSize(sub_interpreter);
   std::cout << "Successfully partitioned subgraph"
             << "\n";
   std::cout << "Ready to invoke"
@@ -1413,9 +1413,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         // if (subgraph_id == 1){         
         //   subgraph_id = 8;
         // }
-        // if (subgraph_id == 3){         
-        //   subgraph_id = 10;
-        // }
+        if (subgraph_id == 3){         
+          subgraph_id = 10;
+          co_subgraph_id = 1;
+        }
         // if (subgraph_id == 5){         
         //   subgraph_id = 12;
         // }
