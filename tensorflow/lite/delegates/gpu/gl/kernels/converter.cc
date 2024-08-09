@@ -31,6 +31,13 @@ namespace gl {
 namespace {
 
 // Wraps given SSBO into GlBuffer object that does not have ownership.
+absl::Status WrapSSBO(OpenGlBuffer ssbo, GlBuffer* buffer, uint32_t resize_) {
+  int64_t size_bytes;
+  RETURN_IF_ERROR(GetSSBOSize(ssbo.id, &size_bytes));
+  *buffer = GlBuffer(GL_SHADER_STORAGE_BUFFER, ssbo.id, resize_, 0, false);
+  return absl::OkStatus();
+}
+// Wraps given SSBO into GlBuffer object that does not have ownership.
 absl::Status WrapSSBO(OpenGlBuffer ssbo, GlBuffer* buffer) {
   int64_t size_bytes;
   RETURN_IF_ERROR(GetSSBOSize(ssbo.id, &size_bytes));
@@ -148,15 +155,34 @@ class FromTensorConverter : public OpenGlConverterImpl {
     if (input->id == output->id) {
       return absl::InvalidArgumentError("Can not execute inplace conversion");
     }
+    ////
+    uint32_t input_resize =  SizeInBytesDHWC4(shape_);
+    int64_t input_size_bytes;
+    RETURN_IF_ERROR(GetSSBOSize(input->id, &input_size_bytes));
     GlBuffer input_ssbo;
-    RETURN_IF_ERROR(WrapSSBO(*input, &input_ssbo));
-    GlBuffer output_ssbo;
-    RETURN_IF_ERROR(WrapSSBO(*output, &output_ssbo));
-
+    if (input_size_bytes == input_resize) {
+      RETURN_IF_ERROR(WrapSSBO(*input, &input_ssbo));  
+    }
+    else {
+      RETURN_IF_ERROR(WrapSSBO(*input, &input_ssbo, input_resize));
+    }
+    ////
     if (input_ssbo.bytes_size() != SizeInBytesDHWC4(shape_)) {
       return absl::InvalidArgumentError(
           "FromTensorConverter: input data size does not match expected size.");
     }
+    ////
+    uint32_t output_resize =  SizeInBytesBHWC(shape_);
+    int64_t output_size_bytes;
+    RETURN_IF_ERROR(GetSSBOSize(output->id, &output_size_bytes));
+    GlBuffer output_ssbo;
+    if (output_size_bytes == output_resize) {
+      RETURN_IF_ERROR(WrapSSBO(*output, &output_ssbo));  
+    }
+    else {
+      RETURN_IF_ERROR(WrapSSBO(*output, &output_ssbo, output_resize));
+    }
+    ////
     if (output_ssbo.bytes_size() != SizeInBytesBHWC(shape_)) {
       return absl::InvalidArgumentError(
           "FromTensorConverter: output data size does not match expected "
@@ -243,15 +269,34 @@ class ToTensorConverter : public OpenGlConverterImpl {
     if (input->id == output->id) {
       return absl::InvalidArgumentError("Can not execute inplace conversion");
     }
+    ////
+    uint32_t input_resize =  SizeInBytesBHWC(shape_);
+    int64_t input_size_bytes;
+    RETURN_IF_ERROR(GetSSBOSize(input->id, &input_size_bytes));
     GlBuffer input_ssbo;
-    RETURN_IF_ERROR(WrapSSBO(*input, &input_ssbo));
-    GlBuffer output_ssbo;
-    RETURN_IF_ERROR(WrapSSBO(*output, &output_ssbo));
-
+    if (input_size_bytes == input_resize) {
+      RETURN_IF_ERROR(WrapSSBO(*input, &input_ssbo));  
+    }
+    else {
+      RETURN_IF_ERROR(WrapSSBO(*input, &input_ssbo, input_resize));
+    }
+    ////
     if (input_ssbo.bytes_size() != SizeInBytesBHWC(shape_)) {
       return absl::InvalidArgumentError(
           "ToTensorConverter: input data size does not match expected size.");
     }
+    ////
+    uint32_t output_resize =  SizeInBytesDHWC4(shape_);
+    int64_t output_size_bytes;
+    RETURN_IF_ERROR(GetSSBOSize(output->id, &output_size_bytes));
+    GlBuffer output_ssbo;
+    if (output_size_bytes == output_resize) {
+      RETURN_IF_ERROR(WrapSSBO(*output, &output_ssbo));  
+    }
+    else {
+      RETURN_IF_ERROR(WrapSSBO(*output, &output_ssbo, output_resize));
+    }
+    ////
     if (output_ssbo.bytes_size() != SizeInBytesDHWC4(shape_)) {
       return absl::InvalidArgumentError(
           "ToTensorConverter: output data size does not match expected size.");
@@ -321,7 +366,9 @@ class CpuCopier : public TensorObjectConverter {
       auto ssbo_output = absl::get_if<OpenGlBuffer>(&output_obj);
       if (ssbo_output) {
         GlBuffer gl_buffer;
-        RETURN_IF_ERROR(WrapSSBO(*ssbo_output, &gl_buffer));
+        int64_t size_bytes_;  
+        RETURN_IF_ERROR(GetSSBOSize(ssbo_output->id, &size_bytes_));
+        RETURN_IF_ERROR(WrapSSBO(*ssbo_output, &gl_buffer, cpu_input->size_bytes));
         return gl_buffer.Write(
             absl::MakeConstSpan(static_cast<const uint8_t*>(cpu_input->data),
                                 cpu_input->size_bytes));
@@ -330,7 +377,7 @@ class CpuCopier : public TensorObjectConverter {
       auto ssbo_input = absl::get_if<OpenGlBuffer>(&input_obj);
       if (ssbo_input) {
         GlBuffer gl_buffer;
-        RETURN_IF_ERROR(WrapSSBO(*ssbo_input, &gl_buffer));
+        RETURN_IF_ERROR(WrapSSBO(*ssbo_input, &gl_buffer, cpu_output->size_bytes));
         return gl_buffer.Read(absl::MakeSpan(
             static_cast<uint8_t*>(cpu_output->data), cpu_output->size_bytes));
       }

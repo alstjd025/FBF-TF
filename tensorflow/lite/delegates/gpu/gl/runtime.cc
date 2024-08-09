@@ -45,24 +45,6 @@ namespace gpu {
 namespace gl {
 namespace {
 
-class BufferStorage2 {
-public:
-    BufferStorage2() {}
-    SharedBufferData* findBuffer(int id) {
-        auto it = data_.find(id);
-        if (it != data_.end()) {
-            return it->second.get(); // This returns the pointer directly
-        }
-        return nullptr;
-    }
-    void updateBuffer(int id, std::unique_ptr<SharedBufferData> buffer) {
-        data_[id] = std::move(buffer);
-    }
-    ~BufferStorage2() {}
-private:
-    std::unordered_map<int, std::unique_ptr<SharedBufferData>> data_;
-};
-
 class BufferStorage3 {
 public:
     BufferStorage3() {}
@@ -96,7 +78,6 @@ private:
     BufferMap data_;
 };
 
-BufferStorage2 candidate_RO;
 BufferStorage3 candidate_temp;
 
 struct TextureF16Maker {
@@ -254,13 +235,7 @@ Runtime::Runtime(const RuntimeOptions& options, const GpuInfo& gpu_info,
       FirstOutput_(FirstOutput) {
   programs_.reserve(256);
   if (options_.bundle_readonly_objects) {
-    SharedBufferData* buffer_ptr = candidate_RO.findBuffer(FirstOutput_);
-    if (!buffer_ptr) {
-        shared_readonly_buffer_ = std::make_unique<SharedBufferData>();
-        candidate_RO.updateBuffer(FirstOutput_, std::make_unique<SharedBufferData>(*shared_readonly_buffer_));
-    } else {
-        shared_readonly_buffer_ = std::make_unique<SharedBufferData>(*buffer_ptr);
-    }
+    shared_readonly_buffer_ = std::make_unique<SharedBufferData>();  
   }
 }
 

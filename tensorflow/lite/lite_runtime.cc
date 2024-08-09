@@ -772,13 +772,13 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
   std::cout << "MAX precicion interpreter state"
             << "\n";
   // PrintInterpreterStateV3(interpreter);
-  PrintInterpreterStateDimandSize(interpreter);
+  // PrintInterpreterStateDimandSize(interpreter);
   std::cout << "====================="
             << "\n";
   std::cout << "MIN precicion interpreter state"
             << "\n";
   // PrintInterpreterStateV3(sub_interpreter);
-  PrintInterpreterStateDimandSize(sub_interpreter);
+  // PrintInterpreterStateDimandSize(sub_interpreter);
   std::cout << "Successfully partitioned subgraph"
             << "\n";
   std::cout << "Ready to invoke"
@@ -1332,7 +1332,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       data_sync_cv.notify_one();
 
     } else if (type == InterpreterType::MAIN_INTERPRETER) {
-      // TODO (d9a62) : Make this part to an individual function.
+      // TODO (d9a62) : Make this part to an individual function.       
       tf_packet tx_packet;
       memset(&tx_packet, 0, sizeof(tf_packet));
       tx_packet.runtime_id = runtime_id;
@@ -1410,19 +1410,22 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       }
         // Get main subgraph id to invoke.
         subgraph_id = rx_packet.subgraph_ids[0][0];
+        // Get sub subgraph id to invoke if exists.
+        if (rx_packet.subgraph_ids[1][0] != -1){
+          co_subgraph_id = rx_packet.subgraph_ids[1][0];
+        }
         // if (subgraph_id == 1){         
         //   subgraph_id = 8;
         // }
-        // if (subgraph_id == 3){         
-        //   subgraph_id = 10;
-        // }
-        // if (subgraph_id == 5){         
-        //   subgraph_id = 12;
-        // }
-        // Get sub subgraph id to invoke if exists.
-        if (rx_packet.subgraph_ids[1][0] != -1){
-          co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
+        if (subgraph_id == 3){         
+          subgraph_id = 10;
+          co_subgraph_id = 1;
         }
+        if (subgraph_id == 5){         
+          subgraph_id = 12;
+          co_subgraph_id = 2;
+        }
+        std::cout << "subgraph_id:" << subgraph_id << "\n";
 #ifdef yolo_branch // test code for branch execution.
         // Get sub subgraph id to invoke if exists.
         if (subgraph_id == 7){ // Hardcoded part for yolo.
