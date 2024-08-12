@@ -48,19 +48,19 @@ namespace {
 class BufferStorage2 {
 public:
     BufferStorage2() {}
-    SharedBufferData* findBuffer(int id) {
+    GlBuffer* findBuffer(int id) {
         auto it = data_.find(id);
         if (it != data_.end()) {
-            return it->second.get(); // This returns the pointer directly
+            return it->second; 
         }
         return nullptr;
     }
-    void updateBuffer(int id, std::unique_ptr<SharedBufferData> buffer) {
-        data_[id] = std::move(buffer);
+    void updateBuffer(int id, GlBuffer* buffer) {
+        data_[id] = buffer;
     }
     ~BufferStorage2() {}
 private:
-    std::unordered_map<int, std::unique_ptr<SharedBufferData>> data_;
+    std::unordered_map<int, GlBuffer*> data_;
 };
 
 class BufferStorage3 {
@@ -254,13 +254,7 @@ Runtime::Runtime(const RuntimeOptions& options, const GpuInfo& gpu_info,
       FirstOutput_(FirstOutput) {
   programs_.reserve(256);
   if (options_.bundle_readonly_objects) {
-    SharedBufferData* buffer_ptr = candidate_RO.findBuffer(FirstOutput_);
-    if (!buffer_ptr) {
-        shared_readonly_buffer_ = std::make_unique<SharedBufferData>();
-        candidate_RO.updateBuffer(FirstOutput_, std::make_unique<SharedBufferData>(*shared_readonly_buffer_));
-    } else {
-        shared_readonly_buffer_ = std::make_unique<SharedBufferData>(*buffer_ptr);
-    }
+    shared_readonly_buffer_ = std::make_unique<SharedBufferData>();
   }
 }
 
@@ -354,13 +348,24 @@ absl::Status Runtime::AllocateConstObject(const Object& object, uint32_t* id) {
   *id = next_const_id_++;
   switch (object.object_type) {
     case ObjectType::BUFFER: {
-      GlBuffer gl_buffer;
-      if (!shared_readonly_buffer_ ||
-          !shared_readonly_buffer_->Add(*data, &gl_buffer)) {
-        RETURN_IF_ERROR(MakeGlBuffer(object, *data, &gl_buffer));
+      auto temp_ptr = candidate_RO.findBuffer(FirstOutput_);
+      if (temp_ptr) {
+        if (!shared_readonly_buffer_ ||
+            !shared_readonly_buffer_->Add2(*data, temp_ptr)) {
+          RETURN_IF_ERROR(MakeGlBuffer(object, *data, temp_ptr));
+        }
+        RETURN_IF_ERROR(const_objects_.RegisterBuffer(*id, std::move(*temp_ptr)));
+        break;
       }
-      RETURN_IF_ERROR(const_objects_.RegisterBuffer(*id, std::move(gl_buffer)));
-      break;
+      else {
+        GlBuffer gl_buffer;
+        if (!shared_readonly_buffer_ ||
+            !shared_readonly_buffer_->Add(*data, &gl_buffer)) {
+          RETURN_IF_ERROR(MakeGlBuffer(object, *data, &gl_buffer));
+        }
+        RETURN_IF_ERROR(const_objects_.RegisterBuffer(*id, std::move(gl_buffer)));
+        break;
+      }
     }
     case ObjectType::TEXTURE: {
       GlTexture gl_texture;
@@ -377,13 +382,25 @@ absl::Status Runtime::AllocateConstObject(const Object& object, uint32_t* id) {
 
 absl::Status Runtime::PrepareForExecution() {
   if (shared_readonly_buffer_ && !shared_readonly_buffer_->empty()) {
-    GlBuffer shared_buffer;
-    RETURN_IF_ERROR(
-        shared_readonly_buffer_->CreateSharedGlBuffer(&shared_buffer));
-    printf("Allocate Const Buffer -----------------%d\n", shared_buffer.id());
-    shared_readonly_buffer_.reset(nullptr);
-    RETURN_IF_ERROR(const_objects_.RegisterBuffer(next_const_id_++,
-                                                  std::move(shared_buffer)));                            
+    auto buffer_ptr = candidate_RO.findBuffer(FirstOutput_);
+    if (!buffer_ptr) {
+      auto shared_buffer = std::make_unique<GlBuffer>();
+      RETURN_IF_ERROR(
+          shared_readonly_buffer_->CreateSharedGlBuffer(shared_buffer.get()));
+      printf("Allocate New Const Buffer -----------------%d\n", shared_buffer->id());
+      shared_readonly_buffer_.reset(nullptr);
+      RETURN_IF_ERROR(const_objects_.RegisterBuffer(next_const_id_++,
+                                                    std::move(*shared_buffer)));                            
+      candidate_RO.updateBuffer(FirstOutput_, shared_buffer.release());                                              
+    }
+    else {
+      RETURN_IF_ERROR(
+          shared_readonly_buffer_->CreateSharedGlBuffer2(buffer_ptr));
+      printf("Allocate parent Const Buffer -----------------%d\n", buffer_ptr->id());
+      shared_readonly_buffer_.reset(nullptr);
+      RETURN_IF_ERROR(const_objects_.RegisterBuffer(next_const_id_++,
+                                                    std::move(*buffer_ptr))); 
+    }                                             
   }
 
   if (options_.reuse_internal_objects) {
