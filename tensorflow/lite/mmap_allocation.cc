@@ -24,6 +24,7 @@ limitations under the License.
 
 namespace tflite {
 
+// EZE
 MMAPAllocation::MMAPAllocation(const char* filename,
                                ErrorReporter* error_reporter)
     : Allocation(error_reporter, Allocation::Type::kMMap),

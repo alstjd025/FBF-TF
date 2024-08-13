@@ -690,7 +690,7 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
 
 TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
   TfLiteStatus status = kTfLiteOk;
-// //   std::cout << "Delegate graph_id : " << graph_id << "\n";
+  // std::cout << "Delegate graph_id : " << graph_id << "\n";
   if (!delegates_prepared.empty()) {
     // delegate gpu
     if (subgraph_id(graph_id)->GetResourceType() == GPU ||

@@ -132,6 +132,7 @@ class Delegate {
                        const TfLiteDelegateParams* delegate_params) {
     // Extract TFLite delegate execution plan from the context and convert it
     // into GraphFloat32.
+    std::cout << "EEZEE::GLdelegate::prepare\n";
     GraphFloat32 graph;
     RETURN_IF_ERROR(BuildModel(context, delegate_params, &graph));
 
@@ -299,7 +300,7 @@ class Delegate {
       } else {
         // Copy from CPU to GPU
         TfLiteTensor& tensor = context->tensors[ref.tensor_index];
-        RETURN_IF_ERROR(CopyToBufferHandle(id, &tensor));
+        RETURN_IF_ERROR(CopyToBufferHandle(id, &tensor)); //EEZEE
       }
     }
 

@@ -28,7 +28,7 @@ limitations under the License.
 
 // Minsung
 // packet predefines
-#define TF_P_PLAN_LENGTH     1000
+#define TF_P_PLAN_LENGTH     10000
 #define TF_P_PLAN_SIZE       4
 
 // Partitioning parameter seperators.

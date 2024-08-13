@@ -596,7 +596,7 @@ absl::Status Runtime::Execute() {
     double response_time = 0.0;
     struct timespec begin, end;
   #endif
-
+  // printf("11111 %zu\n", programs_.size());
   for (const auto& descriptor : programs_) {
     for (auto& b : descriptor.bindings) {
       RETURN_IF_ERROR(b());

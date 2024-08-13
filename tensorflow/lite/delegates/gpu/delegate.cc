@@ -120,6 +120,7 @@ class DelegateKernel {
 
   absl::Status Prepare(TfLiteContext* context,
                        const TfLiteDelegateParams* delegate_params) {
+    std::cout << "EEZEE::delegate::prepare\n";
     thread_id_prepare_ = std::this_thread::get_id();
 
     // Extract TFLite delegate execution plan from the context and convert it
@@ -132,6 +133,7 @@ class DelegateKernel {
 
     std::unique_ptr<InferenceBuilder> builder;
     bool graph_is_destroyed;
+     // EEZEE
     const int experimental_flags = delegate_->options().experimental_flags;
     if (experimental_flags & TFLITE_GPU_EXPERIMENTAL_FLAGS_CL_ONLY) {
       RETURN_IF_ERROR(

@@ -261,6 +261,14 @@ class Subgraph {
   // Access to indices of output tensors of final node in execution plan.
   TfLiteIntArray* GetOutputTensorIndices();
 
+  /////////////////////////////////////////////
+  // EEEZEEE (for getting each subgraph's first node's first input tensor index)
+  int GetFirstNodeInputTensorIndex() { return nodes_and_registration_[0].first.inputs->data[0]; }
+
+  int GetFirstNodeOutputTensorIndex() { return nodes_and_registration_[0].first.outputs->data[0]; }
+  // EEEZEEE (for getting each subgraph's last node's first output tensor index)
+  /////////////////////////////////////////////
+
   //Minsung 
   //Returns Output Tensor index of given node
   // THIS FUNCTION IS NOT SAFE
@@ -481,7 +489,7 @@ class Subgraph {
       TF_LITE_ENSURE(&context_, t->delegate->CopyFromBufferHandle != nullptr);
       // TODO(b/120420546): we must add a test that exercise this code.
       TF_LITE_ENSURE_STATUS(t->delegate->CopyFromBufferHandle(
-          &context_, t->delegate, t->buffer_handle, t));
+          &context_, t->delegate, t->buffer_handle, t)); // EZE
       t->data_is_stale = false;
     }
     return kTfLiteOk;

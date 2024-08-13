@@ -9,8 +9,8 @@
 // #define yolo_branch_only
 // #define lanenet_branch
 // #define center_branch
-#define XNN_THREAD 5
-#define THRESH 0.3
+#define XNN_THREAD 4
+#define THRESH 0.1
 
 void PrintTensor(TfLiteTensor& tensor) {
 // //   std::cout << "[Print Tensor]"
@@ -103,6 +103,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 //               << "\n";
     exit(-1);
   }
+
   if (RegisterModeltoScheduler() != kTfLiteOk) {
 // //     std::cout << "Model registration to scheduler ERROR"
 //               << "\n";
@@ -119,9 +120,12 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
                              const char* f_model, const char* i_model,
                              INPUT_TYPE type, DEVICE_TYPE d_type,
                              bool use_predictor) {
+  // std::cout << "[EZE TFLite Runtime initialize] 111\n";
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
   sub_interpreter = new tflite::Interpreter(true);
+    // std::cout << "[EZE TFLite Runtime initialize] 222\n";
+
   sub_builder = nullptr;
   interpreter->SetInputType(type);
   sub_interpreter->SetInputType(type);
@@ -150,7 +154,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   TfLiteDelegate* xnn_delegate = NULL;
   
   int32_t num_threads;
-
+  // std::cout << "[EZE TFLite Runtime initialize] 333\n";
   const TfLiteGpuDelegateOptionsV2 options = {
       .is_precision_loss_allowed = 0,
       .inference_preference =
@@ -162,6 +166,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
       .max_delegated_partitions = 1000,
   };
   gpu_delegate = TfLiteGpuDelegateV2Create(&options);
+  // std::cout << "[EZE TFLite Runtime initialize] 444\n";
   DelegateWrapper* new_delegate = new DelegateWrapper;
   new_delegate->delegate = gpu_delegate;
   new_delegate->delegate_type = DelegateType::GPU_DELEGATE;
@@ -179,7 +184,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 
   TfLiteXNNPackDelegateOptions xnnpack_options_ =
       TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options_.num_threads = 4;
+  xnnpack_options_.num_threads = 2;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options_);
   new_delegate = new DelegateWrapper;
   new_delegate->prefered_utilization = 2;
@@ -190,36 +195,15 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 
   TfLiteXNNPackDelegateOptions xnnpack_options__ =
       TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options__.num_threads = 5;
+  xnnpack_options__.num_threads = 1;
   xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options__);
-  new_delegate = new DelegateWrapper;
-  new_delegate->prefered_utilization = 1;
-  new_delegate->delegate = xnn_delegate;
-  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
-  interpreter->RegisterDelegate(new_delegate);
-  sub_interpreter->RegisterDelegate(new_delegate);
-
-  TfLiteXNNPackDelegateOptions xnnpack_options___ =
-      TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options___.num_threads = 3;
-  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options___);
   new_delegate = new DelegateWrapper;
   new_delegate->prefered_utilization = 3;
   new_delegate->delegate = xnn_delegate;
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
-
-  TfLiteXNNPackDelegateOptions xnnpack_options____ =
-      TfLiteXNNPackDelegateOptionsDefault();
-  xnnpack_options___.num_threads = 2;
-  xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options____);
-  new_delegate = new DelegateWrapper;
-  new_delegate->prefered_utilization = 4;
-  new_delegate->delegate = xnn_delegate;
-  new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
-  interpreter->RegisterDelegate(new_delegate);
-  sub_interpreter->RegisterDelegate(new_delegate);
+  // std::cout << "[EZE TFLite Runtime initialize] 555\n";
 
 
   if (InitializeUDS() != kTfLiteOk) {
@@ -227,6 +211,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
 //               << "\n";
     exit(-1);
   }
+  // std::cout << "[EZE TFLite Runtime initialize] 666\n";
   if (AddModelToRuntime(f_model, i_model) != kTfLiteOk) {
 // //     std::cout << "Model registration to runtime ERROR"
 //               << "\n";
@@ -239,15 +224,17 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     }
     return;
   }
-
+  // std::cout << "[EZE TFLite Runtime initialize] 777\n";
   if (RegisterModeltoScheduler() != kTfLiteOk) {
 // //     std::cout << "Model registration to scheduler ERROR"
 //               << "\n";
   }
+  // std::cout << "[EZE TFLite Runtime initialize] 888\n";
   if (PartitionCoSubgraphs() != kTfLiteOk) {
 // //     std::cout << "Model partitioning ERROR"
 //               << "\n";
   }
+  // std::cout << "[EZE TFLite Runtime initialize] 999\n";
 };
 
 TfLiteRuntime::~TfLiteRuntime() {
@@ -684,7 +671,9 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
     plan_from_scheduler.push_back(partitioning_plan[i]);
   }
   interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+  // std::cout << "[EZE] intrepreter_builder->CopyRawPartitioningPlan DONE\n";
   sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+  // std::cout << "[EZE] (sub) intrepreter_builder->CopyRawPartitioningPlan DONE\n";
 // //   std::cout << "CopyRawPartitioningPlan Done" << "\n";
   // // need to refactor for new partitioning format 
   // for (int i = 0; i < TF_P_PLAN_LENGTH; ++i) {
@@ -707,12 +696,14 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
 //               << " no subgraph. \n";
     return kTfLiteError;
   }
+  // std::cout << "[EZE Partition CoSubgraphs] 111\n";
   if (interpreter_builder->CreateSubgraphsFromProfiling(origin_subgraph) !=
       kTfLiteOk) {
 // //     std::cout << "CreateSubgraphsFromProfiling returned ERROR"
 //               << "\n";
     return kTfLiteError;
   }
+  // std::cout << "[EZE Partition CoSubgraphs] 222\n";
 // //   std::cout << "==============================="
 //             << "\n";
 // //   std::cout << "Full precision subgraph created"
@@ -1137,18 +1128,17 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
     }
   }
 }
-
+int TMP_CANDI=0;
 TfLiteStatus TfLiteRuntime::Invoke() {
   TfLiteStatus return_state_sub = TfLiteStatus::kTfLiteOk;
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
 
 #ifdef yolo_branch
-  Subgraph* temp_subgraph = interpreter->subgraph_id(2);
+  Subgraph* temp_subgraph = interpreter->subgraph_id(TMP_CANDI+9);
   temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
   
 
-  temp_subgraph = interpreter->subgraph_id(3);
-  // temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN); // EZE For Candidate Test
+  temp_subgraph = interpreter->subgraph_id(TMP_CANDI+8);
     temp_subgraph->SetResourceType(ResourceType::CO_GPU);
 
 
@@ -1259,7 +1249,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
 
 #ifdef yolo_branch
 
-         if(co_subgraph_id == 2){
+         if(co_subgraph_id == TMP_CANDI+9){
         subgraph = interpreter->subgraph_id(co_subgraph_id);
       }else{
         subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
@@ -1428,17 +1418,56 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         // break;
       }
         // Get main subgraph id to invoke.
+
+        
         subgraph_id = rx_packet.subgraph_ids[0][0];
+        // std::cout << "<<<<<<<<<<<<<<< " << subgraph_id << " >>>>>>>>>>>>>>>>\n";
+        //////////////////////////////////////////////////////
+        // EEZEE (candi invoke)
+        // For ours test
+        if (subgraph_id == 1){
+          subgraph_id = 8;
+        }
+        if (subgraph_id == 2){
+          // subgraph_id = 16;
+        }
+        if (subgraph_id == 3){
+          subgraph_id = 10;
+        }
+         if (subgraph_id == 4){
+          subgraph_id = 18;
+        }
+         if (subgraph_id == 5){
+          // subgraph_id = 12;
+        }
+        if (subgraph_id == 6){
+          subgraph_id = 20;
+        }
+        // if (subgraph_id == 7){
+        //   subgraph_id = 28;
+        // }
+        /////////////////////////////
+        // For baseline test
+        // if (subgraph_id == 7){
+        //   subgraph_id = 14;
+        // }
+        std::cout << "[Inference Subgraph Id] : " << subgraph_id << "\n";
+        //////////////////////////////////////////////////////
+
+
         // Get sub subgraph id to invoke if exists.
         if (rx_packet.subgraph_ids[1][0] != -1){
           co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
         }
+
 #ifdef yolo_branch // test code for branch execution.
         // Get sub subgraph id to invoke if exists.
        
-        if (subgraph_id == 2){ // Hardcoded part for yolo.
-          co_subgraph_id = 2;
-          subgraph_id = 3;
+        if (subgraph_id == TMP_CANDI+8){ // Hardcoded part for yolo.
+          co_subgraph_id = TMP_CANDI+9;
+        }
+        if (subgraph_id ==TMP_CANDI+9){ // Hardcoded part for yolo.
+          subgraph_id = TMP_CANDI+10;
         }
 
 
@@ -1697,9 +1726,9 @@ void YOLO_Parser::make_real_bbox_cls_vector(
     raw_vector.clear();
   }
   classifications.clear();
-//   printf("\033[0;32mBefore NMS : \033[0m");
-// //   std::cout << " Number of bounding boxes before NMS : "
-//             << real_bbox_index_vector.size() << std::endl;
+  printf("\033[0;32mBefore NMS : \033[0m");
+  std::cout << " Number of bounding boxes before NMS : "
+            << real_bbox_index_vector.size() << std::endl;
 }
 
 void YOLO_Parser::make_real_bbox_loc_vector(
@@ -1781,9 +1810,8 @@ TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
   }
 #endif
 #ifdef yolo_branch
-  if(dest_subgraph_ == 4){
-// //     // std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
-//     // " dest " << dest_subgraph_ <<"\n";
+  if(dest_subgraph_ == TMP_CANDI+10){
+    std::cout << "YYYYYYYYYYYYYYYY\n";
     if(buffer_tensor != nullptr){
       free(buffer_tensor->tensor->data.data);
       free(buffer_tensor->tensor->dims);

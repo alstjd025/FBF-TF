@@ -269,6 +269,7 @@ absl::Status CreateReadOnlyShaderStorageBuffer(absl::Span<const T> data,
   return absl::OkStatus();
 }
 
+// EEZEE
 template <typename T>
 absl::Status GlBuffer::Read(absl::Span<T> data) const {
   if (data.size() * sizeof(T) < bytes_size()) {
@@ -281,7 +282,7 @@ absl::Status GlBuffer::Read(absl::Span<T> data) const {
     return absl::OkStatus();
   });
 }
-
+// EEZEE
 template <typename T>
 absl::Status GlBuffer::Write(absl::Span<const T> data) {
   if (data.size() * sizeof(T) > bytes_size_) {

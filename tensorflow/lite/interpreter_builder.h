@@ -184,6 +184,9 @@ class InterpreterBuilder {
   std::vector<BuiltinOperator> flatbuffer_op_index_to_registration_types_;
   const Allocation* allocation_ = nullptr;
 
+  // EEEZEEE
+  bool IsSubgraphPair(std::vector<tflite::Subgraph*>& subgraphs_created, 
+                              int src, int dst);
   bool has_flex_op_ = false;
   int num_fp32_tensors_ = 0;
 

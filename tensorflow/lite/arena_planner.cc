@@ -250,6 +250,7 @@ TfLiteStatus ArenaPlanner::AcquireNonPersistentMemory() {
 }
 
 bool ArenaPlanner::HasNonPersistentMemory() {
+  // std::cout << "arena's buffer size : " << arena_.GetBufferSize()  << std::endl; // EEZEE
   return arena_.GetBufferSize() != 0;
 }
 
@@ -362,10 +363,15 @@ size_t ArenaPlanner::GetPersistentAllocationSize(){
 }
 
 void ArenaPlanner::FreeRWArena(){
+  // std::cout << "[Before Sharing]RW Arena size : " << GetRWAllocationSize() << std::endl;
+  // std::cout << "[Before Sharing]RWP Arena size : " << GetPersistentAllocationSize() << std::endl;
   if(arena_.ReleaseBuffer() != kTfLiteOk){
-    std::cout << "Arena release failed" << "\n";
+    std::cout << "RW Arena release failed" << "\n";
   }
-  std::cout << "Arena release complete" << "\n";
+  if(persistent_arena_.ReleaseBuffer() != kTfLiteOk){
+    std::cout << "RWP Arena release failed" << "\n";
+  }
+  std::cout << "RW&RWP Arena release complete" << "\n";
 }
 
 }  // namespace tflite
