@@ -5,7 +5,7 @@ namespace tflite {
 TfScheduler::TfScheduler(){};
 
 TfScheduler::TfScheduler(const char* uds_file_name,
-                         const char* partitioning_params) {
+                         std::vector<std::string>& param_file_names) {
   // delete if sock file already exists.
   if (access(uds_file_name, F_OK) == 0) unlink(uds_file_name);
 
@@ -29,12 +29,15 @@ TfScheduler::TfScheduler(const char* uds_file_name,
   }
   cpu_util = new float;
   gpu_util = new float;
-  param_file_name = partitioning_params;
-  OpenPartitioningParams();
 
+  // [VLS Todo]
+  // change to read multiple parameter files safe.
+  
+  // param_file_name = partitioning_params;
+  OpenPartitioningParams(param_file_names);
   std::cout << "Scheduler initializaing done"
             << "\n";
-};
+}
 
 int TfScheduler::SendPacketToRuntime(tf_packet& tx_p,
                                      struct sockaddr_un& runtime_addr) {
@@ -64,13 +67,14 @@ void TfScheduler::Work() {
                 << "\n";
       return;
     }
-    // std::cout << "Recieved packet from runtime " << rx_packet.runtime_id <<
-    // "\n";
-
+    #ifdef debug
+      std::cout << "Recieved packet from runtime " << rx_packet.runtime_id <<
+      "\n";
+    #endif
     // do next work by received runtime state.
     switch (rx_packet.runtime_current_state) {
       case RuntimeState::INITIALIZE: {
-        std::cout << "runtime init"
+        std::cout << "Runtime init"
                   << "\n";
         for (auto runtime : runtimes) {
           if (runtime->id == rx_packet.runtime_id) {
@@ -176,8 +180,15 @@ void TfScheduler::Work() {
   return;
 }
 
-void TfScheduler::OpenPartitioningParams() {
-  param_file.open(param_file_name, std::fstream::in);
+// [VLS todo]
+// change to read multiple subgraph params safely.
+void TfScheduler::OpenPartitioningParams(std::vector<std::string>& param_file_names) {
+  for(auto file_name : param_file_names){
+    std::cout << "Read param " << file_name << "\n";
+    std::fstream* new_file = new std::fstream;
+    new_file->open(file_name, std::fstream::in);
+    param_files.push_back(new_file);
+  }
 }
 
 std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
@@ -256,29 +267,33 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   int next_cpu_resource = 0;
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
-  // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
-  if (gpu_util == 0 && cpu_util == 400) {
-    // Use CPU
-    next_resource_plan = TF_P_PLAN_GPU;
-    std::cout << "USE GPU" << "\n";
-  } else if (gpu_util == 100 && cpu_util == 0) {
-    // Use GPU
-    next_resource_plan = TF_P_PLAN_CPU_XNN;
-    std::cout << "USE CPU" << "\n";
-  } else if (gpu_util == 100 && cpu_util == 200) {
-    // Use Co-execution
-    cpu_usage_flag = true;
-    std::cout << "USE CPU200" << "\n";
-  } else {
-    // base plan
-    cpu_usage_flag = false;
-    std::cout << "USE BASE" << "\n";
-    next_resource_plan = next_base_subgraph->resource_type;
-  }
 
-  // if(cpu_util > 99){
-  //   next_cpu_resource = 2;
+  /* [IMPT] Utilization based resource allocation part */
+  // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
+  
+  // if (gpu_util == 0 && cpu_util == 400) {
+  //   // Use CPU
+  //   next_resource_plan = TF_P_PLAN_GPU;
+  //   std::cout << "USE GPU" << "\n";
+  // } else if (gpu_util == 100 && cpu_util == 0) {
+  //   // Use GPU
+  //   next_resource_plan = TF_P_PLAN_CPU_XNN;
+  //   std::cout << "USE CPU" << "\n";
+  // } else if (gpu_util == 100 && cpu_util == 200) {
+  //   // Use Co-execution
+  //   cpu_usage_flag = true;
+  //   std::cout << "USE CPU200" << "\n";
+  // } else {
+  //   // base plan
+  //   cpu_usage_flag = false;
+  //   std::cout << "USE BASE" << "\n";
+  //   next_resource_plan = next_base_subgraph->resource_type;
   // }
+
+  std::cout << "USE BASE" << "\n";
+  next_resource_plan = next_base_subgraph->resource_type;
+  
+  /* [IMPT] */
 
   // TODO (f85fa) : Fix graph searching, especially in co-execution.
   // Search for matching subgraph.

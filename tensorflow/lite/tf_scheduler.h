@@ -75,13 +75,14 @@ namespace tflite{
   class TfScheduler{
     public:
       TfScheduler();
-      TfScheduler(const char* uds_file_name, const char* partitioning_params);
+      TfScheduler(const char* uds_file_name,
+                  std::vector<std::string>& param_file_names);
 
       void PrintRuntimeStates();
 
       void Work();
 
-      void OpenPartitioningParams();
+      void OpenPartitioningParams(std::vector<std::string>& param_file_names);
 
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
       
@@ -166,8 +167,8 @@ namespace tflite{
     private:
 
     LiteSysMonitor* monitor;
+    std::vector<std::fstream*> param_files;
     std::fstream param_file;
-    std::string param_file_name;
 
     int scheduler_fd;
     size_t addr_size;

@@ -1,7 +1,12 @@
 #include "tensorflow/lite/tf_monitor.h"
-// #define nvidia
-#define MONITORING_PERIOD_MS 100 // < 5 is not stable.
-#define Experiment
+#define nvidia
+#define MONITORING_PERIOD_MS 5
+/*
+  Note[MS] : GPU monitoring period under 5 ms may not safe?
+*/
+
+
+// #define Experiment
 
 
 namespace tflite{
@@ -156,7 +161,7 @@ void LiteSysMonitor::GetGPUUtilization() {
     int percentage = 0;
     while (fscanf(f, "%llu", &percentage)) {
       gpu_util_ratio = percentage / 10;
-      // std::cout << "GPU Usage: " << gpu_util_ratio << "% \n"; 
+      // std::cout << "GPU util: " << gpu_util_ratio << "% \n"; 
       break;
     }
     fclose(f);
