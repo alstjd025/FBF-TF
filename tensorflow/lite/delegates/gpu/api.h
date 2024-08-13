@@ -36,7 +36,8 @@ limitations under the License.
 #include <cstdint>
 #include <memory>
 #include <vector>
-
+#include <unordered_map>
+#include <utility>
 #include "absl/types/span.h"
 #include "absl/types/variant.h"
 #include <CL/cl.h>
@@ -181,7 +182,7 @@ struct ObjectDef {
   // User-provided objects will not be re-used internally for any purpose to
   // lower overall memory usage.
   bool user_provided = false;
-
+  mutable int tensor_index = -1;
   bool operator==(const ObjectDef& other) const {
     return data_type == other.data_type && data_layout == other.data_layout &&
            object_type == other.object_type &&

@@ -51,7 +51,26 @@ class SharedBufferData {
     std::copy(data.begin(), data.end(), std::back_inserter(shared_data_));
     return true;
   }
-
+  // Use GlBuffer id (!= buffer_id_.id())
+  bool Add2(const ObjectData& data, GlBuffer* buffer) {
+    shared_data_.resize(AlignByN(shared_data_.size(), alignment_), 0);
+    *buffer = GlBuffer(GL_SHADER_STORAGE_BUFFER, buffer->id(), data.size(),
+                       shared_data_.size(), /*has_ownership=*/false);
+    std::copy(data.begin(), data.end(), std::back_inserter(shared_data_));
+    return true;
+  }
+  // Use GlBuffer id (!= buffer_id_.id())
+  absl::Status CreateSharedGlBuffer2(GlBuffer* gl_buffer) {
+    gl_buffer_internal::BufferBinder binder(GL_SHADER_STORAGE_BUFFER,
+                                            gl_buffer->id());
+    RETURN_IF_ERROR(TFLITE_GPU_CALL_GL(glBufferData, GL_SHADER_STORAGE_BUFFER,
+                                       shared_data_.size(), shared_data_.data(),
+                                       GL_STATIC_READ));
+    *gl_buffer = GlBuffer(GL_SHADER_STORAGE_BUFFER, gl_buffer->id(),
+                          shared_data_.size(), 0, /*has_ownership=*/true);
+    return absl::OkStatus();
+  }
+  
   bool empty() const { return shared_data_.empty(); }
 
   // Returns a single GlBuffer that owns entire shared data.

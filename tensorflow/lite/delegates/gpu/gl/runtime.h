@@ -43,7 +43,7 @@ namespace gl {
 class Runtime {
  public:
   Runtime(const RuntimeOptions& options, const GpuInfo& gpu_info,
-          CommandQueue* command_queue, const ObjectManager* external_objects);
+          CommandQueue* command_queue, const ObjectManager* external_objects, const int FirstOutput);
 
   // Takes parameters and objects and prepares GL program.
   absl::Status AddProgram(const GlShader& shader,
@@ -87,7 +87,8 @@ class Runtime {
   const GpuInfo gpu_info_;
   const ObjectManager* external_objects_;
   CommandQueue* command_queue_;
-
+  const int FirstOutput_;
+  
   ObjectManager internal_objects_;
   ObjectManager const_objects_;
   uint32_t next_const_id_ = 0;  // id for const objects
