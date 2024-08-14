@@ -298,11 +298,41 @@ typedef struct tf_packet{
   int cur_subgraph;
   int cur_graph_resource; // 0 for cpu, 1 for gpu
   int partitioning_plan[1000];
-  int subgraph_ids[2][100];
+  int subgraph_ids[2][100]; 
   float latency[1000];
   float gpu_utilization;
   float cpu_utilization;
 }tf_packet;
+
+// To minimize communication overhead at runtime,
+// we use different packets for runtime phase and init phase.
+// At init phase, need big ary for paramters while runtime needs small ary.
+typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
+  short runtime_id;
+  short runtime_current_state;
+  short runtime_next_state;
+  int cur_subgraph;
+  int cur_graph_resource; // 0 for cpu, 1 for gpu
+  int partitioning_plan[1000];
+  int subgraph_ids[2][100]; 
+  float latency[1000];
+  float gpu_utilization;
+  float cpu_utilization;
+}tf_runtime_packet;
+
+typedef struct tf_initiliazation_packet{// runtime packet(use at init)
+  short runtime_id;
+  short runtime_current_state;
+  short runtime_next_state;
+  int cur_subgraph;
+  int cur_graph_resource; // 0 for cpu, 1 for gpu
+  int partitioning_plan[10000];
+  int subgraph_ids[2][1000];
+  float latency[1000];
+  float gpu_utilization;
+  float cpu_utilization;
+}tf_initiliazation_packet;
+//
 
 ////////////////////////////////////////////////////////////////////
 // HOON : utility funcs for parsing Yolo output

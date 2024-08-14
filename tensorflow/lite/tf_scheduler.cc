@@ -30,10 +30,6 @@ TfScheduler::TfScheduler(const char* uds_file_name,
   cpu_util = new float;
   gpu_util = new float;
 
-  // [VLS Todo]
-  // change to read multiple parameter files safe.
-  
-  // param_file_name = partitioning_params;
   OpenPartitioningParams(param_file_names);
   std::cout << "Scheduler initializaing done"
             << "\n";
@@ -109,6 +105,9 @@ void TfScheduler::Work() {
         break;
       }
       case RuntimeState::NEED_PROFILE: {
+        // [VLS Todo] repeat this point multiple times to create multiple partitioning params.
+        //
+        //
         tf_packet tx_packet;
         RefreshRuntimeState(rx_packet);
         CreatePartitioningPlan(rx_packet, tx_packet);
@@ -148,7 +147,7 @@ void TfScheduler::Work() {
         break;
       }
       case RuntimeState::INVOKE_: {
-        // std::cout << "runtime invoke" << "\n";
+        // [VLS Todo] use runtime packet here.
         RefreshRuntimeState(rx_packet);
         tf_packet tx_packet;
         tx_packet.runtime_id = rx_packet.runtime_id;
@@ -557,57 +556,6 @@ void TfScheduler::RefreshRuntimeState(tf_packet& rx_p) {
   }
 }
 
-bool TfScheduler::RoundRobin(ResourceType type, int runtime_id) {
-  // if(runtimes.size() < 2){
-  //   return true;
-  // }
-  if (!CheckAllRuntimesReady()) {  // Every runtime should be in invoke state to
-                                   // start RR scheduling.
-    return false;
-  }
-  switch (type) {
-    case ResourceType::CPU:
-      if (rr_cpu_queue
-              .empty()) {  // initial state. any runtime can take ownership
-        rr_cpu_queue.push(runtime_id);
-        return true;
-      } else if (rr_cpu_queue.front() !=
-                 runtime_id) {  // if last owner was other runtime
-        if (cpu_usage_flag)     // Resource busy.
-          return false;
-        else {  // Resource available
-          rr_cpu_queue.pop();
-          rr_cpu_queue.push(runtime_id);
-          cpu_usage_flag = true;
-          return true;
-        }
-      } else
-        return false;  // if last owner was this runtime
-    case ResourceType::GPU:
-      if (rr_gpu_queue
-              .empty()) {  // initial state. any runtime can take ownership
-        rr_gpu_queue.push(runtime_id);
-        return true;
-      } else if (rr_gpu_queue.front() !=
-                 runtime_id) {  // if last owner was other runtime
-        if (gpu_usage_flag)     // Resource busy.
-          return false;
-        else {  // Resource available
-          rr_gpu_queue.pop();
-          rr_gpu_queue.push(runtime_id);
-          cpu_usage_flag = true;
-          return true;
-        }
-      } else
-        return false;  // if last owner was this runtime
-    // case ResourceType::CPUGPU:
-    //   /* Not implemented */
-    //   break;
-    default:
-      break;
-  }
-}
-
 void TfScheduler::ReleaseResource(ResourceType type) {
   switch (type) {
     case ResourceType::CPU:
@@ -640,6 +588,8 @@ void TfScheduler::PrintRuntimeStates() {
   }
 }
 
+
+// [VLS Todo] change to create multi-level subgraph partitioning plan.
 void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
   int layers = 0;
   for (int i = 0; i < 1000; ++i) {

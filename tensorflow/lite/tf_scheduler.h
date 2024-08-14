@@ -65,6 +65,7 @@ namespace tflite{
 
   typedef struct runtime_{
     subgraph_graph* graph = nullptr;
+    std::vector<subgraph_graph*> graphs; // for multi-level subgraph design.
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
@@ -159,7 +160,6 @@ namespace tflite{
 
       bool CheckAllRuntimesReady();
 
-      bool RoundRobin(ResourceType type, int runtime_id);
       void ReleaseResource(ResourceType type);
 
       ~TfScheduler();
@@ -168,7 +168,7 @@ namespace tflite{
 
     LiteSysMonitor* monitor;
     std::vector<std::fstream*> param_files;
-    std::fstream param_file;
+    std::fstream param_file; // delete after variable length subgraph impl.
 
     int scheduler_fd;
     size_t addr_size;

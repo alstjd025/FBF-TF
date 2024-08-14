@@ -52,7 +52,6 @@ typedef struct TfLiteExecutionPlan {
 } TfLiteExecutionPlan;
 
 class LiteScheduler;
-// class YOLO_Parser;
 
 class TfLiteRuntime {
  public:
@@ -75,7 +74,7 @@ class TfLiteRuntime {
   TfLiteStatus PredictSubgraphPartitioning();
 
   // Partitions subgraph in both Float & Int.
-  TfLiteStatus PartitionCoSubgraphs();
+  TfLiteStatus PartitionMultiLevelSubgraphs();
 
   // Prepares co-execution for intermediate & shared tensors between
   // interpreters.

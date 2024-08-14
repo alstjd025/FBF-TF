@@ -207,16 +207,18 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
-
+  //[VLS Todo] use init packet
   if (InitializeUDS() != kTfLiteOk) {
     std::cout << "UDS socker init ERROR"
               << "\n";
     exit(-1);
   }
+  //[VLS Todo] use init packet
   if (AddModelToRuntime(f_model, i_model) != kTfLiteOk) {
     std::cout << "Model registration to runtime ERROR"
               << "\n";
   }
+  //[VLS Todo] use init packet
   // Predict model here
   if (use_predictor) {
     if (PredictSubgraphPartitioning() != kTfLiteOk) {
@@ -225,12 +227,13 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     }
     return;
   }
-
+  //[VLS Todo] use init packet
   if (RegisterModeltoScheduler() != kTfLiteOk) {
     std::cout << "Model registration to scheduler ERROR"
               << "\n";
   }
-  if (PartitionCoSubgraphs() != kTfLiteOk) {
+  //[VLS Todo] use init packet
+  if (PartitionMultiLevelSubgraphs() != kTfLiteOk) {
     std::cout << "Model partitioning ERROR"
               << "\n";
   }
@@ -554,6 +557,8 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
   return kTfLiteOk;
 };
 
+
+// [VLS Todo] repeat multiple times to get multi-level subgraph partitioning plan.
 TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
   if (state != RuntimeState::NEED_PROFILE) {
     std::cout << "State is " << state
@@ -579,7 +584,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
               << "\n";
     return kTfLiteError;
   }
-
+  // [VLS Todo] Repeat this point multiple time.
   tf_packet rx_packet;
   if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
     std::cout << "Receiving partitioning plan packet from scheduler Failed"
@@ -643,7 +648,8 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
+// [VLS Todo] Repeat multiple times and register subgraphs.
+TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   std::cout << "PartitionCoSubgraphs" << "\n";
   std::vector<std::vector<int>> raw_plan;
   int inner_plan_idx = 0;
@@ -1300,7 +1306,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       data_sync_cv.notify_one();
 
     } else if (type == InterpreterType::MAIN_INTERPRETER) {
-      // TODO (d9a62) : Make this part to an individual function.
+      // TODO (d9a62) : Make this communication part to an individual function.
+      // [VLS] Todo : Use runtime packet here.
       tf_packet tx_packet;
       memset(&tx_packet, 0, sizeof(tf_packet));
       tx_packet.runtime_id = runtime_id;
