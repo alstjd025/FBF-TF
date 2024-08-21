@@ -28,7 +28,13 @@ limitations under the License.
 
 // Minsung
 // packet predefines
-#define TF_P_PLAN_LENGTH     1000
+//[VLS Todo] change this parameter for appropiate size of runtime and init packet.
+#define TF_P_PLAN_LENGTH     1000 
+
+//[VLS Todo] maybe use these params later?
+#define TF_P_PLAN_RUNTIME_LENGTH 10
+#define TF_P_PLAN_INIT_LENGTH 10000
+
 #define TF_P_PLAN_SIZE       4
 
 // Partitioning parameter seperators.

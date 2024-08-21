@@ -64,8 +64,16 @@ namespace tflite{
   }subgraph_graph;
 
   typedef struct runtime_{
+    // will be deprecated by variable length subgraph design below.
     subgraph_graph* graph = nullptr;
+    
     std::vector<subgraph_graph*> graphs; // for multi-level subgraph design.
+    // Graphs have multiple level(in vector index).
+    // graphs[0] -> subgraphs in level 1 (ex, smallest subgraph granularity)
+    // graphs[1] -> subgraphs in level 2 (ex, midium subgraph granularity)
+    // ..
+    // ..
+
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
@@ -85,17 +93,23 @@ namespace tflite{
 
       void OpenPartitioningParams(std::vector<std::string>& param_file_names);
 
+      int SendPacketToRuntime(tf_initiliazation_packet& tx_p, struct sockaddr_un& runtime_addr);
+      int SendPacketToRuntime(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
       
+      int ReceivePacketFromRuntime(tf_initiliazation_packet& rx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.
+      void RefreshRuntimeState(tf_initiliazation_packet& rx_p);
+      void RefreshRuntimeState(tf_runtime_packet& rx_p);
       void RefreshRuntimeState(tf_packet& rx_p);
 
       ////////////////////////////////////////////////////////////////////////////////////////
       /* Function description of CreatePartitioningPlan
       Read partitioning parameters from file.
-      The parameter ARRAY follows the format below.
+      The parameter array follows the format below.
       format : node_subset /-1/ Resource type(CPU, GPU,,) / Partitioning ratio /-2/ :|(repeat)
                /-3/ new node_subset(redundant subgraph set)/-1/ .. /-2/../-3/.... /-4/(end)
               
@@ -132,9 +146,12 @@ namespace tflite{
        - p_ratio : 15 (5:5) */
        ////////////////////////////////////////////////////////////////////////////////////////
       void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
+      void CreatePartitioningPlan(tf_initiliazation_packet& rx_p, 
+                                  tf_initiliazation_packet& tx_p);
 
       // Create a graph of subgraphs.
       void CreateGraphofSubgraphs(tf_packet& tx_packet);
+      void CreateGraphofSubgraphs(tf_initiliazation_packet& tx_packet);
 
       // Add new graph node to graph.
       bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
@@ -152,11 +169,12 @@ namespace tflite{
       void PrintGraph(int runtime_id);
 
       // Search and return the subgraph's id to invoke.    
-      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_packet& rx_packet);
+      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet);
 
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.
       void PrepareRuntime(tf_packet& rx_packet);
+      void PrepareRuntime(tf_initiliazation_packet& rx_packet);
 
       bool CheckAllRuntimesReady();
 
