@@ -39,8 +39,8 @@ limitations under the License.
 
 // Partitioning parameter seperators.
 // See tf_scheduler.h for detailed descriptions.
-#define PART_PARM_SEP_NODE   -1   
-#define PART_PARM_SEP_RESR   -2
+#define PART_PARM_SEP_OP   -1   
+#define PART_PARM_SEP_RESROURCE   -2
 #define PART_PARM_SEP_SUBG   -3
 #define PART_PARM_SEP_ENDP   -4
 
@@ -326,7 +326,7 @@ typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
   float cpu_utilization;
 }tf_runtime_packet;
 
-typedef struct tf_initiliazation_packet{// runtime packet(use at init)
+typedef struct tf_initialization_packet{// runtime packet(use at init)
   short runtime_id;
   short runtime_current_state;
   short runtime_next_state;
@@ -337,7 +337,7 @@ typedef struct tf_initiliazation_packet{// runtime packet(use at init)
   float latency[1000];
   float gpu_utilization;
   float cpu_utilization;
-}tf_initiliazation_packet;
+}tf_initialization_packet;
 //
 
 ////////////////////////////////////////////////////////////////////

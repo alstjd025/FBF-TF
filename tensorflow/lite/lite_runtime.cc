@@ -395,8 +395,9 @@ TfLiteStatus TfLiteRuntime::InitializeUDS() {
               << "\n";
     return kTfLiteError;
   }
-  tf_packet new_packet;
-  memset(&new_packet, 0, sizeof(tf_packet));
+  tf_initialization_packet new_packet;
+  // tf_packet new_packet;
+  memset(&new_packet, 0, sizeof(tf_initialization_packet));
   new_packet.runtime_current_state = 0;
   new_packet.runtime_id = -1;
 

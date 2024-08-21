@@ -43,10 +43,10 @@ int TfScheduler::SendPacketToRuntime(tf_packet& tx_p,
   return v;
 }
 
-int TfScheduler::SendPacketToRuntime(tf_initiliazation_packet& tx_p,
+int TfScheduler::SendPacketToRuntime(tf_initialization_packet& tx_p,
                                      struct sockaddr_un& runtime_addr) {
   int v;
-  v = sendto(scheduler_fd, (void*)&tx_p, sizeof(tf_initiliazation_packet), 0,
+  v = sendto(scheduler_fd, (void*)&tx_p, sizeof(tf_initialization_packet), 0,
              (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
   return v;
 }
@@ -59,10 +59,10 @@ int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
   return v;
 }
 
-int TfScheduler::ReceivePacketFromRuntime(tf_initiliazation_packet& rx_p,
+int TfScheduler::ReceivePacketFromRuntime(tf_initialization_packet& rx_p,
                                           struct sockaddr_un& runtime_addr) {
   int v;
-  v = recvfrom(scheduler_fd, &rx_p, sizeof(tf_initiliazation_packet), 0,
+  v = recvfrom(scheduler_fd, &rx_p, sizeof(tf_initialization_packet), 0,
                (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
   return v;
 }
@@ -77,14 +77,14 @@ void TfScheduler::Work() {
   bool init = true;
   
   while (run) {
-    // tf_initiliazation_packet rx_packet;
-    tf_initiliazation_packet rx_init_packet;
+    // tf_initialization_packet rx_packet;
+    tf_initialization_packet rx_init_packet;
     tf_runtime_packet rx_runtime_packet;
     struct sockaddr_un runtime_addr;
     RuntimeState state = RuntimeState::INITIALIZE;
     int id = 0;
     if(init){
-      memset(&rx_init_packet, 0, sizeof(tf_initiliazation_packet));
+      memset(&rx_init_packet, 0, sizeof(tf_initialization_packet));
       if (ReceivePacketFromRuntime(rx_init_packet, runtime_addr) == -1) {
         std::cout << "Receive failed"
                   << "\n";
@@ -93,7 +93,7 @@ void TfScheduler::Work() {
       state = static_cast<RuntimeState>(rx_init_packet.runtime_current_state);
       id = static_cast<int>(rx_init_packet.runtime_id);
     }else{
-      memset(&rx_runtime_packet, 0, sizeof(tf_initiliazation_packet));
+      memset(&rx_runtime_packet, 0, sizeof(tf_initialization_packet));
       if (ReceivePacketFromRuntime(rx_runtime_packet, runtime_addr) == -1) {
         std::cout << "Receive failed"
                   << "\n";
@@ -127,9 +127,9 @@ void TfScheduler::Work() {
 
         new_runtime->addr.sun_family = runtime_addr.sun_family;
         strcpy(new_runtime->addr.sun_path, runtime_addr.sun_path);
-        tf_initiliazation_packet tx_packet;
+        tf_initialization_packet tx_packet;
         //tf_packet tx_packet;
-        memset(&tx_packet, 0, sizeof(tf_initiliazation_packet));
+        memset(&tx_packet, 0, sizeof(tf_initialization_packet));
         tx_packet.runtime_id = new_runtime->id;
         tx_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
 
@@ -149,8 +149,7 @@ void TfScheduler::Work() {
         // [VLS Todo] repeat this point multiple times to create multiple partitioning params.
         //
         //
-        tf_initiliazation_packet tx_packet;
-        // tf_packet tx_packet;
+        tf_initialization_packet tx_packet;
         RefreshRuntimeState(rx_init_packet);
         CreatePartitioningPlan(rx_init_packet, tx_packet);
 
@@ -170,7 +169,7 @@ void TfScheduler::Work() {
       case RuntimeState::SUBGRAPH_CREATE: {
         RefreshRuntimeState(rx_init_packet);
         
-        tf_initiliazation_packet tx_packet;
+        tf_initialization_packet tx_packet;
         // tf_packet tx_packet;
         tx_packet.runtime_id = id;
         tx_packet.runtime_next_state = RuntimeState::INVOKE_;
@@ -424,7 +423,7 @@ void TfScheduler::PrepareRuntime(tf_packet& rx_packet) {
   }
 }
 
-void TfScheduler::PrepareRuntime(tf_initiliazation_packet& rx_packet) {
+void TfScheduler::PrepareRuntime(tf_initialization_packet& rx_packet) {
   int runtime_id = rx_packet.runtime_id;
   runtime_* runtime = nullptr;
   for (int i = 0; i < runtimes.size(); ++i) {
@@ -498,12 +497,12 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
       bool start_node_flag = true;
       bool root_graph = true;
       while(current_value != PART_PARM_SEP_ENDP){  
-        if(current_value == PART_PARM_SEP_NODE){ // means end of node subset 
+        if(current_value == PART_PARM_SEP_OP){ // means end of node subset 
                                                  // (initialize new subgraph_node)
           end_node = tx_packet.partitioning_plan[working_idx - 1];
           start_node_flag = true; // refresh used flag
           working_idx += 2;
-        }else if(current_value == PART_PARM_SEP_RESR){ // means end of resource & partitioning plan 
+        }else if(current_value == PART_PARM_SEP_RESROURCE){ // means end of resource & partitioning plan 
                                                        // (add current subgraph node)
           partitioning_ratio = tx_packet.partitioning_plan[working_idx - 1];
           resource_type = tx_packet.partitioning_plan[working_idx - 2];
@@ -542,7 +541,7 @@ void TfScheduler::CreateGraphofSubgraphs(tf_packet& tx_packet) {
   return;
 }
 
-void TfScheduler::CreateGraphofSubgraphs(tf_initiliazation_packet& tx_packet) {
+void TfScheduler::CreateGraphofSubgraphs(tf_initialization_packet& tx_packet) {
   for (int runtime_idx = 0; runtime_idx < runtimes.size(); ++runtime_idx) {
     if (runtimes[runtime_idx]->id == tx_packet.runtime_id) {
       runtime_* working_runtime = runtimes[runtime_idx];
@@ -562,12 +561,12 @@ void TfScheduler::CreateGraphofSubgraphs(tf_initiliazation_packet& tx_packet) {
       bool start_node_flag = true;
       bool root_graph = true;
       while(current_value != PART_PARM_SEP_ENDP){  
-        if(current_value == PART_PARM_SEP_NODE){ // means end of node subset 
+        if(current_value == PART_PARM_SEP_OP){ // means end of node subset 
                                                  // (initialize new subgraph_node)
           end_node = tx_packet.partitioning_plan[working_idx - 1];
           start_node_flag = true; // refresh used flag
           working_idx += 2;
-        }else if(current_value == PART_PARM_SEP_RESR){ // means end of resource & partitioning plan 
+        }else if(current_value == PART_PARM_SEP_RESROURCE){ // means end of resource & partitioning plan 
                                                        // (add current subgraph node)
           partitioning_ratio = tx_packet.partitioning_plan[working_idx - 1];
           resource_type = tx_packet.partitioning_plan[working_idx - 2];
@@ -730,7 +729,7 @@ void TfScheduler::RefreshRuntimeState(tf_runtime_packet& rx_p) {
   }
 }
 
-void TfScheduler::RefreshRuntimeState(tf_initiliazation_packet& rx_p) {
+void TfScheduler::RefreshRuntimeState(tf_initialization_packet& rx_p) {
   for (int i = 0; i < runtimes.size(); ++i) {
     if (rx_p.runtime_id == runtimes[i]->id) {
       runtimes[i]->state =
@@ -773,7 +772,8 @@ void TfScheduler::PrintRuntimeStates() {
 
 
 // [VLS Todo] change to create multi-level subgraph partitioning plan.
-void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
+void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
+                                         tf_initialization_packet& tx_p) {
   int layers = 0;
   for (int i = 0; i < 1000; ++i) {
     if (rx_p.latency[i] == -1)
@@ -781,12 +781,13 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     else
       break;
   }
+  // check number of layers
   std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers
             << " layers in model"
             << "\n";
   std::string line, token;
   int arg = 0;
-  int line_iter = 0;
+  int line_iter = 0; // line reader
   int plan_idx = 0;
   bool seperator_flag = false;
   // get line
@@ -794,17 +795,18 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     std::cout << "Scheduler ERROR : Param file is not opened" << "\n";
     exit(-1);
   }
+  // get param line by line
   while (std::getline(param_file, line)) {
     switch (line_iter)
     {
     case 0:{
-      if(line == "*"){ // subgraph set end flag
+      if(line == "*"){ // subgraph candidate set end flag
         tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
         plan_idx++;
-      }else if(line == "-"){ // master end falg
+      }else if(line == "-"){ // subgraph level end flag
         tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
         plan_idx++;
-      }else{ // nodes
+      }else{ // operators
         std::stringstream s_stream(line); // parse line to stringstream.
         while(getline(s_stream, token, ' ')){
           arg = std::stoi(token);  
@@ -816,7 +818,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
       break;
     }
     case 1:
-      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_NODE;
+      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_OP;
       plan_idx++;
       tx_p.partitioning_plan[plan_idx] = std::stoi(line);
       plan_idx++;
@@ -825,79 +827,7 @@ void TfScheduler::CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p) {
     case 2:
       tx_p.partitioning_plan[plan_idx] = std::stoi(line);
       plan_idx++;
-      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_RESR;
-      plan_idx++;
-      line_iter = 0;
-      break;
-    default:
-      break;
-    }
-  }
-
-  // std::cout << "closed" << "\n";
-  for(int i=0; i<1000; ++i){
-    // std::cout << "adsfasdf" << "\n";
-    std::cout << tx_p.partitioning_plan[i] << " ";
-    if(tx_p.partitioning_plan[i] == -4)
-      break;
-  }
-  return;
-}
-
-void TfScheduler::CreatePartitioningPlan(tf_initiliazation_packet& rx_p,
-                                         tf_initiliazation_packet& tx_p) {
-  int layers = 0;
-  for (int i = 0; i < 1000; ++i) {
-    if (rx_p.latency[i] == -1)
-      layers++;
-    else
-      break;
-  }
-  std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers
-            << " layers in model"
-            << "\n";
-  std::string line, token;
-  int arg = 0;
-  int line_iter = 0;
-  int plan_idx = 0;
-  bool seperator_flag = false;
-  // get line
-  if(!param_file.is_open()){
-    std::cout << "Scheduler ERROR : Param file is not opened" << "\n";
-    exit(-1);
-  }
-  while (std::getline(param_file, line)) {
-    switch (line_iter)
-    {
-    case 0:{
-      if(line == "*"){ // subgraph set end flag
-        tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
-        plan_idx++;
-      }else if(line == "-"){ // master end falg
-        tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
-        plan_idx++;
-      }else{ // nodes
-        std::stringstream s_stream(line); // parse line to stringstream.
-        while(getline(s_stream, token, ' ')){
-          arg = std::stoi(token);  
-          tx_p.partitioning_plan[plan_idx] = arg;
-          plan_idx++;
-          line_iter = 1;
-        }  
-      }
-      break;
-    }
-    case 1:
-      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_NODE;
-      plan_idx++;
-      tx_p.partitioning_plan[plan_idx] = std::stoi(line);
-      plan_idx++;
-      line_iter = 2;
-      break;
-    case 2:
-      tx_p.partitioning_plan[plan_idx] = std::stoi(line);
-      plan_idx++;
-      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_RESR;
+      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_RESROURCE;
       plan_idx++;
       line_iter = 0;
       break;

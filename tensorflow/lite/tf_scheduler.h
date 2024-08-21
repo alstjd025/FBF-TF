@@ -46,8 +46,8 @@ namespace tflite{
     /* rank of subgraph in 'graph' (need for maintaining the graph struct)*/
     int rank = -1;
 
-    int maximum_gpu_utilization = 0;   
-    int maximum_cpu_utilization = 0;   
+    int gpu_utilization_require = 0;   
+    int cpu_utilization_require = 0;   
     float average_latency = 0;
 
     subgraph_node* right =  nullptr;
@@ -93,16 +93,16 @@ namespace tflite{
 
       void OpenPartitioningParams(std::vector<std::string>& param_file_names);
 
-      int SendPacketToRuntime(tf_initiliazation_packet& tx_p, struct sockaddr_un& runtime_addr);
+      int SendPacketToRuntime(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
       
-      int ReceivePacketFromRuntime(tf_initiliazation_packet& rx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.
-      void RefreshRuntimeState(tf_initiliazation_packet& rx_p);
+      void RefreshRuntimeState(tf_initialization_packet& rx_p);
       void RefreshRuntimeState(tf_runtime_packet& rx_p);
       void RefreshRuntimeState(tf_packet& rx_p);
 
@@ -145,13 +145,12 @@ namespace tflite{
        - r_type  : 4 (CO-XNN) 
        - p_ratio : 15 (5:5) */
        ////////////////////////////////////////////////////////////////////////////////////////
-      void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
-      void CreatePartitioningPlan(tf_initiliazation_packet& rx_p, 
-                                  tf_initiliazation_packet& tx_p);
+      void CreatePartitioningPlan(tf_initialization_packet& rx_p, 
+                                  tf_initialization_packet& tx_p);
 
       // Create a graph of subgraphs.
       void CreateGraphofSubgraphs(tf_packet& tx_packet);
-      void CreateGraphofSubgraphs(tf_initiliazation_packet& tx_packet);
+      void CreateGraphofSubgraphs(tf_initialization_packet& tx_packet);
 
       // Add new graph node to graph.
       bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
@@ -174,7 +173,7 @@ namespace tflite{
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.
       void PrepareRuntime(tf_packet& rx_packet);
-      void PrepareRuntime(tf_initiliazation_packet& rx_packet);
+      void PrepareRuntime(tf_initialization_packet& rx_packet);
 
       bool CheckAllRuntimesReady();
 

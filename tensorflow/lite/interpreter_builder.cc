@@ -220,9 +220,9 @@ void InterpreterBuilder::CopyRawPartitioningPlan(
   for(int idx=0; idx<TF_P_PLAN_LENGTH; ++idx){
     int current_value = raw_plan[idx];
     if(current_value == PART_PARM_SEP_ENDP) { break; } // met EOF
-    else if(current_value == PART_PARM_SEP_NODE){ 
+    else if(current_value == PART_PARM_SEP_OP){ 
       node_flag = false;
-    }else if(current_value == PART_PARM_SEP_RESR){
+    }else if(current_value == PART_PARM_SEP_RESROURCE){
       partitioning_ratio = raw_plan[idx -1];
       resource_plan = raw_plan[idx - 2];
       // copy node subset

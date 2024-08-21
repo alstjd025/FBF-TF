@@ -210,7 +210,13 @@ class TfLiteRuntime {
   TfLiteStatus InitializeUDS();
   TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
   RuntimeState GetRuntimeState() { return state; };
+
+  TfLiteStatus SendPacketToScheduler(tf_initialization_packet& tx_p);
+  TfLiteStatus SendPacketToScheduler(tf_runtime_packet& tx_p);
   TfLiteStatus SendPacketToScheduler(tf_packet& tx_p);
+
+  TfLiteStatus ReceivePacketFromScheduler(tf_initialization_packet& rx_p);
+  TfLiteStatus ReceivePacketFromScheduler(tf_runtime_packet& rx_p);
   TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
   void ShutdownScheduler();
   //////
