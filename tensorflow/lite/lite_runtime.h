@@ -208,7 +208,7 @@ class TfLiteRuntime {
   //// IPC functions
   // Initialize UDS and check communication with scheduler.
   TfLiteStatus InitializeUDS();
-  TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
+  TfLiteStatus ChangeState(RuntimeState next_state);
   RuntimeState GetRuntimeState() { return state; };
 
   TfLiteStatus SendPacketToScheduler(tf_initialization_packet& tx_p);

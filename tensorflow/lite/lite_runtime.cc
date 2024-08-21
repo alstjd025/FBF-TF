@@ -207,18 +207,18 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
-  //[VLS Todo] use init packet
+  //[VLS Todo] use init packet  - done
   if (InitializeUDS() != kTfLiteOk) {
     std::cout << "UDS socker init ERROR"
               << "\n";
     exit(-1);
   }
-  //[VLS Todo] use init packet
+  //[VLS Todo] use init packet  - done
   if (AddModelToRuntime(f_model, i_model) != kTfLiteOk) {
     std::cout << "Model registration to runtime ERROR"
               << "\n";
   }
-  //[VLS Todo] use init packet
+  //[VLS Todo] use init packet  - done
   // Predict model here
   if (use_predictor) {
     if (PredictSubgraphPartitioning() != kTfLiteOk) {
@@ -227,7 +227,8 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     }
     return;
   }
-  //[VLS Todo] use init packet
+  //[VLS Todo] use init packet - done
+  //[VLS Todo] recieves partitioning plan from scheduler here.
   if (RegisterModeltoScheduler() != kTfLiteOk) {
     std::cout << "Model registration to scheduler ERROR"
               << "\n";
@@ -409,18 +410,18 @@ TfLiteStatus TfLiteRuntime::InitializeUDS() {
   std::cout << "Send runtime register request to scheduler"
             << "\n";
 
-  tf_packet recv_packet;
-  if (ReceivePacketFromScheduler(recv_packet) != kTfLiteOk) {
+  tf_initialization_packet rx_packet;
+  if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
     std::cout << "Receiving packet from scheduler FAILED"
               << "\n";
     return kTfLiteError;
   }
 
-  runtime_id = recv_packet.runtime_id;
+  runtime_id = rx_packet.runtime_id;
   std::cout << "Got runtime ID " << runtime_id << " from scheduler"
             << "\n";
-
-  if (ChangeStatewithPacket(recv_packet) != kTfLiteOk) {
+  RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+  if (ChangeState(next_state) != kTfLiteOk) {
     return kTfLiteError;
   }
   return kTfLiteOk;
@@ -449,6 +450,28 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_packet& tx_p) {
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p) {
+  // std::cout << "Runtime :Send packet to scheduler" << "\n";
+  if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
+    std::cout << "Sending packet to scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
+  // std::cout << "Runtime :Send packet to scheduler" << "\n";
+  if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
+    std::cout << "Sending packet to scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p) {
   if (recvfrom(runtime_sock, &rx_p, sizeof(tf_packet), 0, NULL, 0) == -1) {
     std::cout << "Receiving packet from scheduler FAILED"
@@ -458,12 +481,30 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p) {
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p) {
+TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_initialization_packet& rx_p) {
+  if (recvfrom(runtime_sock, &rx_p, sizeof(tf_initialization_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_runtime_packet& rx_p) {
+  if (recvfrom(runtime_sock, &rx_p, sizeof(tf_runtime_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::ChangeState(RuntimeState next_state) {
   std::cout << "================================================"
             << "\n";
-  if (rx_p.runtime_next_state != state) {
-    std::cout << "runtime_next_state : " << rx_p.runtime_next_state << "\n";
-    state = static_cast<RuntimeState>(rx_p.runtime_next_state);
+  if (next_state != state) {
+    std::cout << "runtime_next_state : " << next_state << "\n";
+    state = next_state;
     std::cout << "Runtime " << runtime_id << " state changed to " << state
               << "\n";
     std::cout << "================================================"
@@ -567,8 +608,8 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
               << RuntimeState::NEED_PROFILE << "\n";
     return kTfLiteError;
   }
-  tf_packet tx_packet;
-  memset(&tx_packet, 0, sizeof(tf_packet));
+  tf_initialization_packet tx_packet;
+  memset(&tx_packet, 0, sizeof(tf_initialization_packet));
   tx_packet.runtime_current_state = state;
   tx_packet.runtime_id = runtime_id;
 
@@ -586,7 +627,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
     return kTfLiteError;
   }
   // [VLS Todo] Repeat this point multiple time.
-  tf_packet rx_packet;
+  tf_initialization_packet rx_packet;
   if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
     std::cout << "Receiving partitioning plan packet from scheduler Failed"
               << "\n";
@@ -596,8 +637,9 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
   // copy the partitioning plan from scheduler.
   memcpy(partitioning_plan, rx_packet.partitioning_plan,
          sizeof(int) * TF_P_PLAN_LENGTH);
-
-  if (ChangeStatewithPacket(rx_packet) != kTfLiteOk) {
+  
+  RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+  if (ChangeState(next_state) != kTfLiteOk) {
     return kTfLiteError;
   }
   std::cout << "Successfully registered model to scheduler"
@@ -636,7 +678,8 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
   }
 
   // At this point, scheduler will send INVOKE state.
-  if (ChangeStatewithPacket(rx_packet) != kTfLiteOk) {
+  RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+  if (ChangeState(next_state) != kTfLiteOk) {
     return kTfLiteError;
   }
   
@@ -730,8 +773,10 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
     return kTfLiteError;
   }
 
+
   // At this point, scheduler will send INVOKE state.
-  if (ChangeStatewithPacket(rx_packet) != kTfLiteOk) {
+  RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+  if (ChangeState(next_state) != kTfLiteOk) {
     return kTfLiteError;
   }
 
