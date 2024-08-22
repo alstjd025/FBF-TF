@@ -505,7 +505,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphForStress(){
   
 }
 
-TfLiteStatus InterpreterBuilder::CreateSubgraphsFromProfiling(
+TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
                                       tflite::Subgraph* profiled_subgraph){
   if(!profiled_subgraph->IsProfiled()){
     std::cout << "InterpreterBuilder : Subgraph is not profiled \n";

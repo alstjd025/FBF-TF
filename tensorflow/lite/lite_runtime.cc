@@ -656,7 +656,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
               << " no subgraph. \n";
     return kTfLiteError;
   }
-  if (interpreter_builder->CreateSubgraphsFromProfiling(origin_subgraph) !=
+  if (interpreter_builder->CreateSubgraphsFromParameter(origin_subgraph) !=
       kTfLiteOk) {
     std::cout << "CreateSubgraphsFromProfiling returned ERROR"
               << "\n";
@@ -711,7 +711,7 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
               << " no subgraph. \n";
     return kTfLiteError;
   }
-  if (interpreter_builder->CreateSubgraphsFromProfiling(origin_subgraph) !=
+  if (interpreter_builder->CreateSubgraphsFromParameter(origin_subgraph) !=
       kTfLiteOk) {
     std::cout << "CreateSubgraphsFromProfiling returned ERROR"
               << "\n";
@@ -719,7 +719,7 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   }
   std::cout << "==============================="
             << "\n";
-  std::cout << "Full precision subgraph created"
+  std::cout << "Main interpreter subgraph created"
             << "\n";
   std::cout << "==============================="
             << "\n";
@@ -731,7 +731,7 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
               << " no subgraph. \n";
     return kTfLiteError;
   }
-  if (sub_builder->CreateSubgraphsFromProfiling(origin_quantized_subgraph) !=
+  if (sub_builder->CreateSubgraphsFromParameter(origin_quantized_subgraph) !=
       kTfLiteOk) {
     std::cout << "CreateSubgraphsFromProfiling returned ERROR"
               << "\n";
@@ -739,7 +739,7 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   }
   std::cout << "==============================="
             << "\n";
-  std::cout << "Minimal precision subgraph created"
+  std::cout << "Sub interpreter subgraph created"
             << "\n";
   std::cout << "==============================="
             << "\n";

@@ -102,7 +102,7 @@ class InterpreterBuilder {
   // Creates subset of subgraphs
   // After profiling the whole subgraph's latency, creates subset of subgraphs so
   // that the scheduler can handle them.
-  TfLiteStatus CreateSubgraphsFromProfiling(tflite::Subgraph* profiled_subgraph);
+  TfLiteStatus CreateSubgraphsFromParameter(tflite::Subgraph* profiled_subgraph);
 
   // Minsung
   // Creates a subgraph for stress test.
