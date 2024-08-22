@@ -43,6 +43,14 @@ int TfScheduler::SendPacketToRuntime(tf_packet& tx_p,
   return v;
 }
 
+int TfScheduler::SendPacketToRuntime(tf_runtime_packet& tx_p,
+                                     struct sockaddr_un& runtime_addr) {
+  int v;
+  v = sendto(scheduler_fd, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
 int TfScheduler::SendPacketToRuntime(tf_initialization_packet& tx_p,
                                      struct sockaddr_un& runtime_addr) {
   int v;
@@ -55,6 +63,14 @@ int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
                                           struct sockaddr_un& runtime_addr) {
   int v;
   v = recvfrom(scheduler_fd, &rx_p, sizeof(tf_packet), 0,
+               (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  return v;
+}
+
+int TfScheduler::ReceivePacketFromRuntime(tf_runtime_packet& rx_p,
+                                          struct sockaddr_un& runtime_addr) {
+  int v;
+  v = recvfrom(scheduler_fd, &rx_p, sizeof(tf_runtime_packet), 0,
                (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
   return v;
 }
