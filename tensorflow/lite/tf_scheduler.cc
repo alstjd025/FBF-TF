@@ -147,11 +147,16 @@ void TfScheduler::Work() {
       }
       case RuntimeState::NEED_PROFILE: {
         // [VLS Todo] repeat this point multiple times to create multiple partitioning params.
-        //
-        //
         tf_initialization_packet tx_packet;
+        
+        // [VLS Todo] check if this method works in multiple time with params. 
         RefreshRuntimeState(rx_init_packet);
-        CreatePartitioningPlan(rx_init_packet, tx_packet);
+        
+        // store multi-level params in vector and send it to runtime.
+        std::vector<std::vector<int>> subgraph_params;
+        CreatePartitioningPlan(rx_init_packet, subgraph_params);
+        // CreatePartitioningPlan(rx_init_packet, tx_packet);
+
 
         tx_packet.runtime_id = id;
         tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
@@ -774,6 +779,7 @@ void TfScheduler::PrintRuntimeStates() {
 // [VLS Todo] change to create multi-level subgraph partitioning plan.
 void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
                                          tf_initialization_packet& tx_p) {
+  std::vector<std::vector<int>> subgraph_params;
   int layers = 0;
   for (int i = 0; i < 1000; ++i) {
     if (rx_p.latency[i] == -1)
@@ -781,10 +787,15 @@ void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
     else
       break;
   }
+
   // check number of layers
   std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers
             << " layers in model"
             << "\n";
+  for(auto param_file : param_files){ // iterate each parameter files.
+
+  }
+
   std::string line, token;
   int arg = 0;
   int line_iter = 0; // line reader
@@ -842,6 +853,95 @@ void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
     std::cout << tx_p.partitioning_plan[i] << " ";
     if(tx_p.partitioning_plan[i] == -4)
       break;
+  }
+  return;
+}
+// [VLS Todo] change to create multi-level subgraph partitioning plan.
+void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
+                          std::vector<std::vector<int>>& subgraph_params) {
+  int ops = 0; // Count number of operators in given model.
+  for (int i = 0; i < 1000; ++i) {
+    if (rx_p.latency[i] == -1)
+      ops++;
+    else
+      break;
+  }
+  std::cout << "Runtime [" << rx_p.runtime_id << "] has " << ops
+            << " ops in model"
+            << "\n";
+      
+  int level = 0; // subgaph level
+  for(auto param_file : param_files){ // iterate each parameter files.
+    subgraph_params.push_back(std::vector<int>()); // create empty vector for param.
+    std::string line, token;
+    int arg = 0;
+    int line_iter = 0; // line reader
+    int plan_idx = 0;
+    bool seperator_flag = false;
+    // get line
+    if(!param_file->is_open()){
+      std::cout << "Scheduler ERROR : Param file is not opened" << "\n";
+      exit(-1);
+    }
+    // get param line by line
+    while (std::getline(*param_file, line)) {
+      switch (line_iter)
+      {
+      case 0:{
+        if(line == "*"){ // subgraph candidate set end flag
+          subgraph_params[level].push_back(PART_PARM_SEP_SUBG);
+          // tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
+          // plan_idx++;
+        }else if(line == "-"){ // subgraph level end flag
+          subgraph_params[level].push_back(PART_PARM_SEP_SUBG);
+          // tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
+          // plan_idx++;
+        }else{ // operators
+          std::stringstream s_stream(line); // parse line to stringstream.
+          while(getline(s_stream, token, ' ')){
+            arg = std::stoi(token);  
+            subgraph_params[level].push_back(arg);
+            // tx_p.partitioning_plan[plan_idx] = arg;
+            // plan_idx++;
+            line_iter = 1;
+          }  
+        }
+        break;
+      }
+      case 1:
+        subgraph_params[level].push_back(PART_PARM_SEP_OP);
+        // tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_OP;
+        // plan_idx++;
+        subgraph_params[level].push_back(std::stoi(line));
+        // tx_p.partitioning_plan[plan_idx] = std::stoi(line);
+        // plan_idx++;
+        line_iter = 2;
+        break;
+      case 2:
+        subgraph_params[level].push_back(std::stoi(line));
+        // tx_p.partitioning_plan[plan_idx] = std::stoi(line);
+        // plan_idx++;
+        subgraph_params[level].push_back(PART_PARM_SEP_RESROURCE);
+        // tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_RESROURCE;
+        // plan_idx++;
+        line_iter = 0;
+        break;
+      default:
+        break;
+      }
+    } // param_file parsing iter.
+    level++;
+  } // param_file iter.
+
+  // for debugging purpose.
+  int lev = 0;
+  for(auto sub_param : subgraph_params){
+    std::cout << "level : " << lev << "\n";
+    for(auto i : sub_param){
+      std::cout << i << " ";
+    }
+    std::cout << "\n";
+    lev++;
   }
   return;
 }

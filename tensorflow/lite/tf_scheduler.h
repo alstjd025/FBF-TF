@@ -147,6 +147,9 @@ namespace tflite{
        ////////////////////////////////////////////////////////////////////////////////////////
       void CreatePartitioningPlan(tf_initialization_packet& rx_p, 
                                   tf_initialization_packet& tx_p);
+      
+      void CreatePartitioningPlan(tf_initialization_packet& rx_p, 
+                                  std::vector<std::vector<int>>& subgraph_param);
 
       // Create a graph of subgraphs.
       void CreateGraphofSubgraphs(tf_packet& tx_packet);

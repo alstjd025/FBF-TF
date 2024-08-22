@@ -319,9 +319,9 @@ typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
   short runtime_next_state;
   int cur_subgraph;
   int cur_graph_resource; // 0 for cpu, 1 for gpu
-  int partitioning_plan[1000];
+  int partitioning_plan[1000]; // [VLS Todo] deprecate later.
   int subgraph_ids[2][100]; 
-  float latency[1000];
+  float latency[1000]; // [VLS Todo] deprecate later.
   float gpu_utilization;
   float cpu_utilization;
 }tf_runtime_packet;
@@ -332,7 +332,7 @@ typedef struct tf_initialization_packet{// runtime packet(use at init)
   short runtime_next_state;
   int cur_subgraph;
   int cur_graph_resource; // 0 for cpu, 1 for gpu
-  int partitioning_plan[10000];
+  int partitioning_plan[TF_P_PLAN_LENGTH];
   int subgraph_ids[2][1000];
   float latency[1000];
   float gpu_utilization;
