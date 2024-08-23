@@ -61,11 +61,12 @@ namespace tflite{
     std::vector<subgraph_node*> nodes;
     subgraph_node* root = nullptr;
     int runtime_id;
+    int level;
   }subgraph_graph;
 
   typedef struct runtime_{
     // will be deprecated by variable length subgraph design below.
-    subgraph_graph* graph = nullptr;
+    // subgraph_graph* graph = nullptr;
     
     std::vector<subgraph_graph*> graphs; // for multi-level subgraph design.
     // Graphs have multiple level(in vector index).
@@ -152,8 +153,8 @@ namespace tflite{
                                   std::vector<std::vector<int>>& subgraph_param);
 
       // Create a graph of subgraphs.
-      void CreateGraphofSubgraphs(tf_packet& tx_packet);
-      void CreateGraphofSubgraphs(tf_initialization_packet& tx_packet);
+      // void CreateGraphofSubgraphs(tf_packet& tx_packet); // deprecated [VLS] - for multi-level subgraph.
+      void CreateGraphofSubgraphs(int id, std::vector<std::vector<int>>& subgraph_param);
 
       // Add new graph node to graph.
       bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
@@ -175,7 +176,7 @@ namespace tflite{
 
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.
-      void PrepareRuntime(tf_packet& rx_packet);
+      // void PrepareRuntime(tf_packet& rx_packet); // deprecated [VLS] - for multi-level subgraph.
       void PrepareRuntime(tf_initialization_packet& rx_packet);
 
       bool CheckAllRuntimesReady();

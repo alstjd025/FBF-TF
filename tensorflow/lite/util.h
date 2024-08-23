@@ -331,7 +331,7 @@ typedef struct tf_initialization_packet{// runtime packet(use at init)
   short runtime_current_state;
   short runtime_next_state;
   int cur_subgraph;
-  int cur_graph_resource; // 0 for cpu, 1 for gpu
+  int level; 
   int partitioning_plan[TF_P_PLAN_LENGTH];
   int subgraph_ids[2][1000];
   float latency[1000];
