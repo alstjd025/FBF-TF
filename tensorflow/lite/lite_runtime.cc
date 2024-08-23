@@ -207,18 +207,15 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
-  //[VLS Todo] use init packet  - done
   if (InitializeUDS() != kTfLiteOk) {
     std::cout << "UDS socker init ERROR"
               << "\n";
     exit(-1);
   }
-  //[VLS Todo] use init packet  - done
   if (AddModelToRuntime(f_model, i_model) != kTfLiteOk) {
     std::cout << "Model registration to runtime ERROR"
               << "\n";
   }
-  //[VLS Todo] use init packet  - done
   // Predict model here
   if (use_predictor) {
     if (PredictSubgraphPartitioning() != kTfLiteOk) {
@@ -227,8 +224,8 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     }
     return;
   }
-  //[VLS Todo] use init packet - done
   //[VLS Todo] recieves partitioning plan from scheduler here.
+  //[VLS Todo] repeat this fucntion multiple time inside?
   if (RegisterModeltoScheduler() != kTfLiteOk) {
     std::cout << "Model registration to scheduler ERROR"
               << "\n";
@@ -621,31 +618,52 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
   for (int i = 0; i < layers; ++i) {
     tx_packet.latency[i] = -1.0;  // means that this is a dummy latency profile.
   }
+  //////////////////////////////////////////////////////
+  // [VLS Todo] iterate this part in subgraph levels.
   if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
     std::cout << "Sending profile packet to scheduler failed"
               << "\n";
     return kTfLiteError;
   }
+  int received_level = 0;
   // [VLS Todo] Repeat this point multiple time.
   tf_initialization_packet rx_packet;
-  if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
-    std::cout << "Receiving partitioning plan packet from scheduler Failed"
-              << "\n";
-    return kTfLiteError;
-  }
+  while(state != RuntimeState::NEED_PROFILE){
+    if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
+      std::cout << "Receiving partitioning plan packet from scheduler Failed"
+                << "\n";
+      return kTfLiteError;
+    }
+    received_level = rx_packet.level;
 
-  // copy the partitioning plan from scheduler.
-  memcpy(partitioning_plan, rx_packet.partitioning_plan,
-         sizeof(int) * TF_P_PLAN_LENGTH);
+    // copy the partitioning plan from scheduler.
+    if(partitioning_plan_.size() < received_level){
+      partitioning_plan_.push_back(std::vector<int>()); // push new level of subgraph param.
+      int iter = 0;
+      int value = rx_packet.partitioning_plan[iter];
+      while(value != -4){
+        partitioning_plan_[received_level].push_back(value);
+        iter++;
+      }
+    }
   
-  RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
-  if (ChangeState(next_state) != kTfLiteOk) {
-    return kTfLiteError;
+    RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+    if (ChangeState(next_state) != kTfLiteOk) {
+      return kTfLiteError;
+    }
+    tf_initialization_packet tx_packet;
+    memset(&tx_packet, 0, sizeof(tf_initialization_packet));
+    tx_packet.runtime_current_state = state;
+    tx_packet.runtime_id = runtime_id;
+    tx_packet.level = received_level+1;
+    if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
+      std::cout << "Sending profile packet to scheduler failed"
+                << "\n";
+      return kTfLiteError;
+    }
   }
   std::cout << "Successfully registered model to scheduler"
             << "\n";
-  // interpreter->PrintSubgraphInfo();
-  // sub_interpreter->PrintSubgraphInfo();
   return kTfLiteOk;
 }
 
@@ -693,6 +711,7 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
 }
 
 // [VLS Todo] Repeat multiple times and register subgraphs.
+// [VLS Todo] check this function safe if called multiply to create multi-level subgraphs.
 TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   std::cout << "PartitionCoSubgraphs" << "\n";
   std::vector<std::vector<int>> raw_plan;

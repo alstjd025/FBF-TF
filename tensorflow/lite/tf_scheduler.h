@@ -146,8 +146,6 @@ namespace tflite{
        - r_type  : 4 (CO-XNN) 
        - p_ratio : 15 (5:5) */
        ////////////////////////////////////////////////////////////////////////////////////////
-      void CreatePartitioningPlan(tf_initialization_packet& rx_p, 
-                                  tf_initialization_packet& tx_p);
       
       void CreatePartitioningPlan(tf_initialization_packet& rx_p, 
                                   std::vector<std::vector<int>>& subgraph_param);
@@ -186,38 +184,38 @@ namespace tflite{
       ~TfScheduler();
     
     private:
+      LiteSysMonitor* monitor;
+      std::vector<std::fstream*> param_files;
+      std::fstream param_file; // delete after variable length subgraph impl.
+      std::vector<std::vector<int>> subgraph_params; // experimental
 
-    LiteSysMonitor* monitor;
-    std::vector<std::fstream*> param_files;
-    std::fstream param_file; // delete after variable length subgraph impl.
+      int scheduler_fd;
+      size_t addr_size;
+      struct sockaddr_un scheduler_addr;
 
-    int scheduler_fd;
-    size_t addr_size;
-    struct sockaddr_un scheduler_addr;
+      int first_counter = 0;
+      int second_counter = 0;
+      int third_counter = 0;
+      int fourth_counter = 0;
+      int fifth_counter = 0;
 
-    int first_counter = 0;
-    int second_counter = 0;
-    int third_counter = 0;
-    int fourth_counter = 0;
-    int fifth_counter = 0;
+      std::vector<runtime_*> runtimes;
+      int runtimes_created = 0;
 
-    std::vector<runtime_*> runtimes;
-    int runtimes_created = 0;
+      bool reschedule_needed = false;
 
-    bool reschedule_needed = false;
+      // For RR scheduler
+      bool cpu_usage_flag = false;
+      bool gpu_usage_flag = false;
+      bool cpgpu_usage_flag = false;
+      std::queue<int> rr_cpu_queue;
+      std::queue<int> rr_gpu_queue;
 
-    // For RR scheduler
-    bool cpu_usage_flag = false;
-    bool gpu_usage_flag = false;
-    bool cpgpu_usage_flag = false;
-    std::queue<int> rr_cpu_queue;
-    std::queue<int> rr_gpu_queue;
-
-    // current GPU utlization ratio.
-    float* gpu_util;
-    
-    // current CPU utlization ratio(average).
-    float* cpu_util;
+      // current GPU utlization ratio.
+      float* gpu_util;
+      
+      // current CPU utlization ratio(average).
+      float* cpu_util;
   };
 
 }

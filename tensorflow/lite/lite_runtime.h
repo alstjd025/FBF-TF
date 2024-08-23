@@ -263,6 +263,9 @@ class TfLiteRuntime {
   // Subgraph partitioning
   int partitioning_plan[TF_P_PLAN_LENGTH];
 
+  // multi-level subgraph partitioning plan from scheduler.
+  std::vector<std::vector<int>> partitioning_plan_; 
+
   // sj
   std::vector<TfLiteDelegate*> delegate;
 

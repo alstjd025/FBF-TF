@@ -921,11 +921,6 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id) {
       subgraphs_.erase(subgraphs_.begin() + i);
     }
   }
-  for (size_t i = 0; i < subgraphs_shared.size(); ++i) {
-    if (subgraphs_shared[i]->GetGraphid() == subgraph_id) {
-      subgraphs_shared.erase(subgraphs_shared.begin() + i);
-    }
-  }
   for (size_t i = 0; i < subgraph_subsets.size(); ++i) {
     for (size_t j = 0; j < subgraph_subsets[i].second.size(); ++j) {
       if (subgraph_subsets[i].second[j] == subgraph_id) {

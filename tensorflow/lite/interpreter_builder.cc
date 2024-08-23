@@ -789,14 +789,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
     }
-    // std::cout << "\n<<<<<<<<<<>>>>>>>>>\n";
-    // std::cout << subgraphs_created.size() << std::endl;
-    // for (int i;i<subgraphs_created.size();i++){
-    //   std::cout << ".............." << i << std::endl;  // subgraphs_created.size == 0..??
-    // }
-    std::cout << "HHHHHHH : Make Subgraph candidates END\n";
-    // Partitioning iteration ends
-    // "Job is deprecated"
+    
     tflite::Job* new_job = new tflite::Job;
     if(BindSubgraphWithJob(subgraphs_created, new_job) !=
         kTfLiteOk){

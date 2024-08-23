@@ -167,15 +167,35 @@ void TfScheduler::Work() {
         RefreshRuntimeState(rx_init_packet);
         
         // store multi-level params in vector and send it to runtime.
-        std::vector<std::vector<int>> subgraph_params;
         CreatePartitioningPlan(rx_init_packet, subgraph_params);
 
-        tx_packet.runtime_id = id;
-        tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
-
+        // Creates multi-level subgraph structure in scheduler.
         CreateGraphofSubgraphs(id, subgraph_params);
-        // CreateGraphofSubgraphs(tx_packet);
 
+        tx_packet.runtime_id = id;
+        tx_packet.level = 0; // sends parameter starting with level 0.
+        if(tx_packet.level != rx_init_packet.level)
+          tx_packet.level = rx_init_packet.level;
+        
+        // check if parameter transmit done.
+        if(subgraph_params.size() == tx_packet.level){
+          tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
+          tx_packet.level = 0; // parameter transmission finished.
+        }else{
+          tx_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
+          // load packet payload with subgraph partitioning param.
+          // size check (param < 10000)
+          if(subgraph_params[tx_packet.level].size() > TF_P_PLAN_LENGTH){
+            std::cout << "Parameter size exceed 10000, cannot handle." << "\n";
+            exit(-1);
+          }else{
+          // copy
+          std::copy(subgraph_params[tx_packet.level].begin(), 
+                    subgraph_params[tx_packet.level].end(),
+                    tx_packet.partitioning_plan);
+          // send
+          }
+        }
         // [VLS Todo] consider this part iterate multiple time?
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
           std::cout << "sock : " << runtime_addr.sun_path << " "
@@ -183,6 +203,7 @@ void TfScheduler::Work() {
           printf("errno : %d \n", errno);
           return;
         }
+
         break;
       }
       case RuntimeState::SUBGRAPH_CREATE: {
@@ -195,7 +216,7 @@ void TfScheduler::Work() {
 
         // not done
         std::cout << "Prepare runtime " << "\n";
-        // [VLS Todo] fix to get multi-level subgraphs.
+        // [VLS Todo] fix to call this function multiple time.
         PrepareRuntime(rx_init_packet);
         std::cout << "Prepare runtime done" << "\n";
         PrintGraph(id);
@@ -585,11 +606,9 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
         std::cout << "Scheudler: Runtime " << working_runtime->id
                   << " already has graph."
                   << "\n";
-        exit(-1);
+        return;
       }
       for(int level = 0; level<subgraph_params.size(); ++level){ // iterate subgraph-level
-        
-        // [VLS Todo] change to create subgraph_graph in multi-level.
         // Create new graph structure for current runtime.
         subgraph_graph* new_level_subgraph = new subgraph_graph;
         new_level_subgraph->runtime_id = id;
@@ -821,90 +840,12 @@ void TfScheduler::PrintRuntimeStates() {
   }
 }
 
-
-// [VLS Todo] change to create multi-level subgraph partitioning plan.
-void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
-                                         tf_initialization_packet& tx_p) {
-  std::vector<std::vector<int>> subgraph_params;
-  int layers = 0;
-  for (int i = 0; i < 1000; ++i) {
-    if (rx_p.latency[i] == -1)
-      layers++;
-    else
-      break;
-  }
-
-  // check number of layers
-  std::cout << "Runtime [" << rx_p.runtime_id << "] has " << layers
-            << " layers in model"
-            << "\n";
-  for(auto param_file : param_files){ // iterate each parameter files.
-
-  }
-
-  std::string line, token;
-  int arg = 0;
-  int line_iter = 0; // line reader
-  int plan_idx = 0;
-  bool seperator_flag = false;
-  // get line
-  if(!param_file.is_open()){
-    std::cout << "Scheduler ERROR : Param file is not opened" << "\n";
-    exit(-1);
-  }
-  // get param line by line
-  while (std::getline(param_file, line)) {
-    switch (line_iter)
-    {
-    case 0:{
-      if(line == "*"){ // subgraph candidate set end flag
-        tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
-        plan_idx++;
-      }else if(line == "-"){ // subgraph level end flag
-        tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
-        plan_idx++;
-      }else{ // operators
-        std::stringstream s_stream(line); // parse line to stringstream.
-        while(getline(s_stream, token, ' ')){
-          arg = std::stoi(token);  
-          tx_p.partitioning_plan[plan_idx] = arg;
-          plan_idx++;
-          line_iter = 1;
-        }  
-      }
-      break;
-    }
-    case 1:
-      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_OP;
-      plan_idx++;
-      tx_p.partitioning_plan[plan_idx] = std::stoi(line);
-      plan_idx++;
-      line_iter = 2;
-      break;
-    case 2:
-      tx_p.partitioning_plan[plan_idx] = std::stoi(line);
-      plan_idx++;
-      tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_RESROURCE;
-      plan_idx++;
-      line_iter = 0;
-      break;
-    default:
-      break;
-    }
-  }
-
-  // std::cout << "closed" << "\n";
-  for(int i=0; i<1000; ++i){
-    // std::cout << "adsfasdf" << "\n";
-    std::cout << tx_p.partitioning_plan[i] << " ";
-    if(tx_p.partitioning_plan[i] == -4)
-      break;
-  }
-  return;
-}
 // [VLS Todo] change to create multi-level subgraph partitioning plan.
 void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
                           std::vector<std::vector<int>>& subgraph_params) {
+  if(!subgraph_params.empty()){
+    return; // parameter already created.
+  }
   int ops = 0; // Count number of operators in given model.
   for (int i = 0; i < 1000; ++i) {
     if (rx_p.latency[i] == -1)
@@ -939,7 +880,7 @@ void TfScheduler::CreatePartitioningPlan(tf_initialization_packet& rx_p,
           // tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_SUBG;
           // plan_idx++;
         }else if(line == "-"){ // subgraph level end flag
-          subgraph_params[level].push_back(PART_PARM_SEP_SUBG);
+          subgraph_params[level].push_back(PART_PARM_SEP_ENDP);
           // tx_p.partitioning_plan[plan_idx] = PART_PARM_SEP_ENDP;
           // plan_idx++;
         }else{ // operators
