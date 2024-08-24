@@ -254,6 +254,8 @@ class Interpreter {
   // Returns the whole subgraphs id in vector
   void GetTotalSubgraphID(std::vector<int>& graph_ids);
 
+  void GetTotalSubgraphIDInLevel(int level, std::vector<int>& graph_ids);
+
 #ifndef DOXYGEN_
   /// WARNING: Experimental interface, subject to change
   /// Overrides execution plan. This bounds checks indices sent in.
@@ -530,7 +532,14 @@ class Interpreter {
   // Minsung
   // Create a new subgraph
   // Use only in interpreterbuilder
-  tflite::Subgraph* CreateSubgraph();
+  // creates default in level 0.
+  // DO NOT USE!
+  // tflite::Subgraph* CreateSubgraph();
+
+  // Minsung
+  // Create a new subgraph in given level.
+  // Use only in interpreterbuilder.
+  tflite::Subgraph* CreateSubgraphInLevel(int level);
 
   // Minsung
   tflite::Subgraph* returnProfiledOriginalSubgraph(int id);
@@ -643,12 +652,19 @@ class Interpreter {
 
   /// Return the number of subgraph levels in the model.
   /// WARNING: This is an experimental API and subject to change.
-  size_t subgraphs_level_size() const { return subgraphs_.size(); }
+  // size_t subgraphs_level_size() const { return subgraphs_.size(); }
 
 
   /// Return the number of subgraph in  given level.
   /// WARNING: This is an experimental API and subject to change.
-  size_t subgraphs_size() const { return subgraphs_.size(); }
+  /// multi-lvel modified.
+  size_t subgraphs_size() const {
+    size_t num = 0;
+    for(auto& graphs : subgraphs__){
+      num += graphs.size();
+    }
+    return num; 
+  }
 
   // Minsung
   // CAN BE A PROBLEM?
@@ -657,56 +673,61 @@ class Interpreter {
   Subgraph* subgraph(int subgraph_index) {
     if (subgraph_index < 0 ||
         static_cast<size_t>(subgraph_index) >= subgraphs_size())
-      return nullptr;
-    return &*subgraphs_[subgraph_index];
+      {return nullptr;}
+    int iter = 0;
+    for(int i=0; i<subgraphs__.size(); ++i){
+      for(int j=0; j<subgraphs__[i].size(); ++j){
+        if(iter != subgraph_index){
+          iter++;
+        }else{
+          return &*subgraphs__[i][j];
+        }
+      }
+    }
   }
 
   // Minsung
   // Get a pointer to a subgraph of given level and id.
-  Subgraph* subgraph_id(int id) {
-    if (subgraphs_size() > 0) {
-      for (size_t i = 0; i < subgraphs_.size(); ++i) {
-        if (subgraphs_[i]->GetGraphid() == id) return &*subgraphs_[i];
+  // deprecated to below function since multi-level subgraph design.
+  // Subgraph* subgraph_id(int id) {
+  //   if (subgraphs_size() > 0) {
+  //     for (size_t i = 0; i < subgraphs_.size(); ++i) {
+  //       if (subgraphs_[i]->GetGraphid() == id) return &*subgraphs_[i];
+  //     }
+  //   }
+  //   return nullptr;
+  // }
+
+  Subgraph* subgraph_id(int id){
+    for(auto& graphs : subgraphs__){
+      for(size_t i = 0; graphs.size(); ++i){
+        if(graphs[i]->GetGraphid() == id) return &*graphs[i];
       }
     }
-    return nullptr;
   }
 
   /// WARNING: Experimental interface, subject to change
+  /// multi-lvel modified.
   Subgraph& primary_subgraph() {
-    return *subgraphs_.front();  /// Safe as subgraphs_ always has 1 entry.
+    return *subgraphs__.front().front();  /// Safe as subgraphs_ always has 1 entry.
   }
 
   /// WARNING: Experimental interface, subject to change
+  /// multi-lvel modified.
   const Subgraph& primary_subgraph() const {
-    return *subgraphs_.front();  // Safe as subgraphs_ always has 1 entry.
+    return *subgraphs__.front().front();  // Safe as subgraphs_ always has 1 entry.
   }
 
   /// WARNING: Experimental interface, subject to change
   // Get the error reporter associated with this interpreter.
   ErrorReporter* error_reporter() const { return error_reporter_; }
 
-  // Minsung
-  // The subgraph id is given by the number of subgraphs been created in level.
-  int GetNumSubgraphsLevel() { return subgraphs_created_in_level.size(); }
-  int GetNumSubgraphsCreatedInLevel(int level) { return subgraphs_created_in_level[level]; }
-  int GetNumSubgraphsCreated() {
-    int sum = 0;
-    for(auto value : subgraphs_created_in_level)
-      {sum += value;}
-    return sum;
-  }
-  int GetAndAddSubgraphIDCreated(int level) {
-    // sanity check.
-    if(subgraphs_created_in_level.size() < level){
-      subgraphs_created_in_level.push_back(0);
-    }
-    // store, add, return;
-    int n = subgraphs_created_in_level[level];
-    subgraphs_created_in_level[level]++;
+  // change this to give ids global.
+  int GetAndAddSubgraphIDCreated() {
+    int n = subgraphs_created;
+    subgraphs_created++;
     return n;
   }
-  
 
   void SetInputType(INPUT_TYPE type) { input_type = type; }
   INPUT_TYPE GetInputType() { return input_type; }
@@ -724,9 +745,6 @@ class Interpreter {
   TfLiteStatus RegisterSubgraphSubsets(int level, tflite::Subgraph* new_subgraph);
 
   TfLiteStatus DeleteSubgraph(int subgraph_id);
-
-  // Invoke test
-  TfLiteStatus DebugInvoke();
 
   // Minsung
   // Only call in CreateSubgraphFromFlatBuffer()
@@ -804,7 +822,7 @@ class Interpreter {
   std::unique_ptr<ExternalCpuBackendContext> own_external_cpu_backend_context_;
 
   // Subgraphs
-  std::vector<std::unique_ptr<Subgraph>> subgraphs_;
+  // std::vector<std::unique_ptr<Subgraph>> subgraphs_;
   std::unique_ptr<Subgraph> primary_subgraph_;
 
   // Subgraphs in multi-level.
@@ -845,12 +863,6 @@ class Interpreter {
   // Minsung
   // Subgraphs
   int subgraphs_created = 0;
-
-  // Minsung
-  // Stores subgraphs created in specific level.
-  // ex) subgraphs_created_in_level[1] means number of subgraphs in level 2.
-  //    (idx 0 means level 1).
-  std::vector<int> subgraphs_created_in_level;
 
   INPUT_TYPE input_type;
 };

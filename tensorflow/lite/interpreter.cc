@@ -487,16 +487,17 @@ void Interpreter::ReserveNodes(int count) {
   primary_subgraph().ReserveNodes(count);
 }
 
+/// multi-lvel modified.
 void Interpreter::AddSubgraphs(int subgraphs_to_add,
                                int* first_new_subgraph_index) {
-  const size_t base_index = subgraphs_.size();
+  const size_t base_index = subgraphs__[0].size();
   if (first_new_subgraph_index) *first_new_subgraph_index = base_index;
 
-  subgraphs_.reserve(base_index + subgraphs_to_add);
+  subgraphs__[0].reserve(base_index + subgraphs_to_add);
   for (int i = 0; i < subgraphs_to_add; ++i) {
     Subgraph* subgraph = new Subgraph(error_reporter_, external_contexts_,
-                                      &subgraphs_, &resources_);
-    subgraphs_.emplace_back(subgraph);
+                                      &subgraphs__[0], &resources_);
+    subgraphs__[0].emplace_back(subgraph);
   }
 }
 
@@ -541,17 +542,6 @@ TfLiteStatus Interpreter::Invoke() {
   }
 
   return kTfLiteOk;
-}
-
-// Minsung
-TfLiteStatus Interpreter::DebugInvoke() {
-  for (int i = 0; i < subgraphs_.size(); ++i) {
-    if (subgraphs_[i]->Invoke() != kTfLiteOk) {
-      std::cout << "Subgraph [" << i << "] returned Error"
-                << "\n";
-      return kTfLiteError;
-    }
-  }
 }
 
 TfLiteStatus Interpreter::AddTensors(int tensors_to_add,
@@ -612,6 +602,7 @@ void Interpreter::UseNNAPI(bool enable) {
   primary_subgraph().UseNNAPI(enable);
 }
 
+// Multi-level modified
 TfLiteStatus Interpreter::SetNumThreads(int num_threads) {
   if (num_threads < -1) {
     context_->ReportError(context_,
@@ -619,9 +610,10 @@ TfLiteStatus Interpreter::SetNumThreads(int num_threads) {
                           "runtime set the value.");
     return kTfLiteError;
   }
-
-  for (auto& subgraph : subgraphs_) {
-    subgraph->context()->recommended_num_threads = num_threads;
+  for(auto& graphs : subgraphs__){
+    for (auto& subgraph : graphs) {
+      subgraph->context()->recommended_num_threads = num_threads;
+    }
   }
 
   for (int i = 0; i < kTfLiteMaxExternalContexts; ++i) {
@@ -633,29 +625,38 @@ TfLiteStatus Interpreter::SetNumThreads(int num_threads) {
   return kTfLiteOk;
 }
 
+// Multi-level modified
 void Interpreter::SetAllowFp16PrecisionForFp32(bool allow) {
-  for (auto& subgraph : subgraphs_) {
-    subgraph->context()->allow_fp32_relax_to_fp16 = allow;
+  for(auto& graphs : subgraphs__){
+    for (auto& subgraph : graphs) {
+      subgraph->context()->allow_fp32_relax_to_fp16 = allow;
+    }
   }
 }
 
 // TODO(b/121264966): Subgraphs added after cancellation is set will not get the
 // cancellation function added to their context.
+// Multi-level modified
 void Interpreter::SetCancellationFunction(void* data,
                                           bool (*check_cancelled_func)(void*)) {
-  for (auto& subgraph : subgraphs_) {
-    subgraph->SetCancellationFunction(data, check_cancelled_func);
-  }
+  for (auto& graphs : subgraphs__){
+    for (auto& subgraph : graphs) {
+      subgraph->SetCancellationFunction(data, check_cancelled_func);
+    }
+  }                                         
 }
 
 bool Interpreter::IsCancelled() { return primary_subgraph().IsCancelled(); }
 
+// Multi-level modified
 TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   TfLiteStatus status = kTfLiteOk;
-  for (auto& subgraph : subgraphs_) {
-    status = subgraph->ModifyGraphWithDelegate(delegate);
-    if (status != kTfLiteOk) {
-      break;
+  for (auto& graphs : subgraphs__){
+    for (auto& subgraph : graphs) {
+      status = subgraph->ModifyGraphWithDelegate(delegate);
+      if (status != kTfLiteOk) {
+        break;
+      }
     }
   }
   // Delegate-specific errors can be recovered from by restoring Interpreter to
@@ -727,9 +728,12 @@ TfLiteDelegate* Interpreter::SearchAndReturnProperDelegate(DelegateType type, in
   return nullptr;
 }
 
+// Multi-level modified
 TfLiteStatus Interpreter::RemoveAllDelegates() {
-  for (auto& subgraph : subgraphs_) {
-    TF_LITE_ENSURE_STATUS(subgraph->RemoveAllDelegates());
+  for (auto& graphs : subgraphs__){
+    for (auto& subgraph : graphs) {
+      TF_LITE_ENSURE_STATUS(subgraph->RemoveAllDelegates());
+    }
   }
   return kTfLiteOk;
 }
@@ -783,10 +787,12 @@ void Interpreter::SetProfiler(std::unique_ptr<Profiler> profiler) {
   SetSubgraphProfiler();
 }
 
+
+// Multi-level modified
 void Interpreter::SetSubgraphProfiler() {
-  for (int subgraph_index = 0; subgraph_index < subgraphs_.size();
+  for (int subgraph_index = 0; subgraph_index < subgraphs_size();
        ++subgraph_index) {
-    subgraphs_[subgraph_index]->SetProfiler(installed_profiler_,
+    subgraph(subgraph_index)->SetProfiler(installed_profiler_,
                                             subgraph_index);
   }
 }
@@ -795,8 +801,17 @@ Profiler* Interpreter::GetProfiler() {
   return primary_subgraph().GetProfiler();
 }
 
-tflite::Subgraph* Interpreter::CreateSubgraph() {
-  return new Subgraph(error_reporter_, external_contexts_, &subgraphs_,
+//Multi-level modified [deprecated]
+// tflite::Subgraph* Interpreter::CreateSubgraph() {
+//   return new Subgraph(error_reporter_, external_contexts_, &subgraphs__[0],
+//                       &resources_);
+// }
+
+tflite::Subgraph* Interpreter::CreateSubgraphInLevel(int level) {
+  if(subgraphs__.size() < level){
+    subgraphs__.push_back(std::vector<std::unique_ptr<Subgraph>>());
+  }
+  return new Subgraph(error_reporter_, external_contexts_, &subgraphs__[level],
                       &resources_);
 }
 
@@ -813,10 +828,10 @@ TfLiteTensor* Interpreter::input_tensor_of_model(int model_id) {
 }
 
 void Interpreter::PrintSubgraphInfo() {
-  std::cout << "Interpreter: subgraph size:" << subgraphs_.size() << "\n";
-  for (int i = 0; i < subgraphs_.size(); ++i) {
-    std::cout << "id : " << subgraphs_[i]->GetGraphid()
-              << " model : " << subgraphs_[i]->GetModelid() << "\n";
+  std::cout << "Interpreter: subgraph size:" << subgraphs_size() << "\n";
+  for (int i = 0; i < subgraphs_size(); ++i) {
+    std::cout << "id : " << subgraph(i)->GetGraphid()
+              << " model : " << subgraph(i)->GetModelid() << "\n";
   }
 }
 
@@ -876,13 +891,54 @@ TfLiteStatus Interpreter::RegisterSubgraphSubsets(
   return kTfLiteOk;
 }
 
-TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id) {
-  for (size_t i = 0; i < subgraphs_.size(); ++i) {
-    if (subgraphs_[i]->GetGraphid() == subgraph_id) {
-      primary_subgraph_ = std::move(subgraphs_[i]);
-      subgraphs_.erase(subgraphs_.begin() + i);
+TfLiteStatus Interpreter::RegisterSubgraphSubsets(
+    int level, tflite::Subgraph* new_subgraph) {
+  if (subgraph_subsets
+          .empty()) {  // if subgraph subset is empty, create new one
+    std::pair<int, std::vector<int>> new_subset;
+    new_subset.first = new_subgraph->GetModelid();
+    new_subset.second.push_back(new_subgraph->GetGraphid());
+    subgraph_subsets.push_back(new_subset);
+    return kTfLiteOk;
+  }
+  for (size_t j = 0; j < subgraph_subsets.size(); ++j) {
+    bool register_needed = false;
+    if (subgraph_subsets[j].first ==
+        new_subgraph->GetModelid()) {  // if a same model id exists.
+      for (size_t i = 0; i < subgraph_subsets[j].second.size(); ++i) {
+        if (subgraph_subsets[j].second[i] == new_subgraph->GetGraphid()) {
+          break;  // subgraph already registered.
+        }
+        if (i == subgraph_subsets[j].second.size() -
+                     1) {  // subgraph not registered.
+          register_needed = true;
+        }
+      }
+      if (register_needed) {
+        subgraph_subsets[j].second.push_back(new_subgraph->GetGraphid());
+        return kTfLiteOk;
+      }
     }
   }
+  // if there is no same model id in subsets, register new one.
+  std::pair<int, std::vector<int>> new_subset;
+  new_subset.first = new_subgraph->GetModelid();
+  new_subset.second.push_back(new_subgraph->GetGraphid());
+  subgraph_subsets.push_back(new_subset);
+  return kTfLiteOk;
+}
+
+
+// Multi-level modified.
+TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id) {
+  for(size_t i = 0; i < subgraphs__.size(); ++i){
+    for(size_t j = 0; j < subgraphs__[i].size(); ++j){
+      if(subgraphs__[i][j]->GetGraphid() == subgraph_id){
+        subgraphs__[i].erase(subgraphs__[i].begin() + j);
+      }
+    }
+  }
+  
   for (size_t i = 0; i < subgraph_subsets.size(); ++i) {
     for (size_t j = 0; j < subgraph_subsets[i].second.size(); ++j) {
       if (subgraph_subsets[i].second[j] == subgraph_id) {
@@ -917,8 +973,19 @@ tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id) {
 
 void Interpreter::GetTotalSubgraphID(std::vector<int>& graph_ids) {
   graph_ids.clear();
-  for (int i = 0; i < subgraphs_.size(); ++i) {
-    graph_ids.push_back(subgraphs_[i]->GetGraphid());
+  for (int i = 0; i < subgraphs_size(); ++i) {
+    graph_ids.push_back(subgraph(i)->GetGraphid());
+  }
+}
+
+void Interpreter::GetTotalSubgraphIDInLevel(int level, std::vector<int>& graph_ids) {
+  graph_ids.clear();
+  if(subgraphs__.size() < level){
+    std::cout << "GetTotalSubgraphIDInLevel ERROR" << "\n";
+    exit(-1);
+  }
+  for (int i = 0; i < subgraphs__[level].size(); ++i) {
+    graph_ids.push_back(subgraphs__[level][i]->GetGraphid());
   }
 }
 

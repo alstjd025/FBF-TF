@@ -421,7 +421,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphFromFlatBuffer(){
     return kTfLiteError;
   }
   const tflite::SubGraph* subgraph = (*subgraphs)[subgraph_index];
-  tflite::Subgraph* modified_subgraph = interpreter_->CreateSubgraph();
+  tflite::Subgraph* modified_subgraph = interpreter_->CreateSubgraphInLevel(0);
 
   auto operators = subgraph->operators();
   auto tensors = subgraph->tensors();
@@ -651,7 +651,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
           == ResourceType::NONE)
         continue; // Don't make subgraph for resourcetype::NONE
       /// Make a new subgraph
-      tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
+      tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraphInLevel(0);
       subgraphs_created.push_back(new_subgraph);
       // std::cout << "LLLLLLLll " << subgraphs_created.size();
       if(!prev_queue.empty()){ // make linked-list structure of subgraphs
@@ -1036,7 +1036,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
           == ResourceType::NONE)
         continue; // Don't make subgraph for resourcetype::NONE
       /// Make a new subgraph
-      tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraph();
+      tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraphInLevel(level);
       subgraphs_created.push_back(new_subgraph);
       if(!prev_queue.empty()){ // make linked-list structure of subgraphs
         prev_queue.front()->SetNextSubgraph(new_subgraph);
@@ -1299,7 +1299,7 @@ TfLiteStatus InterpreterBuilder::RegisterSubgraphToInterpreter(
     // give model id
     new_subgraphs[i]->SetModelid(model_id_);
     // give subgraph id
-    new_subgraphs[i]->SetGraphid(interpreter_->GetAndAddSubgraphIDCreated(level));
+    new_subgraphs[i]->SetGraphid(interpreter_->GetAndAddSubgraphIDCreated());
     // interpreter->AddNewSubgraph
     if(interpreter_->AddNewSubgraph(level, new_subgraphs[i]) != kTfLiteOk){
       std::cout << "AddNewSubgraph ERROR" << "\n";
