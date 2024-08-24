@@ -251,29 +251,6 @@ typedef enum RuntimeState{
   TERMINATE
 } RuntimeState;
 
-//WARNING! This struct is deprecatied.
-typedef enum InvokeType{ // An invoke type of job
-  CONTINOUS,          
-  PROFILING
-} InvokeType;
-
-//WARNING! This struct is deprecatied.
-typedef struct Job{
-  int model_id = -1;      // 
-  int job_id = -1;        //
-  float time_slot;      //ms
-  float dead_line;      //ms
-  time_t start;
-  time_t end;
-  bool input_refreshed;
-  JobState state = JobState::INIT_JOB;
-  InvokeType invoke_type = InvokeType::PROFILING;
-  ResourceType resource_type = ResourceType::CPU;
-  std::vector<std::pair<int, int>> subgraphs;
-  std::vector<int> cpu_affinity;
-} Job;
-
-
 typedef struct ProfileData{
   std::vector<float> latency_by_layers;
   std::vector<std::vector<int>> layer_subsets;

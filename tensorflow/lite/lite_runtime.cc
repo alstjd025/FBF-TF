@@ -729,12 +729,16 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   std::cout << "PartitionCoSubgraphs" << "\n";
   int levels = partitioning_plan_.size(); // total level of subgraphs to create.
   int working_level = 0;
+
+  ////////////////////////////////////////////////////
+  // [VLS] repeat this codes safely to create multi-level subgraphs?
+
   std::vector<std::vector<int>> raw_plan;
   int inner_plan_idx = 0;
-  std::vector<int> plan_from_scheduler;
-  for(int i=0; i < TF_P_PLAN_LENGTH; ++i){
-    plan_from_scheduler.push_back(partitioning_plan_[working_level][i]);
-  }
+  std::vector<int> plan_from_scheduler(partitioning_plan_[working_level].begin(),
+                                        partitioning_plan_[working_level].end());
+
+  std::cout << "Create subgraphs of level : " << working_level << "\n";
   interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
   sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
   std::cout << "CopyRawPartitioningPlan Done" << "\n";

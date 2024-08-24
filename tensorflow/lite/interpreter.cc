@@ -118,9 +118,6 @@ Interpreter::Interpreter(ErrorReporter* error_reporter)
   // legacy
   primary_subgraph().UseNNAPI(false);
 
-  // Minsung
-  // Add job queue
-  jobs = new std::queue<tflite::Job*>;
 
   // THIS CODE IS DEPRECATED
   // scheduler_ = new LiteScheduler(this); //create scheduler thread here
@@ -160,15 +157,6 @@ Interpreter::Interpreter(bool use_job) {
 
   // legacy
   // primary_subgraph().UseNNAPI(false);
-
-  // Minsung
-  // Add job queue
-  jobs = new std::queue<tflite::Job*>;
-
-  // THIS CODE IS DEPRECATED
-  // scheduler_ = new LiteScheduler(this); //create scheduler thread here
-  // std::cout << "Interperter Created with new job queue and scheduler" <<
-  // "\n";
 }
 
 Interpreter::~Interpreter() {
@@ -294,18 +282,8 @@ TfLiteStatus Interpreter::AllocateTensors() {
 }
 
 // Minsung
-TfLiteStatus Interpreter::ReadyJobsofGivenModel(int model_id) {
-  LockJobs();
-  for (auto job : job_vector) {
-    if (job->model_id == model_id) job->state = JobState::READY;
-  }
-  UnlockJobs();
-  return kTfLiteOk;
-}
-
-// Minsung
 // First, partition subgraphs in height-wise if needed.
-// (becasue TfLite automatically propagates hw-partitioned tensor dims,
+// (because TfLite automatically propagates hw-partitioned tensor dims,
 //  we partition hw before allocation.)
 // Second, allocate first subgraph of subgraph subset(which have same model id).
 // (first subgraph means the subgraph which owns the input tensor of a model)
@@ -822,17 +800,6 @@ tflite::Subgraph* Interpreter::CreateSubgraph() {
                       &resources_);
 }
 
-TfLiteStatus Interpreter::CreateWorker(ResourceType wType, int cpu_num) {}
-
-// thread_safety
-void Interpreter::FeedInputToWorkerI() {
-  if (!mnist_input.empty()) {
-    workers[0]->inputs = imagenet_input;
-  }
-  if (!mnist_input.empty()) {
-    workers[1]->inputs = imagenet_input;
-  }
-}
 
 TfLiteTensor* Interpreter::input_tensor_of_model(int model_id) {
   for (auto subgraph_subset : subgraph_subsets) {
@@ -855,24 +822,20 @@ void Interpreter::PrintSubgraphInfo() {
 
 void Interpreter::SaveOriginTensorDims(Subgraph* origin_graph) {
   for (const auto tensor : origin_graph->tensors()) {
-    TfLiteIntArray* new_ary = tensor.dims ? TfLiteIntArrayCreate(tensor.dims->size) : TfLiteIntArrayCreate(0);
+    TfLiteIntArray* new_ary = tensor.dims ? 
+      TfLiteIntArrayCreate(tensor.dims->size) : TfLiteIntArrayCreate(0);
     for (int i = 0; tensor.dims && i < tensor.dims->size; ++i)
       new_ary->data[i] = tensor.dims->data[i];
     tensor_origin_dims.push_back(new_ary);
   }
 }
 
-
-TfLiteStatus Interpreter::AddNewJob(tflite::Job* new_job) {
-  LockJobs();
-  jobs->push(new_job);
-  job_vector.push_back(new_job);
-  UnlockJobs();
-  return kTfLiteOk;
-}
-
-TfLiteStatus Interpreter::AddNewSubgraph(tflite::Subgraph* new_subgraph) {
-  subgraphs_.emplace_back(new_subgraph);
+TfLiteStatus Interpreter::AddNewSubgraph(int level, tflite::Subgraph* new_subgraph) {
+  if(subgraphs__.size() < level){
+    std::cout << "Created new subgraph level " << level << "\n";
+    subgraphs__.push_back(std::vector<std::unique_ptr<Subgraph>>());
+  }
+  subgraphs__[0].emplace_back(new_subgraph);
   return kTfLiteOk;
 }
 
@@ -914,7 +877,6 @@ TfLiteStatus Interpreter::RegisterSubgraphSubsets(
 }
 
 TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id) {
-  LockJobs();
   for (size_t i = 0; i < subgraphs_.size(); ++i) {
     if (subgraphs_[i]->GetGraphid() == subgraph_id) {
       primary_subgraph_ = std::move(subgraphs_[i]);
@@ -930,105 +892,9 @@ TfLiteStatus Interpreter::DeleteSubgraph(int subgraph_id) {
       }
     }
   }
-  int job_to_delete_id = 0;
-  for (size_t i = 0; i < job_vector.size(); ++i) {
-    for (size_t j = 0; j < job_vector[i]->subgraphs.size(); ++i) {
-      if (job_vector[i]->subgraphs[i].first == subgraph_id ||
-          job_vector[i]->subgraphs[i].second == subgraph_id) {
-        job_to_delete_id = i;
-        i = job_vector.size();
-        break;
-      }
-    }
-  }
-  job_vector.erase(job_vector.begin() + job_to_delete_id);
-  UnlockJobs();
-  FlushJobs();
   return kTfLiteOk;
 }
 
-TfLiteStatus Interpreter::DeleteJob(int job_id) {
-  LockJobs();
-  for (size_t i = 0; i < workers.size(); ++i) {
-    if (workers[i]->have_job &&
-        workers[i]->returnState() == WorkerState::WORKING) {
-      workers[i]->ChangeStateTo(WorkerState::BLOCKED);
-      workers[i]->DeleteJob(job_id);
-    }
-  }
-  UnlockJobs();
-}
-
-void Interpreter::FlushJobs() {
-  // Flush job queue and push jobs .
-  while (!jobs->empty()) {
-    jobs->pop();
-  }
-  // scheduler must reschedule and fill the job queue.
-}
-
-void Interpreter::EnqueueJobs() {
-  LockJobs();
-  if (!jobs->empty() || job_vector.empty()) {
-    UnlockJobs();
-    std::cout << "Job queue or vector ERROR"
-              << "\n";
-    return;
-  }
-  for (size_t i = 0; i < job_vector.size(); ++i) {
-    if (job_vector[i]->state == JobState::READY) {
-      jobs->push(job_vector[i]);
-      std::cout << "Interpreter : Enqueued Job " << job_vector[i]->job_id
-                << " to global job queue"
-                << "\n";
-      std::cout << "Interpreter : Job [" << job_vector[i]->job_id << "] "
-                << "has subgraphs : ";
-      for (size_t j = 0; j < job_vector[i]->subgraphs.size(); ++j) {
-        std::cout << job_vector[i]->subgraphs[j].first << " ";
-      }
-      std::cout << "\n";
-    }
-  }
-  UnlockJobs();
-}
-
-TfLiteStatus Interpreter::GiveJob() {
-  LockJobs();
-  int worker_idx = 0;
-  while (!jobs->empty() && !workers.empty()) {
-    std::cout << "Interperter : give job"
-              << "\n";
-    std::cout << "Interpreter : job queue has " << jobs->size() << " jobs\n";
-    Job* job = jobs->front();
-    std::cout << "Interpreter : job state : " << job->state << "\n";
-    if (job->state == JobState::DONE) {
-      jobs->pop();
-      continue;
-    } else if (job->state == JobState::READY) {
-      std::cout << "Interpreter : give job " << job->job_id << " to worker "
-                << worker_idx << "\n";
-      workers[worker_idx]->GiveJob(job);
-      std::cout << "give job"
-                << "\n";
-      worker_idx++;
-      jobs->pop();
-    }
-  }
-  UnlockJobs();
-  return kTfLiteOk;
-}
-
-TfLiteStatus Interpreter::DoInvoke() {
-  for (int i = 0; i < workers.size(); ++i) {
-    Worker* worker_ = workers[i];
-    if (worker_->HaveJob() && worker_->state != WorkerState::WORKING) {
-      std::cout << "Interpreter : wake worker " << i << "\n";
-      worker_->ChangeStateTo(WorkerState::WORKING);
-      worker_->WakeWorker();
-    }
-  }
-  return kTfLiteOk;
-}
 
 tflite::Subgraph* Interpreter::returnProfiledOriginalSubgraph(int id) {
   for (int i = 0; i < subgraph_subsets.size(); ++i) {
@@ -1055,37 +921,5 @@ void Interpreter::GetTotalSubgraphID(std::vector<int>& graph_ids) {
     graph_ids.push_back(subgraphs_[i]->GetGraphid());
   }
 }
-
-bool Interpreter::IsJobQueueEmpty() {
-  bool flag;
-  LockJobs();
-  flag = jobs->empty();
-  UnlockJobs();
-  return flag;
-}
-
-bool Interpreter::IsJobVectorEmpty() {
-  bool flag;
-  LockJobs();
-  flag = job_vector.empty();
-  UnlockJobs();
-  return flag;
-}
-
-int Interpreter::GetJobNum() {
-  int n;
-  LockJobs();
-  n = jobs->size();
-  UnlockJobs();
-  return n;
-}
-
-Job* Interpreter::GetJob() {
-  // Not implemented.
-}
-
-void Interpreter::LockJobs() { job_mutex.lock(); }
-
-void Interpreter::UnlockJobs() { job_mutex.unlock(); }
 
 }  // namespace tflite

@@ -105,26 +105,19 @@ class InterpreterBuilder {
   TfLiteStatus CreateSubgraphsFromParameter(tflite::Subgraph* profiled_subgraph);
 
   // Minsung
+  // Creates multi-level subgraphs level by level.
+
+  TfLiteStatus CreateSubgraphsFromParameter(int level, tflite::Subgraph* profiled_subgraph);
+
+  // Minsung
   // Creates a subgraph for stress test.
   TfLiteStatus CreateSubgraphForStress();
 
   TfLiteStatus DelegateSubgraphs(std::vector<tflite::Subgraph*>& new_subgraphs);
 
-  // Minsung
-  // Bind subgraph to a default(pre-proflied) job
-  TfLiteStatus BindSubgraphWithDefaultJob(tflite::Subgraph* new_subgraph,
-                                            tflite::Job* new_job);
-
-  // Minsung
-  TfLiteStatus BindSubgraphWithJob(std::vector<tflite::Subgraph*>& new_subgraphs,
-                                            tflite::Job* new_job);
-
-  TfLiteStatus RegisterJobAndSubgraphDefault(tflite::Subgraph* new_subgraph,
-                                      tflite::Job* new_job);
-  
-  
-  TfLiteStatus RegisterJobAndSubgraphs(std::vector<tflite::Subgraph*> new_subgraphs,
-                                      tflite::Job* new_job);
+  TfLiteStatus RegisterSubgraphToInterpreter(
+                                      int level, 
+                                      std::vector<tflite::Subgraph*> new_subgraphs);
 
   void CopyRawPartitioningPlan(std::vector<int>& raw_plan);
 
@@ -194,10 +187,6 @@ class InterpreterBuilder {
   // id of model
   // Every subgraphs made of this model share the same model id.
   int model_id_;
-
-  // stores every subgraph ids made from this interpreterbuilder 
-  std::vector<int> graph_subsets; 
-
   
   int default_thread = 4;
 

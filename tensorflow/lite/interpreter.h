@@ -36,7 +36,7 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/stderr_reporter.h"
 #include "tensorflow/lite/type_to_tflitetype.h"
-#include "tensorflow/lite/worker_core.h"
+#include "opencv2/opencv.hpp"
 
 namespace tflite {
 
@@ -404,8 +404,6 @@ class Interpreter {
   // Minsung
   TfLiteStatus AllocateTensorsofSubsets(int model_id);
 
-  TfLiteStatus ReadyJobsofGivenModel(int model_id);
-
   // Minsung
   // Get the intermediate tensor range(means index range) from subgraphs
   // which shares same model id.
@@ -643,7 +641,12 @@ class Interpreter {
   void AddSubgraphs(int subgraphs_to_add,
                     int* first_new_subgraph_index = nullptr);
 
-  /// Return the number of subgraphs in the model.
+  /// Return the number of subgraph levels in the model.
+  /// WARNING: This is an experimental API and subject to change.
+  size_t subgraphs_level_size() const { return subgraphs_.size(); }
+
+
+  /// Return the number of subgraph in  given level.
   /// WARNING: This is an experimental API and subject to change.
   size_t subgraphs_size() const { return subgraphs_.size(); }
 
@@ -657,8 +660,9 @@ class Interpreter {
       return nullptr;
     return &*subgraphs_[subgraph_index];
   }
+
   // Minsung
-  // Get a pointer to a subgraph of given id.
+  // Get a pointer to a subgraph of given level and id.
   Subgraph* subgraph_id(int id) {
     if (subgraphs_size() > 0) {
       for (size_t i = 0; i < subgraphs_.size(); ++i) {
@@ -683,70 +687,43 @@ class Interpreter {
   ErrorReporter* error_reporter() const { return error_reporter_; }
 
   // Minsung
-  // For job handling.
-  // The job id is given by the number of jobs been created.
-  /// WARNING: Must use these two functions together so that the
-  //  number of jobs
-  int GetNumJobsCreated() { return jobs_created; }
-  int AddNumJobsCreated(int add) { jobs_created += add; }
-  int GetAndAddNumJobsCreated(int add) {
-    LockJobs();
-    int n = jobs_created;
-    jobs_created += add;
-    UnlockJobs();
+  // The subgraph id is given by the number of subgraphs been created in level.
+  int GetNumSubgraphsLevel() { return subgraphs_created_in_level.size(); }
+  int GetNumSubgraphsCreatedInLevel(int level) { return subgraphs_created_in_level[level]; }
+  int GetNumSubgraphsCreated() {
+    int sum = 0;
+    for(auto value : subgraphs_created_in_level)
+      {sum += value;}
+    return sum;
+  }
+  int GetAndAddSubgraphIDCreated(int level) {
+    // sanity check.
+    if(subgraphs_created_in_level.size() < level){
+      subgraphs_created_in_level.push_back(0);
+    }
+    // store, add, return;
+    int n = subgraphs_created_in_level[level];
+    subgraphs_created_in_level[level]++;
     return n;
   }
-
-  // Minsung
-  // The subgraph id is given by the number of subgraphs been created.
-  int GetNumSubgraphsCreated() { return subgraphs_created; }
-  int AddNumSubgraphsCreated(int add) { subgraphs_created += add; }
-  int GetAndAddSubgraphsCreated(int add) {
-    LockJobs();
-    int n = subgraphs_created;
-    subgraphs_created += add;
-    UnlockJobs();
-    return n;
-  }
-
-  // Minsung
-  // The worker id is given by the number of workers been created.
-  int GetNumWorkersCreated() { return workers_created; }
-  int AddNumWorkersCreated(int add) { workers_created += add; }
-  int GetAndAddWorkersCreated(int add) {
-    int n = workers_created;
-    workers_created += add;
-    return n;
-  }
+  
 
   void SetInputType(INPUT_TYPE type) { input_type = type; }
   INPUT_TYPE GetInputType() { return input_type; }
 
-  // Minsung
-  // Add a new job
-  TfLiteStatus AddNewJob(tflite::Job* new_job);
-
-  TfLiteStatus DeleteJob(int job_id);
-
-  // Minsung
-  // Give jobs to workers
-  TfLiteStatus GiveJob();
-
-  // Add a new subgraph (WARNING: use )
+  // Add a new subgraph (deprecated)
   TfLiteStatus AddNewSubgraph(tflite::Subgraph* new_subgraph);
+
+  // Add a new subgraph of specific level.
+  TfLiteStatus AddNewSubgraph(int level, tflite::Subgraph* new_subgraph);
 
   // Register new subgraph to subgraph subsets with id.
   TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
 
+  // Register new subgraph to subgraph subsets with id and level.
+  TfLiteStatus RegisterSubgraphSubsets(int level, tflite::Subgraph* new_subgraph);
+
   TfLiteStatus DeleteSubgraph(int subgraph_id);
-
-  // Creates a new worker of given type
-  TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);
-
-  void FeedInputToWorkerI();
-
-  // Do invoke
-  TfLiteStatus DoInvoke();
 
   // Invoke test
   TfLiteStatus DebugInvoke();
@@ -756,23 +733,6 @@ class Interpreter {
   void SaveOriginTensorDims(Subgraph* origin_graph);
 
   void PrintSubgraphInfo();
-
-  // lock jobs
-  void LockJobs();
-
-  // unlock jobs
-  void UnlockJobs();
-
-  // Returns true if job queue is empty
-  bool IsJobQueueEmpty();
-  bool IsJobVectorEmpty();
-
-  void FlushJobs();
-  void EnqueueJobs();
-
-  int GetJobNum();
-
-  Job* GetJob();
 
   std::vector<cv::Mat> mnist_input;
   std::vector<cv::Mat> imagenet_input;
@@ -849,7 +809,7 @@ class Interpreter {
 
   // Subgraphs in multi-level.
   // subgraphs[level][idx].
-  // search subgraph with level & and id.
+  // search subgraph with level & and id(not index).
   std::vector<std::vector<std::unique_ptr<Subgraph>>> subgraphs__;
 
   // Minsung
@@ -878,27 +838,6 @@ class Interpreter {
   bool is_gpu_delegate_prepared = false;
 
   // Minsung
-  // Jobs
-  // these two variable shares same job's pointer
-  // use job vector to modify specific job, use queue to allocate job to worker.
-  std::vector<tflite::Job*> job_vector;
-  std::queue<tflite::Job*>* jobs;
-  int jobs_created = 0;
-  std::mutex job_mutex;
-
-  // Misnung
-  // Workers
-  tflite::GPUWorker* gpu_worker;
-  std::vector<tflite::Worker*> workers;
-  std::vector<std::thread> worker_threads;
-  std::vector<int> worker_ids;
-  int workers_created = 0;
-
-  // Minsung
-  // Scheduler
-  std::thread scheduler_thread;
-
-  // Minsung
   // Delegate
   std::vector<DelegateWrapper*> delegates_prepared;
   
@@ -906,6 +845,12 @@ class Interpreter {
   // Minsung
   // Subgraphs
   int subgraphs_created = 0;
+
+  // Minsung
+  // Stores subgraphs created in specific level.
+  // ex) subgraphs_created_in_level[1] means number of subgraphs in level 2.
+  //    (idx 0 means level 1).
+  std::vector<int> subgraphs_created_in_level;
 
   INPUT_TYPE input_type;
 };
