@@ -261,6 +261,7 @@ class TfLiteRuntime {
   TfLiteMergeTensor* merge_tensor = nullptr;
 
   // Subgraph partitioning
+  // [VLS] Todo : will deprecated in multi-level subgraph design.
   int partitioning_plan[TF_P_PLAN_LENGTH];
 
   // multi-level subgraph partitioning plan from scheduler.

@@ -847,6 +847,11 @@ class Interpreter {
   std::vector<std::unique_ptr<Subgraph>> subgraphs_;
   std::unique_ptr<Subgraph> primary_subgraph_;
 
+  // Subgraphs in multi-level.
+  // subgraphs[level][idx].
+  // search subgraph with level & and id.
+  std::vector<std::vector<std::unique_ptr<Subgraph>>> subgraphs__;
+
   // Minsung
   // Subgraph subsets
   // A pair contains model id, subgraph ids

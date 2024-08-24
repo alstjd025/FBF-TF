@@ -171,12 +171,10 @@ void TfScheduler::Work() {
 
         // Creates multi-level subgraph structure in scheduler.
         CreateGraphofSubgraphs(id, subgraph_params);
-
         tx_packet.runtime_id = id;
         tx_packet.level = 0; // sends parameter starting with level 0.
         if(tx_packet.level != rx_init_packet.level)
           tx_packet.level = rx_init_packet.level;
-        
         // check if parameter transmit done.
         if(subgraph_params.size() == tx_packet.level){
           tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
@@ -203,7 +201,6 @@ void TfScheduler::Work() {
           printf("errno : %d \n", errno);
           return;
         }
-
         break;
       }
       case RuntimeState::SUBGRAPH_CREATE: {

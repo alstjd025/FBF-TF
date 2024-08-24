@@ -628,7 +628,7 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
   int received_level = 0;
   // [VLS Todo] Repeat this point multiple time.
   tf_initialization_packet rx_packet;
-  while(state != RuntimeState::NEED_PROFILE){
+  while(state == RuntimeState::NEED_PROFILE){
     if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
       std::cout << "Receiving partitioning plan packet from scheduler Failed"
                 << "\n";
@@ -637,14 +637,16 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
     received_level = rx_packet.level;
 
     // copy the partitioning plan from scheduler.
-    if(partitioning_plan_.size() < received_level){
+    if(partitioning_plan_.size() <= received_level){
       partitioning_plan_.push_back(std::vector<int>()); // push new level of subgraph param.
       int iter = 0;
       int value = rx_packet.partitioning_plan[iter];
       while(value != -4){
         partitioning_plan_[received_level].push_back(value);
         iter++;
+        value = rx_packet.partitioning_plan[iter];
       }
+      partitioning_plan_[received_level].push_back(-4);
     }
   
     RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
@@ -664,6 +666,17 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
   }
   std::cout << "Successfully registered model to scheduler"
             << "\n";
+
+  // [VLS Debug]
+  // std::cout << "Runtime got " << partitioning_plan_.size()+1 
+  //           << " levels of parameters" << "\n";
+  // for(auto level : partitioning_plan_){
+  //   for(auto value : level){
+  //     std::cout << value << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
+  
   return kTfLiteOk;
 }
 
@@ -714,11 +727,13 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
 // [VLS Todo] check this function safe if called multiply to create multi-level subgraphs.
 TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   std::cout << "PartitionCoSubgraphs" << "\n";
+  int levels = partitioning_plan_.size(); // total level of subgraphs to create.
+  int working_level = 0;
   std::vector<std::vector<int>> raw_plan;
   int inner_plan_idx = 0;
   std::vector<int> plan_from_scheduler;
   for(int i=0; i < TF_P_PLAN_LENGTH; ++i){
-    plan_from_scheduler.push_back(partitioning_plan[i]);
+    plan_from_scheduler.push_back(partitioning_plan_[working_level][i]);
   }
   interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
   sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
