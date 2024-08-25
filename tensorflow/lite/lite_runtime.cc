@@ -728,59 +728,66 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
 TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   std::cout << "PartitionCoSubgraphs" << "\n";
   int levels = partitioning_plan_.size(); // total level of subgraphs to create.
-  int working_level = 0;
 
   ////////////////////////////////////////////////////
   // [VLS] repeat this codes safely to create multi-level subgraphs?
+  std::cout << "Creates " << partitioning_plan_.size() << " levels" << "\n";
+  for(int working_level=0; partitioning_plan_.size(); ++working_level){
+    std::vector<std::vector<int>> raw_plan;
+    int inner_plan_idx = 0;
+    std::vector<int> plan_from_scheduler(partitioning_plan_[working_level].begin(),
+                                          partitioning_plan_[working_level].end());
 
-  std::vector<std::vector<int>> raw_plan;
-  int inner_plan_idx = 0;
-  std::vector<int> plan_from_scheduler(partitioning_plan_[working_level].begin(),
-                                        partitioning_plan_[working_level].end());
-
-  std::cout << "Create subgraphs of level : " << working_level << "\n";
-  interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
-  sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
-  std::cout << "CopyRawPartitioningPlan Done" << "\n";
-
-  Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
-  if (origin_subgraph == nullptr) {
-    std::cout << "Model id " << interpreter_builder->GetModelid()
-              << " no subgraph. \n";
-    return kTfLiteError;
-  }
-  if (interpreter_builder->CreateSubgraphsFromParameter(origin_subgraph) !=
-      kTfLiteOk) {
-    std::cout << "CreateSubgraphsFromProfiling returned ERROR"
+    std::cout << "Create subgraphs of level : " << working_level << "\n";
+    interpreter_builder->ClearRawPartitioningPlan(); // clear previous level partitioning plan
+    sub_builder->ClearRawPartitioningPlan(); // clear previous level partitioning plan
+    interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+    sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+    std::cout << "CopyRawPartitioningPlan Done" << "\n";
+    Subgraph* origin_subgraph = nullptr;
+    if(working_level == 0){
+      origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
+    }
+    // if (origin_subgraph == nullptr) {
+    //   std::cout << "Model id " << interpreter_builder->GetModelid()
+    //             << " no subgraph. \n";
+    //   return kTfLiteError;
+    // }
+    if (interpreter_builder->CreateSubgraphsFromParameter(working_level, origin_subgraph) !=
+        kTfLiteOk) {
+      std::cout << "CreateSubgraphsFromProfiling returned ERROR"
+                << "\n";
+      return kTfLiteError;
+    }
+    std::cout << "==============================="
               << "\n";
-    return kTfLiteError;
-  }
-  std::cout << "==============================="
-            << "\n";
-  std::cout << "Main interpreter subgraph created"
-            << "\n";
-  std::cout << "==============================="
-            << "\n";
-  // Create subgraphs of quantized model
-  Subgraph* origin_quantized_subgraph =
-      sub_interpreter->returnProfiledOriginalSubgraph(0);
-  if (origin_quantized_subgraph == nullptr) {
-    std::cout << "Model id " << interpreter_builder->GetModelid()
-              << " no subgraph. \n";
-    return kTfLiteError;
-  }
-  if (sub_builder->CreateSubgraphsFromParameter(origin_quantized_subgraph) !=
-      kTfLiteOk) {
-    std::cout << "CreateSubgraphsFromProfiling returned ERROR"
+    std::cout << "Main interpreter subgraph created"
               << "\n";
-    return kTfLiteError;
+    std::cout << "==============================="
+              << "\n";
+    // Create subgraphs of quantized model
+    Subgraph* origin_quantized_subgraph = nullptr;
+    if(working_level == 0){
+      origin_quantized_subgraph = sub_interpreter->returnProfiledOriginalSubgraph(0);
+    }
+    // if (origin_quantized_subgraph == nullptr) {
+    //   std::cout << "Model id " << interpreter_builder->GetModelid()
+    //             << " no subgraph. \n";
+    //   return kTfLiteError;
+    // }
+    if (sub_builder->CreateSubgraphsFromParameter(working_level, origin_quantized_subgraph) !=
+        kTfLiteOk) {
+      std::cout << "CreateSubgraphsFromProfiling returned ERROR"
+                << "\n";
+      return kTfLiteError;
+    }
+    std::cout << "==============================="
+              << "\n";
+    std::cout << "Sub interpreter subgraph created"
+              << "\n";
+    std::cout << "==============================="
+              << "\n";
   }
-  std::cout << "==============================="
-            << "\n";
-  std::cout << "Sub interpreter subgraph created"
-            << "\n";
-  std::cout << "==============================="
-            << "\n";
 
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));

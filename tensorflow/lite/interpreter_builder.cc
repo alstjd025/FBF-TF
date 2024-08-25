@@ -829,7 +829,10 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
     SharedTensorsInGraphs* temp = new SharedTensorsInGraphs;
     temp->pair_tensor_graph = shared_info;
     temp->model_id = model_id_;
-    (interpreter_)->shared_tensor_and_graph.push_back(temp);
+    if((interpreter_)->shared_tensor_and_graph.empty()){
+      (interpreter_)->shared_tensor_and_graph.push_back(std::vector<SharedTensorsInGraphs*>());
+    }
+    (interpreter_)->shared_tensor_and_graph[0].push_back(temp);
   }
   
   std::cout << "USE INTERPRETER API (before Deletesubgraph)\n";
@@ -852,7 +855,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
   // MUST CHECK
   // Does CPU-side interpreter need to call AllocateTensors twice?
   std::cout << "model_id : " << model_id_ << std::endl;
-  if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
+  if(interpreter_->AllocateTensorsofSubsets(0, model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
   }
@@ -902,7 +905,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
 TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
                                       int level,
                                       tflite::Subgraph* profiled_subgraph){
-  if(!profiled_subgraph->IsProfiled()){
+  if(level == 0 && !profiled_subgraph->IsProfiled()){
     std::cout << "InterpreterBuilder : Subgraph is not profiled \n";
     return kTfLiteError;
   }
@@ -1157,13 +1160,12 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
       tensors_ = new std::vector<int>;
       output_tensor = new std::vector<int>;
     }
-    
+    std::cout << "RegisterSubgraphToInterpreter" << "\n";
     if(RegisterSubgraphToInterpreter(level ,subgraphs_created) != kTfLiteOk){
       std::cout << "RegisterSubgraphToInterpreter ERROR" << "\n";
       return kTfLiteError;
     }
     interpreter_->PrintSubgraphInfo(); 
-    std::cout << "RegisterJobAndSubgraphs" << "\n";
     // Fill shared tensor bucket  
     for(size_t graph_idx=0; graph_idx<subgraph_and_tensors.size(); ++graph_idx){
       for(size_t j=0; j<subgraph_and_tensors[graph_idx].second.size(); ++j){
@@ -1193,22 +1195,25 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
     SharedTensorsInGraphs* temp = new SharedTensorsInGraphs;
     temp->pair_tensor_graph = shared_info;
     temp->model_id = model_id_;
-    (interpreter_)->shared_tensor_and_graph.push_back(temp);
+    if((interpreter_)->shared_tensor_and_graph.size() <= level){
+      (interpreter_)->shared_tensor_and_graph.push_back(std::vector<SharedTensorsInGraphs*>());
+    }
+    (interpreter_)->shared_tensor_and_graph[level].push_back(temp);
   }
   
-  std::cout << "USE INTERPRETER API (before Deletesubgraph)\n";
   std::vector<int> subgraph_set;
   interpreter_->GetTotalSubgraphID(subgraph_set);
   std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
   
   // Delete old subgraph and move it to interpreter's primary subgraph.
-  if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
-      != kTfLiteOk){
-    std::cout << "DeleteSubgraph ERROR" << "\n";
-    return kTfLiteError;
+  if(profiled_subgraph != nullptr){
+    if(interpreter_->DeleteSubgraph(profiled_subgraph->GetGraphid()) 
+        != kTfLiteOk){
+      std::cout << "DeleteSubgraph ERROR" << "\n";
+      return kTfLiteError;
+    }
   }
-
-  std::cout << "USE INTERPRETER API (After Deletesubgraph)\n";
+  interpreter_->PrintSubgraphInfo(); 
   // std::vector<int> subgraph_set;
   interpreter_->GetTotalSubgraphID(subgraph_set);
   std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
@@ -1216,7 +1221,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
   // MUST CHECK
   // Does CPU-side interpreter need to call AllocateTensors twice?
   std::cout << "model_id : " << model_id_ << std::endl;
-  if(interpreter_->AllocateTensorsofSubsets(model_id_) != kTfLiteOk){
+  if(interpreter_->AllocateTensorsofSubsets(level, model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;
   }
@@ -1238,6 +1243,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
 
 TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
                     std::vector<tflite::Subgraph*>& new_subgraphs){
+  std::cout << "Delegate " << new_subgraphs.size() << " subgraphs" << "\n";
   for(auto new_subgraph : new_subgraphs){
     // sj
     // To check whether subgraphs need delegation
@@ -1266,7 +1272,7 @@ TfLiteStatus InterpreterBuilder::DelegateSubgraphs(
                   << " Delegate" << "\n";
       }
       clock_gettime(CLOCK_MONOTONIC, &end);
-      printf("Delegate %.6f ", response_time);
+      printf("Delegate %.6f \n", response_time);
       response_time = (end.tv_sec - begin.tv_sec) +
                 ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
     }
@@ -1294,7 +1300,7 @@ TfLiteStatus InterpreterBuilder::PartitionChannels(
 
 TfLiteStatus InterpreterBuilder::RegisterSubgraphToInterpreter(
                                 int level,
-                                std::vector<tflite::Subgraph*> new_subgraphs){
+                                std::vector<tflite::Subgraph*>& new_subgraphs){
   for(size_t i=0; i<new_subgraphs.size(); ++i){
     // give model id
     new_subgraphs[i]->SetModelid(model_id_);
@@ -1309,9 +1315,11 @@ TfLiteStatus InterpreterBuilder::RegisterSubgraphToInterpreter(
       std::cout << "RegisterSubgraph ERROR" << "\n";
       return kTfLiteError;
     }
-    std::cout << "Created new subgraph of id [" << new_subgraphs[i]->GetGraphid() << "]" <<"\n"; 
+    std::cout << "Registered new subgraph of id [" << new_subgraphs[i]->GetGraphid() << "]" 
+              << " in level [" << level << "]\n"; 
     return kTfLiteOk;
   }
+  return kTfLiteOk;
 }
 
 

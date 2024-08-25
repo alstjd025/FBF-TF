@@ -117,9 +117,10 @@ class InterpreterBuilder {
 
   TfLiteStatus RegisterSubgraphToInterpreter(
                                       int level, 
-                                      std::vector<tflite::Subgraph*> new_subgraphs);
+                                      std::vector<tflite::Subgraph*>& new_subgraphs);
 
   void CopyRawPartitioningPlan(std::vector<int>& raw_plan);
+  void ClearRawPartitioningPlan(){ dummy_profiles_.clear(); };
 
   TfLiteStatus PartitionChannels(std::vector<tflite::Subgraph*>& new_subgraphs);
   

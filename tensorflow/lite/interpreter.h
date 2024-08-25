@@ -333,6 +333,10 @@ class Interpreter {
   // returns a pointer to initial input tensor of given model's subgraphs.
   TfLiteTensor* input_tensor_of_model(int model_id);
 
+  // Minsung
+  // returns a pointer to initial input tensor of given level and model's subgraphs.
+  TfLiteTensor* input_tensor_of_model(int level, int model_id);
+
   /// Return a mutable pointer into the data of a given input tensor. The given
   /// index must be between 0 and inputs().size().
   template <class T>
@@ -404,7 +408,9 @@ class Interpreter {
   TfLiteStatus AllocateTensors();
 
   // Minsung
-  TfLiteStatus AllocateTensorsofSubsets(int model_id);
+  // TfLiteStatus AllocateTensorsofSubsets(int model_id);
+
+  TfLiteStatus AllocateTensorsofSubsets(int level, int model_id);
 
   // Minsung
   // Get the intermediate tensor range(means index range) from subgraphs
@@ -700,7 +706,7 @@ class Interpreter {
 
   Subgraph* subgraph_id(int id){
     for(auto& graphs : subgraphs__){
-      for(size_t i = 0; graphs.size(); ++i){
+      for(size_t i = 0; i < graphs.size(); ++i){
         if(graphs[i]->GetGraphid() == id) return &*graphs[i];
       }
     }
@@ -739,7 +745,7 @@ class Interpreter {
   TfLiteStatus AddNewSubgraph(int level, tflite::Subgraph* new_subgraph);
 
   // Register new subgraph to subgraph subsets with id.
-  TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
+  // TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
 
   // Register new subgraph to subgraph subsets with id and level.
   TfLiteStatus RegisterSubgraphSubsets(int level, tflite::Subgraph* new_subgraph);
@@ -832,13 +838,14 @@ class Interpreter {
 
   // Minsung
   // Subgraph subsets
+  // Multi-level modified
   // A pair contains model id, subgraph ids
-  // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are
-  // built
-  //     from a model id 1.
+  // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are built
+  // from a model id 1.
   // Assume that first subgraph of subset is input subgraph.
   // The subgraph which owns the output tensor depends on model stucture.
-  std::vector<std::pair<int, std::vector<int>>> subgraph_subsets;
+  // subgraph_subsets[level]...pair<1, [1,2,3,,]>
+  std::vector<std::vector<std::pair<int, std::vector<int>>>> subgraph_subsets;
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap resources_;
@@ -849,7 +856,8 @@ class Interpreter {
   std::vector<TfLiteDelegatePtr> lazy_delegate_providers_;
 
   // Minsung
-  std::vector<SharedTensorsInGraphs*> shared_tensor_and_graph;
+  // multi-level modified
+  std::vector<std::vector<SharedTensorsInGraphs*>> shared_tensor_and_graph;
 
   // Minsung
   // GPU Delegate
