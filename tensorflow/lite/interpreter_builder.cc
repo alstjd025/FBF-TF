@@ -1319,6 +1319,11 @@ TfLiteStatus InterpreterBuilder::RegisterSubgraphToInterpreter(
               << " in level [" << level << "]\n"; 
     return kTfLiteOk;
   }
+  // In case if there is no subgraph to register.
+  // We must initialize subgraphs__[level] with empty vector anyway.
+  if(new_subgraphs.empty()){
+    interpreter_->AddNewSubgraph(level, nullptr);
+  }
   return kTfLiteOk;
 }
 

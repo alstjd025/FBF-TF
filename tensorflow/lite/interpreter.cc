@@ -1027,7 +1027,9 @@ TfLiteStatus Interpreter::AddNewSubgraph(int level, tflite::Subgraph* new_subgra
     std::cout << "Created new subgraph level " << level << "\n";
     subgraphs__.push_back(std::vector<std::unique_ptr<Subgraph>>());
   }
-  subgraphs__[level].emplace_back(new_subgraph);
+  if(new_subgraph != nullptr){
+    subgraphs__[level].emplace_back(new_subgraph);
+  }
   return kTfLiteOk;
 }
 
@@ -1187,7 +1189,9 @@ void Interpreter::GetTotalSubgraphIDInLevel(int level, std::vector<int>& graph_i
     std::cout << "GetTotalSubgraphIDInLevel ERROR" << "\n";
     exit(-1);
   }
+  std::cout << "level " << level << " has " << subgraphs__[level].size() << " ids \n";
   for (int i = 0; i < subgraphs__[level].size(); ++i) {
+    std::cout << "Get id " << subgraphs__[level][i]->GetGraphid() << "\n";
     graph_ids.push_back(subgraphs__[level][i]->GetGraphid());
   }
 }
