@@ -998,6 +998,7 @@ TfLiteTensor* Interpreter::input_tensor_of_model(int level, int model_id) {
 }
 
 void Interpreter::PrintSubgraphInfo() {
+  std::cout << "============== Print Subgraph Info ===============" << "\n";
   std::cout << "Interpreter: subgraph size:" << subgraphs_size() << "\n";
   for(int level=0; level < subgraphs__.size(); ++level){
     std::cout << "Level : " << level << "\n";
@@ -1006,6 +1007,7 @@ void Interpreter::PrintSubgraphInfo() {
                 << " model : " << subgraphs__[level][index]->GetModelid() << "\n";
     }
   }
+  std::cout << "=================================================" << "\n";
   // for (int i = 0; i < subgraphs_size(); ++i) {
   //   std::cout << "id : " << subgraph(i)->GetGraphid()
   //             << " model : " << subgraph(i)->GetModelid() << "\n";

@@ -747,6 +747,11 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
     sub_builder->ClearRawPartitioningPlan(); // clear previous level partitioning plan
     interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
     sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+    std::cout << "plan from sched" << "\n";
+    for(int i=0; i<plan_from_scheduler.size(); ++i){
+      std::cout << plan_from_scheduler[i] << " ";
+    }
+    std::cout << "\n";
     std::cout << "CopyRawPartitioningPlan Done" << "\n";
     Subgraph* origin_subgraph = nullptr;
     if(working_level == 0){
@@ -821,7 +826,7 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
     if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
       return kTfLiteError;
     }
-
+ 
     tf_initialization_packet rx_packet;
     if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
       return kTfLiteError;
@@ -860,7 +865,7 @@ TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   return kTfLiteOk;
 }
 
-// [VLS Todo] change this
+// [VLS Todo] check for possible bugs.
 TfLiteStatus TfLiteRuntime::PrepareCoExecution() {
   if (sub_interpreter == nullptr) {
     std::cout << "PrepareCoExecution ERROR"
@@ -1203,39 +1208,6 @@ TfLiteStatus TfLiteRuntime::Invoke() {
   TfLiteStatus return_state_sub = TfLiteStatus::kTfLiteOk;
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
 
-#ifdef yolo_branch
-  Subgraph* temp_subgraph = interpreter->subgraph_id(7);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(8);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
-#ifdef lanenet_branch
-  Subgraph* temp_subgraph = interpreter->subgraph_id(4);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(5);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
-
-#ifdef yolo_branch_only
-  Subgraph* temp_subgraph = interpreter->subgraph_id(2);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(3);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
-#ifdef center_branch
-  Subgraph* temp_subgraph = interpreter->subgraph_id(3);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(4);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
 #ifdef latency_measure
   struct timespec begin, end;
   clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -1314,37 +1286,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
 #endif
 
-#ifdef yolo_branch
-      if(co_subgraph_id == 7){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#ifdef lanenet_branch
-      if(co_subgraph_id == 4){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#ifdef yolo_branch_only
-      if(co_subgraph_id == 2){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#ifdef center_branch
-      if(co_subgraph_id == 3){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#if !defined (yolo_branch) && !defined (yolo_branch_only) && !defined(lanenet_branch) && !defined(center_branch)
       subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-#endif 
       if (main_execution_graph != nullptr) {
 #ifdef debug_print
         std::cout << "sub CopyIntermediateDataIfNeeded"
@@ -1490,34 +1432,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         if (rx_packet.subgraph_ids[1][0] != -1){
           co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
         }
-#ifdef yolo_branch // test code for branch execution.
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 7){ // Hardcoded part for yolo.
-          co_subgraph_id = 7;
-          subgraph_id = 8;
-        }
-#endif // test code for branch execution.
-#ifdef lanenet_branch // test code for branch execution.
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 4){ // Hardcoded part for yolo.
-          co_subgraph_id = 4;
-          subgraph_id = 5;
-        }
-#endif // test code for branch execution.
-#ifdef yolo_branch_only
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 2){ // Hardcoded part for yolo.
-          co_subgraph_id = 2;
-          subgraph_id = 3;
-        }
-#endif
-#ifdef center_branch 
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 3){ // Hardcoded part for yolo.
-          co_subgraph_id = 3;
-          subgraph_id = 4;
-        }
-#endif
+
       bool merged = false;
       // Check if co execution. If so, give co-execution graph to
       // sub-interpreter and notify.

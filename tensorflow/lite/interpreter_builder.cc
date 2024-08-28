@@ -1035,9 +1035,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
     // Partitioning iteration begins
     for(int partition_itr=0; partition_itr<master_partitioning_plan.size(); 
                                                 ++partition_itr){
-      if(master_partitioning_plan[partition_itr]->resource_type 
-          == ResourceType::NONE)
+      if(master_partitioning_plan[partition_itr]->resource_type == ResourceType::NONE){
         continue; // Don't make subgraph for resourcetype::NONE
+      }
       /// Make a new subgraph
       tflite::Subgraph* new_subgraph = interpreter_->CreateSubgraphInLevel(level);
       subgraphs_created.push_back(new_subgraph);
@@ -1104,9 +1104,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
       }
       std::vector<int> nodes_to_parse;
       // Now setup nodes and tensors for new subgraph
-      std::cout << std::endl;
-      std::cout << "partitioning_iteration : " << partition_itr << std::endl;  // EZE
-
+      std::cout << "partitioning_iteration : " << partition_itr << "\n";  
       for(int j=0; j < num_nodes_in_partition; ++j){
         int working_op = nodes_in_partition[j];
         nodes_to_parse.push_back(working_op);
@@ -1176,7 +1174,7 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
     }
     // Save shared intermediate tensor indices in interpreter's graph_and_shared_tensor.
     // Used when AllocateTensorsofAllSubgraphs called.
-    // (to propagate tensor shapes)
+    // (to propagate tensor shapes)™
     for(size_t t=0; t<tensors->size(); ++t){
       std::pair<int, std::vector<int>> pair_tensor_graph;
       std::vector<int> sharing_subgraph_id;
@@ -1317,7 +1315,6 @@ TfLiteStatus InterpreterBuilder::RegisterSubgraphToInterpreter(
     }
     std::cout << "Registered new subgraph of id [" << new_subgraphs[i]->GetGraphid() << "]" 
               << " in level [" << level << "]\n"; 
-    return kTfLiteOk;
   }
   // In case if there is no subgraph to register.
   // We must initialize subgraphs__[level] with empty vector anyway.
