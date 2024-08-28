@@ -491,7 +491,6 @@ void TfScheduler::PrepareRuntime(tf_initialization_packet& rx_packet) {
   int runtime_id = rx_packet.runtime_id;
   int level = rx_packet.level;
   std::cout << "Register level " << level << " subgraphs in scheduler" << "\n";
-  std::cout << "fuck" << rx_packet.gpu_utilization << "\n";
   runtime_* runtime = nullptr;
   for (int i = 0; i < runtimes.size(); ++i) {
     if (runtimes[i]->id == runtime_id) runtime = runtimes[i];

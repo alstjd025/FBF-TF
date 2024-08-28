@@ -1049,7 +1049,8 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
       prev_queue.push(new_subgraph);
       const int* nodes_in_partition = master_partitioning_plan[partition_itr]->nodes;
       const int num_nodes_in_partition = master_partitioning_plan[partition_itr]->size;
-      
+      std::cout << "partitioning ratio at iteration " << 
+                master_partitioning_plan[partition_itr]->partitioning_ratios[0] << "\n";
       switch (master_partitioning_plan[partition_itr]->resource_type)
       {
       case ResourceType::CPU:
@@ -1304,6 +1305,8 @@ TfLiteStatus InterpreterBuilder::RegisterSubgraphToInterpreter(
     new_subgraphs[i]->SetModelid(model_id_);
     // give subgraph id
     new_subgraphs[i]->SetGraphid(interpreter_->GetAndAddSubgraphIDCreated());
+    // give level info
+    new_subgraphs[i]->SetLevel(level);
     // interpreter->AddNewSubgraph
     if(interpreter_->AddNewSubgraph(level, new_subgraphs[i]) != kTfLiteOk){
       std::cout << "AddNewSubgraph ERROR" << "\n";

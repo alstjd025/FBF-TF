@@ -438,6 +438,9 @@ TfLiteStatus Interpreter::AllocateTensors() {
 
 TfLiteStatus Interpreter::AllocateTensorsofSubsets(int level, int model_id) {
   auto HeightPartitionandAllocateIfNeed = [&](Subgraph* subgraph) {
+    std::cout << "HeightPartitionandAllocateIfNeed" << "\n";
+    std::cout << "level "<< subgraph->GetLevel() <<  "id : " << subgraph->GetGraphid()
+              << " resource : " << subgraph->GetResourceType() << "\n"; 
     if (subgraph->GetResourceType() == ResourceType::CO_CPU ||
         subgraph->GetResourceType() == ResourceType::CO_CPU_XNN ||
         subgraph->GetResourceType() == ResourceType::CO_GPU) {
@@ -1074,20 +1077,30 @@ TfLiteStatus Interpreter::AddNewSubgraph(int level, tflite::Subgraph* new_subgra
 
 TfLiteStatus Interpreter::RegisterSubgraphSubsets(
     int level, tflite::Subgraph* new_subgraph) {
-  if (subgraph_subsets.empty()) {  // if subgraph subset is empty, create new one
-    std::vector<std::pair<int, std::vector<int>>> new_vector;
+  // if (subgraph_subsets.empty()) {  // if subgraph subset is empty, create new one
+  //   std::vector<std::pair<int, std::vector<int>>> new_level;
+  //   std::pair<int, std::vector<int>> new_subset;
+  //   new_subset.first = new_subgraph->GetModelid();
+  //   new_subset.second.push_back(new_subgraph->GetGraphid());
+  //   subgraph_subsets.push_back(new_level);
+  //   subgraph_subsets[0].push_back(new_subset);
+  //   std::cout << "add new subgraph "<< new_subset.first << " to subset" << "\n";
+  //   return kTfLiteOk;
+  // }
+  std::cout << "Register subset_size :" << subgraph_subsets.size() <<
+               " level " << level << "\n";
+  if(subgraph_subsets.size() <= level){ // create new level.
+    std::vector<std::pair<int, std::vector<int>>> new_level;
+    subgraph_subsets.push_back(new_level);
+    // register first subgraph of new level.
     std::pair<int, std::vector<int>> new_subset;
     new_subset.first = new_subgraph->GetModelid();
     new_subset.second.push_back(new_subgraph->GetGraphid());
-    subgraph_subsets.push_back(new_vector);
-    subgraph_subsets[0].push_back(new_subset);
+    subgraph_subsets[level].push_back(new_subset);
     std::cout << "add new subgraph "<< new_subset.first << " to subset" << "\n";
     return kTfLiteOk;
   }
-  if(subgraph_subsets.size() <= level){ // create new level.
-    std::vector<std::pair<int, std::vector<int>>> new_vector;
-    subgraph_subsets.push_back(new_vector);
-  }
+  // register next subgraphs.
   for (size_t j = 0; j < subgraph_subsets[level].size(); ++j) {
     bool register_needed = false;
     if (subgraph_subsets[level][j].first == new_subgraph->GetModelid()) {  // if a same model id exists.
