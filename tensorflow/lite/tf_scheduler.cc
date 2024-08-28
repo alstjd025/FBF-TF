@@ -227,8 +227,8 @@ void TfScheduler::Work() {
         // [VLS Todo] fix to call this function multiple time.
         PrepareRuntime(rx_init_packet);
         std::cout << "Prepare runtime done" << "\n";
-
-        if(rx_init_packet.level == subgraph_params.size()){
+        if(rx_init_packet.level == subgraph_params.size()-1){
+          std::cout << "Send invoke state" << "\n";
           tx_packet.runtime_next_state = RuntimeState::INVOKE_;
           PrintGraph(id);
           init = false;
@@ -306,127 +306,130 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   }
   ////////////////////////////////////////////////////////////////////////
   //  New logic for multi-level subgraphs.
-  //
-  //
-  //
-  //
+  //  0. monitor -> level change flag (increase, decrease)
+  //  1.level selection
+  //     if(level change)
+  //        if(recovery possible) -> recovery
+  //        not -> level change, flag initialize
+  //  2.subgraph selection
+  //     - ordinary selection
+  //     - recovery selection
   ////////////////////////////////////////////////////////////////////////
 
-  // int gpu_thresh = 70;
-  // int cpu_thresh = 70;
-  // subgraph_node* root_graph = runtime->graph->root;
-  // subgraph_node* prev_invoked_subgraph = nullptr;
-  // subgraph_node* prev_base_subgraph = nullptr;
-  // if (rx_packet.cur_subgraph == -1) {  // first invoke
-  //   // search graph struct for optimal invokable subgraph.
-  //   // and return it.
-  //   // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization
-  //   // ratio raises shortly.
+  int  gpu_thresh = 70;
+  int cpu_thresh = 70;
+  int level = 0; // slow start
+  subgraph_node* root_graph = runtime->graphs[level]->root;
+  subgraph_node* prev_invoked_subgraph = nullptr;
+  subgraph_node* prev_base_subgraph = nullptr;
+  if (rx_packet.cur_subgraph == -1) {  // first invoke
+    // search graph struct for optimal invokable subgraph.
+    // and return it.
+    // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization
+    // ratio raises shortly.
 
-  //   // Set root graph for first graph.
-  //   prev_invoked_subgraph = root_graph;
-  //   prev_base_subgraph = root_graph;
-  // } else {
-  //   // Search and return prev invoked subgraph with it's id.
-  //   prev_invoked_subgraph =
-  //       SearchAndReturnNodeWithID(root_graph, rx_packet.cur_subgraph);
-  //   prev_base_subgraph = prev_invoked_subgraph;
-  //   while (prev_base_subgraph->up != nullptr) {
-  //     prev_base_subgraph = prev_base_subgraph->up;
-  //   }
-  // }
+    // Set root graph for first graph.
+    prev_invoked_subgraph = root_graph;
+    prev_base_subgraph = root_graph;
+  } else {
+    // Search and return prev invoked subgraph with it's id.
+    prev_invoked_subgraph =
+        SearchAndReturnNodeWithID(root_graph, rx_packet.cur_subgraph);
+    prev_base_subgraph = prev_invoked_subgraph;
+    while (prev_base_subgraph->up != nullptr) {
+      prev_base_subgraph = prev_base_subgraph->up;
+    }
+  }
 
-  // // TODO (0c8406) : Must revise entire logic to better implementation.
+  // TODO (0c8406) : Must revise entire logic to better implementation.
 
-  // // In case only one subgraph exists.
-  // if (runtime->graph->nodes.size() == 1) {
-  //   next_subgraphs_to_invoke.first = runtime->graph->nodes[0]->subgraph_id;
-  //   next_subgraphs_to_invoke.second = runtime->graph->nodes[0]->co_subgraph_id;
+  // In case only one subgraph exists.
+  if (runtime->graphs[level]->nodes.size() == 1) {
+    next_subgraphs_to_invoke.first = runtime->graphs[level]->nodes[0]->subgraph_id;
+    next_subgraphs_to_invoke.second = runtime->graphs[level]->nodes[0]->co_subgraph_id;
 
-  //   // case of final subgraph..
-  //   if (rx_packet.cur_subgraph == runtime->graph->nodes[0]->subgraph_id) {
-  //     next_subgraphs_to_invoke.first = -1;
-  //     next_subgraphs_to_invoke.second = -1;
-  //   }
-  //   return next_subgraphs_to_invoke;
-  // }
+    // case of final subgraph..
+    if (rx_packet.cur_subgraph == runtime->graphs[level]->nodes[0]->subgraph_id) {
+      next_subgraphs_to_invoke.first = -1;
+      next_subgraphs_to_invoke.second = -1;
+    }
+    return next_subgraphs_to_invoke;
+  }
 
-  // subgraph_node* next_base_subgraph = nullptr;
-  // subgraph_node* next_subgraph_to_invoke = nullptr;
+  subgraph_node* next_base_subgraph = nullptr;
+  subgraph_node* next_subgraph_to_invoke = nullptr;
 
-  // // case of final subgraph
-  // if (prev_base_subgraph->right == nullptr) {
-  //   std::cout << "end" << "\n";
-  //   next_subgraphs_to_invoke.first = -1;
-  //   next_subgraphs_to_invoke.second = -1;
-  //   return next_subgraphs_to_invoke;
-  // }  // case of first subgraph
-  // else if (rx_packet.cur_subgraph == -1) {
-  //   next_base_subgraph = root_graph;
-  // } else {
-  //   next_base_subgraph = prev_base_subgraph->right;
-  // }
+  // case of final subgraph
+  if (prev_base_subgraph->right == nullptr) {
+    std::cout << "end" << "\n";
+    next_subgraphs_to_invoke.first = -1;
+    next_subgraphs_to_invoke.second = -1;
+    return next_subgraphs_to_invoke;
+  }  // case of first subgraph
+  else if (rx_packet.cur_subgraph == -1) {
+    next_base_subgraph = root_graph;
+  } else {
+    next_base_subgraph = prev_base_subgraph->right;
+  }
 
-  // int next_resource_plan = -1;
-  // next_subgraph_to_invoke = next_base_subgraph;
-  // // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.
-  // // NEED_REFACTOR (02634) : Must change to use obvious resource type.
-  // int next_cpu_resource = 0;
-  // float gpu_util = monitor->GetGPUUtil();
-  // float cpu_util = monitor->GetCPUUtil();
+  int next_resource_plan = -1;
+  next_subgraph_to_invoke = next_base_subgraph;
+  // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.
+  // NEED_REFACTOR (02634) : Must change to use obvious resource type.
+  int next_cpu_resource = 0;
+  float gpu_util = monitor->GetGPUUtil();
+  float cpu_util = monitor->GetCPUUtil();
 
-  // /* [IMPT] Utilization based resource allocation part */
-  // // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
+  /* [IMPT] Utilization based resource allocation part */
+  // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
   
-  // // if (gpu_util == 0 && cpu_util == 400) {
-  // //   // Use CPU
-  // //   next_resource_plan = TF_P_PLAN_GPU;
-  // //   std::cout << "USE GPU" << "\n";
-  // // } else if (gpu_util == 100 && cpu_util == 0) {
-  // //   // Use GPU
-  // //   next_resource_plan = TF_P_PLAN_CPU_XNN;
-  // //   std::cout << "USE CPU" << "\n";
-  // // } else if (gpu_util == 100 && cpu_util == 200) {
-  // //   // Use Co-execution
-  // //   cpu_usage_flag = true;
-  // //   std::cout << "USE CPU200" << "\n";
-  // // } else {
-  // //   // base plan
-  // //   cpu_usage_flag = false;
-  // //   std::cout << "USE BASE" << "\n";
-  // //   next_resource_plan = next_base_subgraph->resource_type;
-  // // }
-
-  // std::cout << "USE BASE" << "\n";
-  // next_resource_plan = next_base_subgraph->resource_type;
-  
-  // /* [IMPT] */
-
-  // // TODO (f85fa) : Fix graph searching, especially in co-execution.
-  // // Search for matching subgraph.
-  // while (next_subgraph_to_invoke != nullptr) {
-  //   if(cpu_usage_flag){
-  //     if(next_subgraph_to_invoke->partitioning_ratio == 2)
-  //       break;
-  //   }else if (next_subgraph_to_invoke->resource_type == next_resource_plan) {
-  //     break;
-  //   }
-  //   if (next_subgraph_to_invoke->down != nullptr) {
-  //     next_subgraph_to_invoke = next_subgraph_to_invoke->down;
-  //   } else {
-  //     next_subgraph_to_invoke = next_base_subgraph;
-  //     break;
-  //   }
+  // if (gpu_util == 0 && cpu_util == 400) {
+  //   // Use CPU
+  //   next_resource_plan = TF_P_PLAN_GPU;
+  //   std::cout << "USE GPU" << "\n";
+  // } else if (gpu_util == 100 && cpu_util == 0) {
+  //   // Use GPU
+  //   next_resource_plan = TF_P_PLAN_CPU_XNN;
+  //   std::cout << "USE CPU" << "\n";
+  // } else if (gpu_util == 100 && cpu_util == 200) {
+  //   // Use Co-execution
+  //   cpu_usage_flag = true;
+  //   std::cout << "USE CPU200" << "\n";
+  // } else {
+  //   // base plan
+  //   cpu_usage_flag = false;
+  //   std::cout << "USE BASE" << "\n";
+  //   next_resource_plan = next_base_subgraph->resource_type;
   // }
+  next_resource_plan = next_base_subgraph->resource_type;
+  
+  /* [IMPT] */
 
-  // // std::cout << "set next_subgraph_to_invoke id " <<
-  // // next_subgraph_to_invoke->subgraph_id << "\n"; std::cout << "set
-  // // next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id
-  // // << "\n"; std::cout << "set next_subgraph_to_invoke resource_type " <<
-  // // next_subgraph_to_invoke->resource_type << "\n";
-  // next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
-  // next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
-  // next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
+  // TODO (f85fa) : Fix graph searching, especially in co-execution.
+  // Search for matching subgraph.
+  while (next_subgraph_to_invoke != nullptr) {
+    if(cpu_usage_flag){
+      if(next_subgraph_to_invoke->partitioning_ratio == 2)
+        break;
+    }else if (next_subgraph_to_invoke->resource_type == next_resource_plan) {
+      break;
+    }
+    if (next_subgraph_to_invoke->down != nullptr) {
+      next_subgraph_to_invoke = next_subgraph_to_invoke->down;
+    } else {
+      next_subgraph_to_invoke = next_base_subgraph;
+      break;
+    }
+  }
+
+  // std::cout << "set next_subgraph_to_invoke id " <<
+  // next_subgraph_to_invoke->subgraph_id << "\n"; std::cout << "set
+  // next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id
+  // << "\n"; std::cout << "set next_subgraph_to_invoke resource_type " <<
+  // next_subgraph_to_invoke->resource_type << "\n";
+  next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
+  next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
+  next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
 
   return next_subgraphs_to_invoke;
 }

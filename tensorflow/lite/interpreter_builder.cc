@@ -1202,7 +1202,6 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
   
   std::vector<int> subgraph_set;
   interpreter_->GetTotalSubgraphID(subgraph_set);
-  std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
   
   // Delete old subgraph and move it to interpreter's primary subgraph.
   if(profiled_subgraph != nullptr){
@@ -1215,11 +1214,9 @@ TfLiteStatus InterpreterBuilder::CreateSubgraphsFromParameter(
   interpreter_->PrintSubgraphInfo(); 
   // std::vector<int> subgraph_set;
   interpreter_->GetTotalSubgraphID(subgraph_set);
-  std::cout << "subgraph_set size : " << subgraph_set.size() << std::endl;
 
   // MUST CHECK
   // Does CPU-side interpreter need to call AllocateTensors twice?
-  std::cout << "model_id : " << model_id_ << std::endl;
   if(interpreter_->AllocateTensorsofSubsets(level, model_id_) != kTfLiteOk){
     std::cout << "AllocateTensorsofSubsets ERROR" << "\n";
     return kTfLiteError;

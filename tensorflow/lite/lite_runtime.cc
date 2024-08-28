@@ -1351,8 +1351,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
     } else if (type == InterpreterType::MAIN_INTERPRETER) {
       // TODO (d9a62) : Make this communication part to an individual function.
       // [VLS] Todo : Use runtime packet here.
-      tf_packet tx_packet;
-      memset(&tx_packet, 0, sizeof(tf_packet));
+      tf_runtime_packet tx_packet;
+      memset(&tx_packet, 0, sizeof(tf_runtime_packet));
       tx_packet.runtime_id = runtime_id;
       tx_packet.runtime_current_state = state;
       tx_packet.cur_subgraph = subgraph_id;
@@ -1362,7 +1362,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return_state = kTfLiteError;
         break;
       }
-      tf_packet rx_packet;
+      tf_runtime_packet rx_packet;
       if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
         return_state = kTfLiteError;
         break;

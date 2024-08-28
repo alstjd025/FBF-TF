@@ -1077,18 +1077,6 @@ TfLiteStatus Interpreter::AddNewSubgraph(int level, tflite::Subgraph* new_subgra
 
 TfLiteStatus Interpreter::RegisterSubgraphSubsets(
     int level, tflite::Subgraph* new_subgraph) {
-  // if (subgraph_subsets.empty()) {  // if subgraph subset is empty, create new one
-  //   std::vector<std::pair<int, std::vector<int>>> new_level;
-  //   std::pair<int, std::vector<int>> new_subset;
-  //   new_subset.first = new_subgraph->GetModelid();
-  //   new_subset.second.push_back(new_subgraph->GetGraphid());
-  //   subgraph_subsets.push_back(new_level);
-  //   subgraph_subsets[0].push_back(new_subset);
-  //   std::cout << "add new subgraph "<< new_subset.first << " to subset" << "\n";
-  //   return kTfLiteOk;
-  // }
-  std::cout << "Register subset_size :" << subgraph_subsets.size() <<
-               " level " << level << "\n";
   if(subgraph_subsets.size() <= level){ // create new level.
     std::vector<std::pair<int, std::vector<int>>> new_level;
     subgraph_subsets.push_back(new_level);
@@ -1097,7 +1085,6 @@ TfLiteStatus Interpreter::RegisterSubgraphSubsets(
     new_subset.first = new_subgraph->GetModelid();
     new_subset.second.push_back(new_subgraph->GetGraphid());
     subgraph_subsets[level].push_back(new_subset);
-    std::cout << "add new subgraph "<< new_subset.first << " to subset" << "\n";
     return kTfLiteOk;
   }
   // register next subgraphs.
@@ -1114,16 +1101,10 @@ TfLiteStatus Interpreter::RegisterSubgraphSubsets(
       }
       if (register_needed) {
         subgraph_subsets[level][j].second.push_back(new_subgraph->GetGraphid());
-        std::cout << "add new subgraph "<< new_subgraph->GetGraphid() << " to subset" << "\n";
         return kTfLiteOk;
       }
     }
   }
-  // if there is no same model id in subsets, register new one.
-  // std::pair<int, std::vector<int>> new_subset;
-  // new_subset.first = new_subgraph->GetModelid();
-  // new_subset.second.push_back(new_subgraph->GetGraphid());
-  // subgraph_subsets.push_back(new_subset);
   return kTfLiteOk;
 }
 
