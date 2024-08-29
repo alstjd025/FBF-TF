@@ -361,7 +361,6 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   // case of final subgraph
   if (prev_base_subgraph->right == nullptr) {
-    std::cout << "end" << "\n";
     next_subgraphs_to_invoke.first = -1;
     next_subgraphs_to_invoke.second = -1;
     return next_subgraphs_to_invoke;
@@ -374,6 +373,8 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
+  std::cout << "level " << level  << " subgraph " << 
+            next_subgraph_to_invoke->subgraph_id << "\n";
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.
   // NEED_REFACTOR (02634) : Must change to use obvious resource type.
   int next_cpu_resource = 0;
