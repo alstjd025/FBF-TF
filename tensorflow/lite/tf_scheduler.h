@@ -46,8 +46,8 @@ namespace tflite{
     /* rank of subgraph in 'graph' (need for maintaining the graph struct)*/
     int rank = -1;
 
-    int maximum_gpu_utilization = 0;   
-    int maximum_cpu_utilization = 0;   
+    int gpu_utilization_require = 0;   
+    int cpu_utilization_require = 0;   
     float average_latency = 0;
 
     subgraph_node* right =  nullptr;
@@ -61,10 +61,20 @@ namespace tflite{
     std::vector<subgraph_node*> nodes;
     subgraph_node* root = nullptr;
     int runtime_id;
+    int level;
   }subgraph_graph;
 
   typedef struct runtime_{
-    subgraph_graph* graph = nullptr;
+    // will be deprecated by variable length subgraph design below.
+    // subgraph_graph* graph = nullptr;
+    
+    std::vector<subgraph_graph*> graphs; // for multi-level subgraph design.
+    // Graphs have multiple level(in vector index).
+    // graphs[0] -> subgraphs in level 1 (ex, smallest subgraph granularity)
+    // graphs[1] -> subgraphs in level 2 (ex, midium subgraph granularity)
+    // ..
+    // ..
+
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
@@ -75,25 +85,32 @@ namespace tflite{
   class TfScheduler{
     public:
       TfScheduler();
-      TfScheduler(const char* uds_file_name, const char* partitioning_params);
+      TfScheduler(const char* uds_file_name,
+                  std::vector<std::string>& param_file_names);
 
       void PrintRuntimeStates();
 
       void Work();
 
-      void OpenPartitioningParams();
+      void OpenPartitioningParams(std::vector<std::string>& param_file_names);
 
+      int SendPacketToRuntime(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
+      int SendPacketToRuntime(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
       
+      int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.
+      void RefreshRuntimeState(tf_initialization_packet& rx_p);
+      void RefreshRuntimeState(tf_runtime_packet& rx_p);
       void RefreshRuntimeState(tf_packet& rx_p);
 
       ////////////////////////////////////////////////////////////////////////////////////////
       /* Function description of CreatePartitioningPlan
       Read partitioning parameters from file.
-      The parameter ARRAY follows the format below.
+      The parameter array follows the format below.
       format : node_subset /-1/ Resource type(CPU, GPU,,) / Partitioning ratio /-2/ :|(repeat)
                /-3/ new node_subset(redundant subgraph set)/-1/ .. /-2/../-3/.... /-4/(end)
               
@@ -129,10 +146,13 @@ namespace tflite{
        - r_type  : 4 (CO-XNN) 
        - p_ratio : 15 (5:5) */
        ////////////////////////////////////////////////////////////////////////////////////////
-      void CreatePartitioningPlan(tf_packet& rx_p, tf_packet& tx_p);
+      
+      void CreatePartitioningPlan(tf_initialization_packet& rx_p, 
+                                  std::vector<std::vector<int>>& subgraph_param);
 
       // Create a graph of subgraphs.
-      void CreateGraphofSubgraphs(tf_packet& tx_packet);
+      // void CreateGraphofSubgraphs(tf_packet& tx_packet); // deprecated [VLS] - for multi-level subgraph.
+      void CreateGraphofSubgraphs(int id, std::vector<std::vector<int>>& subgraph_param);
 
       // Add new graph node to graph.
       bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
@@ -150,52 +170,52 @@ namespace tflite{
       void PrintGraph(int runtime_id);
 
       // Search and return the subgraph's id to invoke.    
-      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_packet& rx_packet);
+      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet);
 
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.
-      void PrepareRuntime(tf_packet& rx_packet);
+      // void PrepareRuntime(tf_packet& rx_packet); // deprecated [VLS] - for multi-level subgraph.
+      void PrepareRuntime(tf_initialization_packet& rx_packet);
 
       bool CheckAllRuntimesReady();
 
-      bool RoundRobin(ResourceType type, int runtime_id);
       void ReleaseResource(ResourceType type);
 
       ~TfScheduler();
     
     private:
+      LiteSysMonitor* monitor;
+      std::vector<std::fstream*> param_files;
+      std::fstream param_file; // delete after variable length subgraph impl.
+      std::vector<std::vector<int>> subgraph_params; // experimental
 
-    LiteSysMonitor* monitor;
-    std::fstream param_file;
-    std::string param_file_name;
+      int scheduler_fd;
+      size_t addr_size;
+      struct sockaddr_un scheduler_addr;
 
-    int scheduler_fd;
-    size_t addr_size;
-    struct sockaddr_un scheduler_addr;
+      int first_counter = 0;
+      int second_counter = 0;
+      int third_counter = 0;
+      int fourth_counter = 0;
+      int fifth_counter = 0;
 
-    int first_counter = 0;
-    int second_counter = 0;
-    int third_counter = 0;
-    int fourth_counter = 0;
-    int fifth_counter = 0;
+      std::vector<runtime_*> runtimes;
+      int runtimes_created = 0;
 
-    std::vector<runtime_*> runtimes;
-    int runtimes_created = 0;
+      bool reschedule_needed = false;
 
-    bool reschedule_needed = false;
+      // For RR scheduler
+      bool cpu_usage_flag = false;
+      bool gpu_usage_flag = false;
+      bool cpgpu_usage_flag = false;
+      std::queue<int> rr_cpu_queue;
+      std::queue<int> rr_gpu_queue;
 
-    // For RR scheduler
-    bool cpu_usage_flag = false;
-    bool gpu_usage_flag = false;
-    bool cpgpu_usage_flag = false;
-    std::queue<int> rr_cpu_queue;
-    std::queue<int> rr_gpu_queue;
-
-    // current GPU utlization ratio.
-    float* gpu_util;
-    
-    // current CPU utlization ratio(average).
-    float* cpu_util;
+      // current GPU utlization ratio.
+      float* gpu_util;
+      
+      // current CPU utlization ratio(average).
+      float* cpu_util;
   };
 
 }

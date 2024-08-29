@@ -246,14 +246,19 @@ void PrintInterpreterStateV3(Interpreter* interpreter) {
     int subgraph_id = interpreter->subgraph(subgraph_index)->GetGraphid();
     int tensor_size = interpreter->subgraph_id(subgraph_id)->tensors_size();
     int node_size = interpreter->nodes_size(subgraph_id);
-    printf("Subgraph ID %d has %d tensors and %d nodes\n", subgraph_id,
-        tensor_size, node_size);
-    printf("RW buffer size : %dbytes\n",interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize());
-    printf("Persistent buffer size : %dbytes\n",interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize());
-    int overall_buffer_size = interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize() + interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize();
-    printf("[BEFOR] Get memory size allocated by arena buffer : %.2f MB\n", static_cast<float>(overall_buffer_size) / (1 << 20));
-    printf("\033[0;31m[BEFORE] Subgraph[%d]'s memory overhead : %4.1f MB \033[0m\n",subgraph_id,
-        static_cast<float>(overall_buffer_size) / (1 << 20)); // EZE
+    int subgraph_level = interpreter->subgraph_id(subgraph_id)->GetLevel();
+    printf("Subgraph ID %d level %d has %d tensors and %d nodes\n", subgraph_id, 
+            subgraph_level, tensor_size, node_size);
+    printf("RW buffer size : %dbytes\n",
+            interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize());
+    printf("Persistent buffer size : %dbytes\n",
+            interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize());
+    int overall_buffer_size = interpreter->subgraph_id(subgraph_id)->GetArenaRWBufferSize()\
+                  + interpreter->subgraph_id(subgraph_id)->GetArenaPersistentBufferSize();
+    printf("[BEFOR] Get memory size allocated by arena buffer : %.2f MB\n",
+            static_cast<float>(overall_buffer_size) / (1 << 20));
+    printf("\033[0;31m[BEFORE] Subgraph[%d]'s memory overhead : %4.1f MB \033[0m\n",
+            subgraph_id, static_cast<float>(overall_buffer_size) / (1 << 20)); // EZE
     printf("Model ID : %d\n", interpreter->subgraph_id(subgraph_id)->GetModelid());
     std::cout << "Resource type : " 
           << interpreter->subgraph_id(subgraph_id)->GetResourceType() << "\n";

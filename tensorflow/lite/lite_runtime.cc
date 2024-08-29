@@ -207,7 +207,6 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
-
   if (InitializeUDS() != kTfLiteOk) {
     std::cout << "UDS socker init ERROR"
               << "\n";
@@ -225,12 +224,14 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     }
     return;
   }
-
+  //[VLS Todo] recieves partitioning plan from scheduler here.
+  //[VLS Todo] repeat this fucntion multiple time inside?
   if (RegisterModeltoScheduler() != kTfLiteOk) {
     std::cout << "Model registration to scheduler ERROR"
               << "\n";
   }
-  if (PartitionCoSubgraphs() != kTfLiteOk) {
+  //[VLS Todo] use init packet
+  if (PartitionMultiLevelSubgraphs() != kTfLiteOk) {
     std::cout << "Model partitioning ERROR"
               << "\n";
   }
@@ -392,8 +393,9 @@ TfLiteStatus TfLiteRuntime::InitializeUDS() {
               << "\n";
     return kTfLiteError;
   }
-  tf_packet new_packet;
-  memset(&new_packet, 0, sizeof(tf_packet));
+  tf_initialization_packet new_packet;
+  // tf_packet new_packet;
+  memset(&new_packet, 0, sizeof(tf_initialization_packet));
   new_packet.runtime_current_state = 0;
   new_packet.runtime_id = -1;
 
@@ -405,18 +407,18 @@ TfLiteStatus TfLiteRuntime::InitializeUDS() {
   std::cout << "Send runtime register request to scheduler"
             << "\n";
 
-  tf_packet recv_packet;
-  if (ReceivePacketFromScheduler(recv_packet) != kTfLiteOk) {
+  tf_initialization_packet rx_packet;
+  if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
     std::cout << "Receiving packet from scheduler FAILED"
               << "\n";
     return kTfLiteError;
   }
 
-  runtime_id = recv_packet.runtime_id;
+  runtime_id = rx_packet.runtime_id;
   std::cout << "Got runtime ID " << runtime_id << " from scheduler"
             << "\n";
-
-  if (ChangeStatewithPacket(recv_packet) != kTfLiteOk) {
+  RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+  if (ChangeState(next_state) != kTfLiteOk) {
     return kTfLiteError;
   }
   return kTfLiteOk;
@@ -445,6 +447,28 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_packet& tx_p) {
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p) {
+  std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  if (sendto(runtime_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
+    std::cout << "Sending packet to scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
+  // std::cout << "Runtime :Send packet to scheduler" << "\n";
+  if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
+    std::cout << "Sending packet to scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p) {
   if (recvfrom(runtime_sock, &rx_p, sizeof(tf_packet), 0, NULL, 0) == -1) {
     std::cout << "Receiving packet from scheduler FAILED"
@@ -454,12 +478,30 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p) {
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::ChangeStatewithPacket(tf_packet& rx_p) {
+TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_initialization_packet& rx_p) {
+  if (recvfrom(runtime_sock, &rx_p, sizeof(tf_initialization_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_runtime_packet& rx_p) {
+  if (recvfrom(runtime_sock, &rx_p, sizeof(tf_runtime_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::ChangeState(RuntimeState next_state) {
   std::cout << "================================================"
             << "\n";
-  if (rx_p.runtime_next_state != state) {
-    std::cout << "runtime_next_state : " << rx_p.runtime_next_state << "\n";
-    state = static_cast<RuntimeState>(rx_p.runtime_next_state);
+  if (next_state != state) {
+    std::cout << "runtime_next_state : " << next_state << "\n";
+    state = next_state;
     std::cout << "Runtime " << runtime_id << " state changed to " << state
               << "\n";
     std::cout << "================================================"
@@ -554,6 +596,8 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
   return kTfLiteOk;
 };
 
+
+// [VLS Todo] repeat multiple times to get multi-level subgraph partitioning plan.
 TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
   if (state != RuntimeState::NEED_PROFILE) {
     std::cout << "State is " << state
@@ -561,8 +605,8 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
               << RuntimeState::NEED_PROFILE << "\n";
     return kTfLiteError;
   }
-  tf_packet tx_packet;
-  memset(&tx_packet, 0, sizeof(tf_packet));
+  tf_initialization_packet tx_packet;
+  memset(&tx_packet, 0, sizeof(tf_initialization_packet));
   tx_packet.runtime_current_state = state;
   tx_packet.runtime_id = runtime_id;
 
@@ -574,59 +618,80 @@ TfLiteStatus TfLiteRuntime::RegisterModeltoScheduler() {
   for (int i = 0; i < layers; ++i) {
     tx_packet.latency[i] = -1.0;  // means that this is a dummy latency profile.
   }
+    
+  //////////////////////////////////////////////////////
+  // [VLS Todo] iterate this part in subgraph levels.
   if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
     std::cout << "Sending profile packet to scheduler failed"
               << "\n";
     return kTfLiteError;
   }
+  int received_level = 0;
+  // [VLS Todo] Repeat this point multiple time.
+  tf_initialization_packet rx_packet;
+  while(state == RuntimeState::NEED_PROFILE){
+    if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
+      std::cout << "Receiving partitioning plan packet from scheduler Failed"
+                << "\n";
+      return kTfLiteError;
+    }
+    received_level = rx_packet.level;
 
-  tf_packet rx_packet;
-  if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
-    std::cout << "Receiving partitioning plan packet from scheduler Failed"
-              << "\n";
-    return kTfLiteError;
-  }
+    // copy the partitioning plan from scheduler.
+    if(partitioning_plan_.size() <= received_level){
+      partitioning_plan_.push_back(std::vector<int>()); // push new level of subgraph param.
+      int iter = 0;
+      int value = rx_packet.partitioning_plan[iter];
+      while(value != -4){
+        partitioning_plan_[received_level].push_back(value);
+        iter++;
+        value = rx_packet.partitioning_plan[iter];
+      }
+      partitioning_plan_[received_level].push_back(-4);
+    }
 
-  // copy the partitioning plan from scheduler.
-  memcpy(partitioning_plan, rx_packet.partitioning_plan,
-         sizeof(int) * TF_P_PLAN_LENGTH);
-
-  if (ChangeStatewithPacket(rx_packet) != kTfLiteOk) {
-    return kTfLiteError;
+    RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+    if(state != next_state){
+      if (ChangeState(next_state) != kTfLiteOk) {
+        return kTfLiteError;
+      }
+      break;
+    }
+    tf_initialization_packet tx_packet;
+    memset(&tx_packet, 0, sizeof(tf_initialization_packet));
+    tx_packet.runtime_current_state = state;
+    tx_packet.runtime_id = runtime_id;
+    tx_packet.level = received_level+1;
+    if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
+      std::cout << "Sending profile packet to scheduler failed"
+                << "\n";
+      return kTfLiteError;
+    }
   }
   std::cout << "Successfully registered model to scheduler"
             << "\n";
-  // interpreter->PrintSubgraphInfo();
-  // sub_interpreter->PrintSubgraphInfo();
+
+  // [VLS Debug]
+  // std::cout << "Runtime got " << partitioning_plan_.size()+1 
+  //           << " levels of parameters" << "\n";
+  // for(auto level : partitioning_plan_){
+  //   for(auto value : level){
+  //     std::cout << value << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
+  
   return kTfLiteOk;
 }
 
 TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
-  // Need refactor for new partitioning format.
-  // std::vector<std::vector<int>> raw_plan;
-  // for (int i = 0; i < TF_P_PLAN_LENGTH; ++i) {
-  //   while (partitioning_plan[i][TF_P_IDX_START] != TF_P_END_MASTER) {
-  //     raw_plan.push_back(std::vector<int>());
-  //     if (partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN) {
-  //       raw_plan[i].push_back(TF_P_END_PLAN);
-  //       break;
-  //     }
-  //     for (int j = 0; j < TF_P_PLAN_SIZE; ++j) {  // third idx means processor.
-  //       raw_plan[i].push_back(partitioning_plan[i][j]);
-  //     }
-  //   }
-  //   interpreter_builder->CopyRawPartitioningPlan(raw_plan);
-  //   std::cout << "Runtime : CopyRawPartitioningPlan"
-  //             << "\n";
-  //   raw_plan.clear();
-  // }
   Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
   if (origin_subgraph == nullptr) {
     std::cout << "Model id " << interpreter_builder->GetModelid()
               << " no subgraph. \n";
     return kTfLiteError;
   }
-  if (interpreter_builder->CreateSubgraphsFromProfiling(origin_subgraph) !=
+  if (interpreter_builder->CreateSubgraphsFromParameter(origin_subgraph) !=
       kTfLiteOk) {
     std::cout << "CreateSubgraphsFromProfiling returned ERROR"
               << "\n";
@@ -648,10 +713,11 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
   }
 
   // At this point, scheduler will send INVOKE state.
-  if (ChangeStatewithPacket(rx_packet) != kTfLiteOk) {
+  RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+  if (ChangeState(next_state) != kTfLiteOk) {
     return kTfLiteError;
   }
-
+  
   interpreter->PrintSubgraphInfo();
   PrintInterpreterStateV3(interpreter);
   std::cout << "Successfully partitioned subgraph"
@@ -661,103 +727,116 @@ TfLiteStatus TfLiteRuntime::PartitionSubgraphs() {
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
+// [VLS Todo] Repeat multiple times and register subgraphs.
+// [VLS Todo] check this function safe if called multiply to create multi-level subgraphs.
+TfLiteStatus TfLiteRuntime::PartitionMultiLevelSubgraphs() {
   std::cout << "PartitionCoSubgraphs" << "\n";
-  std::vector<std::vector<int>> raw_plan;
-  int inner_plan_idx = 0;
-  std::vector<int> plan_from_scheduler;
-  for(int i=0; i < TF_P_PLAN_LENGTH; ++i){
-    plan_from_scheduler.push_back(partitioning_plan[i]);
-  }
-  interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
-  sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
-  std::cout << "CopyRawPartitioningPlan Done" << "\n";
-  // // need to refactor for new partitioning format 
-  // for (int i = 0; i < TF_P_PLAN_LENGTH; ++i) {
-  //   raw_plan.push_back(std::vector<int>());
-  //   inner_plan_idx = raw_plan.size() - 1;
-  //   if (partitioning_plan[i][TF_P_IDX_START] == TF_P_END_PLAN) {
-  //     raw_plan[inner_plan_idx].push_back(TF_P_END_PLAN);
-  //     interpreter_builder->CopyRawPartitioningPlan(raw_plan);
-  //     sub_builder->CopyRawPartitioningPlan(raw_plan);
-  //     raw_plan.clear();
-  //     inner_plan_idx = 0;
-  //     raw_plan.push_back(std::vector<int>());
-  //     i++;
-  //   }
-  // }
+  int levels = partitioning_plan_.size(); // total level of subgraphs to create.
 
-  Subgraph* origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
-  if (origin_subgraph == nullptr) {
-    std::cout << "Model id " << interpreter_builder->GetModelid()
-              << " no subgraph. \n";
-    return kTfLiteError;
-  }
-  if (interpreter_builder->CreateSubgraphsFromProfiling(origin_subgraph) !=
-      kTfLiteOk) {
-    std::cout << "CreateSubgraphsFromProfiling returned ERROR"
-              << "\n";
-    return kTfLiteError;
-  }
-  std::cout << "==============================="
-            << "\n";
-  std::cout << "Full precision subgraph created"
-            << "\n";
-  std::cout << "==============================="
-            << "\n";
-  // Create subgraphs of quantized model
-  Subgraph* origin_quantized_subgraph =
-      sub_interpreter->returnProfiledOriginalSubgraph(0);
-  if (origin_quantized_subgraph == nullptr) {
-    std::cout << "Model id " << interpreter_builder->GetModelid()
-              << " no subgraph. \n";
-    return kTfLiteError;
-  }
-  if (sub_builder->CreateSubgraphsFromProfiling(origin_quantized_subgraph) !=
-      kTfLiteOk) {
-    std::cout << "CreateSubgraphsFromProfiling returned ERROR"
-              << "\n";
-    return kTfLiteError;
-  }
-  std::cout << "==============================="
-            << "\n";
-  std::cout << "Minimal precision subgraph created"
-            << "\n";
-  std::cout << "==============================="
-            << "\n";
+  ////////////////////////////////////////////////////
+  // [VLS] repeat this codes safely to create multi-level subgraphs?
+  std::cout << "Creates " << partitioning_plan_.size() << " levels" << "\n";
+  for(int working_level=0; working_level<levels; ++working_level){
+    std::vector<std::vector<int>> raw_plan;
+    int inner_plan_idx = 0;
+    std::vector<int> plan_from_scheduler(partitioning_plan_[working_level].begin(),
+                                          partitioning_plan_[working_level].end());
 
-  tf_packet tx_packet;
-  memset(&tx_packet, 0, sizeof(tf_packet));
-  tx_packet.runtime_id = runtime_id;
-  tx_packet.runtime_current_state = state;
+    std::cout << "Create subgraphs of level : " << working_level << "\n";
+    interpreter_builder->ClearRawPartitioningPlan(); // clear previous level partitioning plan
+    sub_builder->ClearRawPartitioningPlan(); // clear previous level partitioning plan
+    interpreter_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+    sub_builder->CopyRawPartitioningPlan(plan_from_scheduler);
+    std::cout << "plan from sched" << "\n";
+    for(int i=0; i<plan_from_scheduler.size(); ++i){
+      std::cout << plan_from_scheduler[i] << " ";
+    }
+    std::cout << "\n";
+    std::cout << "CopyRawPartitioningPlan Done" << "\n";
+    Subgraph* origin_subgraph = nullptr;
+    if(working_level == 0){
+      origin_subgraph = interpreter->returnProfiledOriginalSubgraph(0);
+    }
+    // if (origin_subgraph == nullptr) {
+    //   std::cout << "Model id " << interpreter_builder->GetModelid()
+    //             << " no subgraph. \n";
+    //   return kTfLiteError;
+    // }
+    if (interpreter_builder->CreateSubgraphsFromParameter(working_level, origin_subgraph) !=
+        kTfLiteOk) {
+      std::cout << "CreateSubgraphsFromProfiling returned ERROR"
+                << "\n";
+      return kTfLiteError;
+    }
+    std::cout << "==============================="
+              << "\n";
+    std::cout << "Main interpreter subgraph created"
+              << "\n";
+    std::cout << "==============================="
+              << "\n";
+    // Create subgraphs of quantized model
+    Subgraph* origin_quantized_subgraph = nullptr;
+    if(working_level == 0){
+      origin_quantized_subgraph = sub_interpreter->returnProfiledOriginalSubgraph(0);
+    }
+    // if (origin_quantized_subgraph == nullptr) {
+    //   std::cout << "Model id " << interpreter_builder->GetModelid()
+    //             << " no subgraph. \n";
+    //   return kTfLiteError;
+    // }
+    if (sub_builder->CreateSubgraphsFromParameter(working_level, origin_quantized_subgraph) !=
+        kTfLiteOk) {
+      std::cout << "CreateSubgraphsFromProfiling returned ERROR"
+                << "\n";
+      return kTfLiteError;
+    }
+    std::cout << "==============================="
+              << "\n";
+    std::cout << "Sub interpreter subgraph created"
+              << "\n";
+    std::cout << "==============================="
+              << "\n";
+  }
+
 
   // Fill the subgraph id section in tf_packet so that the scheduler can
   // see the total graph of view.
-  std::vector<int> full_prec_subgraphs, min_prec_subgraphs;
-  interpreter->GetTotalSubgraphID(full_prec_subgraphs);
-  sub_interpreter->GetTotalSubgraphID(min_prec_subgraphs);
+  for(int level=0; level<levels; ++level){  
+    tf_initialization_packet tx_packet;
+    memset(&tx_packet, 0, sizeof(tf_initialization_packet));
+    tx_packet.runtime_id = runtime_id;
+    tx_packet.runtime_current_state = state;
+    tx_packet.level = level;
 
-  for (int i = 0; i < full_prec_subgraphs.size(); ++i) {
-    tx_packet.subgraph_ids[0][i] = full_prec_subgraphs[i];
-  }
-  tx_packet.subgraph_ids[0][full_prec_subgraphs.size()] = -1;
-  for (int i = 0; i < min_prec_subgraphs.size(); ++i) {
-    tx_packet.subgraph_ids[1][i] = min_prec_subgraphs[i];
-  }
-  tx_packet.subgraph_ids[1][min_prec_subgraphs.size()] = -1;
+    std::vector<int> main_interpreter_subgraphs, sub_interpreter_subgraphs;
+    interpreter->GetTotalSubgraphIDInLevel(level, main_interpreter_subgraphs);
+    sub_interpreter->GetTotalSubgraphIDInLevel(level, sub_interpreter_subgraphs);
 
-  if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
-    return kTfLiteError;
-  }
+    for (int i = 0; i < main_interpreter_subgraphs.size(); ++i) {
+      tx_packet.subgraph_ids[0][i] = main_interpreter_subgraphs[i];
+    }
+    tx_packet.subgraph_ids[0][main_interpreter_subgraphs.size()] = -1;
 
-  tf_packet rx_packet;
-  if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
-    return kTfLiteError;
-  }
 
-  // At this point, scheduler will send INVOKE state.
-  if (ChangeStatewithPacket(rx_packet) != kTfLiteOk) {
-    return kTfLiteError;
+    for (int i = 0; i < sub_interpreter_subgraphs.size(); ++i) {
+      tx_packet.subgraph_ids[1][i] = sub_interpreter_subgraphs[i];
+    }
+    tx_packet.subgraph_ids[1][sub_interpreter_subgraphs.size()] = -1;  
+    
+    if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
+      return kTfLiteError;
+    }
+ 
+    tf_initialization_packet rx_packet;
+    if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
+      return kTfLiteError;
+    }
+
+    // At this point, scheduler will send INVOKE state.
+    RuntimeState next_state = static_cast<RuntimeState>(rx_packet.runtime_next_state);
+    if (ChangeState(next_state) != kTfLiteOk) {
+      return kTfLiteError;
+    }
   }
 
   // interpreter->PrintSubgraphInfo();
@@ -786,6 +865,7 @@ TfLiteStatus TfLiteRuntime::PartitionCoSubgraphs() {
   return kTfLiteOk;
 }
 
+// [VLS Todo] check for possible bugs.
 TfLiteStatus TfLiteRuntime::PrepareCoExecution() {
   if (sub_interpreter == nullptr) {
     std::cout << "PrepareCoExecution ERROR"
@@ -1128,39 +1208,6 @@ TfLiteStatus TfLiteRuntime::Invoke() {
   TfLiteStatus return_state_sub = TfLiteStatus::kTfLiteOk;
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
 
-#ifdef yolo_branch
-  Subgraph* temp_subgraph = interpreter->subgraph_id(7);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(8);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
-#ifdef lanenet_branch
-  Subgraph* temp_subgraph = interpreter->subgraph_id(4);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(5);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
-
-#ifdef yolo_branch_only
-  Subgraph* temp_subgraph = interpreter->subgraph_id(2);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(3);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
-#ifdef center_branch
-  Subgraph* temp_subgraph = interpreter->subgraph_id(3);
-  temp_subgraph->SetResourceType(ResourceType::CO_CPU_XNN);
-
-  temp_subgraph = interpreter->subgraph_id(4);
-  temp_subgraph->SetResourceType(ResourceType::CO_GPU);
-#endif
-
 #ifdef latency_measure
   struct timespec begin, end;
   clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -1239,37 +1286,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
 #endif
 
-#ifdef yolo_branch
-      if(co_subgraph_id == 7){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#ifdef lanenet_branch
-      if(co_subgraph_id == 4){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#ifdef yolo_branch_only
-      if(co_subgraph_id == 2){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#ifdef center_branch
-      if(co_subgraph_id == 3){
-        subgraph = interpreter->subgraph_id(co_subgraph_id);
-      }else{
-        subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      }
-#endif
-#if !defined (yolo_branch) && !defined (yolo_branch_only) && !defined(lanenet_branch) && !defined(center_branch)
       subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-#endif 
       if (main_execution_graph != nullptr) {
 #ifdef debug_print
         std::cout << "sub CopyIntermediateDataIfNeeded"
@@ -1332,9 +1349,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       data_sync_cv.notify_one();
 
     } else if (type == InterpreterType::MAIN_INTERPRETER) {
-      // TODO (d9a62) : Make this part to an individual function.
-      tf_packet tx_packet;
-      memset(&tx_packet, 0, sizeof(tf_packet));
+      // TODO (d9a62) : Make this communication part to an individual function.
+      // [VLS] Todo : Use runtime packet here.
+      tf_runtime_packet tx_packet;
+      memset(&tx_packet, 0, sizeof(tf_runtime_packet));
       tx_packet.runtime_id = runtime_id;
       tx_packet.runtime_current_state = state;
       tx_packet.cur_subgraph = subgraph_id;
@@ -1344,7 +1362,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return_state = kTfLiteError;
         break;
       }
-      tf_packet rx_packet;
+      tf_runtime_packet rx_packet;
       if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
         return_state = kTfLiteError;
         break;
@@ -1414,34 +1432,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         if (rx_packet.subgraph_ids[1][0] != -1){
           co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
         }
-#ifdef yolo_branch // test code for branch execution.
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 7){ // Hardcoded part for yolo.
-          co_subgraph_id = 7;
-          subgraph_id = 8;
-        }
-#endif // test code for branch execution.
-#ifdef lanenet_branch // test code for branch execution.
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 4){ // Hardcoded part for yolo.
-          co_subgraph_id = 4;
-          subgraph_id = 5;
-        }
-#endif // test code for branch execution.
-#ifdef yolo_branch_only
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 2){ // Hardcoded part for yolo.
-          co_subgraph_id = 2;
-          subgraph_id = 3;
-        }
-#endif
-#ifdef center_branch 
-        // Get sub subgraph id to invoke if exists.
-        if (subgraph_id == 3){ // Hardcoded part for yolo.
-          co_subgraph_id = 3;
-          subgraph_id = 4;
-        }
-#endif
+
       bool merged = false;
       // Check if co execution. If so, give co-execution graph to
       // sub-interpreter and notify.

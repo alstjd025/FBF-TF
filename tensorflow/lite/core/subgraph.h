@@ -235,6 +235,9 @@ class Subgraph {
 
   ResourceType GetResourceType() { return resource_type; }
   void SetResourceType(ResourceType type) { resource_type = type; }
+  
+  void SetLevel(int level_) {level = level_;};
+  int GetLevel() {return level;}
 
   // Minsung
   // Access to an input tensor (for multiple subgraphs and GPUdelegate)
@@ -1027,6 +1030,9 @@ class Subgraph {
 
   // Stores unique id of job which current subgraph belongs.
   int job_id_ = -1;
+
+  // Stores the level of subgraph.
+  int level = -1;
 
   ResourceType resource_type = ResourceType::CPU;
   PartitioningType partitioning_type = PartitioningType::NO_PARTITIONING; 

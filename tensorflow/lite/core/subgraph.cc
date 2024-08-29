@@ -2391,10 +2391,11 @@ TfLiteStatus Subgraph::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
   }
   if (!(delegate->flags & kTfLiteDelegateFlagsAllowDynamicTensors)) {
     int last_execution_plan_index_prepared;
-    if (resource_type == ResourceType::CO_GPU) {
+    if (resource_type == ResourceType::CO_GPU &&
+        partitioning_type == PartitioningType::CHANNEL_PARTITIONING) {
       // Runtime filter modification for co-execution
       int partitioning_ratio = GetPartitioningRatio();
-      std::cout << "partitioning ratio : " << partitioning_ratio << "\n";
+      std::cout << "channel partitioning ratio : " << partitioning_ratio << "\n";
       if (partitioning_ratio < 10) {
         // channel-wise partitioning(GPU)
         int conv_filter_before_modification = 0;

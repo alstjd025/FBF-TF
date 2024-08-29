@@ -52,7 +52,6 @@ typedef struct TfLiteExecutionPlan {
 } TfLiteExecutionPlan;
 
 class LiteScheduler;
-// class YOLO_Parser;
 
 class TfLiteRuntime {
  public:
@@ -75,7 +74,7 @@ class TfLiteRuntime {
   TfLiteStatus PredictSubgraphPartitioning();
 
   // Partitions subgraph in both Float & Int.
-  TfLiteStatus PartitionCoSubgraphs();
+  TfLiteStatus PartitionMultiLevelSubgraphs();
 
   // Prepares co-execution for intermediate & shared tensors between
   // interpreters.
@@ -209,9 +208,15 @@ class TfLiteRuntime {
   //// IPC functions
   // Initialize UDS and check communication with scheduler.
   TfLiteStatus InitializeUDS();
-  TfLiteStatus ChangeStatewithPacket(tf_packet& rx_p);
+  TfLiteStatus ChangeState(RuntimeState next_state);
   RuntimeState GetRuntimeState() { return state; };
+
+  TfLiteStatus SendPacketToScheduler(tf_initialization_packet& tx_p);
+  TfLiteStatus SendPacketToScheduler(tf_runtime_packet& tx_p);
   TfLiteStatus SendPacketToScheduler(tf_packet& tx_p);
+
+  TfLiteStatus ReceivePacketFromScheduler(tf_initialization_packet& rx_p);
+  TfLiteStatus ReceivePacketFromScheduler(tf_runtime_packet& rx_p);
   TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
   void ShutdownScheduler();
   //////
@@ -256,7 +261,11 @@ class TfLiteRuntime {
   TfLiteMergeTensor* merge_tensor = nullptr;
 
   // Subgraph partitioning
+  // [VLS] Todo : will deprecated in multi-level subgraph design.
   int partitioning_plan[TF_P_PLAN_LENGTH];
+
+  // multi-level subgraph partitioning plan from scheduler.
+  std::vector<std::vector<int>> partitioning_plan_; 
 
   // sj
   std::vector<TfLiteDelegate*> delegate;

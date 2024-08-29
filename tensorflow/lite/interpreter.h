@@ -36,7 +36,7 @@ limitations under the License.
 #include "tensorflow/lite/memory_planner.h"
 #include "tensorflow/lite/stderr_reporter.h"
 #include "tensorflow/lite/type_to_tflitetype.h"
-#include "tensorflow/lite/worker_core.h"
+#include "opencv2/opencv.hpp"
 
 namespace tflite {
 
@@ -254,6 +254,8 @@ class Interpreter {
   // Returns the whole subgraphs id in vector
   void GetTotalSubgraphID(std::vector<int>& graph_ids);
 
+  void GetTotalSubgraphIDInLevel(int level, std::vector<int>& graph_ids);
+
 #ifndef DOXYGEN_
   /// WARNING: Experimental interface, subject to change
   /// Overrides execution plan. This bounds checks indices sent in.
@@ -331,6 +333,10 @@ class Interpreter {
   // returns a pointer to initial input tensor of given model's subgraphs.
   TfLiteTensor* input_tensor_of_model(int model_id);
 
+  // Minsung
+  // returns a pointer to initial input tensor of given level and model's subgraphs.
+  TfLiteTensor* input_tensor_of_model(int level, int model_id);
+
   /// Return a mutable pointer into the data of a given input tensor. The given
   /// index must be between 0 and inputs().size().
   template <class T>
@@ -402,9 +408,9 @@ class Interpreter {
   TfLiteStatus AllocateTensors();
 
   // Minsung
-  TfLiteStatus AllocateTensorsofSubsets(int model_id);
+  // TfLiteStatus AllocateTensorsofSubsets(int model_id);
 
-  TfLiteStatus ReadyJobsofGivenModel(int model_id);
+  TfLiteStatus AllocateTensorsofSubsets(int level, int model_id);
 
   // Minsung
   // Get the intermediate tensor range(means index range) from subgraphs
@@ -532,7 +538,14 @@ class Interpreter {
   // Minsung
   // Create a new subgraph
   // Use only in interpreterbuilder
-  tflite::Subgraph* CreateSubgraph();
+  // creates default in level 0.
+  // DO NOT USE!
+  // tflite::Subgraph* CreateSubgraph();
+
+  // Minsung
+  // Create a new subgraph in given level.
+  // Use only in interpreterbuilder.
+  tflite::Subgraph* CreateSubgraphInLevel(int level);
 
   // Minsung
   tflite::Subgraph* returnProfiledOriginalSubgraph(int id);
@@ -643,9 +656,21 @@ class Interpreter {
   void AddSubgraphs(int subgraphs_to_add,
                     int* first_new_subgraph_index = nullptr);
 
-  /// Return the number of subgraphs in the model.
+  /// Return the number of subgraph levels in the model.
   /// WARNING: This is an experimental API and subject to change.
-  size_t subgraphs_size() const { return subgraphs_.size(); }
+  // size_t subgraphs_level_size() const { return subgraphs_.size(); }
+
+
+  /// Return the number of subgraph in  given level.
+  /// WARNING: This is an experimental API and subject to change.
+  /// multi-lvel modified.
+  size_t subgraphs_size() const {
+    size_t num = 0;
+    for(auto& graphs : subgraphs__){
+      num += graphs.size();
+    }
+    return num; 
+  }
 
   // Minsung
   // CAN BE A PROBLEM?
@@ -654,125 +679,84 @@ class Interpreter {
   Subgraph* subgraph(int subgraph_index) {
     if (subgraph_index < 0 ||
         static_cast<size_t>(subgraph_index) >= subgraphs_size())
-      return nullptr;
-    return &*subgraphs_[subgraph_index];
-  }
-  // Minsung
-  // Get a pointer to a subgraph of given id.
-  Subgraph* subgraph_id(int id) {
-    if (subgraphs_size() > 0) {
-      for (size_t i = 0; i < subgraphs_.size(); ++i) {
-        if (subgraphs_[i]->GetGraphid() == id) return &*subgraphs_[i];
+      {return nullptr;}
+    int iter = 0;
+    for(int i=0; i<subgraphs__.size(); ++i){
+      for(int j=0; j<subgraphs__[i].size(); ++j){
+        if(iter != subgraph_index){
+          iter++;
+        }else{
+          return &*subgraphs__[i][j];
+        }
       }
     }
-    return nullptr;
+  }
+
+  // Minsung
+  // Get a pointer to a subgraph of given level and id.
+  // deprecated to below function since multi-level subgraph design.
+  // Subgraph* subgraph_id(int id) {
+  //   if (subgraphs_size() > 0) {
+  //     for (size_t i = 0; i < subgraphs_.size(); ++i) {
+  //       if (subgraphs_[i]->GetGraphid() == id) return &*subgraphs_[i];
+  //     }
+  //   }
+  //   return nullptr;
+  // }
+
+  Subgraph* subgraph_id(int id){
+    for(auto& graphs : subgraphs__){
+      for(size_t i = 0; i < graphs.size(); ++i){
+        if(graphs[i]->GetGraphid() == id) return &*graphs[i];
+      }
+    }
   }
 
   /// WARNING: Experimental interface, subject to change
+  /// multi-lvel modified.
   Subgraph& primary_subgraph() {
-    return *subgraphs_.front();  /// Safe as subgraphs_ always has 1 entry.
+    return *subgraphs__.front().front();  /// Safe as subgraphs_ always has 1 entry.
   }
 
   /// WARNING: Experimental interface, subject to change
+  /// multi-lvel modified.
   const Subgraph& primary_subgraph() const {
-    return *subgraphs_.front();  // Safe as subgraphs_ always has 1 entry.
+    return *subgraphs__.front().front();  // Safe as subgraphs_ always has 1 entry.
   }
 
   /// WARNING: Experimental interface, subject to change
   // Get the error reporter associated with this interpreter.
   ErrorReporter* error_reporter() const { return error_reporter_; }
 
-  // Minsung
-  // For job handling.
-  // The job id is given by the number of jobs been created.
-  /// WARNING: Must use these two functions together so that the
-  //  number of jobs
-  int GetNumJobsCreated() { return jobs_created; }
-  int AddNumJobsCreated(int add) { jobs_created += add; }
-  int GetAndAddNumJobsCreated(int add) {
-    LockJobs();
-    int n = jobs_created;
-    jobs_created += add;
-    UnlockJobs();
-    return n;
-  }
-
-  // Minsung
-  // The subgraph id is given by the number of subgraphs been created.
-  int GetNumSubgraphsCreated() { return subgraphs_created; }
-  int AddNumSubgraphsCreated(int add) { subgraphs_created += add; }
-  int GetAndAddSubgraphsCreated(int add) {
-    LockJobs();
+  // change this to give ids global.
+  int GetAndAddSubgraphIDCreated() {
     int n = subgraphs_created;
-    subgraphs_created += add;
-    UnlockJobs();
-    return n;
-  }
-
-  // Minsung
-  // The worker id is given by the number of workers been created.
-  int GetNumWorkersCreated() { return workers_created; }
-  int AddNumWorkersCreated(int add) { workers_created += add; }
-  int GetAndAddWorkersCreated(int add) {
-    int n = workers_created;
-    workers_created += add;
+    subgraphs_created++;
     return n;
   }
 
   void SetInputType(INPUT_TYPE type) { input_type = type; }
   INPUT_TYPE GetInputType() { return input_type; }
 
-  // Minsung
-  // Add a new job
-  TfLiteStatus AddNewJob(tflite::Job* new_job);
-
-  TfLiteStatus DeleteJob(int job_id);
-
-  // Minsung
-  // Give jobs to workers
-  TfLiteStatus GiveJob();
-
-  // Add a new subgraph (WARNING: use )
+  // Add a new subgraph (deprecated)
   TfLiteStatus AddNewSubgraph(tflite::Subgraph* new_subgraph);
 
+  // Add a new subgraph of specific level.
+  TfLiteStatus AddNewSubgraph(int level, tflite::Subgraph* new_subgraph);
+
   // Register new subgraph to subgraph subsets with id.
-  TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
+  // TfLiteStatus RegisterSubgraphSubsets(tflite::Subgraph* new_subgraph);
+
+  // Register new subgraph to subgraph subsets with id and level.
+  TfLiteStatus RegisterSubgraphSubsets(int level, tflite::Subgraph* new_subgraph);
 
   TfLiteStatus DeleteSubgraph(int subgraph_id);
-
-  // Creates a new worker of given type
-  TfLiteStatus CreateWorker(ResourceType wType, int cpu_num);
-
-  void FeedInputToWorkerI();
-
-  // Do invoke
-  TfLiteStatus DoInvoke();
-
-  // Invoke test
-  TfLiteStatus DebugInvoke();
 
   // Minsung
   // Only call in CreateSubgraphFromFlatBuffer()
   void SaveOriginTensorDims(Subgraph* origin_graph);
 
   void PrintSubgraphInfo();
-
-  // lock jobs
-  void LockJobs();
-
-  // unlock jobs
-  void UnlockJobs();
-
-  // Returns true if job queue is empty
-  bool IsJobQueueEmpty();
-  bool IsJobVectorEmpty();
-
-  void FlushJobs();
-  void EnqueueJobs();
-
-  int GetJobNum();
-
-  Job* GetJob();
 
   std::vector<cv::Mat> mnist_input;
   std::vector<cv::Mat> imagenet_input;
@@ -844,19 +828,24 @@ class Interpreter {
   std::unique_ptr<ExternalCpuBackendContext> own_external_cpu_backend_context_;
 
   // Subgraphs
-  std::vector<std::unique_ptr<Subgraph>> subgraphs_;
-  std::vector<std::shared_ptr<Subgraph>> subgraphs_shared;
+  // std::vector<std::unique_ptr<Subgraph>> subgraphs_;
   std::unique_ptr<Subgraph> primary_subgraph_;
+
+  // Subgraphs in multi-level.
+  // subgraphs[level][idx].
+  // search subgraph with level & and id(not index).
+  std::vector<std::vector<std::unique_ptr<Subgraph>>> subgraphs__;
 
   // Minsung
   // Subgraph subsets
+  // Multi-level modified
   // A pair contains model id, subgraph ids
-  // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are
-  // built
-  //     from a model id 1.
+  // ex) pair <1, [2,3,4,5,6]> means, subgraphs which have id 2,3,4,5,6 are built
+  // from a model id 1.
   // Assume that first subgraph of subset is input subgraph.
   // The subgraph which owns the output tensor depends on model stucture.
-  std::vector<std::pair<int, std::vector<int>>> subgraph_subsets;
+  // subgraph_subsets[level]...pair<1, [1,2,3,,]>
+  std::vector<std::vector<std::pair<int, std::vector<int>>>> subgraph_subsets;
 
   // A map of resources. Owned by interpreter and shared by multiple subgraphs.
   resource::ResourceMap resources_;
@@ -867,32 +856,12 @@ class Interpreter {
   std::vector<TfLiteDelegatePtr> lazy_delegate_providers_;
 
   // Minsung
-  std::vector<SharedTensorsInGraphs*> shared_tensor_and_graph;
+  // multi-level modified
+  std::vector<std::vector<SharedTensorsInGraphs*>> shared_tensor_and_graph;
 
   // Minsung
   // GPU Delegate
   bool is_gpu_delegate_prepared = false;
-
-  // Minsung
-  // Jobs
-  // these two variable shares same job's pointer
-  // use job vector to modify specific job, use queue to allocate job to worker.
-  std::vector<tflite::Job*> job_vector;
-  std::queue<tflite::Job*>* jobs;
-  int jobs_created = 0;
-  std::mutex job_mutex;
-
-  // Misnung
-  // Workers
-  tflite::GPUWorker* gpu_worker;
-  std::vector<tflite::Worker*> workers;
-  std::vector<std::thread> worker_threads;
-  std::vector<int> worker_ids;
-  int workers_created = 0;
-
-  // Minsung
-  // Scheduler
-  std::thread scheduler_thread;
 
   // Minsung
   // Delegate
