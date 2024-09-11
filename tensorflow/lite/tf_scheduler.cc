@@ -1,4 +1,5 @@
 #include "tensorflow/lite/tf_scheduler.h"
+#define single_level_motivation
 
 namespace tflite {
 
@@ -31,7 +32,7 @@ TfScheduler::TfScheduler(const char* uds_file_name,
   gpu_util = new float;
 
   OpenPartitioningParams(param_file_names);
-  std::cout << "Scheduler initializaing done"
+  std::cout << "Scheduler initializing done"
             << "\n";
 }
 
@@ -319,10 +320,13 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   int  gpu_thresh = 70;
   int cpu_thresh = 70;
   int level = 0; // slow start
+  bool first_and_last_graph = false;
   subgraph_node* root_graph = runtime->graphs[level]->root;
   subgraph_node* prev_invoked_subgraph = nullptr;
   subgraph_node* prev_base_subgraph = nullptr;
+  std::cout << "cur_graph : " << rx_packet.cur_subgraph << "\n";
   if (rx_packet.cur_subgraph == -1) {  // first invoke
+    std::cout << "first invoke" << "\n";
     // search graph struct for optimal invokable subgraph.
     // and return it.
     // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization
@@ -341,8 +345,6 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
     }
   }
 
-  // TODO (0c8406) : Must revise entire logic to better implementation.
-
   // In case only one subgraph exists.
   if (runtime->graphs[level]->nodes.size() == 1) {
     next_subgraphs_to_invoke.first = runtime->graphs[level]->nodes[0]->subgraph_id;
@@ -353,6 +355,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
       next_subgraphs_to_invoke.first = -1;
       next_subgraphs_to_invoke.second = -1;
     }
+    std::cout << "one subgraph" << "\n";
     return next_subgraphs_to_invoke;
   }
 
@@ -360,16 +363,29 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   subgraph_node* next_subgraph_to_invoke = nullptr;
 
   // case of final subgraph
-  if (prev_base_subgraph->right == nullptr) {
-    next_subgraphs_to_invoke.first = -1;
-    next_subgraphs_to_invoke.second = -1;
-    return next_subgraphs_to_invoke;
-  }  // case of first subgraph
-  else if (rx_packet.cur_subgraph == -1) {
-    next_base_subgraph = root_graph;
-  } else {
-    next_base_subgraph = prev_base_subgraph->right;
-  }
+  #ifdef single_level_motivation
+    if(rx_packet.cur_subgraph != -1){
+      std::cout << "motiv final subgraph" << "\n";
+      next_subgraphs_to_invoke.first = -1;
+      next_subgraphs_to_invoke.second = -1;  
+      return next_subgraphs_to_invoke;
+    }else{
+      next_base_subgraph = root_graph;
+    }
+  #endif
+  #ifndef single_level_motivation
+    if (prev_base_subgraph->right == nullptr) {
+      next_subgraphs_to_invoke.first = -1;
+      next_subgraphs_to_invoke.second = -1;
+      std::cout << "final graph" << "\n";
+      return next_subgraphs_to_invoke;
+    }  // case of first subgraph
+    else if (rx_packet.cur_subgraph == -1) {
+      next_base_subgraph = root_graph;
+    } else {
+      next_base_subgraph = prev_base_subgraph->right;
+    }
+  #endif`
 
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
@@ -409,10 +425,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   // TODO (f85fa) : Fix graph searching, especially in co-execution.
   // Search for matching subgraph.
   while (next_subgraph_to_invoke != nullptr) {
-    if(cpu_usage_flag){
-      if(next_subgraph_to_invoke->partitioning_ratio == 2)
-        break;
-    }else if (next_subgraph_to_invoke->resource_type == next_resource_plan) {
+    if (next_subgraph_to_invoke->resource_type == next_resource_plan) {
       break;
     }
     if (next_subgraph_to_invoke->down != nullptr) {
@@ -431,7 +444,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
-
+  std::cout << "send next subgraph" << "\n";
   return next_subgraphs_to_invoke;
 }
 
