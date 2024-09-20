@@ -12,7 +12,7 @@ TfScheduler::TfScheduler(const char* uds_file_name,
 
   scheduler_fd = socket(PF_FILE, SOCK_DGRAM, 0);
   if (scheduler_fd == -1) {
-    std::cout << "Socker create ERROR"
+    std::cout << "Socket create ERROR"
               << "\n";
     exit(-1);
   }

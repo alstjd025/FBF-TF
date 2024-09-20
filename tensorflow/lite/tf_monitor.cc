@@ -1,6 +1,8 @@
 #include "tensorflow/lite/tf_monitor.h"
 #define nvidia
-#define MONITORING_PERIOD_MS 5
+#define MONITORING_PERIOD_MS 1
+#define ramdisk_gpu_debug
+#define GPU_UTIL_FILE "/mnt/ramdisk/gpu_util"
 /*
   Note[MS] : GPU monitoring period under 5 ms may not safe?
 */
@@ -127,6 +129,15 @@ void LiteSysMonitor::GetCPUUtilization() {
 }
 
 void LiteSysMonitor::GetGPUUtilization() {
+  struct timespec now;
+  #ifdef ramdisk_gpu_debug
+    std::ofstream gpu_util_f;
+    gpu_util_f.open(GPU_UTIL_FILE, std::ios::out | std::ios::trunc);
+    if (!gpu_util_f.is_open()) {
+      std::cerr << "Failed to open gpu_util(h)" << std::endl;
+      return;
+    }
+  #endif
   #ifdef Experiment
   while(1){
     std::ifstream gpu_util;
@@ -152,12 +163,12 @@ void LiteSysMonitor::GetGPUUtilization() {
     int r = lseek(stat, SEEK_SET, 0);
     assert(r != -1);
     char buffer[8];
+    clock_gettime(CLOCK_MONOTONIC, &now);
     const ssize_t readed = read(stat, buffer, sizeof(buffer) - 1);
     assert(readed != -1);
     buffer[readed] = '\0';
     // Read the values from the readed buffer/
     FILE* f = fmemopen(buffer, readed, "r");
-    // Uch, so much borign typing.
     int percentage = 0;
     while (fscanf(f, "%llu", &percentage)) {
       gpu_util_ratio = percentage / 10;
@@ -165,8 +176,10 @@ void LiteSysMonitor::GetGPUUtilization() {
       break;
     }
     fclose(f);
+    gpu_util_f << gpu_util_ratio << " " << now.tv_sec << "." << now.tv_nsec /  1000000000.0 << "\n";
     std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
   }
+  gpu_util_f.close();
   #endif
 }
 
