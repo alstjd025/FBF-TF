@@ -46,6 +46,7 @@ INCLUDES := \
 -I$(MAKEFILE_DIR)/downloads/cpuinfo/src \
 -I$(MAKEFILE_DIR)/downloads/cpuinfo/deps/clog/include \
 -I/usr/include/opencv4\
+-I/usr/include/yaml-cpp\
 -I/home/odroid/tensorflow/tensorflow/lite\
 -I/home/odroid/tensorflow/tensorflow/lite/delegates/gpu\
 -I$(OBJDIR)
@@ -62,6 +63,7 @@ LIBS := \
 -lz \
 -ldl \
 -lopencv_gapi\
+-lyaml-cpp\
 -lflatbuffers /lib/aarch64-linux-gnu/libdl.so.2\
 -lopencv_stitching -lopencv_aruco -lopencv_bgsegm\
 -lopencv_bioinspired -lopencv_ccalib\
@@ -80,7 +82,8 @@ LIBS := \
 /home/xavier/FBF-TF/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so\
 /usr/lib/aarch64-linux-gnu/libGL.so\
 /usr/lib/aarch64-linux-gnu/libEGL.so\
-/usr/lib/aarch64-linux-gnu/libGLESv2.so
+/usr/lib/aarch64-linux-gnu/libGLESv2.so\
+/usr/lib/aarch64-linux-gnu/libyaml-cpp.so
 
 # There are no rules for compiling objects for the host system (since we don't
 # generate things like the protobuf compiler that require that), so all of

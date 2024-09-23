@@ -20,6 +20,8 @@
 #include "tensorflow/lite/util.h"
 #include "tensorflow/lite/tf_monitor.h"
 
+#include <yaml-cpp/yaml.h> // for yaml parameter.
+
 namespace tflite{
 
   // NEED_REFACTOR (02634) : Add obvious resource type (CPU, GPU, TPU,,.)
@@ -64,6 +66,15 @@ namespace tflite{
     int level;
   }subgraph_graph;
 
+  typedef struct yaml_param{
+    std::vector<int> ops;
+    int ratio;
+    int resource;
+    float latency;
+    int cpu_util;
+    int gpu_util;
+  }yaml_param;
+
   typedef struct runtime_{
     // will be deprecated by variable length subgraph design below.
     // subgraph_graph* graph = nullptr;
@@ -93,6 +104,7 @@ namespace tflite{
       void Work();
 
       void OpenPartitioningParams(std::vector<std::string>& param_file_names);
+      
 
       int SendPacketToRuntime(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
@@ -147,12 +159,18 @@ namespace tflite{
        - p_ratio : 15 (5:5) */
        ////////////////////////////////////////////////////////////////////////////////////////
       
+      // Deprecated since yaml parameter usage.
       void CreatePartitioningPlan(tf_initialization_packet& rx_p, 
                                   std::vector<std::vector<int>>& subgraph_param);
 
+      // Create partitioning plan with reading yaml file.
+      void CreatePartitioningPlan(tf_initialization_packet& rx_p,
+                                  std::vector<std::vector<int>>& subgraph_params_sched,
+                                  std::vector<std::vector<int>>& subgraph_params_runtime);
+
       // Create a graph of subgraphs.
       // void CreateGraphofSubgraphs(tf_packet& tx_packet); // deprecated [VLS] - for multi-level subgraph.
-      void CreateGraphofSubgraphs(int id, std::vector<std::vector<int>>& subgraph_param);
+      void CreateGraphofSubgraphs(int id, std::vector<std::vector<int>>& subgraph_params_sched);
 
       // Add new graph node to graph.
       bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
@@ -185,9 +203,24 @@ namespace tflite{
     
     private:
       LiteSysMonitor* monitor;
+      
+      // deprecated since yaml paramter.
       std::vector<std::fstream*> param_files;
+      
+      // deprecated since yaml paramter.
       std::fstream param_file; // delete after variable length subgraph impl.
+      
+      std::vector<std::string> yaml_param_files;
+      
+      // deprecated since yaml paramter.
       std::vector<std::vector<int>> subgraph_params; // experimental
+      
+      // subgraph parameters for shceduler.
+      // (slightly different from params for runtime. latency, util added).
+      std::vector<std::vector<int>> subgraph_params_sched;
+
+      // subgraph parameters for runtime.
+      std::vector<std::vector<int>> subgraph_params_runtime; 
 
       int scheduler_fd;
       size_t addr_size;
