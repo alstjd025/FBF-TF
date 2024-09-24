@@ -1,5 +1,5 @@
 #include "tensorflow/lite/tf_scheduler.h"
-#define single_level_motivation
+// #define single_level_motivation
 
 namespace tflite {
 
@@ -398,7 +398,28 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   /* [IMPT] Utilization based resource allocation part */
   // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
-  
+  bool use_cpu = false;
+  bool use_gpu = false;
+  if(rx_packet.main_interpret_response_time > prev_invoked_subgraph->average_latency * 1.2){
+    std::cout << "contention!" << "\n";
+    if(prev_invoked_subgraph->resource_type == 3){
+      std::cout << "use gpu";
+      next_resource_plan = 1;
+      use_gpu = true;
+      use_cpu = false;
+    }else if(prev_invoked_subgraph->resource_type == 1){
+      std::cout << "use cpu";
+      next_resource_plan = 3;
+      use_gpu = false;
+      use_cpu = true;
+    }
+  }
+  if(use_gpu){
+    next_resource_plan = 1;
+  }
+  if(use_cpu){
+    next_resource_plan = 3;
+  }
   // if (gpu_util == 0 && cpu_util == 400) {
   //   // Use CPU
   //   next_resource_plan = TF_P_PLAN_GPU;
@@ -417,7 +438,9 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   //   std::cout << "USE BASE" << "\n";
   //   next_resource_plan = next_base_subgraph->resource_type;
   // }
-  next_resource_plan = next_base_subgraph->resource_type;
+  
+  // base code.
+  //next_resource_plan = next_base_subgraph->resource_type;
   
   /* [IMPT] */
 
