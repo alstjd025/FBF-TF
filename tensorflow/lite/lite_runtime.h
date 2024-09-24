@@ -249,6 +249,9 @@ class TfLiteRuntime {
   bool is_execution_done = false;
   bool invoke_cpu = false;
 
+  double main_interpret_response_time = 0;
+  double sub_interpret_response_time = 0;
+
   // must do readonly works on this object.
   Subgraph* co_execution_graph = nullptr;
   int co_subgraph_id = -1;

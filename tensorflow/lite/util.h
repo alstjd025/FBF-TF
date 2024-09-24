@@ -297,8 +297,8 @@ typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
   int cur_subgraph;
   int cur_graph_resource; // 0 for cpu, 1 for gpu
   int subgraph_ids[2][100]; 
-  float gpu_utilization;
-  float cpu_utilization;
+  float sub_interpret_response_time;
+  float main_interpret_response_time;
 }tf_runtime_packet;
 
 typedef struct tf_initialization_packet{// runtime packet(use at init)

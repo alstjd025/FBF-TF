@@ -54,7 +54,6 @@ int TfScheduler::SendPacketToRuntime(tf_runtime_packet& tx_p,
 
 int TfScheduler::SendPacketToRuntime(tf_initialization_packet& tx_p,
                                      struct sockaddr_un& runtime_addr) {
-  std::cout << "Send Init packet to runtime" << "\n";
   int v;
   v = sendto(scheduler_fd, (void*)&tx_p, sizeof(tf_initialization_packet), 0,
              (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
@@ -82,10 +81,6 @@ int TfScheduler::ReceivePacketFromRuntime(tf_initialization_packet& rx_p,
   int v;
   v = recvfrom(scheduler_fd, &rx_p, sizeof(tf_initialization_packet), 0,
                (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
-  std::cout << "Receive Init packet from runtime" << "\n";
-  for(int i=0; i<10; ++i){
-    std::cout << rx_p.subgraph_ids[0][i] << " ";
-  }
   return v;
 }
 
@@ -127,7 +122,7 @@ void TfScheduler::Work() {
     // [VLS Todo] need packet check??
     // tf_packet rx_packet;
     #ifdef debug
-      std::cout << "Recieved packet from runtime " << rx_packet.runtime_id <<
+      std::cout << "Received packet from runtime " << rx_packet.runtime_id <<
       "\n";
     #endif
     // do next work by received runtime state.
@@ -227,7 +222,7 @@ void TfScheduler::Work() {
         // [VLS Todo] fix to call this function multiple time.
         PrepareRuntime(rx_init_packet);
         std::cout << "Prepare runtime done" << "\n";
-        if(rx_init_packet.level == subgraph_params.size()-1){
+        if(rx_init_packet.level == subgraph_params_runtime.size()-1){
           std::cout << "Send invoke state" << "\n";
           tx_packet.runtime_next_state = RuntimeState::INVOKE_;
           PrintGraph(id);
@@ -317,7 +312,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   //     - recovery selection
   ////////////////////////////////////////////////////////////////////////
 
-  int  gpu_thresh = 70;
+  int gpu_thresh = 70;
   int cpu_thresh = 70;
   int level = 0; // slow start
   bool first_and_last_graph = false;
@@ -325,6 +320,10 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   subgraph_node* prev_invoked_subgraph = nullptr;
   subgraph_node* prev_base_subgraph = nullptr;
   std::cout << "cur_graph : " << rx_packet.cur_subgraph << "\n";
+  if(rx_packet.cur_subgraph != -1){
+    printf("main latency: %.6f, sub latency: %.6f\n", rx_packet.main_interpret_response_time,
+            rx_packet.sub_interpret_response_time);
+  }
   if (rx_packet.cur_subgraph == -1) {  // first invoke
     std::cout << "first invoke" << "\n";
     // search graph struct for optimal invokable subgraph.

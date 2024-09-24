@@ -1215,8 +1215,7 @@ TfLiteStatus TfLiteRuntime::Invoke() {
                                        (begin.tv_nsec / 1000000000.0));
   timestamp_label_main_interpreter.push_back("Start");
 #endif
-  c_thread =
-      std::thread(&TfLiteRuntime::DoInvoke, this,
+  c_thread = std::thread(&TfLiteRuntime::DoInvoke, this,
                   InterpreterType::SUB_INTERPRETER, std::ref(return_state_sub));
   DoInvoke(InterpreterType::MAIN_INTERPRETER, return_state_main);
   if (return_state_main != kTfLiteOk || return_state_sub != kTfLiteOk) {
@@ -1329,6 +1328,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      sub_interpret_response_time = response_time;
       // printf(" IVS %.6f ", response_time);
 #ifdef latency_measure
       clock_gettime(CLOCK_MONOTONIC, &end);
@@ -1356,6 +1356,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       tx_packet.runtime_id = runtime_id;
       tx_packet.runtime_current_state = state;
       tx_packet.cur_subgraph = subgraph_id;
+      tx_packet.main_interpret_response_time = main_interpret_response_time;
+      tx_packet.sub_interpret_response_time = sub_interpret_response_time;
+      main_interpret_response_time = 0;
+      sub_interpret_response_time = 0;
       merge_tensor = nullptr;
       if (SendPacketToScheduler(tx_packet) !=
           kTfLiteOk) {  // Request invoke permission to scheduler
@@ -1426,12 +1430,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         return;
         // break;
       }
-        // Get main subgraph id to invoke.
-        subgraph_id = rx_packet.subgraph_ids[0][0];
-        // Get sub subgraph id to invoke if exists.
-        if (rx_packet.subgraph_ids[1][0] != -1){
-          co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
-        }
+      // Get main subgraph id to invoke.
+      subgraph_id = rx_packet.subgraph_ids[0][0];
+      // Get sub subgraph id to invoke if exists.
+      if (rx_packet.subgraph_ids[1][0] != -1){
+        co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
+      }
 
       bool merged = false;
       // Check if co execution. If so, give co-execution graph to
@@ -1480,7 +1484,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       if (subgraph->GetResourceType() == CO_GPU) {
         // wake cpu thread here
         if (prev_subgraph_id != -1) {
-          // Consider intermediate tensor is located in prev-previous subgraph?
+          // Consider intermediate tensor is located in prev-previous subgraph
           // (99462)
           main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
         }
@@ -1543,6 +1547,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       clock_gettime(CLOCK_MONOTONIC, &end);
       response_time = (end.tv_sec - begin.tv_sec) +
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
+      main_interpret_response_time = response_time;
 #ifdef debug_print
       std::cout << "[Main interpreter] Invoke subgraph "
                 << subgraph->GetGraphid() << " done \n";
