@@ -853,7 +853,6 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegateImpl(int graph_id) {
       status = 
         subgraph_id(graph_id)->ModifyGraphWithDelegate(
           SearchAndReturnProperDelegate(DelegateType::XNN_DELEGATE, prefered_utilization));
-
     }
   } else {
     std::cout << "No delegate exists in this interpreter"
