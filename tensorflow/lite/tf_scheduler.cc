@@ -319,13 +319,13 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   subgraph_node* root_graph = runtime->graphs[level]->root;
   subgraph_node* prev_invoked_subgraph = nullptr;
   subgraph_node* prev_base_subgraph = nullptr;
-  std::cout << "cur_graph : " << rx_packet.cur_subgraph << "\n";
-  if(rx_packet.cur_subgraph != -1){
-    printf("main latency: %.6f, sub latency: %.6f\n", rx_packet.main_interpret_response_time,
-            rx_packet.sub_interpret_response_time);
-  }
+  // std::cout << "cur_graph : " << rx_packet.cur_subgraph << "\n";
+  // if(rx_packet.cur_subgraph != -1){
+  //   printf("main latency: %.6f, sub latency: %.6f\n", rx_packet.main_interpret_response_time,
+  //           rx_packet.sub_interpret_response_time);
+  // }
   if (rx_packet.cur_subgraph == -1) {  // first invoke
-    std::cout << "first invoke" << "\n";
+    // std::cout << "first invoke" << "\n";
     // search graph struct for optimal invokable subgraph.
     // and return it.
     // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization
@@ -388,8 +388,8 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
-  std::cout << "level " << level  << " subgraph " << 
-            next_subgraph_to_invoke->subgraph_id << "\n";
+  // std::cout << "level " << level  << " subgraph " << 
+  //           next_subgraph_to_invoke->subgraph_id << "\n";
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.
   // NEED_REFACTOR (02634) : Must change to use obvious resource type.
   int next_cpu_resource = 0;
@@ -400,16 +400,16 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
   bool use_cpu = false;
   bool use_gpu = false;
+  printf("rx %.6f profiled %.6f \n",rx_packet.main_interpret_response_time ,prev_invoked_subgraph->average_latency);
   if(rx_packet.main_interpret_response_time > prev_invoked_subgraph->average_latency * 1.2){
+    // printf("rx %d profiled %d \n",rx_packet.cur_subgraph ,prev_invoked_subgraph->subgraph_id);
     std::cout << "contention!" << "\n";
     if(prev_invoked_subgraph->resource_type == 3){
-      std::cout << "use gpu";
-      next_resource_plan = 1;
+      std::cout << "use gpu \n";
       use_gpu = true;
       use_cpu = false;
     }else if(prev_invoked_subgraph->resource_type == 1){
-      std::cout << "use cpu";
-      next_resource_plan = 3;
+      std::cout << "use cpu \n";
       use_gpu = false;
       use_cpu = true;
     }
@@ -466,7 +466,6 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
-  std::cout << "send next subgraph" << "\n";
   return next_subgraphs_to_invoke;
 }
 
@@ -583,7 +582,8 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
                                                         // (add current subgraph node)
             resource_type = subgraph_params_sched[level][working_idx - 5];
             partitioning_ratio = subgraph_params_sched[level][working_idx - 4];
-            latency = subgraph_params_sched[level][working_idx - 3] / 1000000;
+            std::cout << "register " << subgraph_params_sched[level][working_idx - 3] << "\n";
+            latency = float(subgraph_params_sched[level][working_idx - 3]) / 1000000.0;
             cpu_util = subgraph_params_sched[level][working_idx - 2];
             gpu_util = subgraph_params_sched[level][working_idx - 1];
             if(root_graph){ // add this graph to root graph.
@@ -604,7 +604,10 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
                                     start_node,
                                     end_node,
                                     resource_type,
-                                    partitioning_ratio)){
+                                    partitioning_ratio,
+                                    latency,
+                                    cpu_util,
+                                    gpu_util)){
                 std::cout << "AddSubgraphtoGraph ERROR" << "\n";
                 return;
               }
@@ -631,7 +634,8 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
 
 bool TfScheduler::AddSubgraphtoGraph(subgraph_graph* graph, int s_node,
                                      int e_node, int resource_type,
-                                     int partitioning_ratio) {
+                                     int partitioning_ratio, float latency,
+                                     int cpu_util, int gpu_util) {
   subgraph_node* pointer = graph->root;
   subgraph_node* new_node;
   int new_rank = 0;
@@ -642,6 +646,9 @@ bool TfScheduler::AddSubgraphtoGraph(subgraph_graph* graph, int s_node,
   new_node->node_end = e_node;
   new_node->resource_type = resource_type;
   new_node->partitioning_ratio = partitioning_ratio;
+  new_node->average_latency = latency;
+  new_node->cpu_utilization_require = cpu_util;
+  new_node->gpu_utilization_require = gpu_util;
   if (new_rank ==
       0) {  // if rank is 0, just add node at the end of graph. (left to right)
     pointer->right = new_node;

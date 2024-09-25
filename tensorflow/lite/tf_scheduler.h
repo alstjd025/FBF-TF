@@ -174,7 +174,8 @@ namespace tflite{
 
       // Add new graph node to graph.
       bool AddSubgraphtoGraph(subgraph_graph* graph, int s_node, int e_node,
-                              int resource_type, int partitioning_ratio);
+                              int resource_type, int partitioning_ratio, float latency,
+                              int cpu_util, int gpu_util);
 
       // Graph search functions.
       // Search the graph structure down to up & left to right.
