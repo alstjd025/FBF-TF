@@ -403,6 +403,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   printf("rx %.6f profiled %.6f \n",rx_packet.main_interpret_response_time ,prev_invoked_subgraph->average_latency);
   if(rx_packet.main_interpret_response_time > prev_invoked_subgraph->average_latency * 1.2){
     // printf("rx %d profiled %d \n",rx_packet.cur_subgraph ,prev_invoked_subgraph->subgraph_id);
+    // 느려진 비율 만큼 느려질 것이라고 예상하면 되지않나???
     std::cout << "contention!" << "\n";
     if(prev_invoked_subgraph->resource_type == 3){
       std::cout << "use gpu \n";
@@ -566,6 +567,7 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
         
         int working_idx = 0;
         int current_value = subgraph_params_sched[level][working_idx]; // Get first value of partitioning plan
+        // std::cout << "cur val " << current_value << "\n";
         subgraph_node* new_node;
         int start_node, end_node, partitioning_ratio, resource_type, cpu_util, gpu_util;
         float latency;
@@ -577,12 +579,13 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
             // end_node = tx_packet.partitioning_plan[working_idx - 1];
             end_node = subgraph_params_sched[level][working_idx-1];
             start_node_flag = true; // refresh used flag
-            working_idx += 2;
+            working_idx += 5;
           }else if(current_value == PART_PARM_SEP_RESROURCE){ // means end of resource & partitioning plan 
                                                         // (add current subgraph node)
             resource_type = subgraph_params_sched[level][working_idx - 5];
             partitioning_ratio = subgraph_params_sched[level][working_idx - 4];
             std::cout << "register " << subgraph_params_sched[level][working_idx - 3] << "\n";
+            std::cout << "start op " << start_node << " end op " << end_node << "\n";
             latency = float(subgraph_params_sched[level][working_idx - 3]) / 1000000.0;
             cpu_util = subgraph_params_sched[level][working_idx - 2];
             gpu_util = subgraph_params_sched[level][working_idx - 1];
@@ -616,6 +619,7 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
             if(start_node_flag){
               new_node = new subgraph_node;
               start_node = current_value;
+              // std::cout << "start node " << current_value << "\n";
               start_node_flag = false;
               if(working_idx == 0) { root_graph = true; }
             }
@@ -623,6 +627,7 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
           working_idx++;
           // current_value = tx_packet.partitioning_plan[working_idx];
           current_value = subgraph_params_sched[level][working_idx];
+          // std::cout << "cur val " << current_value << "\n";
         }// subgraph interation
         std::cout << "push new level" << "\n";
         working_runtime->graphs.push_back(new_level_subgraph);
