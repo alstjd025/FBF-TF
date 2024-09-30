@@ -496,6 +496,18 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_runtime_packet& rx_p) 
   return kTfLiteOk;
 }
 
+void TfLiteRuntime::CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p,
+                                                           const int subgraph_id){
+  memset(&tx_p, 0, sizeof(tf_runtime_packet));
+  tx_p.runtime_id = runtime_id;
+  tx_p.runtime_current_state = state;
+  tx_p.cur_subgraph = subgraph_id;
+  tx_p.main_interpret_response_time = main_interpret_response_time;
+  tx_p.sub_interpret_response_time = sub_interpret_response_time;
+  main_interpret_response_time = 0;
+  sub_interpret_response_time = 0; 
+}
+
 TfLiteStatus TfLiteRuntime::ChangeState(RuntimeState next_state) {
   std::cout << "================================================"
             << "\n";
@@ -1352,17 +1364,18 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       // TODO (d9a62) : Make this communication part to an individual function.
       // [VLS] Todo : Use runtime packet here.
       tf_runtime_packet tx_packet;
-      memset(&tx_packet, 0, sizeof(tf_runtime_packet));
-      tx_packet.runtime_id = runtime_id;
-      tx_packet.runtime_current_state = state;
-      tx_packet.cur_subgraph = subgraph_id;
-      tx_packet.main_interpret_response_time = main_interpret_response_time;
-      tx_packet.sub_interpret_response_time = sub_interpret_response_time;
-      main_interpret_response_time = 0;
-      sub_interpret_response_time = 0;
+      CreateRuntimePacketToScheduler(tx_packet, subgraph_id);
+      // memset(&tx_packet, 0, sizeof(tf_runtime_packet));
+      // tx_packet.runtime_id = runtime_id;
+      // tx_packet.runtime_current_state = state;
+      // tx_packet.cur_subgraph = subgraph_id;
+      // tx_packet.main_interpret_response_time = main_interpret_response_time;
+      // tx_packet.sub_interpret_response_time = sub_interpret_response_time;
+      // main_interpret_response_time = 0;
+      // sub_interpret_response_time = 0;
       merge_tensor = nullptr;
       if (SendPacketToScheduler(tx_packet) !=
-          kTfLiteOk) {  // Request invoke permission to scheduler
+          kTfLiteOk) {  // Request invoke to scheduler.
         return_state = kTfLiteError;
         break;
       }

@@ -398,27 +398,26 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
 
   /* [IMPT] Utilization based resource allocation part */
   // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
-  bool use_cpu = false;
-  bool use_gpu = false;
   printf("rx %.6f profiled %.6f \n",rx_packet.main_interpret_response_time ,prev_invoked_subgraph->average_latency);
   if(rx_packet.main_interpret_response_time > prev_invoked_subgraph->average_latency * 1.2){
     // printf("rx %d profiled %d \n",rx_packet.cur_subgraph ,prev_invoked_subgraph->subgraph_id);
     // 느려진 비율 만큼 느려질 것이라고 예상하면 되지않나???
-    std::cout << "contention!" << "\n";
-    if(prev_invoked_subgraph->resource_type == 3){
+    std::cout << "resource" << prev_invoked_subgraph->resource_type << "contention!" << "\n";
+    std::cout << "GPU " << gpu_util << " CPU " << cpu_util << "\n";
+    if(prev_invoked_subgraph->resource_type == 3 && gpu_util < 50){ //cpu
       std::cout << "use gpu \n";
-      use_gpu = true;
-      use_cpu = false;
-    }else if(prev_invoked_subgraph->resource_type == 1){
+      gpu_usage_flag = true;
+      cpu_usage_flag = false;
+    }else if(prev_invoked_subgraph->resource_type == 1 && cpu_util < 50){
       std::cout << "use cpu \n";
-      use_gpu = false;
-      use_cpu = true;
+      gpu_usage_flag = false;
+      cpu_usage_flag = true;
     }
   }
-  if(use_gpu){
+  if(gpu_usage_flag){
     next_resource_plan = 1;
   }
-  if(use_cpu){
+  if(cpu_usage_flag){
     next_resource_plan = 3;
   }
   // if (gpu_util == 0 && cpu_util == 400) {

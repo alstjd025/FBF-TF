@@ -218,6 +218,9 @@ class TfLiteRuntime {
   TfLiteStatus ReceivePacketFromScheduler(tf_initialization_packet& rx_p);
   TfLiteStatus ReceivePacketFromScheduler(tf_runtime_packet& rx_p);
   TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
+
+  void CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p, const int subgraph_id);
+
   void ShutdownScheduler();
   //////
 
