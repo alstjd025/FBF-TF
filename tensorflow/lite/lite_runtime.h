@@ -55,18 +55,12 @@ class LiteScheduler;
 
 class TfLiteRuntime {
  public:
-  TfLiteRuntime(char* uds_runtime, char* uds_scheduler, const char* model,
-                INPUT_TYPE type);
-  TfLiteRuntime(char* uds_runtime, char* uds_scheduler, const char* f_model,
-                const char* i_model, INPUT_TYPE type, DEVICE_TYPE d_type,
-                bool use_predictor);
+  TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_runtime_sec,
+                char* uds_scheduler_sec, const char* model, INPUT_TYPE type, DEVICE_TYPE d_type);
 
   ~TfLiteRuntime();
 
   TfLiteStatus AddModelToRuntime(const char* new_model);
-
-  // An overloaded function for Co-execution
-  TfLiteStatus AddModelToRuntime(const char* f_model, const char* i_model);
 
   TfLiteStatus RegisterModeltoScheduler();
   TfLiteStatus PartitionSubgraphs();
@@ -208,6 +202,10 @@ class TfLiteRuntime {
   //// IPC functions
   // Initialize UDS and check communication with scheduler.
   TfLiteStatus InitializeUDS();
+
+  // Delete redundant codes later
+  TfLiteStatus InitializeUDSSecondSocket();
+  
   TfLiteStatus ChangeState(RuntimeState next_state);
   RuntimeState GetRuntimeState() { return state; };
 
@@ -219,6 +217,12 @@ class TfLiteRuntime {
   TfLiteStatus ReceivePacketFromScheduler(tf_runtime_packet& rx_p);
   TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
 
+  TfLiteStatus SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p);
+  TfLiteStatus SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p);
+
+  TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_initialization_packet& rx_p);
+  TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_runtime_packet& rx_p);
+  
   void CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p, const int subgraph_id);
 
   void ShutdownScheduler();
@@ -279,10 +283,22 @@ class TfLiteRuntime {
   // IPC
   char* uds_runtime_filename;
   char* uds_scheduler_filename;
+  
+  // Add runtime new uds socket
+  char* uds_runtime_sec_filename;
+  char* uds_scheduler_sec_filename;
+
+  
   int runtime_sock;
+  int runtime_sec_sock;
+
   size_t addr_size;
   struct sockaddr_un runtime_addr;
   struct sockaddr_un scheduler_addr;
+
+  struct sockaddr_un runtime_addr_sec;
+  struct sockaddr_un scheduler_addr_sec;
+
 
   bool output_correct = false;
 };

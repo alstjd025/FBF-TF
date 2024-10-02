@@ -5,7 +5,7 @@ namespace tflite {
 
 TfScheduler::TfScheduler(){};
 
-TfScheduler::TfScheduler(const char* uds_file_name,
+TfScheduler::TfScheduler(const char* uds_file_name, const char* uds_file_name_sec,
                          std::vector<std::string>& param_file_names) {
   // delete if sock file already exists.
   if (access(uds_file_name, F_OK) == 0) unlink(uds_file_name);
@@ -28,6 +28,28 @@ TfScheduler::TfScheduler(const char* uds_file_name,
               << "\n";
     exit(-1);
   }
+
+  if (access(uds_file_name_sec, F_OK) == 0) unlink(uds_file_name_sec);
+
+  scheduler_fd_sec = socket(PF_FILE, SOCK_DGRAM, 0);
+  if (scheduler_fd_sec == -1) {
+    std::cout << "Secondary socket create ERROR"
+              << "\n";
+    exit(-1);
+  }
+  addr_size = sizeof(scheduler_addr_sec);
+
+  memset(&scheduler_addr_sec, 0, sizeof(scheduler_addr_sec));
+  scheduler_addr_sec.sun_family = AF_UNIX;
+  strcpy(scheduler_addr_sec.sun_path, uds_file_name_sec);
+
+  if (bind(scheduler_fd_sec, (struct sockaddr*)&scheduler_addr_sec,
+           sizeof(scheduler_addr_sec)) == -1) {
+    std::cout << "Secondary socket bind ERROR"
+              << "\n";
+    exit(-1);
+  }
+
   cpu_util = new float;
   gpu_util = new float;
 
@@ -60,6 +82,22 @@ int TfScheduler::SendPacketToRuntime(tf_initialization_packet& tx_p,
   return v;
 }
 
+int TfScheduler::SendPacketToRuntimeSecSocket(tf_runtime_packet& tx_p,
+                                     struct sockaddr_un& runtime_addr) {
+  int v;
+  v = sendto(scheduler_fd_sec, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
+int TfScheduler::SendPacketToRuntimeSecSocket(tf_initialization_packet& tx_p,
+                                     struct sockaddr_un& runtime_addr) {
+  int v;
+  v = sendto(scheduler_fd_sec, (void*)&tx_p, sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
 int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
                                           struct sockaddr_un& runtime_addr) {
   int v;
@@ -84,14 +122,59 @@ int TfScheduler::ReceivePacketFromRuntime(tf_initialization_packet& rx_p,
   return v;
 }
 
+// Experimental feature to use secondary socket.
+int TfScheduler::ReceivePacketFromRuntimeSecSocket(tf_runtime_packet& rx_p,
+                                          struct sockaddr_un& runtime_addr) {
+  int v;
+  v = recvfrom(scheduler_fd_sec, &rx_p, sizeof(tf_runtime_packet), 0,
+               (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  if(!rx_p.is_secondary_socket) {v = -1;}
+  return v;
+}
+
+// Experimental feature to use secondary socket.
+int TfScheduler::ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_p,
+                                          struct sockaddr_un& runtime_addr) {
+  int v;
+  v = recvfrom(scheduler_fd_sec, &rx_p, sizeof(tf_initialization_packet), 0,
+               (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  if(!rx_p.is_secondary_socket) {v = -1;}
+  return v;
+}
+
 void TfScheduler::Work() {
   monitor = new LiteSysMonitor();
   bool run = true;
 
-  // Temporal flag for the seperation of init packet and runtime packet.
+  // Experimantal flag for the seperation of init packet and runtime packet.
   // Using init packet on runtime may cost huge communication overhead(packet payload is big).
   // Scheduler runs only single TFLite runtime.
   bool init = true;
+  
+  // Experimental feature that enables semi-asynchronous control of computing resources(CPU, GPU).
+  // Initalizes secondary uds socket.
+  // THIS IS EXPERIMENTAL
+  {
+    //receive 
+    tf_initialization_packet rx_init_packet;
+    struct sockaddr_un runtime_addr;
+    memset(&rx_init_packet, 0, sizeof(tf_initialization_packet));
+    if (ReceivePacketFromRuntimeSecSocket(rx_init_packet, runtime_addr) == -1) {
+      std::cout << "Secondary socket receive failed"
+                << "\n";
+      return;
+    }
+    tf_initialization_packet tx_init_packet;
+    //send
+    if (SendPacketToRuntimeSecSocket(tx_init_packet, runtime_addr) == -1) {
+      std::cout << "Secondary socket : " << runtime_addr.sun_path << " "
+                << runtime_addr.sun_family << "\n";
+      printf("errno : %d \n", errno);
+      return;
+    }
+    std::cout << "Secondary socket connected" << "\n";
+    //ok
+  }
   
   while (run) {
     // tf_initialization_packet rx_packet;

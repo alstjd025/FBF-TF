@@ -96,7 +96,7 @@ namespace tflite{
   class TfScheduler{
     public:
       TfScheduler();
-      TfScheduler(const char* uds_file_name,
+      TfScheduler(const char* uds_file_name, const char* uds_file_name_sec,
                   std::vector<std::string>& param_file_names);
 
       void PrintRuntimeStates();
@@ -105,10 +105,15 @@ namespace tflite{
 
       void OpenPartitioningParams(std::vector<std::string>& param_file_names);
       
-
       int SendPacketToRuntime(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
+
+      int SendPacketToRuntimeSecSocket(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
+      int SendPacketToRuntimeSecSocket(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
+      
+      int ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntimeSecSocket(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
@@ -121,6 +126,7 @@ namespace tflite{
 
       ////////////////////////////////////////////////////////////////////////////////////////
       /* Function description of CreatePartitioningPlan
+      // SUBJECT TO CHANGE
       Read partitioning parameters from file.
       The parameter array follows the format below.
       format : node_subset /-1/ Resource type(CPU, GPU,,) / Partitioning ratio /-2/ :|(repeat)
@@ -223,9 +229,13 @@ namespace tflite{
       // subgraph parameters for runtime.
       std::vector<std::vector<int>> subgraph_params_runtime; 
 
-      int scheduler_fd;
       size_t addr_size;
+
+      int scheduler_fd;
       struct sockaddr_un scheduler_addr;
+
+      int scheduler_fd_sec;
+      struct sockaddr_un scheduler_addr_sec;
 
       int first_counter = 0;
       int second_counter = 0;

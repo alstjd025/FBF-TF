@@ -291,6 +291,7 @@ typedef struct tf_packet{
 // we use different packets for runtime phase and init phase.
 // At init phase, need big ary for paramters while runtime needs small ary.
 typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
+  bool is_secondary_socket = false;
   short runtime_id;
   short runtime_current_state;
   short runtime_next_state;
@@ -302,6 +303,7 @@ typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
 }tf_runtime_packet;
 
 typedef struct tf_initialization_packet{// runtime packet(use at init)
+  bool is_secondary_socket = false;
   short runtime_id;
   short runtime_current_state;
   short runtime_next_state;

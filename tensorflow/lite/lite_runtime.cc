@@ -67,56 +67,8 @@ std::ostream& operator<<(std::ostream& out, const tflite::RuntimeState value) {
 
 namespace tflite {
 
-TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                             const char* model, INPUT_TYPE type) {
-  interpreter = new tflite::Interpreter(true);
-  sub_interpreter = nullptr;
-  sub_builder = nullptr;
-  interpreter->SetInputType(type);
-  state = RuntimeState::INITIALIZE;
-  uds_runtime_filename = uds_runtime;
-  uds_scheduler_filename = uds_scheduler;
-  TfLiteDelegate* MyDelegate = NULL;
-  const TfLiteGpuDelegateOptionsV2 options = {
-      .is_precision_loss_allowed = 0,
-      .inference_preference =
-          TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
-      //.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED,
-      .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
-      //.inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
-      .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-      .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-      .experimental_flags = 1,
-      .max_delegated_partitions = 1000,
-  };
-  MyDelegate = TfLiteGpuDelegateV2Create(&options);
-  // interpreter->RegisterDelegate(MyDelegate);
-  if (InitializeUDS() != kTfLiteOk) {
-    std::cout << "UDS socker init ERROR"
-              << "\n";
-    exit(-1);
-  }
-  if (AddModelToRuntime(model) != kTfLiteOk) {
-    std::cout << "Model registration to runtime ERROR"
-              << "\n";
-    exit(-1);
-  }
-  if (RegisterModeltoScheduler() != kTfLiteOk) {
-    std::cout << "Model registration to scheduler ERROR"
-              << "\n";
-    exit(-1);
-  }
-  if (PartitionSubgraphs() != kTfLiteOk) {
-    std::cout << "Model partitioning ERROR"
-              << "\n";
-    exit(-1);
-  }
-};
-
-TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                             const char* f_model, const char* i_model,
-                             INPUT_TYPE type, DEVICE_TYPE d_type,
-                             bool use_predictor) {
+TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_runtime_sec,
+                char* uds_scheduler_sec, const char* model, INPUT_TYPE type, DEVICE_TYPE d_type) {
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
   sub_interpreter = new tflite::Interpreter(true);
@@ -139,14 +91,22 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     model_type = MODEL_TYPE::CENTERNET;
   }
   state = RuntimeState::INITIALIZE;
+
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;
+  if(uds_runtime_sec != nullptr && uds_scheduler_sec != nullptr){
+    uds_runtime_filename = uds_runtime_sec;
+    uds_scheduler_filename = uds_scheduler_sec;
+  }else{
+    uds_runtime_filename = nullptr;
+    uds_scheduler_filename = nullptr;
+  }
+
   // sj
   // need to edit for delegation
   // use Class Delegation
   TfLiteDelegate* gpu_delegate = NULL;
   TfLiteDelegate* xnn_delegate = NULL;
-  
   int32_t num_threads;
 
   const TfLiteGpuDelegateOptionsV2 options = {
@@ -207,22 +167,26 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
-  if (InitializeUDS() != kTfLiteOk) {
-    std::cout << "UDS socker init ERROR"
+
+  // First initalize secondary socket which is used for 
+  // secondary inference thread communication with scheduler.
+  // THIS IS EXPERIMENTAL.
+  if (InitializeUDSSecondSocket() != kTfLiteOk) {
+    std::cout << "UDS second socket init ERROR"
               << "\n";
     exit(-1);
   }
-  if (AddModelToRuntime(f_model, i_model) != kTfLiteOk) {
+  std::cout << "Secondary socket connected" << "\n";
+
+  // Then initalize main thread socket and register runtime to scheduler.
+  if (InitializeUDS() != kTfLiteOk) {
+    std::cout << "UDS socket init ERROR"
+              << "\n";
+    exit(-1);
+  }
+  if (AddModelToRuntime(model) != kTfLiteOk) {
     std::cout << "Model registration to runtime ERROR"
               << "\n";
-  }
-  // Predict model here
-  if (use_predictor) {
-    if (PredictSubgraphPartitioning() != kTfLiteOk) {
-      std::cout << "PredictSubgraphPartitioning"
-                << "\n";
-    }
-    return;
   }
   //[VLS Todo] recieves partitioning plan from scheduler here.
   //[VLS Todo] repeat this fucntion multiple time inside?
@@ -424,6 +388,58 @@ TfLiteStatus TfLiteRuntime::InitializeUDS() {
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::InitializeUDSSecondSocket() {
+  // Delete runtime socket if already exists.
+  if (access(uds_runtime_sec_filename, F_OK) == 0) unlink(uds_runtime_sec_filename);
+
+  // Create a UDS socket for TFruntime.
+  runtime_sec_sock = socket(PF_FILE, SOCK_DGRAM, 0);
+  if (runtime_sec_sock == -1) {
+    std::cout << "Socket_sec create ERROR"
+              << "\n";
+    return kTfLiteError;
+  }
+
+  memset(&runtime_addr_sec, 0, sizeof(runtime_addr_sec));
+  runtime_addr_sec.sun_family = AF_UNIX;  // unix domain socket
+  strcpy(runtime_addr_sec.sun_path, uds_runtime_sec_filename);
+
+  memset(&scheduler_addr, 0, sizeof(scheduler_addr));
+  scheduler_addr.sun_family = AF_UNIX;  // unix domain socket
+  strcpy(scheduler_addr.sun_path, uds_scheduler_filename);
+  addr_size = sizeof(scheduler_addr);
+
+  // Bind runtime socket for TX,RX with scheduler
+  if (bind(runtime_sock, (struct sockaddr*)&runtime_addr_sec,
+           sizeof(runtime_addr_sec)) == -1) {
+    std::cout << "Socket_sec bind ERROR"
+              << "\n";
+    return kTfLiteError;
+  }
+  tf_initialization_packet new_packet;
+  // tf_packet new_packet;
+  new_packet.is_secondary_socket = true;
+  memset(&new_packet, 0, sizeof(tf_initialization_packet));
+  new_packet.runtime_current_state = 0;
+  new_packet.runtime_id = -1;
+
+  if (SendPacketToSchedulerSecSocket(new_packet) != kTfLiteOk) {
+    std::cout << "Sending Hello to scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  std::cout << "Send runtime register request to scheduler"
+            << "\n";
+
+  tf_initialization_packet rx_packet;
+  if (ReceivePacketFromSchedulerSecSocket(rx_packet) != kTfLiteOk) {
+    std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 void TfLiteRuntime::ShutdownScheduler() {
   tf_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_packet));
@@ -528,39 +544,14 @@ TfLiteStatus TfLiteRuntime::ChangeState(RuntimeState next_state) {
   }
 }
 
-TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
-  std::unique_ptr<tflite::FlatBufferModel>* model_ =
-      new std::unique_ptr<tflite::FlatBufferModel>(
-          tflite::FlatBufferModel::BuildFromFile(model));
-
-  // Build the interpreter with the InterpreterBuilder.
-  tflite::ops::builtin::BuiltinOpResolver* resolver =
-      new tflite::ops::builtin::BuiltinOpResolver;
-
-  interpreter_builder = new tflite::InterpreterBuilder(
-      **model_, *resolver, interpreter, model, 0, false);
-
-  // Now creates an invokable origin subgraph from new model.
-  if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
-    std::cout << "CreateSubgraphFromFlatBuffer returned Error"
-              << "\n";
-    exit(-1);
-  }
-  interpreter->PrintSubgraphInfo();
-  // scheduler->RegisterInterpreterBuilder(new_builder);
-
-  return kTfLiteOk;
-};
-
-TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
-                                              const char* i_model) {
+TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model_path) {
   std::unique_ptr<tflite::FlatBufferModel>* float_model =
       new std::unique_ptr<tflite::FlatBufferModel>(
-          tflite::FlatBufferModel::BuildFromFile(f_model));
+          tflite::FlatBufferModel::BuildFromFile(model_path));
 
   std::unique_ptr<tflite::FlatBufferModel>* int_model =
       new std::unique_ptr<tflite::FlatBufferModel>(
-          tflite::FlatBufferModel::BuildFromFile(i_model));
+          tflite::FlatBufferModel::BuildFromFile(model_path));
 
   // An opresolver for float interpreter
   tflite::ops::builtin::BuiltinOpResolver* float_resolver =
@@ -572,11 +563,11 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
 
   // Build InterpreterBuilder for float model
   interpreter_builder = new tflite::InterpreterBuilder(
-      **float_model, *float_resolver, interpreter, f_model, 0, false);
+      **float_model, *float_resolver, interpreter, model_path, 0, false);
 
   // Build IntpertereBuilder for int model
   sub_builder = new tflite::InterpreterBuilder(
-      **int_model, *int_resolver, sub_interpreter, i_model, 0, true);
+      **int_model, *int_resolver, sub_interpreter, model_path, 0, true);
 
   // Now creates an invokable (float)origin subgraph from new model.
   if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
