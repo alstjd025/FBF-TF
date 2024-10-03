@@ -197,7 +197,7 @@ namespace tflite{
       void PrintGraph(int runtime_id);
 
       // Search and return the subgraph's id to invoke.    
-      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet);
+      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet, int& next_resource_type);
 
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.

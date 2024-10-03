@@ -218,10 +218,10 @@ class TfLiteRuntime {
   TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
 
   TfLiteStatus SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p);
-  // TfLiteStatus SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p);
+  TfLiteStatus SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p);
 
   TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_initialization_packet& rx_p);
-  // TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_runtime_packet& rx_p);
+  TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_runtime_packet& rx_p);
   
   void CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p, const int subgraph_id);
 
@@ -253,6 +253,8 @@ class TfLiteRuntime {
   std::condition_variable data_sync_cv;
   std::mutex data_sync_mtx;
   std::mutex invoke_sync_mtx;
+  std::mutex merge_mtx;
+  bool is_co_execution_merged = false;
   bool is_execution_done = false;
   bool invoke_cpu = false;
 
@@ -261,11 +263,9 @@ class TfLiteRuntime {
 
   // must do readonly works on this object.
   Subgraph* co_execution_graph = nullptr;
-  int co_subgraph_id = -1;
 
   // must do readonly works on this object.
   Subgraph* main_execution_graph = nullptr;
-  ////
 
   // used to merge co-execution data if extra scratch buffer needed.
   TfLiteMergeTensor* merge_tensor = nullptr;

@@ -242,13 +242,6 @@ void TfScheduler::Work() {
       FD_ZERO(&read_fds);
       FD_SET(scheduler_fd, &read_fds);
       FD_SET(scheduler_fd_sec, &read_fds);
-      
-      // TODO change to socket multiplexing
-      // if (ReceivePacketFromRuntime(rx_runtime_packet, runtime_addr) == -1) {
-      //   std::cout << "Receive failed"
-      //             << "\n";
-      //   return;
-      // }
       memset(&rx_runtime_packet, 0, sizeof(tf_runtime_packet));
       if (ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, runtime_addr,
                                             max_fd, read_fds) == -1) {
@@ -256,14 +249,9 @@ void TfScheduler::Work() {
                   << "\n";
         return;
       }
-    
-    
       state = static_cast<RuntimeState>(rx_runtime_packet.runtime_current_state);
       id = static_cast<int>(rx_runtime_packet.runtime_id);
     }
-
-
-
     // [VLS Todo] need packet check??
     // tf_packet rx_packet;
     #ifdef debug
@@ -397,9 +385,11 @@ void TfScheduler::Work() {
         tx_packet.runtime_next_state = RuntimeState::INVOKE_;
 
         std::pair<int, int> next_subgraph_to_invoke;
-        next_subgraph_to_invoke = SearchNextSubgraphtoInvoke(rx_runtime_packet);
-        tx_packet.subgraph_ids[0][0] = next_subgraph_to_invoke.first;
-        tx_packet.subgraph_ids[1][0] = next_subgraph_to_invoke.second;
+        int next_resource_type = 0;
+        next_subgraph_to_invoke = SearchNextSubgraphtoInvoke(rx_runtime_packet, next_resource_type);
+        tx_packet.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke.first;
+        tx_packet.subgraph_ids_to_invoke[1] = next_subgraph_to_invoke.second;
+        tx_packet.resource_plan = next_resource_type;
 
         if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
           std::cout << "sock : " << runtime_addr.sun_path << " "
@@ -435,8 +425,8 @@ void TfScheduler::OpenPartitioningParams(std::vector<std::string>& param_file_na
 }
 
 // [VLS] Todo - change to search subgraph in multi-level.
-std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
-    tf_runtime_packet& rx_packet) {
+std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
+                                                                       int& next_resource_type) {
   std::pair<int, int> next_subgraphs_to_invoke;
   int runtime_id = rx_packet.runtime_id;
   runtime_* runtime = nullptr;
@@ -496,11 +486,12 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   if (runtime->graphs[level]->nodes.size() == 1) {
     next_subgraphs_to_invoke.first = runtime->graphs[level]->nodes[0]->subgraph_id;
     next_subgraphs_to_invoke.second = runtime->graphs[level]->nodes[0]->co_subgraph_id;
-
+    next_resource_type = runtime->graphs[level]->nodes[0]->resource_type;
     // case of final subgraph..
     if (rx_packet.cur_subgraph == runtime->graphs[level]->nodes[0]->subgraph_id) {
       next_subgraphs_to_invoke.first = -1;
       next_subgraphs_to_invoke.second = -1;
+      next_resource_type = runtime->graphs[level]->nodes[0]->resource_type;
     }
     std::cout << "one subgraph" << "\n";
     return next_subgraphs_to_invoke;
@@ -515,6 +506,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
       std::cout << "motiv final subgraph" << "\n";
       next_subgraphs_to_invoke.first = -1;
       next_subgraphs_to_invoke.second = -1;  
+      next_resource_type = -1;
       return next_subgraphs_to_invoke;
     }else{
       next_base_subgraph = root_graph;
@@ -525,6 +517,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
       next_subgraphs_to_invoke.first = -1;
       next_subgraphs_to_invoke.second = -1;
       std::cout << "final graph" << "\n";
+      next_resource_type = -1;
       return next_subgraphs_to_invoke;
     }  // case of first subgraph
     else if (rx_packet.cur_subgraph == -1) {
@@ -543,6 +536,14 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   int next_cpu_resource = 0;
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
+
+  /*
+  #define TF_P_PLAN_CPU        0
+  #define TF_P_PLAN_GPU        1
+  #define TF_P_PLAN_CO_E       2
+  #define TF_P_PLAN_CPU_XNN    3
+  #define TF_P_PLAN_CO_E_XNN   4
+  */
 
   /* [IMPT] Utilization based resource allocation part */
   // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
@@ -613,7 +614,7 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke(
   // next_subgraph_to_invoke->resource_type << "\n";
   next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
   next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
-  next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
+  next_resource_type = next_subgraph_to_invoke->resource_type;
   return next_subgraphs_to_invoke;
 }
 
