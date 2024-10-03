@@ -114,6 +114,46 @@ int TfScheduler::ReceivePacketFromRuntime(tf_runtime_packet& rx_p,
   return v;
 }
 
+int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
+                                            struct sockaddr_un& runtime_addr,
+                                            int max_fd, fd_set& read_fds){
+  std::cout << "multiplex wait" << "\n";
+  int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+  if (activity < 0) {
+    std::cout << "select error" << "\n";
+    return -1;
+  }
+
+  // read from main inference thread
+  if (FD_ISSET(scheduler_fd, &read_fds)) {
+    std::cout << "read from main inference thread" << "\n";
+    if (ReceivePacketFromRuntime(rx_p, runtime_addr) == -1) {
+      std::cout << "Receive failed"
+                << "\n";
+      return -1;
+    }
+    return 1;
+  }
+
+  // read from secondary inference thread
+  if (FD_ISSET(scheduler_fd_sec, &read_fds)) {
+    std::cout << "read from secondary inference thread" << "\n";
+    return 1;
+    if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr) == -1) {
+      std::cout << "Receive failed"
+                << "\n";
+      return -1;
+    }
+  }
+  std::cout << "select done but read error" << "\n";
+  return -1;
+}
+
+// option1 한번이라도 다음주에 하게 해달라고 비빈다. 
+// option2 2025 후기를 보겠다고 하고 더 논의한다. -> 회사 생활을 할지, 랩 인턴 생활을 할지 본다. 
+// option3 그냥 알겠다고 하고 접는다 -> 일단 회사 가고 후기 입학을 노린다. 
+// option4 
+
 int TfScheduler::ReceivePacketFromRuntime(tf_initialization_packet& rx_p,
                                           struct sockaddr_un& runtime_addr) {
   int v;
@@ -175,7 +215,13 @@ void TfScheduler::Work() {
     std::cout << "Secondary socket connected" << "\n";
     //ok
   }
-  
+  // Set fd for multiplexing
+  fd_set read_fds;
+  int max_fd = std::max(scheduler_fd, scheduler_fd_sec);
+  // struct timeval timeout;
+  // timeout.tv_sec = 10;
+  // timeout.tv_usec = 0;
+
   while (run) {
     // tf_initialization_packet rx_packet;
     tf_initialization_packet rx_init_packet;
@@ -193,15 +239,31 @@ void TfScheduler::Work() {
       state = static_cast<RuntimeState>(rx_init_packet.runtime_current_state);
       id = static_cast<int>(rx_init_packet.runtime_id);
     }else{
+      FD_ZERO(&read_fds);
+      FD_SET(scheduler_fd, &read_fds);
+      FD_SET(scheduler_fd_sec, &read_fds);
+      
+      // TODO change to socket multiplexing
+      // if (ReceivePacketFromRuntime(rx_runtime_packet, runtime_addr) == -1) {
+      //   std::cout << "Receive failed"
+      //             << "\n";
+      //   return;
+      // }
       memset(&rx_runtime_packet, 0, sizeof(tf_runtime_packet));
-      if (ReceivePacketFromRuntime(rx_runtime_packet, runtime_addr) == -1) {
-        std::cout << "Receive failed"
+      if (ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, runtime_addr,
+                                            max_fd, read_fds) == -1) {
+        std::cout << "Receive multiplex failed"
                   << "\n";
         return;
       }
+    
+    
       state = static_cast<RuntimeState>(rx_runtime_packet.runtime_current_state);
       id = static_cast<int>(rx_runtime_packet.runtime_id);
     }
+
+
+
     // [VLS Todo] need packet check??
     // tf_packet rx_packet;
     #ifdef debug
@@ -211,38 +273,41 @@ void TfScheduler::Work() {
     // do next work by received runtime state.
     switch (state) {
       case RuntimeState::INITIALIZE: {
+        bool is_already_registered = false;
         std::cout << "Runtime init"
                   << "\n";
         for (auto runtime : runtimes) {
           if (runtime->id == id) {
             std::cout << "Runtime " << runtime->id << " already registered."
                       << "\n";
+            is_already_registered = true;
             break;
           }
-        }
-        // initializing new_runtime
-        runtime_* new_runtime = new runtime_;
-        new_runtime->id = runtimes_created;
-        runtimes_created++;
+        }if(!is_already_registered){
+          // initializing new_runtime
+          runtime_* new_runtime = new runtime_;
+          new_runtime->id = runtimes_created;
+          runtimes_created++;
 
-        new_runtime->addr.sun_family = runtime_addr.sun_family;
-        strcpy(new_runtime->addr.sun_path, runtime_addr.sun_path);
-        tf_initialization_packet tx_packet;
-        //tf_packet tx_packet;
-        memset(&tx_packet, 0, sizeof(tf_initialization_packet));
-        tx_packet.runtime_id = new_runtime->id;
-        tx_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
+          new_runtime->addr.sun_family = runtime_addr.sun_family;
+          strcpy(new_runtime->addr.sun_path, runtime_addr.sun_path);
+          tf_initialization_packet tx_packet;
+          //tf_packet tx_packet;
+          memset(&tx_packet, 0, sizeof(tf_initialization_packet));
+          tx_packet.runtime_id = new_runtime->id;
+          tx_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
 
-        if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "Sending packet to " << new_runtime->id << " Failed"
-                    << "\n";
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
-          printf("errno : %d \n", errno);
-          return;
+          if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
+            std::cout << "Sending packet to " << new_runtime->id << " Failed"
+                      << "\n";
+            std::cout << "sock : " << runtime_addr.sun_path << " "
+                      << runtime_addr.sun_family << "\n";
+            printf("errno : %d \n", errno);
+            return;
+          }
+          runtimes.push_back(new_runtime);
+          std::cout << "Registered new runtime " << new_runtime->id << " \n";
         }
-        runtimes.push_back(new_runtime);
-        std::cout << "Registered new runtime " << new_runtime->id << " \n";
         break;
       }
       case RuntimeState::NEED_PROFILE: {

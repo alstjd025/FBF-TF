@@ -218,10 +218,10 @@ class TfLiteRuntime {
   TfLiteStatus ReceivePacketFromScheduler(tf_packet& rx_p);
 
   TfLiteStatus SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p);
-  TfLiteStatus SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p);
+  // TfLiteStatus SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p);
 
   TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_initialization_packet& rx_p);
-  TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_runtime_packet& rx_p);
+  // TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_runtime_packet& rx_p);
   
   void CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p, const int subgraph_id);
 

@@ -95,11 +95,13 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_r
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;
   if(uds_runtime_sec != nullptr && uds_scheduler_sec != nullptr){
-    uds_runtime_filename = uds_runtime_sec;
-    uds_scheduler_filename = uds_scheduler_sec;
+    uds_runtime_sec_filename = uds_runtime_sec;
+    uds_scheduler_sec_filename = uds_scheduler_sec;
   }else{
-    uds_runtime_filename = nullptr;
-    uds_scheduler_filename = nullptr;
+    uds_runtime_sec_filename = nullptr;
+    uds_scheduler_sec_filename = nullptr;
+    std::cout << "ERROR : no runtime, scheduler secondary socket path" << "\n";
+    return;
   }
 
   // sj
@@ -171,6 +173,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_r
   // First initalize secondary socket which is used for 
   // secondary inference thread communication with scheduler.
   // THIS IS EXPERIMENTAL.
+  std::cout << "init uds" << "\n";
   if (InitializeUDSSecondSocket() != kTfLiteOk) {
     std::cout << "UDS second socket init ERROR"
               << "\n";
@@ -399,37 +402,35 @@ TfLiteStatus TfLiteRuntime::InitializeUDSSecondSocket() {
               << "\n";
     return kTfLiteError;
   }
-
   memset(&runtime_addr_sec, 0, sizeof(runtime_addr_sec));
   runtime_addr_sec.sun_family = AF_UNIX;  // unix domain socket
   strcpy(runtime_addr_sec.sun_path, uds_runtime_sec_filename);
 
-  memset(&scheduler_addr, 0, sizeof(scheduler_addr));
-  scheduler_addr.sun_family = AF_UNIX;  // unix domain socket
-  strcpy(scheduler_addr.sun_path, uds_scheduler_filename);
-  addr_size = sizeof(scheduler_addr);
-
+  memset(&scheduler_addr_sec, 0, sizeof(scheduler_addr_sec));
+  scheduler_addr_sec.sun_family = AF_UNIX;  // unix domain socket
+  strcpy(scheduler_addr_sec.sun_path, uds_scheduler_sec_filename);
+  addr_size = sizeof(scheduler_addr_sec);
+  
   // Bind runtime socket for TX,RX with scheduler
-  if (bind(runtime_sock, (struct sockaddr*)&runtime_addr_sec,
+  if (bind(runtime_sec_sock, (struct sockaddr*)&runtime_addr_sec,
            sizeof(runtime_addr_sec)) == -1) {
     std::cout << "Socket_sec bind ERROR"
               << "\n";
     return kTfLiteError;
   }
+
   tf_initialization_packet new_packet;
   // tf_packet new_packet;
-  new_packet.is_secondary_socket = true;
   memset(&new_packet, 0, sizeof(tf_initialization_packet));
+  new_packet.is_secondary_socket = true;
   new_packet.runtime_current_state = 0;
   new_packet.runtime_id = -1;
-
+  
   if (SendPacketToSchedulerSecSocket(new_packet) != kTfLiteOk) {
     std::cout << "Sending Hello to scheduler FAILED"
               << "\n";
     return kTfLiteError;
   }
-  std::cout << "Send runtime register request to scheduler"
-            << "\n";
 
   tf_initialization_packet rx_packet;
   if (ReceivePacketFromSchedulerSecSocket(rx_packet) != kTfLiteOk) {
@@ -474,6 +475,17 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p) {
+  std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  if (sendto(runtime_sec_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&scheduler_addr_sec, sizeof(scheduler_addr_sec)) == -1) {
+    std::cout << "Sending packet to scheduler sec FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
   // std::cout << "Runtime :Send packet to scheduler" << "\n";
   if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
@@ -497,6 +509,15 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p) {
 TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_initialization_packet& rx_p) {
   if (recvfrom(runtime_sock, &rx_p, sizeof(tf_initialization_packet), 0, NULL, 0) == -1) {
     std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::ReceivePacketFromSchedulerSecSocket(tf_initialization_packet& rx_p) {
+  if (recvfrom(runtime_sec_sock, &rx_p, sizeof(tf_initialization_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler sec FAILED"
               << "\n";
     return kTfLiteError;
   }
@@ -1268,10 +1289,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
   int prev_co_subgraph_id = -1;
   while (true) {
     if (type == InterpreterType::SUB_INTERPRETER) {
-      // No more use?
-      // if (sub_interpreter->subgraphs_size() < 1) {
-      //   break;
-      // }
       // sync with gpu here (notified by gpu)
       std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
       invoke_sync_cv.wait(lock_invoke, [&] { return invoke_cpu; });
