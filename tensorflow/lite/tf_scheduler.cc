@@ -116,6 +116,7 @@ int TfScheduler::ReceivePacketFromRuntime(tf_runtime_packet& rx_p,
 
 int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
                                             struct sockaddr_un& runtime_addr,
+                                            struct sockaddr_un& runtime_addr_sec,
                                             int max_fd, fd_set& read_fds){
   std::cout << "multiplex wait" << "\n";
   int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
@@ -139,7 +140,7 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
   if (FD_ISSET(scheduler_fd_sec, &read_fds)) {
     std::cout << "read from secondary inference thread" << "\n";
     return 1;
-    if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr) == -1) {
+    if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr_sec) == -1) {
       std::cout << "Receive failed"
                 << "\n";
       return -1;
@@ -197,18 +198,17 @@ void TfScheduler::Work() {
   {
     //receive 
     tf_initialization_packet rx_init_packet;
-    struct sockaddr_un runtime_addr;
     memset(&rx_init_packet, 0, sizeof(tf_initialization_packet));
-    if (ReceivePacketFromRuntimeSecSocket(rx_init_packet, runtime_addr) == -1) {
+    if (ReceivePacketFromRuntimeSecSocket(rx_init_packet, scheduler_addr_sec) == -1) {
       std::cout << "Secondary socket receive failed"
                 << "\n";
       return;
     }
     tf_initialization_packet tx_init_packet;
     //send
-    if (SendPacketToRuntimeSecSocket(tx_init_packet, runtime_addr) == -1) {
-      std::cout << "Secondary socket : " << runtime_addr.sun_path << " "
-                << runtime_addr.sun_family << "\n";
+    if (SendPacketToRuntimeSecSocket(tx_init_packet, scheduler_addr_sec) == -1) {
+      std::cout << "Secondary socket : " << scheduler_addr_sec.sun_path << " "
+                << scheduler_addr_sec.sun_family << "\n";
       printf("errno : %d \n", errno);
       return;
     }
@@ -226,12 +226,11 @@ void TfScheduler::Work() {
     // tf_initialization_packet rx_packet;
     tf_initialization_packet rx_init_packet;
     tf_runtime_packet rx_runtime_packet;
-    struct sockaddr_un runtime_addr;
     RuntimeState state = RuntimeState::INITIALIZE;
     int id = 0;
     if(init){
       memset(&rx_init_packet, 0, sizeof(tf_initialization_packet));
-      if (ReceivePacketFromRuntime(rx_init_packet, runtime_addr) == -1) {
+      if (ReceivePacketFromRuntime(rx_init_packet, scheduler_addr) == -1) {
         std::cout << "Receive failed"
                   << "\n";
         return;
@@ -243,7 +242,7 @@ void TfScheduler::Work() {
       FD_SET(scheduler_fd, &read_fds);
       FD_SET(scheduler_fd_sec, &read_fds);
       memset(&rx_runtime_packet, 0, sizeof(tf_runtime_packet));
-      if (ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, runtime_addr,
+      if (ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, scheduler_addr, scheduler_addr_sec,
                                             max_fd, read_fds) == -1) {
         std::cout << "Receive multiplex failed"
                   << "\n";
@@ -277,19 +276,19 @@ void TfScheduler::Work() {
           new_runtime->id = runtimes_created;
           runtimes_created++;
 
-          new_runtime->addr.sun_family = runtime_addr.sun_family;
-          strcpy(new_runtime->addr.sun_path, runtime_addr.sun_path);
+          new_runtime->addr.sun_family = scheduler_addr.sun_family;
+          strcpy(new_runtime->addr.sun_path, scheduler_addr.sun_path);
           tf_initialization_packet tx_packet;
           //tf_packet tx_packet;
           memset(&tx_packet, 0, sizeof(tf_initialization_packet));
           tx_packet.runtime_id = new_runtime->id;
           tx_packet.runtime_next_state = RuntimeState::NEED_PROFILE;
 
-          if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
+          if (SendPacketToRuntime(tx_packet, scheduler_addr) == -1) {
             std::cout << "Sending packet to " << new_runtime->id << " Failed"
                       << "\n";
-            std::cout << "sock : " << runtime_addr.sun_path << " "
-                      << runtime_addr.sun_family << "\n";
+            std::cout << "sock : " << scheduler_addr.sun_path << " "
+                      << scheduler_addr.sun_family << "\n";
             printf("errno : %d \n", errno);
             return;
           }
@@ -333,9 +332,9 @@ void TfScheduler::Work() {
           }
         }
         // [VLS Todo] consider this part iterate multiple time?
-        if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
+        if (SendPacketToRuntime(tx_packet, scheduler_addr) == -1) {
+          std::cout << "sock : " << scheduler_addr.sun_path << " "
+                    << scheduler_addr.sun_family << "\n";
           printf("errno : %d \n", errno);
           return;
         }
@@ -367,9 +366,9 @@ void TfScheduler::Work() {
           tx_packet.runtime_next_state = RuntimeState::SUBGRAPH_CREATE;
         }
 
-        if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
+        if (SendPacketToRuntime(tx_packet, scheduler_addr) == -1) {
+          std::cout << "sock : " << scheduler_addr.sun_path << " "
+                    << scheduler_addr.sun_family << "\n";
           printf("errno : %d \n", errno);
           return;
         }
@@ -379,23 +378,66 @@ void TfScheduler::Work() {
       case RuntimeState::INVOKE_: {
         // [VLS Todo] use runtime packet here.
         RefreshRuntimeState(rx_runtime_packet);
-        tf_runtime_packet tx_packet;
+        tf_runtime_packet tx_runtime_packet;
         // tf_packet tx_packet;
-        tx_packet.runtime_id = id;
-        tx_packet.runtime_next_state = RuntimeState::INVOKE_;
-
-        std::pair<int, int> next_subgraph_to_invoke;
-        int next_resource_type = 0;
-        next_subgraph_to_invoke = SearchNextSubgraphtoInvoke(rx_runtime_packet, next_resource_type);
-        tx_packet.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke.first;
-        tx_packet.subgraph_ids_to_invoke[1] = next_subgraph_to_invoke.second;
-        tx_packet.resource_plan = next_resource_type;
-
-        if (SendPacketToRuntime(tx_packet, runtime_addr) == -1) {
-          std::cout << "sock : " << runtime_addr.sun_path << " "
-                    << runtime_addr.sun_family << "\n";
-          printf("errno : %d \n", errno);
-          return;
+        tx_runtime_packet.runtime_id = id;
+        tx_runtime_packet.runtime_next_state = RuntimeState::INVOKE_;
+        SearchNextSubgraphtoInvoke(rx_runtime_packet, tx_runtime_packet);
+        //if(co-execution or inference end)
+        if(!tx_runtime_packet.inference_end){
+          if(tx_runtime_packet.resource_plan == 3){
+            // CPU execution
+            std::cout << "send CPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] <<
+            " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            if (SendPacketToRuntimeSecSocket(tx_runtime_packet, scheduler_addr_sec) == -1) {
+              std::cout << "sock : " << scheduler_addr_sec.sun_path << " "
+                        << scheduler_addr_sec.sun_family << "\n";
+              printf("errno : %d \n", errno);
+              return;
+            }
+          }else if(tx_runtime_packet.resource_plan == 1){
+            // GPU execution
+            std::cout << "send GPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
+            " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
+              std::cout << "sock : " << scheduler_addr.sun_path << " "
+                        << scheduler_addr.sun_family << "\n";
+              printf("errno : %d \n", errno);
+              return;
+            }
+          }else if(tx_runtime_packet.resource_plan == 4){
+            // Co execution
+            std::cout << "send co-ex id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
+            " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
+              std::cout << "sock : " << scheduler_addr.sun_path << " "
+                        << scheduler_addr.sun_family << "\n";
+              printf("errno : %d \n", errno);
+              return;
+            }
+            if (SendPacketToRuntimeSecSocket(tx_runtime_packet, scheduler_addr_sec) == -1) {
+              std::cout << "sock : " << scheduler_addr_sec.sun_path << " "
+                        << scheduler_addr_sec.sun_family << "\n";
+              printf("errno : %d \n", errno);
+              return;
+            }            
+          }
+        }else{
+          // inferece end
+          std::cout << "send end" << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
+            " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+          if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
+            std::cout << "sock : " << scheduler_addr.sun_path << " "
+                      << scheduler_addr.sun_family << "\n";
+            printf("errno : %d \n", errno);
+            return;
+          }
+          if (SendPacketToRuntimeSecSocket(tx_runtime_packet, scheduler_addr_sec) == -1) {
+            std::cout << "sock : " << scheduler_addr_sec.sun_path << " "
+                      << scheduler_addr_sec.sun_family << "\n";
+            printf("errno : %d \n", errno);
+            return;
+          }
         }
         break;
       }
@@ -425,8 +467,8 @@ void TfScheduler::OpenPartitioningParams(std::vector<std::string>& param_file_na
 }
 
 // [VLS] Todo - change to search subgraph in multi-level.
-std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
-                                                                       int& next_resource_type) {
+void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
+                                              tf_runtime_packet& tx_packet) {
   std::pair<int, int> next_subgraphs_to_invoke;
   int runtime_id = rx_packet.runtime_id;
   runtime_* runtime = nullptr;
@@ -472,29 +514,49 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& 
     // Set root graph for first graph.
     prev_invoked_subgraph = root_graph;
     prev_base_subgraph = root_graph;
+    tx_packet.prev_subgraph_id = -1;
+    tx_packet.prev_co_subgraph_id = -1;
   } else {
     // Search and return prev invoked subgraph with it's id.
+    // latest_inference_node 갱신.
     prev_invoked_subgraph =
         SearchAndReturnNodeWithID(root_graph, rx_packet.cur_subgraph);
     prev_base_subgraph = prev_invoked_subgraph;
+    // 갱신 logic
+    // inference 한 subgraph의 end op 와 latest_inference_node의 start op 비교
+    if(runtime->latest_inference_node == nullptr){
+      runtime->latest_inference_node = prev_invoked_subgraph;
+    }else{
+      if(prev_invoked_subgraph->node_end > runtime->latest_inference_node->node_end){
+        runtime->latest_inference_node = prev_invoked_subgraph;
+      }
+    }
+    tx_packet.prev_subgraph_id = runtime->latest_inference_node->subgraph_id;
+    tx_packet.prev_co_subgraph_id = runtime->latest_inference_node->co_subgraph_id;
+    // 다음 base graph는 latest_inference_node를 기준으로 찾기.
+    // previous_subgraph id는 방금 갱신후 정보로 넣기.
     while (prev_base_subgraph->up != nullptr) {
       prev_base_subgraph = prev_base_subgraph->up;
     }
   }
-
+  // 다음 할 일 
+  // scheduling timing에 어떻게 reschedule 할 것인가?
   // In case only one subgraph exists.
   if (runtime->graphs[level]->nodes.size() == 1) {
-    next_subgraphs_to_invoke.first = runtime->graphs[level]->nodes[0]->subgraph_id;
-    next_subgraphs_to_invoke.second = runtime->graphs[level]->nodes[0]->co_subgraph_id;
-    next_resource_type = runtime->graphs[level]->nodes[0]->resource_type;
+    tx_packet.subgraph_ids_to_invoke[0] = runtime->graphs[level]->nodes[0]->subgraph_id;
+    tx_packet.subgraph_ids_to_invoke[1] = runtime->graphs[level]->nodes[0]->co_subgraph_id;
+    tx_packet.resource_plan = runtime->graphs[level]->nodes[0]->resource_type;
+    tx_packet.inference_end = false;
     // case of final subgraph..
     if (rx_packet.cur_subgraph == runtime->graphs[level]->nodes[0]->subgraph_id) {
-      next_subgraphs_to_invoke.first = -1;
-      next_subgraphs_to_invoke.second = -1;
-      next_resource_type = runtime->graphs[level]->nodes[0]->resource_type;
+      tx_packet.subgraph_ids_to_invoke[0] = -1;
+      tx_packet.subgraph_ids_to_invoke[1] = -1;
+      tx_packet.resource_plan = runtime->graphs[level]->nodes[0]->resource_type;
+      tx_packet.inference_end = true;
+      runtime->latest_inference_node = nullptr;
     }
     std::cout << "one subgraph" << "\n";
-    return next_subgraphs_to_invoke;
+    return;
   }
 
   subgraph_node* next_base_subgraph = nullptr;
@@ -504,21 +566,24 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& 
   #ifdef single_level_motivation
     if(rx_packet.cur_subgraph != -1){
       std::cout << "motiv final subgraph" << "\n";
-      next_subgraphs_to_invoke.first = -1;
-      next_subgraphs_to_invoke.second = -1;  
-      next_resource_type = -1;
-      return next_subgraphs_to_invoke;
+      tx_packet.subgraph_ids_to_invoke[0] = -1;
+      tx_packet.subgraph_ids_to_invoke[1] = -1;  
+      tx_packet.resource_plan = -1;
+      tx_packet.inference_end = true;
+      return;
     }else{
       next_base_subgraph = root_graph;
     }
   #endif
   #ifndef single_level_motivation
     if (prev_base_subgraph->right == nullptr) {
-      next_subgraphs_to_invoke.first = -1;
-      next_subgraphs_to_invoke.second = -1;
+      tx_packet.subgraph_ids_to_invoke[0] = -1;
+      tx_packet.subgraph_ids_to_invoke[1] = -1;
       std::cout << "final graph" << "\n";
-      next_resource_type = -1;
-      return next_subgraphs_to_invoke;
+      tx_packet.resource_plan = -1;
+      tx_packet.inference_end = true;
+      runtime->latest_inference_node = nullptr;
+      return;
     }  // case of first subgraph
     else if (rx_packet.cur_subgraph == -1) {
       next_base_subgraph = root_graph;
@@ -607,15 +672,15 @@ std::pair<int, int> TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& 
     }
   }
 
-  // std::cout << "set next_subgraph_to_invoke id " <<
-  // next_subgraph_to_invoke->subgraph_id << "\n"; std::cout << "set
-  // next_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id
+  std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n"; 
+  std::cout << "setnext_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
   // << "\n"; std::cout << "set next_subgraph_to_invoke resource_type " <<
   // next_subgraph_to_invoke->resource_type << "\n";
-  next_subgraphs_to_invoke.second = next_subgraph_to_invoke->co_subgraph_id;
-  next_subgraphs_to_invoke.first = next_subgraph_to_invoke->subgraph_id;
-  next_resource_type = next_subgraph_to_invoke->resource_type;
-  return next_subgraphs_to_invoke;
+  tx_packet.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke->subgraph_id;
+  tx_packet.subgraph_ids_to_invoke[1] = next_subgraph_to_invoke->co_subgraph_id;
+  tx_packet.resource_plan = next_subgraph_to_invoke->resource_type;
+  tx_packet.inference_end = false;
+  return;
 }
 
 // [VLS Todo] call this function multi-level safely.

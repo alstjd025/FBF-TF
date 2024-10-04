@@ -85,7 +85,7 @@ namespace tflite{
     // graphs[1] -> subgraphs in level 2 (ex, midium subgraph granularity)
     // ..
     // ..
-
+    subgraph_node* latest_inference_node;
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
@@ -118,7 +118,7 @@ namespace tflite{
       int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr,
-                                            int max_fd, fd_set& read_fds);
+                                            struct sockaddr_un& runtime_addr_sec, int max_fd, fd_set& read_fds);
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.
@@ -197,7 +197,7 @@ namespace tflite{
       void PrintGraph(int runtime_id);
 
       // Search and return the subgraph's id to invoke.    
-      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet, int& next_resource_type);
+      void SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet, tf_runtime_packet& tx_packet);
 
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.

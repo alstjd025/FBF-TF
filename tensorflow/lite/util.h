@@ -301,6 +301,7 @@ typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
   int resource_plan; 
   float sub_interpret_response_time;
   float main_interpret_response_time;
+  bool inference_end;
 }tf_runtime_packet;
 
 typedef struct tf_initialization_packet{// runtime packet(use at init)
