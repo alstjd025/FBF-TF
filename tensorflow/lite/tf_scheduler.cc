@@ -1,5 +1,5 @@
 #include "tensorflow/lite/tf_scheduler.h"
-// #define single_level_motivation
+#define single_level_motivation
 
 namespace tflite {
 
@@ -133,27 +133,24 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
                 << "\n";
       return -1;
     }
+    // FD_CLR(scheduler_fd, &read_fds);
     return 1;
   }
 
   // read from secondary inference thread
   if (FD_ISSET(scheduler_fd_sec, &read_fds)) {
     std::cout << "read from secondary inference thread" << "\n";
-    return 1;
     if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr_sec) == -1) {
       std::cout << "Receive failed"
                 << "\n";
       return -1;
     }
+    // FD_CLR(scheduler_fd_sec, &read_fds);
+    return 1;
   }
   std::cout << "select done but read error" << "\n";
   return -1;
 }
-
-// option1 한번이라도 다음주에 하게 해달라고 비빈다. 
-// option2 2025 후기를 보겠다고 하고 더 논의한다. -> 회사 생활을 할지, 랩 인턴 생활을 할지 본다. 
-// option3 그냥 알겠다고 하고 접는다 -> 일단 회사 가고 후기 입학을 노린다. 
-// option4 
 
 int TfScheduler::ReceivePacketFromRuntime(tf_initialization_packet& rx_p,
                                           struct sockaddr_un& runtime_addr) {
@@ -169,7 +166,6 @@ int TfScheduler::ReceivePacketFromRuntimeSecSocket(tf_runtime_packet& rx_p,
   int v;
   v = recvfrom(scheduler_fd_sec, &rx_p, sizeof(tf_runtime_packet), 0,
                (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
-  if(!rx_p.is_secondary_socket) {v = -1;}
   return v;
 }
 
@@ -179,7 +175,6 @@ int TfScheduler::ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_
   int v;
   v = recvfrom(scheduler_fd_sec, &rx_p, sizeof(tf_initialization_packet), 0,
                (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
-  if(!rx_p.is_secondary_socket) {v = -1;}
   return v;
 }
 

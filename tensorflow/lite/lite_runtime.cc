@@ -465,7 +465,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_packet& tx_p) {
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p) {
+  #ifdef debug_print
   std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  #endif
   if (sendto(runtime_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
              (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler FAILED"
@@ -476,7 +478,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p) {
+  #ifdef debug_print
   std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  #endif
   if (sendto(runtime_sec_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
              (struct sockaddr*)&scheduler_addr_sec, sizeof(scheduler_addr_sec)) == -1) {
     std::cout << "Sending packet to scheduler sec FAILED"
@@ -487,7 +491,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_initialization_pac
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p) {
-  std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  #ifdef debug_print
+  std::cout << "Runtime : Send runtime packet to scheduler sec socket" << "\n";
+  #endif
   if (sendto(runtime_sec_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_runtime_packet), 0,
              (struct sockaddr*)&scheduler_addr_sec, sizeof(scheduler_addr_sec)) == -1) {
     std::cout << "Sending packet to scheduler sec FAILED"
@@ -498,7 +504,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_runtime_packet& tx
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
-  // std::cout << "Runtime :Send packet to scheduler" << "\n";
+  #ifdef debug_print
+  std::cout << "Runtime : Send runtime packet to scheduler main socket" << "\n";
+  #endif
   if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
              (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler FAILED"
@@ -1326,14 +1334,11 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       subgraph_id = rx_packet.subgraph_ids_to_invoke[0];
       prev_subgraph_id = rx_packet.prev_subgraph_id;
       prev_co_subgraph_id = rx_packet.prev_co_subgraph_id;
-      std::cout << "[Sub Interpreter] get subgraph " << subgraph_id << "\n";
       if (rx_packet.inference_end) {
 #ifdef debug_print
         std::cout << "Sub Interpreter invoke done"
                   << "\n";
 #endif
-        std::cout << "Sub Interpreter invoke done"
-                  << "\n";
         return_state = kTfLiteOk;
         // tf_runtime_packet tx_packet;
         // if (SendPacketToSchedulerSecSocket(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
@@ -1427,6 +1432,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         // if single CPU execution
         tf_runtime_packet tx_packet;
         CreateRuntimePacketToScheduler(tx_packet, subgraph_id);
+        #ifdef debug_print
+        std::cout << "Sub interpreter send end packet" << "\n";
+        #endif
         if (SendPacketToSchedulerSecSocket(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
           return_state = kTfLiteError;
           break;
@@ -1447,8 +1455,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         std::cout << "Main Interpreter graph invoke done"
                   << "\n";
 #endif
-        std::cout << "Main Interpreter graph invoke done"
-                  << "\n";
         // initialize used variables.
         subgraph_id = -1; 
         prev_subgraph_id = -1;
@@ -1513,7 +1519,6 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       // Check if co execution. If so, give co-execution graph to
       // sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
-      std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
 #ifdef debug_print
       std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
 #endif
@@ -1622,6 +1627,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       }
       tf_runtime_packet tx_packet;
       CreateRuntimePacketToScheduler(tx_packet, subgraph_id);
+      #ifdef debug_print
+      std::cout << "Main interpreter send end packet" << "\n";
+      #endif
       if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
         return_state = kTfLiteError;
       }
