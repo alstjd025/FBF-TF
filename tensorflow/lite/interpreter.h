@@ -684,6 +684,8 @@ class Interpreter {
   // Get the error reporter associated with this interpreter.
   ErrorReporter* error_reporter() const { return error_reporter_; }
 
+  TfLiteStatus RemoveAllDelegates();
+
 #endif  // DOXYGEN_SKIP
 
  private:
@@ -702,7 +704,7 @@ class Interpreter {
 
   // Remove delegates (for fallback behaviour). The interpreter is invokable
   // afterwards.
-  TfLiteStatus RemoveAllDelegates();
+  // TfLiteStatus RemoveAllDelegates(); // EEZEE
 
   // Returns true if delegates have been applied.
   bool HasDelegates();
