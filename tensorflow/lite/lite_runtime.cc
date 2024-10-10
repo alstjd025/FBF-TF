@@ -67,56 +67,8 @@ std::ostream& operator<<(std::ostream& out, const tflite::RuntimeState value) {
 
 namespace tflite {
 
-TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                             const char* model, INPUT_TYPE type) {
-  interpreter = new tflite::Interpreter(true);
-  sub_interpreter = nullptr;
-  sub_builder = nullptr;
-  interpreter->SetInputType(type);
-  state = RuntimeState::INITIALIZE;
-  uds_runtime_filename = uds_runtime;
-  uds_scheduler_filename = uds_scheduler;
-  TfLiteDelegate* MyDelegate = NULL;
-  const TfLiteGpuDelegateOptionsV2 options = {
-      .is_precision_loss_allowed = 0,
-      .inference_preference =
-          TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER,
-      //.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED,
-      .inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MAX_PRECISION,
-      //.inference_priority1 = TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY,
-      .inference_priority2 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-      .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
-      .experimental_flags = 1,
-      .max_delegated_partitions = 1000,
-  };
-  MyDelegate = TfLiteGpuDelegateV2Create(&options);
-  // interpreter->RegisterDelegate(MyDelegate);
-  if (InitializeUDS() != kTfLiteOk) {
-    std::cout << "UDS socker init ERROR"
-              << "\n";
-    exit(-1);
-  }
-  if (AddModelToRuntime(model) != kTfLiteOk) {
-    std::cout << "Model registration to runtime ERROR"
-              << "\n";
-    exit(-1);
-  }
-  if (RegisterModeltoScheduler() != kTfLiteOk) {
-    std::cout << "Model registration to scheduler ERROR"
-              << "\n";
-    exit(-1);
-  }
-  if (PartitionSubgraphs() != kTfLiteOk) {
-    std::cout << "Model partitioning ERROR"
-              << "\n";
-    exit(-1);
-  }
-};
-
-TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
-                             const char* f_model, const char* i_model,
-                             INPUT_TYPE type, DEVICE_TYPE d_type,
-                             bool use_predictor) {
+TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_runtime_sec,
+                char* uds_scheduler_sec, const char* model, INPUT_TYPE type, DEVICE_TYPE d_type) {
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
   sub_interpreter = new tflite::Interpreter(true);
@@ -139,14 +91,24 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
     model_type = MODEL_TYPE::CENTERNET;
   }
   state = RuntimeState::INITIALIZE;
+
   uds_runtime_filename = uds_runtime;
   uds_scheduler_filename = uds_scheduler;
+  if(uds_runtime_sec != nullptr && uds_scheduler_sec != nullptr){
+    uds_runtime_sec_filename = uds_runtime_sec;
+    uds_scheduler_sec_filename = uds_scheduler_sec;
+  }else{
+    uds_runtime_sec_filename = nullptr;
+    uds_scheduler_sec_filename = nullptr;
+    std::cout << "ERROR : no runtime, scheduler secondary socket path" << "\n";
+    return;
+  }
+
   // sj
   // need to edit for delegation
   // use Class Delegation
   TfLiteDelegate* gpu_delegate = NULL;
   TfLiteDelegate* xnn_delegate = NULL;
-  
   int32_t num_threads;
 
   const TfLiteGpuDelegateOptionsV2 options = {
@@ -207,22 +169,27 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler,
   new_delegate->delegate_type = DelegateType::XNN_DELEGATE;
   interpreter->RegisterDelegate(new_delegate);
   sub_interpreter->RegisterDelegate(new_delegate);
-  if (InitializeUDS() != kTfLiteOk) {
-    std::cout << "UDS socker init ERROR"
+
+  // First initalize secondary socket which is used for 
+  // secondary inference thread communication with scheduler.
+  // THIS IS EXPERIMENTAL.
+  std::cout << "init uds" << "\n";
+  if (InitializeUDSSecondSocket() != kTfLiteOk) {
+    std::cout << "UDS second socket init ERROR"
               << "\n";
     exit(-1);
   }
-  if (AddModelToRuntime(f_model, i_model) != kTfLiteOk) {
+  std::cout << "Secondary socket connected" << "\n";
+
+  // Then initalize main thread socket and register runtime to scheduler.
+  if (InitializeUDS() != kTfLiteOk) {
+    std::cout << "UDS socket init ERROR"
+              << "\n";
+    exit(-1);
+  }
+  if (AddModelToRuntime(model) != kTfLiteOk) {
     std::cout << "Model registration to runtime ERROR"
               << "\n";
-  }
-  // Predict model here
-  if (use_predictor) {
-    if (PredictSubgraphPartitioning() != kTfLiteOk) {
-      std::cout << "PredictSubgraphPartitioning"
-                << "\n";
-    }
-    return;
   }
   //[VLS Todo] recieves partitioning plan from scheduler here.
   //[VLS Todo] repeat this fucntion multiple time inside?
@@ -424,9 +391,59 @@ TfLiteStatus TfLiteRuntime::InitializeUDS() {
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::InitializeUDSSecondSocket() {
+  // Delete runtime socket if already exists.
+  if (access(uds_runtime_sec_filename, F_OK) == 0) unlink(uds_runtime_sec_filename);
+
+  // Create a UDS socket for TFruntime.
+  runtime_sec_sock = socket(PF_FILE, SOCK_DGRAM, 0);
+  if (runtime_sec_sock == -1) {
+    std::cout << "Socket_sec create ERROR"
+              << "\n";
+    return kTfLiteError;
+  }
+  memset(&runtime_addr_sec, 0, sizeof(runtime_addr_sec));
+  runtime_addr_sec.sun_family = AF_UNIX;  // unix domain socket
+  strcpy(runtime_addr_sec.sun_path, uds_runtime_sec_filename);
+
+  memset(&scheduler_addr_sec, 0, sizeof(scheduler_addr_sec));
+  scheduler_addr_sec.sun_family = AF_UNIX;  // unix domain socket
+  strcpy(scheduler_addr_sec.sun_path, uds_scheduler_sec_filename);
+  addr_size = sizeof(scheduler_addr_sec);
+  
+  // Bind runtime socket for TX,RX with scheduler
+  if (bind(runtime_sec_sock, (struct sockaddr*)&runtime_addr_sec,
+           sizeof(runtime_addr_sec)) == -1) {
+    std::cout << "Socket_sec bind ERROR"
+              << "\n";
+    return kTfLiteError;
+  }
+
+  tf_initialization_packet new_packet;
+  // tf_packet new_packet;
+  memset(&new_packet, 0, sizeof(tf_initialization_packet));
+  new_packet.is_secondary_socket = true;
+  new_packet.runtime_current_state = 0;
+  new_packet.runtime_id = -1;
+  
+  if (SendPacketToSchedulerSecSocket(new_packet) != kTfLiteOk) {
+    std::cout << "Sending Hello to scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+
+  tf_initialization_packet rx_packet;
+  if (ReceivePacketFromSchedulerSecSocket(rx_packet) != kTfLiteOk) {
+    std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 void TfLiteRuntime::ShutdownScheduler() {
-  tf_packet tx_packet;
-  memset(&tx_packet, 0, sizeof(tf_packet));
+  tf_runtime_packet tx_packet;
+  memset(&tx_packet, 0, sizeof(tf_runtime_packet));
   tx_packet.runtime_current_state = RuntimeState::TERMINATE;
   tx_packet.runtime_id = runtime_id;
   if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
@@ -448,7 +465,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_packet& tx_p) {
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p) {
+  #ifdef debug_print
   std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  #endif
   if (sendto(runtime_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
              (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler FAILED"
@@ -458,8 +477,36 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p) {
+  #ifdef debug_print
+  std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  #endif
+  if (sendto(runtime_sec_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&scheduler_addr_sec, sizeof(scheduler_addr_sec)) == -1) {
+    std::cout << "Sending packet to scheduler sec FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p) {
+  #ifdef debug_print
+  std::cout << "Runtime : Send runtime packet to scheduler sec socket" << "\n";
+  #endif
+  if (sendto(runtime_sec_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&scheduler_addr_sec, sizeof(scheduler_addr_sec)) == -1) {
+    std::cout << "Sending packet to scheduler sec FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
-  // std::cout << "Runtime :Send packet to scheduler" << "\n";
+  #ifdef debug_print
+  std::cout << "Runtime : Send runtime packet to scheduler main socket" << "\n";
+  #endif
   if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
              (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler FAILED"
@@ -487,6 +534,24 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_initialization_packet&
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::ReceivePacketFromSchedulerSecSocket(tf_initialization_packet& rx_p) {
+  if (recvfrom(runtime_sec_sock, &rx_p, sizeof(tf_initialization_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler sec FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::ReceivePacketFromSchedulerSecSocket(tf_runtime_packet& rx_p) {
+  if (recvfrom(runtime_sec_sock, &rx_p, sizeof(tf_runtime_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler sec FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_runtime_packet& rx_p) {
   if (recvfrom(runtime_sock, &rx_p, sizeof(tf_runtime_packet), 0, NULL, 0) == -1) {
     std::cout << "Receiving packet from scheduler FAILED"
@@ -494,6 +559,18 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_runtime_packet& rx_p) 
     return kTfLiteError;
   }
   return kTfLiteOk;
+}
+
+void TfLiteRuntime::CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p,
+                                                           const int subgraph_id){
+  memset(&tx_p, 0, sizeof(tf_runtime_packet));
+  tx_p.runtime_id = runtime_id;
+  tx_p.runtime_current_state = state;
+  tx_p.cur_subgraph = subgraph_id;
+  tx_p.main_interpret_response_time = main_interpret_response_time;
+  tx_p.sub_interpret_response_time = sub_interpret_response_time;
+  main_interpret_response_time = 0;
+  sub_interpret_response_time = 0; 
 }
 
 TfLiteStatus TfLiteRuntime::ChangeState(RuntimeState next_state) {
@@ -516,39 +593,14 @@ TfLiteStatus TfLiteRuntime::ChangeState(RuntimeState next_state) {
   }
 }
 
-TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model) {
-  std::unique_ptr<tflite::FlatBufferModel>* model_ =
-      new std::unique_ptr<tflite::FlatBufferModel>(
-          tflite::FlatBufferModel::BuildFromFile(model));
-
-  // Build the interpreter with the InterpreterBuilder.
-  tflite::ops::builtin::BuiltinOpResolver* resolver =
-      new tflite::ops::builtin::BuiltinOpResolver;
-
-  interpreter_builder = new tflite::InterpreterBuilder(
-      **model_, *resolver, interpreter, model, 0, false);
-
-  // Now creates an invokable origin subgraph from new model.
-  if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
-    std::cout << "CreateSubgraphFromFlatBuffer returned Error"
-              << "\n";
-    exit(-1);
-  }
-  interpreter->PrintSubgraphInfo();
-  // scheduler->RegisterInterpreterBuilder(new_builder);
-
-  return kTfLiteOk;
-};
-
-TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
-                                              const char* i_model) {
+TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* model_path) {
   std::unique_ptr<tflite::FlatBufferModel>* float_model =
       new std::unique_ptr<tflite::FlatBufferModel>(
-          tflite::FlatBufferModel::BuildFromFile(f_model));
+          tflite::FlatBufferModel::BuildFromFile(model_path));
 
   std::unique_ptr<tflite::FlatBufferModel>* int_model =
       new std::unique_ptr<tflite::FlatBufferModel>(
-          tflite::FlatBufferModel::BuildFromFile(i_model));
+          tflite::FlatBufferModel::BuildFromFile(model_path));
 
   // An opresolver for float interpreter
   tflite::ops::builtin::BuiltinOpResolver* float_resolver =
@@ -560,11 +612,11 @@ TfLiteStatus TfLiteRuntime::AddModelToRuntime(const char* f_model,
 
   // Build InterpreterBuilder for float model
   interpreter_builder = new tflite::InterpreterBuilder(
-      **float_model, *float_resolver, interpreter, f_model, 0, false);
+      **float_model, *float_resolver, interpreter, model_path, 0, false);
 
   // Build IntpertereBuilder for int model
   sub_builder = new tflite::InterpreterBuilder(
-      **int_model, *int_resolver, sub_interpreter, i_model, 0, true);
+      **int_model, *int_resolver, sub_interpreter, model_path, 0, true);
 
   // Now creates an invokable (float)origin subgraph from new model.
   if (interpreter_builder->CreateSubgraphFromFlatBuffer() != kTfLiteOk) {
@@ -1261,39 +1313,89 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
   double response_time = 0;
   struct timespec begin, end;
   int subgraph_id = -1;
+  // if merge needed, prev_subgraph_id != -1 && prev_co_subgraph_id != -1
   int prev_subgraph_id = -1;
   int prev_co_subgraph_id = -1;
+  if(type == InterpreterType::MAIN_INTERPRETER){
+    tf_runtime_packet tx_packet;
+    CreateRuntimePacketToScheduler(tx_packet, -1);
+    if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
+      return_state = kTfLiteError;
+    }
+  }
   while (true) {
     if (type == InterpreterType::SUB_INTERPRETER) {
-      // No more use?
-      // if (sub_interpreter->subgraphs_size() < 1) {
-      //   break;
-      // }
-      // sync with gpu here (notified by gpu)
-      std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-      invoke_sync_cv.wait(lock_invoke, [&] { return invoke_cpu; });
-      invoke_cpu = false;
-      if (co_subgraph_id == -1) {
+      // TOTO: don't sleep. use UDP socket sync.
+      tf_runtime_packet rx_packet;
+      if (ReceivePacketFromSchedulerSecSocket(rx_packet) != kTfLiteOk) {
+        return_state = kTfLiteError;
+        break;
+      }
+      subgraph_id = rx_packet.subgraph_ids_to_invoke[0];
+      prev_subgraph_id = rx_packet.prev_subgraph_id;
+      prev_co_subgraph_id = rx_packet.prev_co_subgraph_id;
+      if (rx_packet.inference_end) {
 #ifdef debug_print
         std::cout << "Sub Interpreter invoke done"
                   << "\n";
 #endif
         return_state = kTfLiteOk;
-        return;
+        // tf_runtime_packet tx_packet;
+        // if (SendPacketToSchedulerSecSocket(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
+        //   return_state = kTfLiteError;
+        // }
+        break;
+      }
+      if(rx_packet.resource_plan == TF_P_PLAN_CPU_XNN){
+        subgraph = interpreter->subgraph_id(subgraph_id);
+      }else{
+        subgraph = sub_interpreter->subgraph_id(subgraph_id);
       }
 #ifdef debug_print
-      std::cout << "[Sub Interpreter] get subgraph " << co_subgraph_id << "\n";
+      std::cout << "[Sub Interpreter] get subgraph " << subgraph_id << "\n";
 #endif
-
-      subgraph = sub_interpreter->subgraph_id(co_subgraph_id);
-      if (main_execution_graph != nullptr) {
+      bool in_thread_merged = false;
+      if (prev_subgraph_id != -1 &&
+          prev_co_subgraph_id != -1 &&
+          sub_interpreter->subgraph_id(prev_co_subgraph_id)->GetResourceType() == CO_CPU_XNN) {
+#ifdef debug_print
+        std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id
+                  << " " << subgraph_id << "\n";
+#endif
+        merge_mtx.lock();
+        if(!is_co_execution_merged) {
+            in_thread_merged = true;
+            is_co_execution_merged = true;
+          // Need extra buffer tensor if previous subgraph was co-execution and
+          // current subgraph is co-execution.
+          if (subgraph->GetResourceType() == CO_CPU_XNN || 
+              subgraph->GetResourceType() == CO_CPU ) {
+            merge_tensor = new TfLiteMergeTensor;
+            merge_tensor->tensor = new TfLiteTensor;
+            in_thread_merged = false;
+          }
+          if (MergeCoExecutionData(prev_co_subgraph_id,
+                                   prev_subgraph_id,
+                                   subgraph_id, merge_tensor) != kTfLiteOk) {
+            std::cout << "MergeCoExecutionData Error"
+                      << "\n";
+            return_state = kTfLiteError;
+            merge_mtx.unlock();
+            break;
+          }
+        }
+        merge_mtx.unlock();
+      }
 #ifdef debug_print
         std::cout << "sub CopyIntermediateDataIfNeeded"
                   << "\n";
 #endif
-#ifdef latency_measure
-        clock_gettime(CLOCK_MONOTONIC, &begin);
-#endif
+      if ((prev_subgraph_id != -1 || prev_co_subgraph_id != -1) && !in_thread_merged) {
+        if (prev_subgraph_id == -1) {
+          main_execution_graph = sub_interpreter->subgraph_id(prev_co_subgraph_id);
+        }else{
+          main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
+        }
         if (CopyIntermediateDataIfNeeded(subgraph, main_execution_graph,
                                          merge_tensor) != kTfLiteOk) {
           std::cout << "sub CopyIntermediateDataIfNeeded Failed"
@@ -1301,22 +1403,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
           return_state = kTfLiteError;
           return;
         }
-#ifdef latency_measure
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_sub_interpreter.push_back(begin.tv_sec +
-                                            (begin.tv_nsec / 1000000000.0));
-        timestamp_label_sub_interpreter.push_back("CPs");
-        timestamp_sub_interpreter.push_back(end.tv_sec +
-                                            (end.tv_nsec / 1000000000.0));
-        timestamp_label_sub_interpreter.push_back("CPe");
-#endif
       }
 #ifdef debug_print
-      std::cout << "[Sub Interpreter] Invoke subgraph " << co_subgraph_id
+      std::cout << "[Sub Interpreter] Invoke subgraph " << subgraph_id
                 << "\n";
-#endif
-#ifdef latency_measure
-      clock_gettime(CLOCK_MONOTONIC, &begin);
 #endif
       clock_gettime(CLOCK_MONOTONIC, &begin);
       if (subgraph->Invoke() != kTfLiteOk) {
@@ -1330,48 +1420,37 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
       sub_interpret_response_time = response_time;
       // printf(" IVS %.6f ", response_time);
-#ifdef latency_measure
-      clock_gettime(CLOCK_MONOTONIC, &end);
-      response_time = (end.tv_sec - begin.tv_sec) +
-                      ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-      timestamp_sub_interpreter.push_back(begin.tv_sec +
-                                          (begin.tv_nsec / 1000000000.0));
-      timestamp_label_sub_interpreter.push_back("IVs");
-      timestamp_sub_interpreter.push_back(end.tv_sec +
-                                          (end.tv_nsec / 1000000000.0));
-      timestamp_label_sub_interpreter.push_back("IVe");
-      latency_sub_interpreter.push_back(response_time);
-#endif
-      // sync with gpu here (wake gpu)
-      std::unique_lock<std::mutex> lock_data(data_sync_mtx);
-      is_execution_done = true;
-      co_execution_graph = subgraph;
-      data_sync_cv.notify_one();
+
+      // sync with gpu here (wake gpu))
+      // if co-execution
+      if(rx_packet.resource_plan == TF_P_PLAN_CO_E_XNN){
+        std::unique_lock<std::mutex> lock_data(data_sync_mtx);
+        is_execution_done = true;
+        co_execution_graph = subgraph;
+        data_sync_cv.notify_one();
+      }else{
+        // if single CPU execution
+        tf_runtime_packet tx_packet;
+        CreateRuntimePacketToScheduler(tx_packet, subgraph_id);
+        #ifdef debug_print
+        std::cout << "Sub interpreter send end packet" << "\n";
+        #endif
+        if (SendPacketToSchedulerSecSocket(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
+          return_state = kTfLiteError;
+          break;
+        }
+      }
+
 
     } else if (type == InterpreterType::MAIN_INTERPRETER) {
       // TODO (d9a62) : Make this communication part to an individual function.
       // [VLS] Todo : Use runtime packet here.
-      tf_runtime_packet tx_packet;
-      memset(&tx_packet, 0, sizeof(tf_runtime_packet));
-      tx_packet.runtime_id = runtime_id;
-      tx_packet.runtime_current_state = state;
-      tx_packet.cur_subgraph = subgraph_id;
-      tx_packet.main_interpret_response_time = main_interpret_response_time;
-      tx_packet.sub_interpret_response_time = sub_interpret_response_time;
-      main_interpret_response_time = 0;
-      sub_interpret_response_time = 0;
-      merge_tensor = nullptr;
-      if (SendPacketToScheduler(tx_packet) !=
-          kTfLiteOk) {  // Request invoke permission to scheduler
-        return_state = kTfLiteError;
-        break;
-      }
       tf_runtime_packet rx_packet;
       if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
         return_state = kTfLiteError;
         break;
       }
-      if (rx_packet.subgraph_ids[0][0] == -1) { // Single inference done.
+      if (rx_packet.inference_end) { // Single inference done.
 #ifdef debug_print
         std::cout << "Main Interpreter graph invoke done"
                   << "\n";
@@ -1380,11 +1459,8 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         subgraph_id = -1; 
         prev_subgraph_id = -1;
         prev_co_subgraph_id = -1;
-        co_subgraph_id = -1;
         main_execution_graph = nullptr;
-        std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-        invoke_cpu = true;
-        invoke_sync_cv.notify_one();
+        // TODO: don't wake. use UDP socket sync.
 #ifdef mobilenet
         global_output_tensor = subgraph->tensor(303);
 #endif
@@ -1426,18 +1502,20 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         }
 #endif
         ////////////////////////////////////////////////////////////////////
+        // tf_runtime_packet tx_packet;
+        // tx_packet.runtime_current_state = RuntimeState::TERMINATE;
+        // if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
+        //   return_state = kTfLiteError;
+        // }
         return_state = kTfLiteOk;
-        return;
+        break;
         // break;
       }
-      // Get main subgraph id to invoke.
-      subgraph_id = rx_packet.subgraph_ids[0][0];
-      // Get sub subgraph id to invoke if exists.
-      if (rx_packet.subgraph_ids[1][0] != -1){
-        co_subgraph_id = rx_packet.subgraph_ids[1][0]; 
-      }
+      // Get subgraph id to invoke.
+      subgraph_id = rx_packet.subgraph_ids_to_invoke[0];
+      prev_subgraph_id = rx_packet.prev_subgraph_id;
+      prev_co_subgraph_id = rx_packet.prev_co_subgraph_id;
 
-      bool merged = false;
       // Check if co execution. If so, give co-execution graph to
       // sub-interpreter and notify.
       subgraph = interpreter->subgraph_id(subgraph_id);
@@ -1446,80 +1524,56 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
 #endif
       // std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
       // if previous subgraph was co-execution, merge co-exectuion data here.
-      if (prev_subgraph_id != subgraph_id && prev_subgraph_id != -1 &&
-          interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() ==
-              CO_GPU) {
-#ifdef debug_print
-        std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id
-                  << " " << subgraph_id << "\n";
-#endif
-        merged = true;
-        // Need extra buffer tensor if previous subgraph was co-execution and
-        // current subgraph is co-execution.
-        if (subgraph->GetResourceType() == CO_GPU) {
-          merge_tensor = new TfLiteMergeTensor;
-          merge_tensor->tensor = new TfLiteTensor;
-          merged = false;
+      bool in_thread_merged = false;
+      if (prev_subgraph_id != -1 &&
+          prev_co_subgraph_id != -1 &&
+          interpreter->subgraph_id(prev_subgraph_id)->GetResourceType() == CO_GPU) {
+        merge_mtx.lock();
+        if(!is_co_execution_merged){
+  #ifdef debug_print
+          std::cout << "Merge " << prev_subgraph_id << " " << prev_co_subgraph_id
+                    << " " << subgraph_id << "\n";
+  #endif
+          is_co_execution_merged = true;
+          in_thread_merged = true;
+          // Need extra buffer tensor if previous subgraph was co-execution and
+          // current subgraph is co-execution.
+          if (subgraph->GetResourceType() == CO_GPU) {
+            merge_tensor = new TfLiteMergeTensor;
+            merge_tensor->tensor = new TfLiteTensor;
+            in_thread_merged = false;
+          }
+          if (MergeCoExecutionData(prev_co_subgraph_id, 
+                                   prev_subgraph_id,
+                                   subgraph_id, merge_tensor) != kTfLiteOk) {
+            std::cout << "MergeCoExecutionData Error"
+                      << "\n";
+            return_state = kTfLiteError;
+            merge_mtx.unlock();
+            break;
+          }
         }
-#ifdef latency_measure
-        clock_gettime(CLOCK_MONOTONIC, &begin);
-#endif
-        if (MergeCoExecutionData(prev_co_subgraph_id, prev_subgraph_id,
-                                 subgraph_id, merge_tensor) != kTfLiteOk) {
-          std::cout << "MergeCoExecutionData Error"
-                    << "\n";
-          return_state = kTfLiteError;
-          break;
-        }
-#ifdef latency_measure
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_label_main_interpreter.push_back("MGs");
-        timestamp_main_interpreter.push_back(begin.tv_sec +
-                                             (begin.tv_nsec / 1000000000.0));
-        timestamp_label_main_interpreter.push_back("MGe");
-        timestamp_main_interpreter.push_back(end.tv_sec +
-                                             (end.tv_nsec / 1000000000.0));
-#endif
-      }
-      if (subgraph->GetResourceType() == CO_GPU) {
-        // wake cpu thread here
-        if (prev_subgraph_id != -1) {
-          // Consider intermediate tensor is located in prev-previous subgraph
-          // (99462)
-          main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
-        }
-        std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-        invoke_cpu = true;
-        invoke_sync_cv.notify_one();
+        merge_mtx.unlock();
       }
       // if not co-execution, it needs additional imtermediate data copy.
-      if (prev_subgraph_id != -1 && !merged) {
+      if ((prev_subgraph_id != -1 || prev_co_subgraph_id != -1) && !in_thread_merged) {
 #ifdef debug_print
         std::cout << "Main CopyIntermediateDataIfNeeded"
                   << "\n";
 #endif
-#ifdef latency_measure
-        clock_gettime(CLOCK_MONOTONIC, &begin);
-#endif
-        if (CopyIntermediateDataIfNeeded(subgraph, prev_subgraph_id,
+        int prev_id_temp = -1;
+        if (prev_subgraph_id == -1) {
+          prev_id_temp = prev_co_subgraph_id;
+        }else{
+          prev_id_temp = prev_subgraph_id;
+        }
+        if (CopyIntermediateDataIfNeeded(subgraph, prev_id_temp,
                                          merge_tensor) != kTfLiteOk) {
           std::cout << "Main CopyIntermediateDataIfNeeded Failed"
                     << "\n";
           return_state = kTfLiteError;
           break;
         }
-#ifdef latency_measure
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        timestamp_label_main_interpreter.push_back("CPs");
-        double response_time = (end.tv_sec - begin.tv_sec) +
-                               ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
-        printf("CPS %.6f", response_time);
-        timestamp_main_interpreter.push_back(begin.tv_sec +
-                                             (begin.tv_nsec / 1000000000.0));
-        timestamp_label_main_interpreter.push_back("CPe");
-        timestamp_main_interpreter.push_back(end.tv_sec +
-                                             (end.tv_nsec / 1000000000.0));
-#endif
 #ifdef debug_print
         std::cout << "Main CopyIntermediateDataIfNeeded Done"
                   << "\n";
@@ -1553,26 +1607,15 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
                 << subgraph->GetGraphid() << " done \n";
 #endif
 // printf(" IVS %.6f ", response_time);
-#ifdef latency_measure
-      timestamp_label_main_interpreter.push_back("IVs");
-      timestamp_main_interpreter.push_back(begin.tv_sec +
-                                           (begin.tv_nsec / 1000000000.0));
-      timestamp_label_main_interpreter.push_back("IVe");
-      timestamp_main_interpreter.push_back(end.tv_sec +
-                                           (end.tv_nsec / 1000000000.0));
-      latency_main_interpreter.push_back(response_time);
-#endif
       if (subgraph->GetResourceType() == ResourceType::CO_GPU) {
         // sync with cpu here
         std::unique_lock<std::mutex> lock_data(data_sync_mtx);
         data_sync_cv.wait(lock_data, [&] { return is_execution_done; });
         is_execution_done = false;
+        is_co_execution_merged = false;
         if (co_execution_graph != nullptr) {
-          prev_co_subgraph_id = co_subgraph_id;
           co_execution_graph = nullptr;
           // clean merge tensor here (used in previous subgraph.)
-          // std::cout << "merge_tensor is used " << merge_tensor->is_used <<
-          // "\n";
           if (merge_tensor != nullptr && merge_tensor->is_used) {
             free(merge_tensor->tensor->data.data);
             free(merge_tensor->tensor->dims);
@@ -1582,17 +1625,17 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
           }
         }
       }
-      prev_subgraph_id = subgraph_id;
+      tf_runtime_packet tx_packet;
+      CreateRuntimePacketToScheduler(tx_packet, subgraph_id);
+      #ifdef debug_print
+      std::cout << "Main interpreter send end packet" << "\n";
+      #endif
+      if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
+        return_state = kTfLiteError;
+      }
     }
   }
   if (return_state != kTfLiteOk) {
-    if (type == InterpreterType::MAIN_INTERPRETER) {
-      co_subgraph_id = -1;
-      main_execution_graph = nullptr;
-      std::unique_lock<std::mutex> lock_invoke(invoke_sync_mtx);
-      invoke_cpu = true;
-      invoke_sync_cv.notify_one();
-    }
     return;
   }
   return_state = kTfLiteOk;
@@ -1721,78 +1764,6 @@ void YOLO_Parser::make_real_bbox_loc_vector(
 TfLiteStatus TfLiteRuntime::MergeCoExecutionData(
     int prev_sub_subgraph, int prev_main_subgraph, int dest_subgraph_,
     TfLiteMergeTensor* buffer_tensor) {
-#ifdef yolo_branch_only
-  if(dest_subgraph_ == 4){
-    // std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
-    // " dest " << dest_subgraph_ <<"\n";
-    if(buffer_tensor != nullptr){
-      free(buffer_tensor->tensor->data.data);
-      free(buffer_tensor->tensor->dims);
-      free(buffer_tensor->tensor);
-      free(buffer_tensor);
-    }
-    buffer_tensor = nullptr;
-    Subgraph* main_dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
-    // Copy from main-subgraph
-    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_main_subgraph, buffer_tensor)
-       != kTfLiteOk){
-      return kTfLiteError;
-    }
-    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_sub_subgraph, buffer_tensor)
-       != kTfLiteOk){
-      return kTfLiteError;
-    }
-    return kTfLiteOk;
-  }
-#endif
-#ifdef yolo_branch
-  if(dest_subgraph_ == 9){
-    // std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
-    // " dest " << dest_subgraph_ <<"\n";
-    if(buffer_tensor != nullptr){
-      free(buffer_tensor->tensor->data.data);
-      free(buffer_tensor->tensor->dims);
-      free(buffer_tensor->tensor);
-      free(buffer_tensor);
-    }
-    buffer_tensor = nullptr;
-    Subgraph* main_dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
-    // Copy from main-subgraph
-    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_main_subgraph, buffer_tensor)
-       != kTfLiteOk){
-      return kTfLiteError;
-    }
-    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_sub_subgraph, buffer_tensor)
-       != kTfLiteOk){
-      return kTfLiteError;
-    }
-    return kTfLiteOk;
-  }
-#endif
-#ifdef center_branch
-  if(dest_subgraph_ == 5){
-    std::cout << "Yolo copy code prev_sub " << prev_sub_subgraph << " prev_main " << prev_main_subgraph << 
-    " dest " << dest_subgraph_ <<"\n";
-    if(buffer_tensor != nullptr){
-      free(buffer_tensor->tensor->data.data);
-      free(buffer_tensor->tensor->dims);
-      free(buffer_tensor->tensor);
-      free(buffer_tensor);
-    }
-    buffer_tensor = nullptr;
-    Subgraph* main_dest_subgraph = interpreter->subgraph_id(dest_subgraph_);
-    // Copy from main-subgraph
-    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_main_subgraph, buffer_tensor)
-       != kTfLiteOk){
-      return kTfLiteError;
-    }
-    if(CopyIntermediateDataIfNeeded(main_dest_subgraph, prev_sub_subgraph, buffer_tensor)
-       != kTfLiteOk){
-      return kTfLiteError;
-    }
-    return kTfLiteOk;
-  }
-#endif
   Subgraph* min_precision_subgraph =
       sub_interpreter->subgraph_id(prev_sub_subgraph);
   Subgraph* max_precision_subgraph =

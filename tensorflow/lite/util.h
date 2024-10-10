@@ -279,7 +279,6 @@ typedef struct tf_packet{
   short runtime_current_state;
   short runtime_next_state;
   int cur_subgraph;
-  int cur_graph_resource; // 0 for cpu, 1 for gpu
   int partitioning_plan[1000];
   int subgraph_ids[2][100]; 
   float latency[1000];
@@ -291,17 +290,22 @@ typedef struct tf_packet{
 // we use different packets for runtime phase and init phase.
 // At init phase, need big ary for paramters while runtime needs small ary.
 typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
+  bool is_secondary_socket = false;
   short runtime_id;
   short runtime_current_state;
   short runtime_next_state;
   int cur_subgraph;
-  int cur_graph_resource; // 0 for cpu, 1 for gpu
-  int subgraph_ids[2][100]; 
+  int subgraph_ids_to_invoke[2];
+  int prev_subgraph_id;
+  int prev_co_subgraph_id;
+  int resource_plan; 
   float sub_interpret_response_time;
   float main_interpret_response_time;
+  bool inference_end;
 }tf_runtime_packet;
 
 typedef struct tf_initialization_packet{// runtime packet(use at init)
+  bool is_secondary_socket = false;
   short runtime_id;
   short runtime_current_state;
   short runtime_next_state;

@@ -85,7 +85,7 @@ namespace tflite{
     // graphs[1] -> subgraphs in level 2 (ex, midium subgraph granularity)
     // ..
     // ..
-
+    subgraph_node* latest_inference_node;
     int id;
     RuntimeState state;
     struct sockaddr_un addr;
@@ -96,7 +96,7 @@ namespace tflite{
   class TfScheduler{
     public:
       TfScheduler();
-      TfScheduler(const char* uds_file_name,
+      TfScheduler(const char* uds_file_name, const char* uds_file_name_sec,
                   std::vector<std::string>& param_file_names);
 
       void PrintRuntimeStates();
@@ -105,13 +105,20 @@ namespace tflite{
 
       void OpenPartitioningParams(std::vector<std::string>& param_file_names);
       
-
       int SendPacketToRuntime(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntime(tf_packet& tx_p, struct sockaddr_un& runtime_addr);
+
+      int SendPacketToRuntimeSecSocket(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
+      int SendPacketToRuntimeSecSocket(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
+      
+      int ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntimeSecSocket(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr,
+                                            struct sockaddr_un& runtime_addr_sec, int max_fd, fd_set& read_fds);
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.
@@ -121,6 +128,7 @@ namespace tflite{
 
       ////////////////////////////////////////////////////////////////////////////////////////
       /* Function description of CreatePartitioningPlan
+      // SUBJECT TO CHANGE
       Read partitioning parameters from file.
       The parameter array follows the format below.
       format : node_subset /-1/ Resource type(CPU, GPU,,) / Partitioning ratio /-2/ :|(repeat)
@@ -189,7 +197,7 @@ namespace tflite{
       void PrintGraph(int runtime_id);
 
       // Search and return the subgraph's id to invoke.    
-      std::pair<int, int> SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet);
+      void SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet, tf_runtime_packet& tx_packet);
 
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.
@@ -223,9 +231,13 @@ namespace tflite{
       // subgraph parameters for runtime.
       std::vector<std::vector<int>> subgraph_params_runtime; 
 
-      int scheduler_fd;
       size_t addr_size;
+
+      int scheduler_fd;
       struct sockaddr_un scheduler_addr;
+
+      int scheduler_fd_sec;
+      struct sockaddr_un scheduler_addr_sec;
 
       int first_counter = 0;
       int second_counter = 0;
