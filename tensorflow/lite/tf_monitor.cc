@@ -5,7 +5,7 @@
 
 // Note: global reosurce monitoring period.
 // too short monitoring period might occur overhead.
-#define MONITORING_PERIOD_MS 5
+#define MONITORING_PERIOD_MS 10
 
 // Note: experimental flag for ramdisk writing.
 // #define ramdisk_gpu_debug
@@ -75,7 +75,6 @@ void LiteSysMonitor::GlobalResourceMonitor(){
       // std::cout << "monitor : Do recovery CPU: " << cpu_util_ratio << " GPU: " 
                 // << gpu_util_ratio << "\n";
       memset(tmp, 1, sizeof(tmp));
-      std::cout << "write recovery" << "\n";
       if(write(recovery_fd_wr, tmp, sizeof(tmp)) == -1){
         std::cout << "recovery monitor write(pipe) failed" << "\n";
         return;

@@ -118,11 +118,13 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
                                             struct sockaddr_un& runtime_addr,
                                             struct sockaddr_un& runtime_addr_sec,
                                             int max_fd, fd_set& read_fds){
+  int return_v;
   std::cout << "multiplex wait" << "\n";
   int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
   if (activity < 0) {
     std::cout << "select error" << "\n";
-    return -1;
+    return_v = -1;
+    return return_v;
   }
 
   // read from main inference thread
@@ -131,10 +133,10 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
     if (ReceivePacketFromRuntime(rx_p, runtime_addr) == -1) {
       std::cout << "Receive failed"
                 << "\n";
-      return -1;
+      return_v = -1;
+      return return_v;
     }
     // FD_CLR(scheduler_fd, &read_fds);
-    return 1;
   }
 
   // read from secondary inference thread
@@ -143,10 +145,10 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
     if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr_sec) == -1) {
       std::cout << "Receive failed"
                 << "\n";
-      return -1;
+      return_v = -1;
+      return return_v;
     }
     // FD_CLR(scheduler_fd_sec, &read_fds);
-    return 1;
   }
 
   if(recovery_possible && FD_ISSET(recovery_fd, &read_fds)){
@@ -156,12 +158,18 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
     ssize_t bytes_read = read(recovery_fd, buffer, sizeof(buffer) - 1);
     if(RecoveryHandler(rx_p) == -1){
       std::cout << "Recovery handler returned error" << "\n";
-      return -2;
+      return_v = -2;
+      return return_v;
     }
-    return 1;
   }
-  std::cout << "select done but read error" << "\n";
-  return -1;
+  FD_ZERO(&read_fds);
+  FD_SET(scheduler_fd, &read_fds);
+  FD_SET(scheduler_fd_sec, &read_fds);
+  if(recovery_possible){
+    FD_SET(recovery_fd, &read_fds);
+  }
+  return_v = 1;
+  return return_v;
 }
 
 int TfScheduler::ReceivePacketFromRuntime(tf_initialization_packet& rx_p,
@@ -227,14 +235,16 @@ void TfScheduler::Work() {
   recovery_fd = monitor->GetRecoveryFD();
   std::cout << "sched recovery_fd : " << recovery_fd << "\n";
   fd_set read_fds;
-  int max_fd = std::max(scheduler_fd, scheduler_fd_sec);
-  max_fd = std::max(scheduler_fd_sec, recovery_fd);
-  std::cout << "maxfd " << max_fd << "\n";
-  // struct timeval timeout;
-  // timeout.tv_sec = 10;
-  // timeout.tv_usec = 0;
-
   while (run) {
+    int max_fd = std::max(scheduler_fd, scheduler_fd_sec);
+    FD_ZERO(&read_fds);
+    FD_SET(scheduler_fd, &read_fds);
+    FD_SET(scheduler_fd_sec, &read_fds);
+    if(recovery_possible){
+      max_fd = std::max(scheduler_fd_sec, recovery_fd);
+      FD_SET(recovery_fd, &read_fds);
+    }
+    std::cout << "maxfd " << max_fd << "\n";
     // tf_initialization_packet rx_packet;
     tf_initialization_packet rx_init_packet;
     tf_runtime_packet rx_runtime_packet;
@@ -250,10 +260,6 @@ void TfScheduler::Work() {
       state = static_cast<RuntimeState>(rx_init_packet.runtime_current_state);
       id = static_cast<int>(rx_init_packet.runtime_id);
     }else{
-      FD_ZERO(&read_fds);
-      FD_SET(scheduler_fd, &read_fds);
-      FD_SET(scheduler_fd_sec, &read_fds);
-      FD_SET(recovery_fd, &read_fds);
       memset(&rx_runtime_packet, 0, sizeof(tf_runtime_packet));
       int received = ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, scheduler_addr,
                                                     scheduler_addr_sec, max_fd, read_fds);
@@ -657,10 +663,15 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
 
   /* [IMPT] Utilization based resource allocation part */
   // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
-  printf("rx %.6f profiled %.6f \n",rx_packet.main_interpret_response_time ,prev_invoked_subgraph->average_latency);
-  if(rx_packet.main_interpret_response_time > prev_invoked_subgraph->average_latency * 1.2){
+  float prev_invoked_subgraph_latency = 0;
+  if(rx_packet.is_secondary_socket){
+    prev_invoked_subgraph_latency = rx_packet.sub_interpret_response_time;
+  }else{
+    prev_invoked_subgraph_latency = rx_packet.main_interpret_response_time;
+  }
+  printf("rx %.6f profiled %.6f \n",prev_invoked_subgraph_latency ,prev_invoked_subgraph->average_latency);
+  if(prev_invoked_subgraph_latency > prev_invoked_subgraph->average_latency * 1.2){
     // printf("rx %d profiled %d \n",rx_packet.cur_subgraph ,prev_invoked_subgraph->subgraph_id);
-    // 느려진 비율 만큼 느려질 것이라고 예상하면 되지않나???
     std::cout << "resource" << prev_invoked_subgraph->resource_type << "contention!" << "\n";
     std::cout << "GPU " << gpu_util << " CPU " << cpu_util << "\n";
     if(prev_invoked_subgraph->resource_type == 3 && gpu_util < 50){ //cpu

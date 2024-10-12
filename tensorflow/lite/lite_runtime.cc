@@ -2,7 +2,7 @@
 
 // #define YOLO_PARSER
 // #define mobilenet
-// #define debug_print
+#define debug_print
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
@@ -1432,6 +1432,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         // if single CPU execution
         tf_runtime_packet tx_packet;
         CreateRuntimePacketToScheduler(tx_packet, subgraph_id);
+        tx_packet.is_secondary_socket = true;
         #ifdef debug_print
         std::cout << "Sub interpreter send end packet" << "\n";
         #endif
@@ -1627,6 +1628,7 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       }
       tf_runtime_packet tx_packet;
       CreateRuntimePacketToScheduler(tx_packet, subgraph_id);
+      tx_packet.is_secondary_socket = false;
       #ifdef debug_print
       std::cout << "Main interpreter send end packet" << "\n";
       #endif
