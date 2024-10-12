@@ -86,7 +86,10 @@ namespace tflite{
     // ..
     // ..
     subgraph_node* latest_inference_node;
+    subgraph_node* pre_latest_inference_node; // special memory for recovery selection
+    struct timespec latest_inference_timestamp;
     int id;
+    int level = 0; // current execution level
     RuntimeState state;
     struct sockaddr_un addr;
     float latency[TF_P_PLAN_LENGTH];
@@ -199,6 +202,8 @@ namespace tflite{
       // Search and return the subgraph's id to invoke.    
       void SearchNextSubgraphtoInvoke(tf_runtime_packet& rx_packet, tf_runtime_packet& tx_packet);
 
+      int RecoveryHandler(tf_runtime_packet& rx_p_dummy);
+
       // Refresh the whole graph structure of current runtime and finally add
       // 'id' in them.
       // void PrepareRuntime(tf_packet& rx_packet); // deprecated [VLS] - for multi-level subgraph.
@@ -239,11 +244,9 @@ namespace tflite{
       int scheduler_fd_sec;
       struct sockaddr_un scheduler_addr_sec;
 
-      int first_counter = 0;
-      int second_counter = 0;
-      int third_counter = 0;
-      int fourth_counter = 0;
-      int fifth_counter = 0;
+      // recovery alert file descriptor (pipe)
+      int recovery_fd;
+      bool recovery_possible = false;
 
       std::vector<runtime_*> runtimes;
       int runtimes_created = 0;

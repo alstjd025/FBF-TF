@@ -32,6 +32,9 @@ class LiteSysMonitor{
     void GetCPUUtilization();
     void GetGPUUtilization();
     void usage_debugger();
+    void GlobalResourceMonitor();
+
+    int GetRecoveryFD();
 
     float GetGPUUtil();
     float GetCPUUtil();
@@ -42,6 +45,10 @@ class LiteSysMonitor{
 
     std::ofstream log_File; 
   private:
+    // file discriptor for recovery alert.
+    int recovery_fds[2];
+    int recovery_fd_wr;
+    int recovery_fd_rd;
 
     std::thread CPU_daemon;
     std::thread GPU_daemon;

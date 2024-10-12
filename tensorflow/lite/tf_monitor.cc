@@ -1,37 +1,88 @@
 #include "tensorflow/lite/tf_monitor.h"
+
+// Note: activate if nvidia platform
 #define nvidia
-#define MONITORING_PERIOD_MS 1
-#define ramdisk_gpu_debug
-#define GPU_UTIL_FILE "/mnt/ramdisk/gpu_util"
-/*
-  Note[MS] : GPU monitoring period under 5 ms may not safe?
-*/
 
+// Note: global reosurce monitoring period.
+// too short monitoring period might occur overhead.
+#define MONITORING_PERIOD_MS 5
 
+// Note: experimental flag for ramdisk writing.
+// #define ramdisk_gpu_debug
+// #define GPU_UTIL_FILE "/mnt/ramdisk/gpu_util"
+
+// Note: experimental flag to monitor utilization file.
 // #define Experiment
 
+// Note: activate monitoring debugger
+// #define monitoring_debugger
 
 namespace tflite{
 
 LiteSysMonitor::LiteSysMonitor(){
   log_File.open("utilization.txt");
-  
+  if (pipe(recovery_fds) == -1) {
+    std::cerr << "Failed to create pipe" << std::endl;
+    return;
+  }
+  recovery_fd_rd = recovery_fds[0];
+  recovery_fd_wr = recovery_fds[1];
+
   std::cout << "System monitoring started" << "\n";
   CPU_daemon = std::thread(&LiteSysMonitor::GetCPUUtilization, this);
   #ifdef nvidia
     GPU_daemon = std::thread(&LiteSysMonitor::GetGPUUtilization, this);
   #endif
+  #ifdef monitoring_debugger
   debugger_daemon = std::thread(&LiteSysMonitor::usage_debugger, this);
+  debugger_daemon.detach();
+  #endif
   CPU_daemon.detach();
   #ifdef nvidia
     GPU_daemon.detach();
   #endif
-  debugger_daemon.detach();
+  GlobalResourceMonitor();
 }
 
 LiteSysMonitor::~LiteSysMonitor(){
   // must terminate CPU_daemon & GPU_daemon here.
   std::cout << "System monitoring terminated" << "\n";
+}
+
+void LiteSysMonitor::GlobalResourceMonitor(){
+  float prev_cpu_util = 0;
+  float prev_gpu_util = 0;
+  char tmp[4];
+  bool do_revocery = false;
+  float cpu_recovery_threshold = 20;
+  float cpu_busy_threshold = 80;
+  float gpu_recovery_threshold = 20;
+  float gpu_busy_threshold = 80;
+  while(true){
+    // recovery alert logic here.
+    // Note: temporal naive approach.
+    // if other resource gets available, try recovery.
+    if(cpu_util_ratio < cpu_recovery_threshold && gpu_util_ratio > gpu_busy_threshold
+       || gpu_util_ratio < gpu_recovery_threshold && cpu_util_ratio > cpu_busy_threshold){
+      do_revocery = true;
+    }else{
+      do_revocery = false;
+    }
+    if(do_revocery){
+      std::cout << "monitor : Do recovery CPU: " << cpu_util_ratio << " GPU: " 
+                << gpu_util_ratio << "\n";
+      memset(tmp, 1, sizeof(tmp));
+      write(recovery_fd_wr, tmp, strlen(tmp));
+      memset(tmp, 0, sizeof(tmp));
+      do_revocery = false;
+    }
+    std::this_thread::sleep_for(std::chrono::microseconds(MONITORING_PERIOD_MS));
+  }
+}
+
+int LiteSysMonitor::GetRecoveryFD(){
+  std::cout << "get recovery_fd " << recovery_fd_wr << "\n";
+  return recovery_fd_wr;
 }
 
 float LiteSysMonitor::GetCPUUtil(){
@@ -176,10 +227,10 @@ void LiteSysMonitor::GetGPUUtilization() {
       break;
     }
     fclose(f);
-    gpu_util_f << gpu_util_ratio << " " << now.tv_sec << "." << now.tv_nsec /  1000000000.0 << "\n";
+    // gpu_util_f << gpu_util_ratio << " " << now.tv_sec << "." << now.tv_nsec /  1000000000.0 << "\n";
     std::this_thread::sleep_for(std::chrono::milliseconds(MONITORING_PERIOD_MS));
   }
-  gpu_util_f.close();
+  // gpu_util_f.close();
   #endif
 }
 

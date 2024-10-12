@@ -126,7 +126,7 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
   }
 
   // read from main inference thread
-  if (FD_ISSET(scheduler_fd, &read_fds)) {
+  if(FD_ISSET(scheduler_fd, &read_fds)) {
     std::cout << "read from main inference thread" << "\n";
     if (ReceivePacketFromRuntime(rx_p, runtime_addr) == -1) {
       std::cout << "Receive failed"
@@ -138,7 +138,7 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
   }
 
   // read from secondary inference thread
-  if (FD_ISSET(scheduler_fd_sec, &read_fds)) {
+  if(FD_ISSET(scheduler_fd_sec, &read_fds)) {
     std::cout << "read from secondary inference thread" << "\n";
     if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr_sec) == -1) {
       std::cout << "Receive failed"
@@ -146,6 +146,18 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
       return -1;
     }
     // FD_CLR(scheduler_fd_sec, &read_fds);
+    return 1;
+  }
+
+  if(recovery_possible && FD_ISSET(recovery_fd, &read_fds)){
+    std::cout << "recovery call" << "\n";
+    char buffer[4];
+    memset(buffer, 0, sizeof(buffer));
+    ssize_t bytes_read = read(recovery_fd, buffer, sizeof(buffer) - 1);
+    if(RecoveryHandler(rx_p) == -1){
+      std::cout << "Recovery handler returned error" << "\n";
+      return -2;
+    }
     return 1;
   }
   std::cout << "select done but read error" << "\n";
@@ -180,6 +192,7 @@ int TfScheduler::ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_
 
 void TfScheduler::Work() {
   monitor = new LiteSysMonitor();
+
   bool run = true;
 
   // Experimantal flag for the seperation of init packet and runtime packet.
@@ -211,8 +224,10 @@ void TfScheduler::Work() {
     //ok
   }
   // Set fd for multiplexing
+  recovery_fd = monitor->GetRecoveryFD();
   fd_set read_fds;
   int max_fd = std::max(scheduler_fd, scheduler_fd_sec);
+  max_fd = std::max(scheduler_fd_sec, recovery_fd);
   // struct timeval timeout;
   // timeout.tv_sec = 10;
   // timeout.tv_usec = 0;
@@ -236,15 +251,21 @@ void TfScheduler::Work() {
       FD_ZERO(&read_fds);
       FD_SET(scheduler_fd, &read_fds);
       FD_SET(scheduler_fd_sec, &read_fds);
+      FD_SET(recovery_fd, &read_fds);
       memset(&rx_runtime_packet, 0, sizeof(tf_runtime_packet));
-      if (ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, scheduler_addr, scheduler_addr_sec,
-                                            max_fd, read_fds) == -1) {
+      int received = ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, scheduler_addr,
+                                                    scheduler_addr_sec, max_fd, read_fds);
+      if (received == -1) {
         std::cout << "Receive multiplex failed"
                   << "\n";
         return;
+      }else if(received == -2){
+        std::cout << "no recovery. skip" << "\n";
+        state = RuntimeState::BLOCKED_;
+      }else{
+        state = static_cast<RuntimeState>(rx_runtime_packet.runtime_current_state);
+        id = static_cast<int>(rx_runtime_packet.runtime_id);
       }
-      state = static_cast<RuntimeState>(rx_runtime_packet.runtime_current_state);
-      id = static_cast<int>(rx_runtime_packet.runtime_id);
     }
     // [VLS Todo] need packet check??
     // tf_packet rx_packet;
@@ -377,13 +398,25 @@ void TfScheduler::Work() {
         // tf_packet tx_packet;
         tx_runtime_packet.runtime_id = id;
         tx_runtime_packet.runtime_next_state = RuntimeState::INVOKE_;
-        SearchNextSubgraphtoInvoke(rx_runtime_packet, tx_runtime_packet);
+        if(!rx_runtime_packet.is_recovery_selection){
+          SearchNextSubgraphtoInvoke(rx_runtime_packet, tx_runtime_packet);
+        }else{
+          // [todo] make tx packet here with recovery packet.
+          tx_runtime_packet.is_recovery_selection = true;
+          tx_runtime_packet.subgraph_ids_to_invoke[0] = rx_runtime_packet.subgraph_ids_to_invoke[0];
+          tx_runtime_packet.subgraph_ids_to_invoke[1] = rx_runtime_packet.subgraph_ids_to_invoke[1];
+          tx_runtime_packet.resource_plan = rx_runtime_packet.resource_plan;
+          tx_runtime_packet.prev_subgraph_id = rx_runtime_packet.prev_subgraph_id;
+          tx_runtime_packet.prev_co_subgraph_id = rx_runtime_packet.prev_co_subgraph_id;
+          tx_runtime_packet.inference_end = false;
+        }
         //if(co-execution or inference end)
         if(!tx_runtime_packet.inference_end){
           if(tx_runtime_packet.resource_plan == 3){
             // CPU execution
             std::cout << "send CPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] <<
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            recovery_possible = true;
             if (SendPacketToRuntimeSecSocket(tx_runtime_packet, scheduler_addr_sec) == -1) {
               std::cout << "sock : " << scheduler_addr_sec.sun_path << " "
                         << scheduler_addr_sec.sun_family << "\n";
@@ -394,6 +427,7 @@ void TfScheduler::Work() {
             // GPU execution
             std::cout << "send GPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            recovery_possible = true;
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
               std::cout << "sock : " << scheduler_addr.sun_path << " "
                         << scheduler_addr.sun_family << "\n";
@@ -404,6 +438,7 @@ void TfScheduler::Work() {
             // Co execution
             std::cout << "send co-ex id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            recovery_possible = false;
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
               std::cout << "sock : " << scheduler_addr.sun_path << " "
                         << scheduler_addr.sun_family << "\n";
@@ -421,6 +456,7 @@ void TfScheduler::Work() {
           // inferece end
           std::cout << "send end" << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+          recovery_possible = false;
           if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
             std::cout << "sock : " << scheduler_addr.sun_path << " "
                       << scheduler_addr.sun_family << "\n";
@@ -489,8 +525,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
 
   int gpu_thresh = 70;
   int cpu_thresh = 70;
-  int level = 0; // slow start
+  int level = runtime->level; 
   bool first_and_last_graph = false;
+  struct timespec now;
   subgraph_node* root_graph = runtime->graphs[level]->root;
   subgraph_node* prev_invoked_subgraph = nullptr;
   subgraph_node* prev_base_subgraph = nullptr;
@@ -521,8 +558,10 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     // inference 한 subgraph의 end op 와 latest_inference_node의 start op 비교
     if(runtime->latest_inference_node == nullptr){
       runtime->latest_inference_node = prev_invoked_subgraph;
+      runtime->pre_latest_inference_node = nullptr;
     }else{
       if(prev_invoked_subgraph->node_end > runtime->latest_inference_node->node_end){
+        runtime->pre_latest_inference_node = runtime->latest_inference_node;
         runtime->latest_inference_node = prev_invoked_subgraph;
       }
     }
@@ -534,7 +573,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       prev_base_subgraph = prev_base_subgraph->up;
     }
   }
-  // 다음 할 일 
+  
   // scheduling timing에 어떻게 reschedule 할 것인가?
   // In case only one subgraph exists.
   if (runtime->graphs[level]->nodes.size() == 1) {
@@ -549,8 +588,12 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       tx_packet.resource_plan = runtime->graphs[level]->nodes[0]->resource_type;
       tx_packet.inference_end = true;
       runtime->latest_inference_node = nullptr;
+      runtime->pre_latest_inference_node = nullptr;
     }
     std::cout << "one subgraph" << "\n";
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    runtime->latest_inference_timestamp.tv_sec = now.tv_sec;
+    runtime->latest_inference_timestamp.tv_nsec = now.tv_nsec;
     return;
   }
 
@@ -565,6 +608,8 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       tx_packet.subgraph_ids_to_invoke[1] = -1;  
       tx_packet.resource_plan = -1;
       tx_packet.inference_end = true;
+      runtime->latest_inference_timestamp.tv_sec = 0;
+      runtime->latest_inference_timestamp.tv_nsec = 0;
       return;
     }else{
       next_base_subgraph = root_graph;
@@ -578,6 +623,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       tx_packet.resource_plan = -1;
       tx_packet.inference_end = true;
       runtime->latest_inference_node = nullptr;
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      runtime->latest_inference_timestamp.tv_sec = 0;
+      runtime->latest_inference_timestamp.tv_nsec = 0;
       return;
     }  // case of first subgraph
     else if (rx_packet.cur_subgraph == -1) {
@@ -585,7 +633,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     } else {
       next_base_subgraph = prev_base_subgraph->right;
     }
-  #endif`
+  #endif
 
   int next_resource_plan = -1;
   next_subgraph_to_invoke = next_base_subgraph;
@@ -675,7 +723,69 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   tx_packet.subgraph_ids_to_invoke[1] = next_subgraph_to_invoke->co_subgraph_id;
   tx_packet.resource_plan = next_subgraph_to_invoke->resource_type;
   tx_packet.inference_end = false;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  runtime->latest_inference_timestamp.tv_sec = now.tv_sec;
+  runtime->latest_inference_timestamp.tv_nsec = now.tv_nsec;
   return;
+}
+
+// Experimental feature.
+int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
+  if(runtimes.empty()){
+    std::cout << "no runtime" << "\n";
+    return -1;
+  }
+  rx_p_dummy.runtime_id = runtimes[0]->id;
+  rx_p_dummy.runtime_current_state = RuntimeState::INVOKE_;
+  runtime_* runtime = runtimes[0];
+  // check resource state
+  float gpu_util = monitor->GetGPUUtil();
+  float cpu_util = monitor->GetCPUUtil();
+  // set resource to use
+  if(gpu_util < 20 & cpu_util > 60){ // use gpu recovery
+    rx_p_dummy.resource_plan = 1;
+  }else if(cpu_util < 20 & gpu_util > 60){ // use cpu recovery
+    rx_p_dummy.resource_plan = 3;
+  }else{
+    std::cout << "recovery called but resource not enough" << "\n";
+    return -1;
+  }
+  int level = runtime->level;
+  subgraph_node* next_subgraph_to_invoke = runtime->latest_inference_node;
+  if(runtime->latest_inference_node == nullptr){
+    std::cout << "no need to recovery" << "\n";
+    return -1;
+  }else{
+    if(runtime->latest_inference_node->resource_type == rx_p_dummy.resource_plan){
+      std::cout << "cannot recover current inference resource." << "\n";
+      return -1;
+    }
+    while (next_subgraph_to_invoke != nullptr) {
+      if (next_subgraph_to_invoke->resource_type == rx_p_dummy.resource_plan) {
+        break;
+      }
+      if (next_subgraph_to_invoke->down != nullptr) {
+        next_subgraph_to_invoke = next_subgraph_to_invoke->down;
+      } else {
+        std::cout << "no subgraph for recovery resource " << rx_p_dummy.resource_plan << "\n";
+        return -1;
+      }
+    }
+  }
+  // [todo] later check estimated inference time
+
+  rx_p_dummy.is_recovery_selection = true;
+  if(rx_p_dummy.resource_plan == 1){ // if gpu recovery
+    rx_p_dummy.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke->subgraph_id;
+    rx_p_dummy.subgraph_ids_to_invoke[1] = -1;
+  }else if(rx_p_dummy.resource_plan == 3){ // if cpu recovery
+    rx_p_dummy.subgraph_ids_to_invoke[0] = -1;
+    rx_p_dummy.subgraph_ids_to_invoke[1] = next_subgraph_to_invoke->subgraph_id;
+  }
+  rx_p_dummy.prev_subgraph_id = runtime->pre_latest_inference_node->subgraph_id;
+  rx_p_dummy.prev_co_subgraph_id = runtime->pre_latest_inference_node->co_subgraph_id;
+  return 1;
+  // 
 }
 
 // [VLS Todo] call this function multi-level safely.
