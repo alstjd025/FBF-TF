@@ -401,12 +401,12 @@ void TfScheduler::Work() {
       }
       case RuntimeState::INVOKE_: {
         // [VLS Todo] use runtime packet here.
-        RefreshRuntimeState(rx_runtime_packet);
         tf_runtime_packet tx_runtime_packet;
         // tf_packet tx_packet;
         tx_runtime_packet.runtime_id = id;
         tx_runtime_packet.runtime_next_state = RuntimeState::INVOKE_;
         if(!rx_runtime_packet.is_recovery_selection){
+          RefreshRuntimeState(rx_runtime_packet);
           SearchNextSubgraphtoInvoke(rx_runtime_packet, tx_runtime_packet);
         }else{
           // [todo] make tx packet here with recovery packet.
@@ -744,6 +744,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
 
 // Experimental feature.
 int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
+  std::cout << "recovery handler" << "\n";
   if(runtimes.empty()){
     std::cout << "no runtime" << "\n";
     return -1;
@@ -755,6 +756,7 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
   float gpu_util = monitor->GetGPUUtil();
   float cpu_util = monitor->GetCPUUtil();
   // set resource to use
+  std::cout << "11" << "\n";
   if(gpu_util < 20 & cpu_util > 60){ // use gpu recovery
     rx_p_dummy.resource_plan = 1;
   }else if(cpu_util < 20 & gpu_util > 60){ // use cpu recovery
@@ -763,6 +765,7 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
     std::cout << "recovery called but resource not enough" << "\n";
     return -1;
   }
+  std::cout << "2" << "\n";
   int level = runtime->level;
   subgraph_node* next_subgraph_to_invoke = runtime->latest_inference_node;
   if(runtime->latest_inference_node == nullptr){
@@ -785,6 +788,7 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
       }
     }
   }
+  std::cout << "3" << "\n";
   // [todo] later check estimated inference time
 
   rx_p_dummy.is_recovery_selection = true;
@@ -795,8 +799,14 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
     rx_p_dummy.subgraph_ids_to_invoke[0] = -1;
     rx_p_dummy.subgraph_ids_to_invoke[1] = next_subgraph_to_invoke->subgraph_id;
   }
-  rx_p_dummy.prev_subgraph_id = runtime->pre_latest_inference_node->subgraph_id;
-  rx_p_dummy.prev_co_subgraph_id = runtime->pre_latest_inference_node->co_subgraph_id;
+  if(runtime->pre_latest_inference_node != nullptr){
+    rx_p_dummy.prev_subgraph_id = runtime->pre_latest_inference_node->subgraph_id;
+    rx_p_dummy.prev_co_subgraph_id = runtime->pre_latest_inference_node->co_subgraph_id;
+  }else{
+    rx_p_dummy.prev_subgraph_id = -1;
+    rx_p_dummy.prev_co_subgraph_id = -1;
+  }
+  std::cout << "4" << "\n";
   return 1;
   // 
 }
