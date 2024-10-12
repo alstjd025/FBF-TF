@@ -27,7 +27,8 @@ LiteSysMonitor::LiteSysMonitor(){
   }
   recovery_fd_rd = recovery_fds[0];
   recovery_fd_wr = recovery_fds[1];
-
+  std::cout << "pipe read " << recovery_fd_rd << "\n";
+  std::cout << "pipe wirte " << recovery_fd_wr << "\n";
   std::cout << "System monitoring started" << "\n";
   CPU_daemon = std::thread(&LiteSysMonitor::GetCPUUtilization, this);
   #ifdef nvidia
@@ -41,7 +42,8 @@ LiteSysMonitor::LiteSysMonitor(){
   #ifdef nvidia
     GPU_daemon.detach();
   #endif
-  GlobalResourceMonitor();
+  global_monitor_daemon = std::thread(&LiteSysMonitor::GlobalResourceMonitor, this);
+  global_monitor_daemon.detach();
 }
 
 LiteSysMonitor::~LiteSysMonitor(){
@@ -66,13 +68,18 @@ void LiteSysMonitor::GlobalResourceMonitor(){
        || gpu_util_ratio < gpu_recovery_threshold && cpu_util_ratio > cpu_busy_threshold){
       do_revocery = true;
     }else{
+      // std::cout << "monitor : no recovery occurs" << "\n";
       do_revocery = false;
     }
     if(do_revocery){
-      std::cout << "monitor : Do recovery CPU: " << cpu_util_ratio << " GPU: " 
-                << gpu_util_ratio << "\n";
+      // std::cout << "monitor : Do recovery CPU: " << cpu_util_ratio << " GPU: " 
+                // << gpu_util_ratio << "\n";
       memset(tmp, 1, sizeof(tmp));
-      write(recovery_fd_wr, tmp, strlen(tmp));
+      std::cout << "write recovery" << "\n";
+      if(write(recovery_fd_wr, tmp, sizeof(tmp)) == -1){
+        std::cout << "recovery monitor write(pipe) failed" << "\n";
+        return;
+      }
       memset(tmp, 0, sizeof(tmp));
       do_revocery = false;
     }
@@ -81,8 +88,7 @@ void LiteSysMonitor::GlobalResourceMonitor(){
 }
 
 int LiteSysMonitor::GetRecoveryFD(){
-  std::cout << "get recovery_fd " << recovery_fd_wr << "\n";
-  return recovery_fd_wr;
+  return recovery_fd_rd;
 }
 
 float LiteSysMonitor::GetCPUUtil(){

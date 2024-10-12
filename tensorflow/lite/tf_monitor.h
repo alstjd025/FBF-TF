@@ -53,6 +53,7 @@ class LiteSysMonitor{
     std::thread CPU_daemon;
     std::thread GPU_daemon;
     std::thread debugger_daemon;
+    std::thread global_monitor_daemon;
     
     std::atomic<float> cpu_util_ratio; 
     std::atomic<float> gpu_util_ratio; 

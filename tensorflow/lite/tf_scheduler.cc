@@ -225,9 +225,11 @@ void TfScheduler::Work() {
   }
   // Set fd for multiplexing
   recovery_fd = monitor->GetRecoveryFD();
+  std::cout << "sched recovery_fd : " << recovery_fd << "\n";
   fd_set read_fds;
   int max_fd = std::max(scheduler_fd, scheduler_fd_sec);
   max_fd = std::max(scheduler_fd_sec, recovery_fd);
+  std::cout << "maxfd " << max_fd << "\n";
   // struct timeval timeout;
   // timeout.tv_sec = 10;
   // timeout.tv_usec = 0;
@@ -902,7 +904,7 @@ void TfScheduler::CreateGraphofSubgraphs(int id,
                                                         // (add current subgraph node)
             resource_type = subgraph_params_sched[level][working_idx - 5];
             partitioning_ratio = subgraph_params_sched[level][working_idx - 4];
-            std::cout << "register " << subgraph_params_sched[level][working_idx - 3] << "\n";
+            // std::cout << "register " << subgraph_params_sched[level][working_idx - 3] << "\n";
             std::cout << "start op " << start_node << " end op " << end_node << "\n";
             latency = float(subgraph_params_sched[level][working_idx - 3]) / 1000000.0;
             cpu_util = subgraph_params_sched[level][working_idx - 2];
