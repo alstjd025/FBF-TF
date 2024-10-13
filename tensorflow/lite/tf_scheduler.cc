@@ -419,6 +419,16 @@ void TfScheduler::Work() {
           tx_runtime_packet.inference_end = false;
         }
         //if(co-execution or inference end)
+        /*
+        [TODO: 10.14.01.48am] - need major bug fixes
+        -- log
+        [Main interpreter] get subgraph 1
+        [Main interpreter] Invoke subgraph 1
+        [Sub Interpreter] get subgraph -1 -- recovery occured? (but sched sent -1,2 to runtime FIX)
+        sub CopyIntermediateDataIfNeeded -- no need to copy from prev subgraph (since there's only one subgraph FIX)
+        [Sub Interpreter] Invoke subgraph -1 -- After recovery,, what happens? (FIX)
+        Segmentation fault (core dumped)
+        */
         if(!tx_runtime_packet.inference_end){
           if(tx_runtime_packet.resource_plan == 3){
             // CPU execution
@@ -492,7 +502,8 @@ void TfScheduler::Work() {
   }
   return;
 }
-
+// [Todo]
+//
 // [VLS todo]
 // change to read multiple subgraph params safely.
 void TfScheduler::OpenPartitioningParams(std::vector<std::string>& param_file_names) {
