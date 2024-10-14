@@ -1386,16 +1386,16 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         }
         merge_mtx.unlock();
       }
-#ifdef debug_print
-        std::cout << "sub CopyIntermediateDataIfNeeded"
-                  << "\n";
-#endif
       if ((prev_subgraph_id != -1 || prev_co_subgraph_id != -1) && !in_thread_merged) {
         if (prev_subgraph_id == -1) {
           main_execution_graph = sub_interpreter->subgraph_id(prev_co_subgraph_id);
         }else{
           main_execution_graph = interpreter->subgraph_id(prev_subgraph_id);
         }
+#ifdef debug_print
+        std::cout << "sub CopyIntermediateDataIfNeeded"
+                  << "\n";
+#endif
         if (CopyIntermediateDataIfNeeded(subgraph, main_execution_graph,
                                          merge_tensor) != kTfLiteOk) {
           std::cout << "sub CopyIntermediateDataIfNeeded Failed"

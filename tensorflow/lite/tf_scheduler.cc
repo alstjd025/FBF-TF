@@ -161,6 +161,7 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
       return_v = -2;
       return return_v;
     }
+    recovery_possible = false;
   }
   FD_ZERO(&read_fds);
   FD_SET(scheduler_fd, &read_fds);
@@ -261,6 +262,9 @@ void TfScheduler::Work() {
       id = static_cast<int>(rx_init_packet.runtime_id);
     }else{
       memset(&rx_runtime_packet, 0, sizeof(tf_runtime_packet));
+      /*
+      [TODO 10.14.15:25pm: must fix runtime socket skip issue.]
+      */
       int received = ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, scheduler_addr,
                                                     scheduler_addr_sec, max_fd, read_fds);
       if (received == -1) {
@@ -408,6 +412,10 @@ void TfScheduler::Work() {
         if(!rx_runtime_packet.is_recovery_selection){
           RefreshRuntimeState(rx_runtime_packet);
           SearchNextSubgraphtoInvoke(rx_runtime_packet, tx_runtime_packet);
+          if(!tx_runtime_packet.inference_end && 
+            (tx_runtime_packet.resource_plan == 1 || tx_runtime_packet.resource_plan == 3)){ 
+            recovery_possible = true;
+          }else{ recovery_possible = false; }
         }else{
           // [todo] make tx packet here with recovery packet.
           tx_runtime_packet.is_recovery_selection = true;
@@ -420,21 +428,24 @@ void TfScheduler::Work() {
         }
         //if(co-execution or inference end)
         /*
-        [TODO: 10.14.01.48am] - need major bug fixes
+        [TODO: 10.14.01.48am] - need major bug fixes -- mostly fixed [10.14.15:24 pm]
         -- log
         [Main interpreter] get subgraph 1
         [Main interpreter] Invoke subgraph 1
-        [Sub Interpreter] get subgraph -1 -- recovery occured? (but sched sent -1,2 to runtime FIX)
+        [Sub Interpreter] get subgraph -1 -- recovery occured? (but sched sent -1,2 to runtime FIX) -- fixed
         sub CopyIntermediateDataIfNeeded -- no need to copy from prev subgraph (since there's only one subgraph FIX)
+        d
         [Sub Interpreter] Invoke subgraph -1 -- After recovery,, what happens? (FIX)
-        Segmentation fault (core dumped)
+        after recovery:
+          send result to scheduler and scheduler checks if output is latest.(check latest invoked subgraph)
+          if latest, use it.
+          if not, drop it
         */
         if(!tx_runtime_packet.inference_end){
           if(tx_runtime_packet.resource_plan == 3){
             // CPU execution
-            std::cout << "send CPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] <<
+            std::cout << "**send CPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] <<
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
-            recovery_possible = true;
             if (SendPacketToRuntimeSecSocket(tx_runtime_packet, scheduler_addr_sec) == -1) {
               std::cout << "sock : " << scheduler_addr_sec.sun_path << " "
                         << scheduler_addr_sec.sun_family << "\n";
@@ -443,9 +454,9 @@ void TfScheduler::Work() {
             }
           }else if(tx_runtime_packet.resource_plan == 1){
             // GPU execution
-            std::cout << "send GPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
+            std::cout << "**send GPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
-            recovery_possible = true;
+            
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
               std::cout << "sock : " << scheduler_addr.sun_path << " "
                         << scheduler_addr.sun_family << "\n";
@@ -454,9 +465,8 @@ void TfScheduler::Work() {
             }
           }else if(tx_runtime_packet.resource_plan == 4){
             // Co execution
-            std::cout << "send co-ex id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
+            std::cout << "**send co-ex id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
-            recovery_possible = false;
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
               std::cout << "sock : " << scheduler_addr.sun_path << " "
                         << scheduler_addr.sun_family << "\n";
@@ -469,12 +479,14 @@ void TfScheduler::Work() {
               printf("errno : %d \n", errno);
               return;
             }            
+          }else{
+            std::cout << "drop recovered subgraph "<< rx_runtime_packet.cur_subgraph << " output" << "\n";
+            break;
           }
         }else{
           // inferece end
-          std::cout << "send end" << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
+          std::cout << "**send end" << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
-          recovery_possible = false;
           if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
             std::cout << "sock : " << scheduler_addr.sun_path << " "
                       << scheduler_addr.sun_family << "\n";
@@ -545,7 +557,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   int gpu_thresh = 70;
   int cpu_thresh = 70;
   int level = runtime->level; 
-  bool first_and_last_graph = false;
+  bool first_inference = false;
   struct timespec now;
   subgraph_node* root_graph = runtime->graphs[level]->root;
   subgraph_node* prev_invoked_subgraph = nullptr;
@@ -556,7 +568,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   //           rx_packet.sub_interpret_response_time);
   // }
   if (rx_packet.cur_subgraph == -1) {  // first invoke
-    // std::cout << "first invoke" << "\n";
+    std::cout << "first invoke" << "\n";
     // search graph struct for optimal invokable subgraph.
     // and return it.
     // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization
@@ -568,6 +580,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     tx_packet.prev_subgraph_id = -1;
     tx_packet.prev_co_subgraph_id = -1;
   } else {
+    std::cout << "not first invoke" << "\n";
     // Search and return prev invoked subgraph with it's id.
     // latest_inference_node 갱신.
     prev_invoked_subgraph =
@@ -578,10 +591,18 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     if(runtime->latest_inference_node == nullptr){
       runtime->latest_inference_node = prev_invoked_subgraph;
       runtime->pre_latest_inference_node = nullptr;
+    }else if(runtime->latest_inference_node->node_start == prev_invoked_subgraph->node_start){
+      // in case of recovered case.
+      // Temporal flag. (must change)
+      std::cout << runtime->latest_inference_node->node_start << " " 
+                << prev_invoked_subgraph->node_start << " "
+                << "drop" << "\n";
+      tx_packet.resource_plan = -1;
+      return;
     }else{
       if(prev_invoked_subgraph->node_end > runtime->latest_inference_node->node_end){
-        runtime->pre_latest_inference_node = runtime->latest_inference_node;
         runtime->latest_inference_node = prev_invoked_subgraph;
+        runtime->pre_latest_inference_node = runtime->latest_inference_node;
       }
     }
     tx_packet.prev_subgraph_id = runtime->latest_inference_node->subgraph_id;
@@ -600,6 +621,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     tx_packet.subgraph_ids_to_invoke[1] = runtime->graphs[level]->nodes[0]->co_subgraph_id;
     tx_packet.resource_plan = runtime->graphs[level]->nodes[0]->resource_type;
     tx_packet.inference_end = false;
+    runtime->current_running_node = runtime->graphs[level]->nodes[0];
     // case of final subgraph..
     if (rx_packet.cur_subgraph == runtime->graphs[level]->nodes[0]->subgraph_id) {
       tx_packet.subgraph_ids_to_invoke[0] = -1;
@@ -608,6 +630,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       tx_packet.inference_end = true;
       runtime->latest_inference_node = nullptr;
       runtime->pre_latest_inference_node = nullptr;
+      runtime->current_running_node = nullptr;
     }
     std::cout << "one subgraph" << "\n";
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -629,6 +652,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       tx_packet.inference_end = true;
       runtime->latest_inference_timestamp.tv_sec = 0;
       runtime->latest_inference_timestamp.tv_nsec = 0;
+      runtime->latest_inference_node = nullptr;
+      runtime->pre_latest_inference_node = nullptr;
+      runtime->current_running_node = nullptr;
       return;
     }else{
       next_base_subgraph = root_graph;
@@ -642,6 +668,8 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       tx_packet.resource_plan = -1;
       tx_packet.inference_end = true;
       runtime->latest_inference_node = nullptr;
+      runtime->pre_latest_inference_node = nullptr;
+      runtime->current_running_node = nullptr;
       clock_gettime(CLOCK_MONOTONIC, &now);
       runtime->latest_inference_timestamp.tv_sec = 0;
       runtime->latest_inference_timestamp.tv_nsec = 0;
@@ -750,6 +778,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   clock_gettime(CLOCK_MONOTONIC, &now);
   runtime->latest_inference_timestamp.tv_sec = now.tv_sec;
   runtime->latest_inference_timestamp.tv_nsec = now.tv_nsec;
+  runtime->current_running_node = next_subgraph_to_invoke;
   return;
 }
 
@@ -778,27 +807,30 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
   }
   std::cout << "2" << "\n";
   int level = runtime->level;
+  subgraph_node* root_graph = runtime->graphs[level]->root;
   subgraph_node* next_subgraph_to_invoke = runtime->latest_inference_node;
-  if(runtime->latest_inference_node == nullptr){
-    std::cout << "no need to recovery" << "\n";
+  // [TODO fix this logic. is this necessary?]
+  if(runtime->latest_inference_node == nullptr){ // this means first subgraph.
+    next_subgraph_to_invoke = root_graph;
+    std::cout << "recovery for first subgraph" << "\n";
+  }
+  // [TODO fix this logic. is this necessary?]
+  if(runtime->current_running_node->resource_type == rx_p_dummy.resource_plan){
+    std::cout << "cannot recover current inference resource." << "\n";
     return -1;
-  }else{
-    if(runtime->latest_inference_node->resource_type == rx_p_dummy.resource_plan){
-      std::cout << "cannot recover current inference resource." << "\n";
+  }
+  while (next_subgraph_to_invoke != nullptr) {
+    if (next_subgraph_to_invoke->resource_type == rx_p_dummy.resource_plan) {
+      break;
+    }
+    if (next_subgraph_to_invoke->down != nullptr) {
+      next_subgraph_to_invoke = next_subgraph_to_invoke->down;
+    } else {
+      std::cout << "no subgraph for recovery resource " << rx_p_dummy.resource_plan << "\n";
       return -1;
     }
-    while (next_subgraph_to_invoke != nullptr) {
-      if (next_subgraph_to_invoke->resource_type == rx_p_dummy.resource_plan) {
-        break;
-      }
-      if (next_subgraph_to_invoke->down != nullptr) {
-        next_subgraph_to_invoke = next_subgraph_to_invoke->down;
-      } else {
-        std::cout << "no subgraph for recovery resource " << rx_p_dummy.resource_plan << "\n";
-        return -1;
-      }
-    }
   }
+  
   std::cout << "3" << "\n";
   // [todo] later check estimated inference time
 
@@ -807,8 +839,8 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
     rx_p_dummy.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke->subgraph_id;
     rx_p_dummy.subgraph_ids_to_invoke[1] = -1;
   }else if(rx_p_dummy.resource_plan == 3){ // if cpu recovery
-    rx_p_dummy.subgraph_ids_to_invoke[0] = -1;
-    rx_p_dummy.subgraph_ids_to_invoke[1] = next_subgraph_to_invoke->subgraph_id;
+    rx_p_dummy.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke->subgraph_id;
+    rx_p_dummy.subgraph_ids_to_invoke[1] = -1;
   }
   if(runtime->pre_latest_inference_node != nullptr){
     rx_p_dummy.prev_subgraph_id = runtime->pre_latest_inference_node->subgraph_id;

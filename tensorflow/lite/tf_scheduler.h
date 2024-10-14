@@ -87,6 +87,7 @@ namespace tflite{
     // ..
     subgraph_node* latest_inference_node;
     subgraph_node* pre_latest_inference_node; // special memory for recovery selection
+    subgraph_node* current_running_node;
     struct timespec latest_inference_timestamp;
     int id;
     int level = 0; // current execution level
