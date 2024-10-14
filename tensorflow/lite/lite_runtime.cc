@@ -465,9 +465,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_packet& tx_p) {
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p) {
-  #ifdef debug_print
-  std::cout << "Runtime : Send init packet to scheduler" << "\n";
-  #endif
+  // #ifdef debug_print
+  // std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  // #endif
   if (sendto(runtime_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
              (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler FAILED"
@@ -478,9 +478,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p) {
-  #ifdef debug_print
-  std::cout << "Runtime : Send init packet to scheduler" << "\n";
-  #endif
+  // #ifdef debug_print
+  // std::cout << "Runtime : Send init packet to scheduler" << "\n";
+  // #endif
   if (sendto(runtime_sec_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
              (struct sockaddr*)&scheduler_addr_sec, sizeof(scheduler_addr_sec)) == -1) {
     std::cout << "Sending packet to scheduler sec FAILED"
@@ -491,9 +491,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_initialization_pac
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_runtime_packet& tx_p) {
-  #ifdef debug_print
-  std::cout << "Runtime : Send runtime packet to scheduler sec socket" << "\n";
-  #endif
+  // #ifdef debug_print
+  // std::cout << "Runtime : Send runtime packet to scheduler sec socket" << "\n";
+  // #endif
   if (sendto(runtime_sec_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_runtime_packet), 0,
              (struct sockaddr*)&scheduler_addr_sec, sizeof(scheduler_addr_sec)) == -1) {
     std::cout << "Sending packet to scheduler sec FAILED"
@@ -504,9 +504,9 @@ TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_runtime_packet& tx
 }
 
 TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
-  #ifdef debug_print
-  std::cout << "Runtime : Send runtime packet to scheduler main socket" << "\n";
-  #endif
+  // #ifdef debug_print
+  // std::cout << "Runtime : Send runtime packet to scheduler main socket" << "\n";
+  // #endif
   if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
              (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler FAILED"
@@ -1420,7 +1420,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
                       ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
       sub_interpret_response_time = response_time;
       // printf(" IVS %.6f ", response_time);
-
+#ifdef debug_print
+      std::cout << "[Sub interpreter] Invoke subgraph "
+                << subgraph->GetGraphid() << " done \n";
+#endif
       // sync with gpu here (wake gpu))
       // if co-execution
       if(rx_packet.resource_plan == TF_P_PLAN_CO_E_XNN){

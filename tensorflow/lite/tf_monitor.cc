@@ -5,7 +5,7 @@
 
 // Note: global reosurce monitoring period.
 // too short monitoring period might occur overhead.
-#define MONITORING_PERIOD_MS 10
+#define MONITORING_PERIOD_MS 20
 
 // Note: experimental flag for ramdisk writing.
 // #define ramdisk_gpu_debug

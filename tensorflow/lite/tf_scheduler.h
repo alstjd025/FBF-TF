@@ -15,6 +15,7 @@
 #include <error.h>
 #include "opencv2/opencv.hpp"
 #include <functional>
+#include <sys/epoll.h>
 #include "thread"
 #include "future"
 #include "tensorflow/lite/util.h"
@@ -122,7 +123,7 @@ namespace tflite{
       int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr,
-                                            struct sockaddr_un& runtime_addr_sec, int max_fd, fd_set& read_fds);
+                                            struct sockaddr_un& runtime_addr_sec, int epfd, fd_set& read_fds);
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.
