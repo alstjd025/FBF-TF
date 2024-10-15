@@ -67,8 +67,18 @@ std::ostream& operator<<(std::ostream& out, const tflite::RuntimeState value) {
 
 namespace tflite {
 
-TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_runtime_sec,
-                char* uds_scheduler_sec, const char* model, INPUT_TYPE type, DEVICE_TYPE d_type) {
+TfLiteRuntime::TfLiteRuntime(char* uds_runtime,
+                             char* uds_scheduler,
+                             char* uds_runtime_sec,
+                             char* uds_scheduler_sec,
+                             char* uds_engine_runtime,
+                             char* uds_engine_scheduler,
+                             const char* model, INPUT_TYPE type, DEVICE_TYPE d_type) {
+  if(model == nullptr){
+    std::cout << "Runtime: no model path" << "\n";
+    return;
+  }
+  model_path = model;
   co_execution = true;
   interpreter = new tflite::Interpreter(true);
   sub_interpreter = new tflite::Interpreter(true);
@@ -104,6 +114,45 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_r
     return;
   }
 
+  if(uds_engine_runtime != nullptr && uds_engine_scheduler != nullptr){
+    uds_engine_runtime_filename = uds_engine_runtime;
+    uds_engine_scheduler_filename = uds_engine_scheduler;
+  }else{
+    uds_engine_runtime_filename = nullptr;
+    uds_engine_scheduler_filename = nullptr;
+    std::cout << "ERROR : no runtime, scheduler secondary socket path" << "\n";
+    return;
+  }
+  std::cout << "init uds" << "\n";
+  if (InitializeUDSSecondSocket() != kTfLiteOk) {
+    std::cout << "UDS second socket init ERROR"
+              << "\n";
+    exit(-1);
+  }
+  std::cout << "Secondary socket connected" << "\n";
+
+  if (InitializeUDSEngineSocket() != kTfLiteOk) {
+    std::cout << "UDS engine socket init ERROR"
+              << "\n";
+    exit(-1);
+  }
+  std::cout << "Engine socket connected" << "\n";
+
+  // Then initalize main thread socket and register runtime to scheduler.
+  if (InitializeUDS() != kTfLiteOk) {
+    std::cout << "UDS socket init ERROR"
+              << "\n";
+    exit(-1);
+  }
+  main_engine_thread = std::thread(&TfLiteRuntime::InferenceEngineStart, this);
+};
+
+TfLiteRuntime::~TfLiteRuntime() {
+  std::cout << "TfLiteRuntime destructor called"
+            << "\n";
+};
+
+void TfLiteRuntime::InferenceEngineStart(){
   // sj
   // need to edit for delegation
   // use Class Delegation
@@ -173,21 +222,7 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_r
   // First initalize secondary socket which is used for 
   // secondary inference thread communication with scheduler.
   // THIS IS EXPERIMENTAL.
-  std::cout << "init uds" << "\n";
-  if (InitializeUDSSecondSocket() != kTfLiteOk) {
-    std::cout << "UDS second socket init ERROR"
-              << "\n";
-    exit(-1);
-  }
-  std::cout << "Secondary socket connected" << "\n";
-
-  // Then initalize main thread socket and register runtime to scheduler.
-  if (InitializeUDS() != kTfLiteOk) {
-    std::cout << "UDS socket init ERROR"
-              << "\n";
-    exit(-1);
-  }
-  if (AddModelToRuntime(model) != kTfLiteOk) {
+  if (AddModelToRuntime(model_path) != kTfLiteOk) {
     std::cout << "Model registration to runtime ERROR"
               << "\n";
   }
@@ -202,12 +237,31 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_r
     std::cout << "Model partitioning ERROR"
               << "\n";
   }
-};
+  //[asynch todo] inference ready
+  if (Invoke() != kTfLiteOk){
+    std::cout << "Invoke returned error" << "\n";
+    return;
+  }
+}
 
-TfLiteRuntime::~TfLiteRuntime() {
-  std::cout << "TfLiteRuntime destructor called"
-            << "\n";
-};
+void TfLiteRuntime::InferenceEngineJoin(){
+  main_engine_thread.join();
+}
+
+TfLiteStatus TfLiteRuntime::EngineInvoke(){
+  // send engine inference request to scheduler
+  tf_runtime_packet tx_packet;
+  tx_packet.is_engine_start = true;
+  CreateRuntimePacketToScheduler(tx_packet, -1);
+  if (SendPacketToSchedulerEngine(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
+    return kTfLiteError;
+  } 
+  tf_runtime_packet rx_packet;
+  if (ReceivePacketFromSchedulerEngine(rx_packet) != kTfLiteOk) {
+    return kTfLiteError;
+  }
+  // receive engine inference end from scheduler
+}
 
 void TfLiteRuntime::SetTestSequenceName(std::string name) {
   sequence_name = name;
@@ -441,6 +495,55 @@ TfLiteStatus TfLiteRuntime::InitializeUDSSecondSocket() {
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::InitializeUDSEngineSocket(){
+  // Delete runtime socket if already exists.
+  if (access(uds_engine_runtime_filename, F_OK) == 0) unlink(uds_engine_runtime_filename);
+
+  // Create a UDS socket for TFruntime.
+  engine_sock = socket(PF_FILE, SOCK_DGRAM, 0);
+  if (engine_sock == -1) {
+    std::cout << "Socket_sec create ERROR"
+              << "\n";
+    return kTfLiteError;
+  }
+  memset(&engine_runtime_addr, 0, sizeof(engine_runtime_addr));
+  engine_runtime_addr.sun_family = AF_UNIX;  // unix domain socket
+  strcpy(engine_runtime_addr.sun_path, uds_engine_runtime_filename);
+
+  memset(&engine_scheduler_addr, 0, sizeof(engine_scheduler_addr));
+  engine_scheduler_addr.sun_family = AF_UNIX;  // unix domain socket
+  strcpy(engine_scheduler_addr.sun_path, uds_engine_scheduler_filename);
+  addr_size = sizeof(engine_scheduler_addr);
+  
+  // Bind runtime socket for TX,RX with scheduler
+  if (bind(engine_sock, (struct sockaddr*)&engine_runtime_addr,
+           sizeof(engine_runtime_addr)) == -1) {
+    std::cout << "Socket_sec bind ERROR"
+              << "\n";
+    return kTfLiteError;
+  }
+
+  tf_initialization_packet new_packet;
+  // tf_packet new_packet;
+  memset(&new_packet, 0, sizeof(tf_initialization_packet));
+  new_packet.runtime_current_state = 0;
+  new_packet.runtime_id = -1;
+  
+  if (SendPacketToSchedulerEngine(new_packet) != kTfLiteOk) {
+    std::cout << "Sending Hello to scheduler engine FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+
+  tf_initialization_packet rx_packet;
+  if (ReceivePacketFromSchedulerEngine(rx_packet) != kTfLiteOk) {
+    std::cout << "Receiving packet from scheduler engine FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;  
+}
+
 void TfLiteRuntime::ShutdownScheduler() {
   tf_runtime_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_runtime_packet));
@@ -477,6 +580,19 @@ TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_initialization_packet& tx_p
   return kTfLiteOk;
 }
 
+TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
+  // #ifdef debug_print
+  // std::cout << "Runtime : Send runtime packet to scheduler main socket" << "\n";
+  // #endif
+  if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
+    std::cout << "Sending packet to scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_initialization_packet& tx_p) {
   // #ifdef debug_print
   // std::cout << "Runtime : Send init packet to scheduler" << "\n";
@@ -503,18 +619,33 @@ TfLiteStatus TfLiteRuntime::SendPacketToSchedulerSecSocket(tf_runtime_packet& tx
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::SendPacketToScheduler(tf_runtime_packet& tx_p) {
+TfLiteStatus TfLiteRuntime::SendPacketToSchedulerEngine(tf_initialization_packet& tx_p) {
   // #ifdef debug_print
-  // std::cout << "Runtime : Send runtime packet to scheduler main socket" << "\n";
+  // std::cout << "RuntimeEngine : Send init packet to scheduler" << "\n";
   // #endif
-  if (sendto(runtime_sock, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
-             (struct sockaddr*)&scheduler_addr, sizeof(scheduler_addr)) == -1) {
-    std::cout << "Sending packet to scheduler FAILED"
+  if (sendto(engine_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&engine_runtime_addr, sizeof(engine_runtime_addr)) == -1) {
+    std::cout << "Sending packet to scheduler sec FAILED"
               << "\n";
     return kTfLiteError;
   }
   return kTfLiteOk;
 }
+
+TfLiteStatus TfLiteRuntime::SendPacketToSchedulerEngine(tf_runtime_packet& tx_p) {
+  // #ifdef debug_print
+  // std::cout << "RuntimeEngine : Send runtime packet to scheduler sec socket" << "\n";
+  // #endif
+  if (sendto(engine_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&engine_runtime_addr, sizeof(engine_runtime_addr)) == -1) {
+    std::cout << "Sending packet to scheduler sec FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+
 
 TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p) {
   if (recvfrom(runtime_sock, &rx_p, sizeof(tf_packet), 0, NULL, 0) == -1) {
@@ -527,6 +658,15 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_packet& rx_p) {
 
 TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_initialization_packet& rx_p) {
   if (recvfrom(runtime_sock, &rx_p, sizeof(tf_initialization_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
+TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_runtime_packet& rx_p) {
+  if (recvfrom(runtime_sock, &rx_p, sizeof(tf_runtime_packet), 0, NULL, 0) == -1) {
     std::cout << "Receiving packet from scheduler FAILED"
               << "\n";
     return kTfLiteError;
@@ -552,14 +692,24 @@ TfLiteStatus TfLiteRuntime::ReceivePacketFromSchedulerSecSocket(tf_runtime_packe
   return kTfLiteOk;
 }
 
-TfLiteStatus TfLiteRuntime::ReceivePacketFromScheduler(tf_runtime_packet& rx_p) {
-  if (recvfrom(runtime_sock, &rx_p, sizeof(tf_runtime_packet), 0, NULL, 0) == -1) {
-    std::cout << "Receiving packet from scheduler FAILED"
+TfLiteStatus TfLiteRuntime::ReceivePacketFromSchedulerEngine(tf_initialization_packet& rx_p) {
+  if (recvfrom(engine_sock, &rx_p, sizeof(tf_initialization_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler engine sec FAILED"
               << "\n";
     return kTfLiteError;
   }
   return kTfLiteOk;
 }
+
+TfLiteStatus TfLiteRuntime::ReceivePacketFromSchedulerEngine(tf_runtime_packet& rx_p) {
+  if (recvfrom(engine_sock, &rx_p, sizeof(tf_runtime_packet), 0, NULL, 0) == -1) {
+    std::cout << "Receiving packet from scheduler engine sec FAILED"
+              << "\n";
+    return kTfLiteError;
+  }
+  return kTfLiteOk;
+}
+
 
 void TfLiteRuntime::CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p,
                                                            const int subgraph_id){
@@ -1259,7 +1409,6 @@ void TfLiteRuntime::CopyInputToInterpreter(const char* model, cv::Mat& input,
 TfLiteStatus TfLiteRuntime::Invoke() {
   TfLiteStatus return_state_sub = TfLiteStatus::kTfLiteOk;
   TfLiteStatus return_state_main = TfLiteStatus::kTfLiteOk;
-
 #ifdef latency_measure
   struct timespec begin, end;
   clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -1269,10 +1418,10 @@ TfLiteStatus TfLiteRuntime::Invoke() {
 #endif
   c_thread = std::thread(&TfLiteRuntime::DoInvoke, this,
                   InterpreterType::SUB_INTERPRETER, std::ref(return_state_sub));
-  DoInvoke(InterpreterType::MAIN_INTERPRETER, return_state_main);
+  DoInvoke(InterpreterType::MAIN_INTERPRETER, std::ref(return_state_main));
+  
   if (return_state_main != kTfLiteOk || return_state_sub != kTfLiteOk) {
-    std::cout << "Invoke error in interpreter"
-              << "\n";
+    std::cout << "Invoke error in interpreter" << "\n";
     c_thread.join();
     return kTfLiteError;
   }
@@ -1322,6 +1471,9 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
     if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
       return_state = kTfLiteError;
     }
+    std::cout << "Runtime: main engine ready" << "\n";
+  }else if(type == InterpreterType::SUB_INTERPRETER){
+    std::cout << "Runtime: sub engine ready" << "\n";
   }
   while (true) {
     if (type == InterpreterType::SUB_INTERPRETER) {

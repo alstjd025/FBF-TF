@@ -292,6 +292,7 @@ typedef struct tf_packet{
 typedef struct tf_runtime_packet{ // runtime packet(use at invoke)
   bool is_secondary_socket = false;
   bool is_recovery_selection = false;
+  bool is_engine_start = false;
   short runtime_id;
   short runtime_current_state;
   short runtime_next_state;

@@ -8,7 +8,7 @@ namespace tflite {
 TfScheduler::TfScheduler(){};
 
 TfScheduler::TfScheduler(const char* uds_file_name, const char* uds_file_name_sec,
-                         std::vector<std::string>& param_file_names) {
+                         const char* uds_engine_file_name, std::vector<std::string>& param_file_names) {
   // delete if sock file already exists.
   if (access(uds_file_name, F_OK) == 0) unlink(uds_file_name);
 
@@ -47,6 +47,27 @@ TfScheduler::TfScheduler(const char* uds_file_name, const char* uds_file_name_se
 
   if (bind(scheduler_fd_sec, (struct sockaddr*)&scheduler_addr_sec,
            sizeof(scheduler_addr_sec)) == -1) {
+    std::cout << "Secondary socket bind ERROR"
+              << "\n";
+    exit(-1);
+  }
+  
+  if (access(uds_engine_file_name, F_OK) == 0) unlink(uds_engine_file_name);
+
+  scheduler_engine_fd = socket(PF_FILE, SOCK_DGRAM, 0);
+  if (scheduler_engine_fd == -1) {
+    std::cout << "Secondary socket create ERROR"
+              << "\n";
+    exit(-1);
+  }
+  addr_size = sizeof(scheduler_engine_addr);
+
+  memset(&scheduler_engine_addr, 0, sizeof(scheduler_engine_addr));
+  scheduler_engine_addr.sun_family = AF_UNIX;
+  strcpy(scheduler_engine_addr.sun_path, uds_engine_file_name);
+
+  if (bind(scheduler_engine_fd, (struct sockaddr*)&scheduler_engine_addr,
+          sizeof(scheduler_engine_addr)) == -1) {
     std::cout << "Secondary socket bind ERROR"
               << "\n";
     exit(-1);
@@ -100,6 +121,22 @@ int TfScheduler::SendPacketToRuntimeSecSocket(tf_initialization_packet& tx_p,
   return v;
 }
 
+int TfScheduler::SendPacketToRuntimeEngine(tf_runtime_packet& tx_p,
+                                     struct sockaddr_un& runtime_addr) {
+  int v;
+  v = sendto(scheduler_engine_fd, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
+int TfScheduler::SendPacketToRuntimeEngine(tf_initialization_packet& tx_p,
+                                     struct sockaddr_un& runtime_addr) {
+  int v;
+  v = sendto(scheduler_engine_fd, (void*)&tx_p, sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
 int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
                                           struct sockaddr_un& runtime_addr) {
   int v;
@@ -123,6 +160,7 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
   int return_v;
   // std::cout << "multiplex wait" << "\n";
   struct epoll_event events[3];
+  //[Asynch todo: sperate inference requset and subgraph request]
   int activity = epoll_wait(epfd, events, 3, -1); // 이벤트 대기
   if (activity == -1) {
       perror("epoll_wait");
@@ -197,6 +235,24 @@ int TfScheduler::ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_
   return v;
 }
 
+// Experimental feature to use secondary socket.
+int TfScheduler::ReceivePacketFromRuntimeEngine(tf_runtime_packet& rx_p,
+                                          struct sockaddr_un& runtime_addr) {
+  int v;
+  v = recvfrom(scheduler_engine_fd, &rx_p, sizeof(tf_runtime_packet), 0,
+               (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  return v;
+}
+
+// Experimental feature to use secondary socket.
+int TfScheduler::ReceivePacketFromRuntimeEngine(tf_initialization_packet& rx_p,
+                                          struct sockaddr_un& runtime_addr) {
+  int v;
+  v = recvfrom(scheduler_engine_fd, &rx_p, sizeof(tf_initialization_packet), 0,
+               (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  return v;
+}
+
 void TfScheduler::Work() {
   monitor = new LiteSysMonitor();
 
@@ -228,6 +284,27 @@ void TfScheduler::Work() {
       return;
     }
     std::cout << "Secondary socket connected" << "\n";
+    //ok
+  }
+
+  {
+    //receive 
+    tf_initialization_packet rx_init_packet;
+    memset(&rx_init_packet, 0, sizeof(tf_initialization_packet));
+    if (ReceivePacketFromRuntimeEngine(rx_init_packet, scheduler_addr_sec) == -1) {
+      std::cout << "Secondary socket receive failed"
+                << "\n";
+      return;
+    }
+    tf_initialization_packet tx_init_packet;
+    //send
+    if (SendPacketToRuntimeEngine(tx_init_packet, scheduler_addr_sec) == -1) {
+      std::cout << "Secondary socket : " << scheduler_addr_sec.sun_path << " "
+                << scheduler_addr_sec.sun_family << "\n";
+      printf("errno : %d \n", errno);
+      return;
+    }
+    std::cout << "Engine socket connected" << "\n";
     //ok
   }
   // Set fd for multiplexing
@@ -300,6 +377,7 @@ void TfScheduler::Work() {
       [TODO 10.14.15:25pm: must fix runtime socket skip issue.]
       change this to epoll
       */
+     
       int received = ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, scheduler_addr,
                                                     scheduler_addr_sec, epfd, read_fds);
       if (received == -1) {
