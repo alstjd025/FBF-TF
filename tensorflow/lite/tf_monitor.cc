@@ -17,6 +17,8 @@
 // Note: activate monitoring debugger
 // #define monitoring_debugger
 
+#define debug_msgs
+
 namespace tflite{
 
 LiteSysMonitor::LiteSysMonitor(){
@@ -27,6 +29,12 @@ LiteSysMonitor::LiteSysMonitor(){
   }
   recovery_fd_rd = recovery_fds[0];
   recovery_fd_wr = recovery_fds[1];
+  if (pipe(recovery_from_sched_fds) == -1) {
+    std::cerr << "Failed to create pipe" << std::endl;
+    return;
+  }
+  recovery_fd_rd_sched = recovery_from_sched_fds[0];
+  recovery_fd_wr_sched = recovery_from_sched_fds[1];
   std::cout << "pipe read " << recovery_fd_rd << "\n";
   std::cout << "pipe wirte " << recovery_fd_wr << "\n";
   std::cout << "System monitoring started" << "\n";
@@ -54,40 +62,49 @@ LiteSysMonitor::~LiteSysMonitor(){
 void LiteSysMonitor::GlobalResourceMonitor(){
   float prev_cpu_util = 0;
   float prev_gpu_util = 0;
-  char tmp[4];
   bool do_revocery = false;
   float cpu_recovery_threshold = 20;
   float cpu_busy_threshold = 80;
   float gpu_recovery_threshold = 20;
   float gpu_busy_threshold = 80;
+  bool recovery_possible = false;
+  int activity = 0;
   while(true){
-    // recovery alert logic here.
-    // Note: temporal naive approach.
-    // if other resource gets available, try recovery.
-    if(cpu_util_ratio < cpu_recovery_threshold && gpu_util_ratio > gpu_busy_threshold
-       || gpu_util_ratio < gpu_recovery_threshold && cpu_util_ratio > cpu_busy_threshold){
-      do_revocery = true;
-    }else{
-      // std::cout << "monitor : no recovery occurs" << "\n";
-      do_revocery = false;
-    }
-    if(do_revocery){
-      // std::cout << "monitor : Do recovery CPU: " << cpu_util_ratio << " GPU: " 
-                // << gpu_util_ratio << "\n";
-      memset(tmp, 1, sizeof(tmp));
-      if(write(recovery_fd_wr, tmp, sizeof(tmp)) == -1){
-        std::cout << "recovery monitor write(pipe) failed" << "\n";
-        return;
+    if(!recovery_possible){
+      #ifdef debug_msgs
+      std::cout << "select wait" << "\n";
+      #endif
+      char buffer[4];
+      memset(buffer, 0, sizeof(buffer));
+      ssize_t bytes_read = read(recovery_fd_rd_sched, buffer, sizeof(buffer));
+      #ifdef debug_msgs
+      std::cout << "read something" << "\n";
+      #endif
+      if(cpu_util_ratio < cpu_recovery_threshold && gpu_util_ratio > gpu_busy_threshold
+        || gpu_util_ratio < gpu_recovery_threshold && cpu_util_ratio > cpu_busy_threshold){
+        #ifdef debug_msgs
+        std::cout << "monitor : Do recovery trigger CPU: " << cpu_util_ratio << " GPU: " 
+                  << gpu_util_ratio << "\n";
+        #endif
+        memset(buffer, 1, sizeof(buffer));
+        if(write(recovery_fd_wr, buffer, sizeof(buffer)) == -1){
+          std::cout << "recovery monitor write(pipe) failed" << "\n";
+          return;
+        }
+      }else{
+        std::cout << "monitor : no recovery occurs" << "\n";
       }
-      memset(tmp, 0, sizeof(tmp));
-      do_revocery = false;
     }
     std::this_thread::sleep_for(std::chrono::microseconds(MONITORING_PERIOD_MS));
   }
 }
 
-int LiteSysMonitor::GetRecoveryFD(){
+int LiteSysMonitor::GetRecoveryFDRead(){
   return recovery_fd_rd;
+}
+
+int LiteSysMonitor::GetRecoveryFDWrite(){
+  return recovery_fd_wr_sched;
 }
 
 float LiteSysMonitor::GetCPUUtil(){

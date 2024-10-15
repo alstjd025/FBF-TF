@@ -1,6 +1,8 @@
 #include "tensorflow/lite/tf_scheduler.h"
 #define single_level_motivation
 
+#define debug_msgs
+
 namespace tflite {
 
 TfScheduler::TfScheduler(){};
@@ -130,7 +132,9 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
   // std::cout << "got epoll" << "\n";
   for(int i=0; i<activity; ++i){
     if(events[i].data.fd == scheduler_fd) {
+      #ifdef debug_msgs
       std::cout << "read from main inference thread" << "\n";
+      #endif
       if (ReceivePacketFromRuntime(rx_p, runtime_addr) == -1) {
         std::cout << "Receive failed"
                   << "\n";
@@ -140,7 +144,9 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
     }
     // read from secondary inference thread
     if(events[i].data.fd == scheduler_fd_sec) {
+      #ifdef debug_msgs
       std::cout << "read from secondary inference thread" << "\n";
+      #endif
       if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr_sec) == -1) {
         std::cout << "Receive failed"
                   << "\n";
@@ -150,71 +156,17 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
     }
 
     if(events[i].data.fd == recovery_fd){
-      if(recovery_possible){
-        std::cout << "recovery call" << "\n";
-        char buffer[4];
-        memset(buffer, 0, sizeof(buffer));
-        ssize_t bytes_read = read(recovery_fd, buffer, sizeof(buffer) - 1);
-        if(RecoveryHandler(rx_p) == -1){
-          std::cout << "Recovery handler returned error" << "\n";
-          return_v = -2;
-          return return_v;
-        }
-        recovery_possible = false;
-      }else{
-        rx_p.runtime_current_state = RuntimeState::BLOCKED_;
+      char buffer[4];
+      memset(buffer, 0, sizeof(buffer));
+      ssize_t bytes_read = read(recovery_fd, buffer, sizeof(buffer));
+      if(RecoveryHandler(rx_p) == -1){
+        std::cout << "Recovery handler returned error" << "\n";
+        return_v = -2;
+        return return_v;
       }
+      // rx_p.runtime_current_state = RuntimeState::BLOCKED_;
     }
   }
-
-  // int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
-  // if (activity < 0) {
-  //   std::cout << "select error" << "\n";
-  //   return_v = -1;
-  //   return return_v;
-  // }
-
-  // read from main inference thread
-  // if(FD_ISSET(scheduler_fd, &read_fds)) {
-  //   std::cout << "read from main inference thread" << "\n";
-  //   if (ReceivePacketFromRuntime(rx_p, runtime_addr) == -1) {
-  //     std::cout << "Receive failed"
-  //               << "\n";
-  //     return_v = -1;
-  //     return return_v;
-  //   }
-  // }
-
-  // // read from secondary inference thread
-  // if(FD_ISSET(scheduler_fd_sec, &read_fds)) {
-  //   std::cout << "read from secondary inference thread" << "\n";
-  //   if (ReceivePacketFromRuntimeSecSocket(rx_p, runtime_addr_sec) == -1) {
-  //     std::cout << "Receive failed"
-  //               << "\n";
-  //     return_v = -1;
-  //     return return_v;
-  //   }
-  // }
-
-  // if(recovery_possible && FD_ISSET(recovery_fd, &read_fds)){
-  //   std::cout << "recovery call" << "\n";
-  //   char buffer[4];
-  //   memset(buffer, 0, sizeof(buffer));
-  //   ssize_t bytes_read = read(recovery_fd, buffer, sizeof(buffer) - 1);
-  //   if(RecoveryHandler(rx_p) == -1){
-  //     std::cout << "Recovery handler returned error" << "\n";
-  //     return_v = -2;
-  //     return return_v;
-  //   }
-  //   recovery_possible = false;
-  // }
-
-  // FD_ZERO(&read_fds);
-  // FD_SET(scheduler_fd, &read_fds);
-  // FD_SET(scheduler_fd_sec, &read_fds);
-  // if(recovery_possible){
-  //   FD_SET(recovery_fd, &read_fds);
-  // }
   return_v = 1;
   return return_v;
 }
@@ -279,8 +231,10 @@ void TfScheduler::Work() {
     //ok
   }
   // Set fd for multiplexing
-  recovery_fd = monitor->GetRecoveryFD();
-  std::cout << "sched recovery_fd : " << recovery_fd << "\n";
+  recovery_fd = monitor->GetRecoveryFDRead();
+  int recovery_wr_fd = monitor->GetRecoveryFDWrite();
+  std::cout << "sched recovery_fd read : " << recovery_fd << "\n";
+  std::cout << "sched recovery_fd wite : " << recovery_wr_fd << "\n";
   fd_set read_fds;
   int epfd = epoll_create1(0);
   if (epfd == -1) {
@@ -315,27 +269,17 @@ void TfScheduler::Work() {
 
 
   while (run) {
-    int max_fd = std::max(scheduler_fd, scheduler_fd_sec);
-    // FD_ZERO(&read_fds);
-    // FD_SET(scheduler_fd, &read_fds);
-    // FD_SET(scheduler_fd_sec, &read_fds);
-    // if(recovery_possible){
-    //   // max_fd = std::max(scheduler_fd_sec, recovery_fd);
-    //   // FD_SET(recovery_fd, &read_fds);
-    //   event.data.fd = recovery_fd;
-    //   if (epoll_ctl(epfd, EPOLL_CTL_ADD, recovery_fd, &event) == -1) {
-    //           perror("epoll_ctl");
-    //           close(epfd);
-    //           return;
-    //   }
-    // }else{
-    //   if (epoll_ctl(epfd, EPOLL_CTL_DEL, recovery_fd, &event) == -1) {
-    //           perror("epoll_ctl def");
-    //           close(epfd);
-    //           return;
-    //   }
-    // }
-    // std::cout << "maxfd " << max_fd << "\n";
+    // [Todo] recovery 가능하면 파이프에 데이터 쓰기
+    if(recovery_possible){
+      // write on pite and wake up resource monitor(recovery monitor)
+      #ifdef debug_msgs
+        std::cout << "recovery possible. write on pipe" << "\n";
+      #endif
+      char tmp[4];
+      memset(tmp, 0, sizeof(tmp));
+      write(recovery_wr_fd, tmp, sizeof(tmp)); // 파이프에 메시지 쓰기
+      recovery_possible = false;
+    }
     // tf_initialization_packet rx_packet;
     tf_initialization_packet rx_init_packet;
     tf_runtime_packet rx_runtime_packet;
@@ -864,7 +808,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
 
 // Experimental feature.
 int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
-  std::cout << "recovery handler" << "\n";
+  #ifdef debug_msgs
+  std::cout << "****recovery handler" << "\n";
+  #endif
   if(runtimes.empty()){
     std::cout << "no runtime" << "\n";
     return -1;
@@ -881,7 +827,7 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
   }else if(cpu_util < 20 & gpu_util > 60){ // use cpu recovery
     rx_p_dummy.resource_plan = 3;
   }else{
-    // std::cout << "recovery called but resource not enough" << "\n";
+    std::cout << "recovery called but resource not enough" << "\n";
     return -1;
   }
   int level = runtime->level;
@@ -894,7 +840,7 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
   }
   // [TODO fix this logic. is this necessary?]
   if(runtime->current_running_node->resource_type == rx_p_dummy.resource_plan){
-    // std::cout << "cannot recover current inference resource." << "\n";
+    std::cout << "cannot recover current inference resource." << "\n";
     return -1;
   }
   while (next_subgraph_to_invoke != nullptr) {
@@ -904,7 +850,7 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
     if (next_subgraph_to_invoke->down != nullptr) {
       next_subgraph_to_invoke = next_subgraph_to_invoke->down;
     } else {
-      // std::cout << "no subgraph for recovery resource " << rx_p_dummy.resource_plan << "\n";
+      std::cout << "no subgraph for recovery resource " << rx_p_dummy.resource_plan << "\n";
       return -1;
     }
   }
@@ -912,19 +858,26 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
 
   rx_p_dummy.is_recovery_selection = true;
   if(rx_p_dummy.resource_plan == 1){ // if gpu recovery
+    // std::cout << "Aaa" << "\n";
     rx_p_dummy.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke->subgraph_id;
     rx_p_dummy.subgraph_ids_to_invoke[1] = -1;
   }else if(rx_p_dummy.resource_plan == 3){ // if cpu recovery
+    // std::cout << "bbb"<< "\n";
     rx_p_dummy.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke->subgraph_id;
     rx_p_dummy.subgraph_ids_to_invoke[1] = -1;
   }
   if(runtime->pre_latest_inference_node != nullptr){
+    // std::cout << "ccc"<< "\n";
     rx_p_dummy.prev_subgraph_id = runtime->pre_latest_inference_node->subgraph_id;
     rx_p_dummy.prev_co_subgraph_id = runtime->pre_latest_inference_node->co_subgraph_id;
   }else{
+    // std::cout << "ddd"<< "\n";
     rx_p_dummy.prev_subgraph_id = -1;
     rx_p_dummy.prev_co_subgraph_id = -1;
   }
+  #ifdef debug_msgs
+  std::cout << "recovery done" << "\n";
+  #endif
   return 1;
 }
 
