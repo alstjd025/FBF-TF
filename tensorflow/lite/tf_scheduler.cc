@@ -159,9 +159,9 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
                                             int epfd, fd_set& read_fds){
   int return_v;
   // std::cout << "multiplex wait" << "\n";
-  struct epoll_event events[3];
+  struct epoll_event events[4];
   //[Asynch todo: sperate inference requset and subgraph request]
-  int activity = epoll_wait(epfd, events, 3, -1); // 이벤트 대기
+  int activity = epoll_wait(epfd, events, 4, -1); // 이벤트 대기
   if (activity == -1) {
       perror("epoll_wait");
       return_v = -1;
@@ -169,6 +169,18 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
   }
   // std::cout << "got epoll" << "\n";
   for(int i=0; i<activity; ++i){
+    if(events[i].data.fd == scheduler_engine_fd) {
+      if (ReceivePacketFromRuntime(rx_p, runtime_addr) == -1) {
+        std::cout << "Receive failed"
+                  << "\n";
+        return_v = -1;
+        return return_v;
+      }
+      #ifdef debug_msgs
+      std::cout << "Begin Inference" << "\n";
+      #endif
+      engine_start = true;
+    }
     if(events[i].data.fd == scheduler_fd) {
       #ifdef debug_msgs
       std::cout << "read from main inference thread" << "\n";
@@ -321,24 +333,31 @@ void TfScheduler::Work() {
   // change pipe read fd to non-blocking?
   // int flags = fcntl(recovery_fd, F_GETFL, 0);
   // fcntl(recovery_fd, F_SETFL, flags | O_NONBLOCK);
-  struct epoll_event events[3];
+  struct epoll_event events[4];
   events[0].events = EPOLLIN;
-  events[0].data.fd = scheduler_fd;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd, &events[0]) == -1) {
+  events[0].data.fd = scheduler_engine_fd;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_engine_fd, &events[0]) == -1) {
           perror("epoll_ctl");
           close(epfd);
           return;
   }
   events[1].events = EPOLLIN;
-  events[1].data.fd = scheduler_fd_sec;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd_sec, &events[1]) == -1) {
+  events[1].data.fd = scheduler_fd;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd, &events[1]) == -1) {
           perror("epoll_ctl");
           close(epfd);
           return;
   }
   events[2].events = EPOLLIN;
-  events[2].data.fd = recovery_fd;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, recovery_fd, &events[2]) == -1) {
+  events[2].data.fd = scheduler_fd_sec;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd_sec, &events[2]) == -1) {
+          perror("epoll_ctl");
+          close(epfd);
+          return;
+  }
+  events[3].events = EPOLLIN;
+  events[3].data.fd = recovery_fd;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, recovery_fd, &events[3]) == -1) {
           perror("epoll_ctl");
           close(epfd);
           return;
@@ -540,7 +559,7 @@ void TfScheduler::Work() {
         }
         
         if(!tx_runtime_packet.inference_end){
-          reschedule_needed = false;
+          end_signal_send = false;
           if(tx_runtime_packet.resource_plan == 3){
             // CPU execution
             std::cout << "**send CPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] <<
@@ -584,8 +603,14 @@ void TfScheduler::Work() {
           }
         }else{
           // inferece end
-          if(!reschedule_needed){
-            reschedule_needed = true;
+          if(!end_signal_send){
+            end_signal_send = true;
+            if (SendPacketToRuntimeEngine(tx_runtime_packet, scheduler_addr) == -1) {
+              std::cout << "sock : " << scheduler_addr.sun_path << " "
+                        << scheduler_addr.sun_family << "\n";
+              printf("errno : %d \n", errno);
+              return;
+            }            
             std::cout << "**send end" << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
               " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {

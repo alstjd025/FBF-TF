@@ -262,7 +262,6 @@ namespace tflite{
       std::vector<runtime_*> runtimes;
       int runtimes_created = 0;
 
-      bool reschedule_needed = false;
 
       // For RR scheduler
       bool cpu_usage_flag = false;
@@ -276,6 +275,9 @@ namespace tflite{
       
       // current CPU utlization ratio(average).
       float* cpu_util;
+
+      bool engine_start = false;
+      bool end_signal_send = false;
   };
 
 }
