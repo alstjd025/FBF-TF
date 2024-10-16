@@ -3,6 +3,7 @@
 // #define YOLO_PARSER
 // #define mobilenet
 #define debug_print
+#define minimum_debug_msgs
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
@@ -1523,8 +1524,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         }else{
           subgraph = sub_interpreter->subgraph_id(subgraph_id);
         }
-        #ifdef debug_print
-        std::cout << "[Sub Interpreter] get subgraph " << subgraph_id << "\n";
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
+        if(rx_packet.is_recovery_selection){
+          std::cout << "[Sub Interpreter Recovery] get subgraph " << subgraph_id << "\n";
+        }else{
+          std::cout << "[Sub Interpreter] get subgraph " << subgraph_id << "\n";
+        }
         #endif
         bool in_thread_merged = false;
         if (prev_subgraph_id != -1 &&
@@ -1592,9 +1597,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
         sub_interpret_response_time = response_time;
         // printf(" IVS %.6f ", response_time);
-        #ifdef debug_print
-        std::cout << "[Sub interpreter] Invoke subgraph "
-                  << subgraph->GetGraphid() << " done \n";
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
+        if(rx_packet.is_recovery_selection){
+          std::cout << "[Sub interpreter Recovery] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+        }else{
+          std::cout << "[Sub interpreter] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+        }
         #endif
         // sync with gpu here (wake gpu))
         // if co-execution
@@ -1692,8 +1700,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         // Check if co execution. If so, give co-execution graph to
         // sub-interpreter and notify.
         subgraph = interpreter->subgraph_id(subgraph_id);
-        #ifdef debug_print
-        std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
+        if(rx_packet.is_recovery_selection){
+          std::cout << "[Main interpreter recovery] get subgraph " << subgraph_id << "\n";
+        }else{
+          std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
+        }
         #endif
         // std::cout << "[Main interpreter] get subgraph " << subgraph_id << "\n";
         // if previous subgraph was co-execution, merge co-exectuion data here.
@@ -1775,9 +1787,12 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         response_time = (end.tv_sec - begin.tv_sec) +
                         ((end.tv_nsec - begin.tv_nsec) / 1000000000.0);
         main_interpret_response_time = response_time;
-        #ifdef debug_print
-        std::cout << "[Main interpreter] Invoke subgraph "
-                  << subgraph->GetGraphid() << " done \n";
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
+        if(rx_packet.is_recovery_selection){
+          std::cout << "[Main interpreter Recovery] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+        }else{
+          std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+        }
         #endif
         // printf(" IVS %.6f ", response_time);
         if (subgraph->GetResourceType() == ResourceType::CO_GPU) {

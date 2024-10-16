@@ -723,36 +723,74 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   //     - ordinary selection
   //     - recovery selection
   ////////////////////////////////////////////////////////////////////////
-
+  int next_resource_plan = -1;
   int gpu_thresh = 70;
   int cpu_thresh = 70;
+  int next_cpu_resource = 0;
+  float gpu_util = monitor->GetGPUUtil();
+  float cpu_util = monitor->GetCPUUtil();
   int level = runtime->level; 
   bool first_inference = false;
   struct timespec now;
   subgraph_node* root_graph = runtime->graphs[level]->root;
   subgraph_node* prev_invoked_subgraph = nullptr;
   subgraph_node* prev_base_subgraph = nullptr;
-  // std::cout << "cur_graph : " << rx_packet.cur_subgraph << "\n";
-  // if(rx_packet.cur_subgraph != -1){
-  //   printf("main latency: %.6f, sub latency: %.6f\n", rx_packet.main_interpret_response_time,
-  //           rx_packet.sub_interpret_response_time);
-  // }
   if (rx_packet.cur_subgraph == -1) {  // first invoke
-    #if defined (minimum_debug_msgs) || defined (debug_msgs)
+    #if defined (debug_msgs)
     std::cout << "first invoke" << "\n";
     #endif
     // search graph struct for optimal invokable subgraph.
     // and return it.
-    // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization
-    // ratio raises shortly.
-
     // Set root graph for first graph.
     prev_invoked_subgraph = root_graph;
     prev_base_subgraph = root_graph;
     tx_packet.prev_subgraph_id = -1;
     tx_packet.prev_co_subgraph_id = -1;
   } else {
+    /*
+    #define TF_P_PLAN_CPU        0
+    #define TF_P_PLAN_GPU        1
+    #define TF_P_PLAN_CO_E       2
+    #define TF_P_PLAN_CPU_XNN    3
+    #define TF_P_PLAN_CO_E_XNN   4
+    */
+    /* [IMPT] latency based resource allocation part */
+    // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
+    float prev_invoked_subgraph_latency = 0;
+    if(rx_packet.is_secondary_socket){
+      prev_invoked_subgraph_latency = rx_packet.sub_interpret_response_time;
+    }else{
+      prev_invoked_subgraph_latency = rx_packet.main_interpret_response_time;
+    }
     #if defined (minimum_debug_msgs) || defined (debug_msgs)
+    printf("rx %.6f profiled %.6f \n",prev_invoked_subgraph_latency ,prev_invoked_subgraph->average_latency);
+    #endif
+    if(prev_invoked_subgraph_latency > prev_invoked_subgraph->average_latency * 1.2){
+      #if defined (minimum_debug_msgs) || defined (debug_msgs)
+      std::cout << "resource " << prev_invoked_subgraph->resource_type << " contention!" << "\n";
+      std::cout << "GPU " << gpu_util << " CPU " << cpu_util << "\n";
+      #endif
+      if(prev_invoked_subgraph->resource_type == 3 && gpu_util < 50){ //cpu
+      #if defined (minimum_debug_msgs) || defined (debug_msgs)
+        std::cout << "use gpu \n";
+      #endif
+        gpu_usage_flag = true;
+        cpu_usage_flag = false;
+      }else if(prev_invoked_subgraph->resource_type == 1 && cpu_util < 50){
+      #if defined (minimum_debug_msgs) || defined (debug_msgs)
+        std::cout << "use cpu \n";
+      #endif
+        gpu_usage_flag = false;
+        cpu_usage_flag = true;
+      }
+    }
+    if(gpu_usage_flag){
+      next_resource_plan = 1;
+    }
+    if(cpu_usage_flag){
+      next_resource_plan = 3;
+    }
+    #if defined (debug_msgs)
     std::cout << "not first invoke" << "\n";
     #endif
     // Search and return prev invoked subgraph with it's id.
@@ -769,11 +807,12 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       // in case of recovered case.
       // Temporal flag. (must change)
       #if defined (minimum_debug_msgs) || defined (debug_msgs)
-      std::cout << runtime->latest_inference_node->node_start << " " 
-                << prev_invoked_subgraph->node_start << " "
-                << "drop" << "\n";
-      tx_packet.resource_plan = -1;
+      // std::cout << runtime->latest_inference_node->node_start << " " 
+      //           << prev_invoked_subgraph->node_start << " "
+      //           << "drop" << "\n";
+      std::cout << "Drop "<< prev_invoked_subgraph->subgraph_id << "\n";
       #endif
+      tx_packet.resource_plan = -1;
       return;
     }else{
       if(prev_invoked_subgraph->node_end > runtime->latest_inference_node->node_end){
@@ -808,7 +847,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       runtime->pre_latest_inference_node = nullptr;
       runtime->current_running_node = nullptr;
     }
-    #if defined (minimum_debug_msgs) || defined (debug_msgs)
+    #if defined (debug_msgs)
     std::cout << "one subgraph" << "\n";
     #endif
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -823,7 +862,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   // case of final subgraph
   #ifdef single_level_motivation
     if(rx_packet.cur_subgraph != -1){
+      #ifdef debug_msgs
       std::cout << "motiv final subgraph" << "\n";
+      #endif
       tx_packet.subgraph_ids_to_invoke[0] = -1;
       tx_packet.subgraph_ids_to_invoke[1] = -1;  
       tx_packet.resource_plan = -1;
@@ -842,7 +883,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     if (prev_base_subgraph->right == nullptr) {
       tx_packet.subgraph_ids_to_invoke[0] = -1;
       tx_packet.subgraph_ids_to_invoke[1] = -1;
+      #ifdef debug_msgs
       std::cout << "final graph" << "\n";
+      #endif
       tx_packet.resource_plan = -1;
       tx_packet.inference_end = true;
       runtime->latest_inference_node = nullptr;
@@ -860,15 +903,13 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     }
   #endif
 
-  int next_resource_plan = -1;
+
   next_subgraph_to_invoke = next_base_subgraph;
   // std::cout << "level " << level  << " subgraph " << 
   //           next_subgraph_to_invoke->subgraph_id << "\n";
   // ISSUE ,MUST FIX (07b4f) : Consider the gpu utilization ratio delay.
   // NEED_REFACTOR (02634) : Must change to use obvious resource type.
-  int next_cpu_resource = 0;
-  float gpu_util = monitor->GetGPUUtil();
-  float cpu_util = monitor->GetCPUUtil();
+
 
   /*
   #define TF_P_PLAN_CPU        0
@@ -877,59 +918,7 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   #define TF_P_PLAN_CPU_XNN    3
   #define TF_P_PLAN_CO_E_XNN   4
   */
-
-  /* [IMPT] Utilization based resource allocation part */
-  // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
-  float prev_invoked_subgraph_latency = 0;
-  if(rx_packet.is_secondary_socket){
-    prev_invoked_subgraph_latency = rx_packet.sub_interpret_response_time;
-  }else{
-    prev_invoked_subgraph_latency = rx_packet.main_interpret_response_time;
-  }
-  printf("rx %.6f profiled %.6f \n",prev_invoked_subgraph_latency ,prev_invoked_subgraph->average_latency);
-  if(prev_invoked_subgraph_latency > prev_invoked_subgraph->average_latency * 1.2){
-    // printf("rx %d profiled %d \n",rx_packet.cur_subgraph ,prev_invoked_subgraph->subgraph_id);
-    std::cout << "resource" << prev_invoked_subgraph->resource_type << "contention!" << "\n";
-    std::cout << "GPU " << gpu_util << " CPU " << cpu_util << "\n";
-    if(prev_invoked_subgraph->resource_type == 3 && gpu_util < 50){ //cpu
-      std::cout << "use gpu \n";
-      gpu_usage_flag = true;
-      cpu_usage_flag = false;
-    }else if(prev_invoked_subgraph->resource_type == 1 && cpu_util < 50){
-      std::cout << "use cpu \n";
-      gpu_usage_flag = false;
-      cpu_usage_flag = true;
-    }
-  }
-  if(gpu_usage_flag){
-    next_resource_plan = 1;
-  }
-  if(cpu_usage_flag){
-    next_resource_plan = 3;
-  }
-  // if (gpu_util == 0 && cpu_util == 400) {
-  //   // Use CPU
-  //   next_resource_plan = TF_P_PLAN_GPU;
-  //   std::cout << "USE GPU" << "\n";
-  // } else if (gpu_util == 100 && cpu_util == 0) {
-  //   // Use GPU
-  //   next_resource_plan = TF_P_PLAN_CPU_XNN;
-  //   std::cout << "USE CPU" << "\n";
-  // } else if (gpu_util == 100 && cpu_util == 200) {
-  //   // Use Co-execution
-  //   cpu_usage_flag = true;
-  //   std::cout << "USE CPU200" << "\n";
-  // } else {
-  //   // base plan
-  //   cpu_usage_flag = false;
-  //   std::cout << "USE BASE" << "\n";
-  //   next_resource_plan = next_base_subgraph->resource_type;
-  // }
   
-  // base code.
-  //next_resource_plan = next_base_subgraph->resource_type;
-  
-  /* [IMPT] */
 
   // TODO (f85fa) : Fix graph searching, especially in co-execution.
   // Search for matching subgraph.
@@ -944,9 +933,10 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       break;
     }
   }
-
+  #if defined (minimum_debug_msgs) || defined (debug_msgs)
   std::cout << "set next_subgraph_to_invoke id " << next_subgraph_to_invoke->subgraph_id << "\n"; 
   std::cout << "setnext_subgraph_to_invoke co id " << next_subgraph_to_invoke->co_subgraph_id << "\n";
+  #endif
   // << "\n"; std::cout << "set next_subgraph_to_invoke resource_type " <<
   // next_subgraph_to_invoke->resource_type << "\n";
   tx_packet.subgraph_ids_to_invoke[0] = next_subgraph_to_invoke->subgraph_id;

@@ -71,7 +71,7 @@ void LiteSysMonitor::GlobalResourceMonitor(){
   bool recovery_possible = false;
   int activity = 0;
   while(true){
-    if(!recovery_possible){
+    // if(!recovery_possible){
       #ifdef debug_msgs
       std::cout << "select wait" << "\n";
       #endif
@@ -97,8 +97,8 @@ void LiteSysMonitor::GlobalResourceMonitor(){
         std::cout << "monitor : no recovery occurs" << "\n";
         #endif
       }
-    }
-    std::this_thread::sleep_for(std::chrono::microseconds(MONITORING_PERIOD_MS));
+    // }
+    // std::this_thread::sleep_for(std::chrono::microseconds(MONITORING_PERIOD_MS));
   }
 }
 
