@@ -83,7 +83,7 @@ void LiteSysMonitor::GlobalResourceMonitor(){
       #endif
       if(cpu_util_ratio < cpu_recovery_threshold && gpu_util_ratio > gpu_busy_threshold
         || gpu_util_ratio < gpu_recovery_threshold && cpu_util_ratio > cpu_busy_threshold){
-        #ifdef minimum_debug_msgs || debug_msgs
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
         std::cout << "monitor : Do recovery trigger CPU: " << cpu_util_ratio << " GPU: " 
                   << gpu_util_ratio << "\n";
         #endif

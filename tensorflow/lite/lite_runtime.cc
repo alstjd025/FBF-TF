@@ -2,7 +2,7 @@
 
 // #define YOLO_PARSER
 // #define mobilenet
-// #define debug_print
+#define debug_print
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
@@ -561,11 +561,12 @@ TfLiteStatus TfLiteRuntime::InitializeUDSEngineSocket(){
 }
 
 void TfLiteRuntime::ShutdownScheduler() {
+  std::cout << "Shutdown scheduler" << "\n";
   tf_runtime_packet tx_packet;
   memset(&tx_packet, 0, sizeof(tf_runtime_packet));
   tx_packet.runtime_current_state = RuntimeState::TERMINATE;
   tx_packet.runtime_id = runtime_id;
-  if (SendPacketToScheduler(tx_packet) != kTfLiteOk) {
+  if (SendPacketToSchedulerEngine(tx_packet) != kTfLiteOk) {
     std::cout << "Sechduler Shutdown Error"
               << "\n";
   }
@@ -1502,6 +1503,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       subgraph_id = rx_packet.subgraph_ids_to_invoke[0];
       prev_subgraph_id = rx_packet.prev_subgraph_id;
       prev_co_subgraph_id = rx_packet.prev_co_subgraph_id;
+      if (rx_packet.runtime_next_state == RuntimeState::TERMINATE){
+        std::cout << "Sub Interpreter terminate" << "\n";
+        break;
+      }
       if (rx_packet.inference_end) {
         #ifdef debug_print
         std::cout << "Sub Interpreter invoke done"
@@ -1618,6 +1623,10 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
       tf_runtime_packet rx_packet;
       if (ReceivePacketFromScheduler(rx_packet) != kTfLiteOk) {
         return_state = kTfLiteError;
+        break;
+      }
+      if (rx_packet.runtime_next_state == RuntimeState::TERMINATE){
+        std::cout << "Main Interpreter terminate" << "\n";
         break;
       }
       if (rx_packet.inference_end) { // Single inference done.
