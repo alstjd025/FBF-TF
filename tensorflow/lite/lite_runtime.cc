@@ -1599,10 +1599,11 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         // printf(" IVS %.6f ", response_time);
         #if defined (minimum_debug_msgs) || defined (debug_msgs)
         if(rx_packet.is_recovery_selection){
-          std::cout << "[Sub interpreter Recovery] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+          std::cout << "[Sub interpreter Recovery] Invoke subgraph " << subgraph->GetGraphid() << " done ";
         }else{
-          std::cout << "[Sub interpreter] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+          std::cout << "[Sub interpreter] Invoke subgraph " << subgraph->GetGraphid() << " done ";
         }
+        printf("latency %.4f \n", sub_interpret_response_time);
         #endif
         // sync with gpu here (wake gpu))
         // if co-execution
@@ -1789,10 +1790,11 @@ void TfLiteRuntime::DoInvoke(InterpreterType type, TfLiteStatus& return_state) {
         main_interpret_response_time = response_time;
         #if defined (minimum_debug_msgs) || defined (debug_msgs)
         if(rx_packet.is_recovery_selection){
-          std::cout << "[Main interpreter Recovery] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+          std::cout << "[Main interpreter Recovery] Invoke subgraph " << subgraph->GetGraphid() << " done ";
         }else{
-          std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << " done \n";
+          std::cout << "[Main interpreter] Invoke subgraph " << subgraph->GetGraphid() << " done ";
         }
+        printf("latency %.4f \n", main_interpret_response_time);
         #endif
         // printf(" IVS %.6f ", response_time);
         if (subgraph->GetResourceType() == ResourceType::CO_GPU) {

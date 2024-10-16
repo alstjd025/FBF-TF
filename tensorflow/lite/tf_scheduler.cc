@@ -1,5 +1,5 @@
 #include "tensorflow/lite/tf_scheduler.h"
-#define single_level_motivation
+// #define single_level_motivation
 
 // #define debug_msgs
 #define minimum_debug_msgs
@@ -304,8 +304,6 @@ void TfScheduler::Work() {
       printf("errno : %d \n", errno);
       return;
     }
-    std::cout << "Secondary socket : " << scheduler_addr_sec.sun_path << " "
-              << scheduler_addr_sec.sun_family << "\n";
     std::cout << "Secondary socket connected" << "\n";
     //ok
   }
@@ -318,11 +316,8 @@ void TfScheduler::Work() {
                 << "\n";
       return;
     }
-    std::cout << "asda" << "\n";
     tf_initialization_packet tx_init_packet;
     //send
-    std::cout << "engine socket : " << scheduler_engine_addr.sun_path << " "
-              << scheduler_engine_addr.sun_family << "\n";
     if (SendPacketToRuntimeEngine(tx_init_packet, scheduler_engine_addr) == -1) {
       std::cout << "engine socket : " << scheduler_engine_addr.sun_path << " "
                 << scheduler_engine_addr.sun_family << "\n";
