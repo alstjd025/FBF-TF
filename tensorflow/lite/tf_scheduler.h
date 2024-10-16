@@ -101,8 +101,8 @@ namespace tflite{
   class TfScheduler{
     public:
       TfScheduler();
-      TfScheduler(const char* uds_file_name, const char* uds_file_name_sec,
-                  std::vector<std::string>& param_file_names);
+      TfScheduler(const char* uds_file_name, const char* uds_file_name_sec, 
+                  const char* uds_engine_file_name, std::vector<std::string>& param_file_names);
 
       void PrintRuntimeStates();
 
@@ -116,14 +116,24 @@ namespace tflite{
 
       int SendPacketToRuntimeSecSocket(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
       int SendPacketToRuntimeSecSocket(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
+
+      int SendPacketToRuntimeEngine(tf_initialization_packet& tx_p, struct sockaddr_un& runtime_addr);
+      int SendPacketToRuntimeEngine(tf_runtime_packet& tx_p, struct sockaddr_un& runtime_addr);
       
+      int ReceivePacketFromRuntimeEngine(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
+      int ReceivePacketFromRuntimeEngine(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
+
       int ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntimeSecSocket(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
-      int ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr,
-                                            struct sockaddr_un& runtime_addr_sec, int epfd, fd_set& read_fds);
+      int ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p, 
+                                            struct sockaddr_un& runtime_addr,
+                                            struct sockaddr_un& runtime_addr_sec, 
+                                            struct sockaddr_un& scheduler_engine_addr,
+                                            int epfd, fd_set& read_fds);
+
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.
@@ -246,6 +256,9 @@ namespace tflite{
       int scheduler_fd_sec;
       struct sockaddr_un scheduler_addr_sec;
 
+      int scheduler_engine_fd;
+      struct sockaddr_un scheduler_engine_addr;
+
       // recovery alert file descriptor (pipe)
       int recovery_fd;
       bool recovery_possible = false;
@@ -253,7 +266,6 @@ namespace tflite{
       std::vector<runtime_*> runtimes;
       int runtimes_created = 0;
 
-      bool reschedule_needed = false;
 
       // For RR scheduler
       bool cpu_usage_flag = false;
@@ -267,6 +279,9 @@ namespace tflite{
       
       // current CPU utlization ratio(average).
       float* cpu_util;
+
+      bool engine_start = false;
+      bool end_signal_send = false;
   };
 
 }

@@ -55,8 +55,13 @@ class LiteScheduler;
 
 class TfLiteRuntime {
  public:
-  TfLiteRuntime(char* uds_runtime, char* uds_scheduler, char* uds_runtime_sec,
-                char* uds_scheduler_sec, const char* model, INPUT_TYPE type, DEVICE_TYPE d_type);
+  TfLiteRuntime(char* uds_runtime,
+                char* uds_scheduler, 
+                char* uds_runtime_sec,
+                char* uds_scheduler_sec,
+                char* uds_engine_runtime,
+                char* uds_engine_scheduler,
+                const char* model, INPUT_TYPE type, DEVICE_TYPE d_type);
 
   ~TfLiteRuntime();
 
@@ -101,6 +106,12 @@ class TfLiteRuntime {
   std::vector<double> timestamp_sub_interpreter;
   std::vector<string> timestamp_label_main_interpreter;
   std::vector<string> timestamp_label_sub_interpreter;
+
+  void InferenceEngineStart();
+  void InferenceEngineJoin();
+
+  TfLiteStatus EngineInvoke();
+
 
   // Debug invoke (for co-execution invoke test api)
   TfLiteStatus Invoke();
@@ -205,6 +216,8 @@ class TfLiteRuntime {
 
   // Delete redundant codes later
   TfLiteStatus InitializeUDSSecondSocket();
+
+  TfLiteStatus InitializeUDSEngineSocket();
   
   TfLiteStatus ChangeState(RuntimeState next_state);
   RuntimeState GetRuntimeState() { return state; };
@@ -222,6 +235,12 @@ class TfLiteRuntime {
 
   TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_initialization_packet& rx_p);
   TfLiteStatus ReceivePacketFromSchedulerSecSocket(tf_runtime_packet& rx_p);
+
+  TfLiteStatus SendPacketToSchedulerEngine(tf_initialization_packet& tx_p);
+  TfLiteStatus SendPacketToSchedulerEngine(tf_runtime_packet& tx_p);
+
+  TfLiteStatus ReceivePacketFromSchedulerEngine(tf_initialization_packet& rx_p);
+  TfLiteStatus ReceivePacketFromSchedulerEngine(tf_runtime_packet& rx_p);
   
   void CreateRuntimePacketToScheduler(tf_runtime_packet& tx_p, const int subgraph_id);
 
@@ -243,20 +262,25 @@ class TfLiteRuntime {
   DEVICE_TYPE device_type;
   MODEL_TYPE model_type;
 
+  const char* model_path;
+
   //// Co-execution
   bool co_execution = false;
 
   std::thread c_thread;
-  std::thread g_thread;
+  std::thread main_engine_thread;
 
   std::condition_variable invoke_sync_cv;
   std::condition_variable data_sync_cv;
+  std::condition_variable init_sync_cv;
   std::mutex data_sync_mtx;
   std::mutex invoke_sync_mtx;
   std::mutex merge_mtx;
+  std::mutex init_mtx;
   bool is_co_execution_merged = false;
   bool is_execution_done = false;
   bool invoke_cpu = false;
+  bool is_engine_ready = false;
 
   double main_interpret_response_time = 0;
   double sub_interpret_response_time = 0;
@@ -283,14 +307,16 @@ class TfLiteRuntime {
   // IPC
   char* uds_runtime_filename;
   char* uds_scheduler_filename;
+  char* uds_engine_runtime_filename;
   
   // Add runtime new uds socket
   char* uds_runtime_sec_filename;
   char* uds_scheduler_sec_filename;
-
+  char* uds_engine_scheduler_filename;
   
   int runtime_sock;
   int runtime_sec_sock;
+  int engine_sock;
 
   size_t addr_size;
   struct sockaddr_un runtime_addr;
@@ -298,6 +324,9 @@ class TfLiteRuntime {
 
   struct sockaddr_un runtime_addr_sec;
   struct sockaddr_un scheduler_addr_sec;
+
+  struct sockaddr_un engine_runtime_addr;
+  struct sockaddr_un engine_scheduler_addr;
 
 
   bool output_correct = false;

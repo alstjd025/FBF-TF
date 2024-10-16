@@ -1,14 +1,15 @@
 #include "tensorflow/lite/tf_scheduler.h"
 #define single_level_motivation
 
-#define debug_msgs
+// #define debug_msgs
+#define minimum_debug_msgs
 
 namespace tflite {
 
 TfScheduler::TfScheduler(){};
 
 TfScheduler::TfScheduler(const char* uds_file_name, const char* uds_file_name_sec,
-                         std::vector<std::string>& param_file_names) {
+                         const char* uds_engine_file_name, std::vector<std::string>& param_file_names) {
   // delete if sock file already exists.
   if (access(uds_file_name, F_OK) == 0) unlink(uds_file_name);
 
@@ -47,6 +48,27 @@ TfScheduler::TfScheduler(const char* uds_file_name, const char* uds_file_name_se
 
   if (bind(scheduler_fd_sec, (struct sockaddr*)&scheduler_addr_sec,
            sizeof(scheduler_addr_sec)) == -1) {
+    std::cout << "Secondary socket bind ERROR"
+              << "\n";
+    exit(-1);
+  }
+  
+  if (access(uds_engine_file_name, F_OK) == 0) unlink(uds_engine_file_name);
+  std::cout << "uds_engine_file_name : " << uds_engine_file_name  << "\n";
+  scheduler_engine_fd = socket(PF_FILE, SOCK_DGRAM, 0);
+  if (scheduler_engine_fd == -1) {
+    std::cout << "Secondary socket create ERROR"
+              << "\n";
+    exit(-1);
+  }
+  addr_size = sizeof(scheduler_engine_addr);
+
+  memset(&scheduler_engine_addr, 0, sizeof(scheduler_engine_addr));
+  scheduler_engine_addr.sun_family = AF_UNIX;
+  strcpy(scheduler_engine_addr.sun_path, uds_engine_file_name);
+
+  if (bind(scheduler_engine_fd, (struct sockaddr*)&scheduler_engine_addr,
+          sizeof(scheduler_engine_addr)) == -1) {
     std::cout << "Secondary socket bind ERROR"
               << "\n";
     exit(-1);
@@ -100,6 +122,22 @@ int TfScheduler::SendPacketToRuntimeSecSocket(tf_initialization_packet& tx_p,
   return v;
 }
 
+int TfScheduler::SendPacketToRuntimeEngine(tf_runtime_packet& tx_p,
+                                     struct sockaddr_un& runtime_addr) {
+  int v;
+  v = sendto(scheduler_engine_fd, (void*)&tx_p, sizeof(tf_runtime_packet), 0,
+             (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
+int TfScheduler::SendPacketToRuntimeEngine(tf_initialization_packet& tx_p,
+                                     struct sockaddr_un& runtime_addr) {
+  int v;
+  v = sendto(scheduler_engine_fd, (void*)&tx_p, sizeof(tf_initialization_packet), 0,
+             (struct sockaddr*)&runtime_addr, sizeof(runtime_addr));
+  return v;
+}
+
 int TfScheduler::ReceivePacketFromRuntime(tf_packet& rx_p,
                                           struct sockaddr_un& runtime_addr) {
   int v;
@@ -119,11 +157,15 @@ int TfScheduler::ReceivePacketFromRuntime(tf_runtime_packet& rx_p,
 int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
                                             struct sockaddr_un& runtime_addr,
                                             struct sockaddr_un& runtime_addr_sec,
+                                            struct sockaddr_un& scheduler_engine_addr,
                                             int epfd, fd_set& read_fds){
   int return_v;
-  // std::cout << "multiplex wait" << "\n";
-  struct epoll_event events[3];
-  int activity = epoll_wait(epfd, events, 3, -1); // 이벤트 대기
+  #if defined (minimum_debug_msgs) || defined (debug_msgs)
+  std::cout << "multiplex wait" << "\n";
+  #endif
+  struct epoll_event events[4];
+  //[Asynch todo: sperate inference requset and subgraph request]
+  int activity = epoll_wait(epfd, events, 4, -1); // 이벤트 대기
   if (activity == -1) {
       perror("epoll_wait");
       return_v = -1;
@@ -131,6 +173,21 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
   }
   // std::cout << "got epoll" << "\n";
   for(int i=0; i<activity; ++i){
+    if(events[i].data.fd == scheduler_engine_fd) {
+      #if defined (minimum_debug_msgs) || defined (debug_msgs)
+      std::cout << "got inference request from engine" << "\n";
+      #endif
+      if (ReceivePacketFromRuntimeEngine(rx_p, scheduler_engine_addr) == -1) {
+        std::cout << "Receive failed"
+                  << "\n";
+        return_v = -1;
+        return return_v;
+      }
+      #ifdef debug_msgs
+      std::cout << "Begin Inference" << "\n";
+      #endif
+      engine_start = true;
+    }
     if(events[i].data.fd == scheduler_fd) {
       #ifdef debug_msgs
       std::cout << "read from main inference thread" << "\n";
@@ -160,7 +217,9 @@ int TfScheduler::ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p,
       memset(buffer, 0, sizeof(buffer));
       ssize_t bytes_read = read(recovery_fd, buffer, sizeof(buffer));
       if(RecoveryHandler(rx_p) == -1){
-        std::cout << "Recovery handler returned error" << "\n";
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
+        std::cout << "Recovery handler: no recovery" << "\n";
+        #endif
         return_v = -2;
         return return_v;
       }
@@ -197,6 +256,24 @@ int TfScheduler::ReceivePacketFromRuntimeSecSocket(tf_initialization_packet& rx_
   return v;
 }
 
+// Experimental feature to use secondary socket.
+int TfScheduler::ReceivePacketFromRuntimeEngine(tf_runtime_packet& rx_p,
+                                          struct sockaddr_un& runtime_addr) {
+  int v;
+  v = recvfrom(scheduler_engine_fd, &rx_p, sizeof(tf_runtime_packet), 0,
+               (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  return v;
+}
+
+// Experimental feature to use secondary socket.
+int TfScheduler::ReceivePacketFromRuntimeEngine(tf_initialization_packet& rx_p,
+                                          struct sockaddr_un& runtime_addr) {
+  int v;
+  v = recvfrom(scheduler_engine_fd, &rx_p, sizeof(tf_initialization_packet), 0,
+               (struct sockaddr*)&runtime_addr, (socklen_t*)&addr_size);
+  return v;
+}
+
 void TfScheduler::Work() {
   monitor = new LiteSysMonitor();
 
@@ -227,7 +304,32 @@ void TfScheduler::Work() {
       printf("errno : %d \n", errno);
       return;
     }
+    std::cout << "Secondary socket : " << scheduler_addr_sec.sun_path << " "
+              << scheduler_addr_sec.sun_family << "\n";
     std::cout << "Secondary socket connected" << "\n";
+    //ok
+  }
+  {
+    //receive 
+    tf_initialization_packet rx_init_packet;
+    memset(&rx_init_packet, 0, sizeof(tf_initialization_packet));
+    if (ReceivePacketFromRuntimeEngine(rx_init_packet, scheduler_engine_addr) == -1) {
+      std::cout << "engine socket receive failed"
+                << "\n";
+      return;
+    }
+    std::cout << "asda" << "\n";
+    tf_initialization_packet tx_init_packet;
+    //send
+    std::cout << "engine socket : " << scheduler_engine_addr.sun_path << " "
+              << scheduler_engine_addr.sun_family << "\n";
+    if (SendPacketToRuntimeEngine(tx_init_packet, scheduler_engine_addr) == -1) {
+      std::cout << "engine socket : " << scheduler_engine_addr.sun_path << " "
+                << scheduler_engine_addr.sun_family << "\n";
+      printf("errno : %d \n", errno);
+      return;
+    }
+    std::cout << "Engine socket connected" << "\n";
     //ok
   }
   // Set fd for multiplexing
@@ -244,24 +346,31 @@ void TfScheduler::Work() {
   // change pipe read fd to non-blocking?
   // int flags = fcntl(recovery_fd, F_GETFL, 0);
   // fcntl(recovery_fd, F_SETFL, flags | O_NONBLOCK);
-  struct epoll_event events[3];
+  struct epoll_event events[4];
   events[0].events = EPOLLIN;
-  events[0].data.fd = scheduler_fd;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd, &events[0]) == -1) {
+  events[0].data.fd = scheduler_engine_fd;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_engine_fd, &events[0]) == -1) {
           perror("epoll_ctl");
           close(epfd);
           return;
   }
   events[1].events = EPOLLIN;
-  events[1].data.fd = scheduler_fd_sec;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd_sec, &events[1]) == -1) {
+  events[1].data.fd = scheduler_fd;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd, &events[1]) == -1) {
           perror("epoll_ctl");
           close(epfd);
           return;
   }
   events[2].events = EPOLLIN;
-  events[2].data.fd = recovery_fd;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, recovery_fd, &events[2]) == -1) {
+  events[2].data.fd = scheduler_fd_sec;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, scheduler_fd_sec, &events[2]) == -1) {
+          perror("epoll_ctl");
+          close(epfd);
+          return;
+  }
+  events[3].events = EPOLLIN;
+  events[3].data.fd = recovery_fd;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, recovery_fd, &events[3]) == -1) {
           perror("epoll_ctl");
           close(epfd);
           return;
@@ -300,14 +409,19 @@ void TfScheduler::Work() {
       [TODO 10.14.15:25pm: must fix runtime socket skip issue.]
       change this to epoll
       */
-      int received = ReceivePacketFromRuntimeMultiplex(rx_runtime_packet, scheduler_addr,
-                                                    scheduler_addr_sec, epfd, read_fds);
+     
+      int received = ReceivePacketFromRuntimeMultiplex(rx_runtime_packet,
+                                                       scheduler_addr,
+                                                       scheduler_addr_sec,
+                                                       scheduler_engine_addr, epfd, read_fds);
       if (received == -1) {
         std::cout << "Receive multiplex failed"
                   << "\n";
         return;
       }else if(received == -2){
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
         std::cout << "no recovery. skip" << "\n";
+        #endif
         state = RuntimeState::BLOCKED_;
       }else{
         state = static_cast<RuntimeState>(rx_runtime_packet.runtime_current_state);
@@ -462,11 +576,13 @@ void TfScheduler::Work() {
         }
         
         if(!tx_runtime_packet.inference_end){
-          reschedule_needed = false;
+          end_signal_send = false;
           if(tx_runtime_packet.resource_plan == 3){
             // CPU execution
+            #if defined (minimum_debug_msgs) || defined (debug_msgs)
             std::cout << "**send CPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] <<
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            #endif
             if (SendPacketToRuntimeSecSocket(tx_runtime_packet, scheduler_addr_sec) == -1) {
               std::cout << "sock : " << scheduler_addr_sec.sun_path << " "
                         << scheduler_addr_sec.sun_family << "\n";
@@ -475,9 +591,10 @@ void TfScheduler::Work() {
             }
           }else if(tx_runtime_packet.resource_plan == 1){
             // GPU execution
+            #if defined (minimum_debug_msgs) || defined (debug_msgs)
             std::cout << "**send GPU id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
-            
+            #endif
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
               std::cout << "sock : " << scheduler_addr.sun_path << " "
                         << scheduler_addr.sun_family << "\n";
@@ -486,8 +603,10 @@ void TfScheduler::Work() {
             }
           }else if(tx_runtime_packet.resource_plan == 4){
             // Co execution
+            #if defined (minimum_debug_msgs) || defined (debug_msgs)
             std::cout << "**send co-ex id " << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
             " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            #endif
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
               std::cout << "sock : " << scheduler_addr.sun_path << " "
                         << scheduler_addr.sun_family << "\n";
@@ -501,15 +620,25 @@ void TfScheduler::Work() {
               return;
             }            
           }else{
+            #if defined (minimum_debug_msgs) || defined (debug_msgs)
             std::cout << "drop recovered subgraph "<< rx_runtime_packet.cur_subgraph << " output" << "\n";
+            #endif
             break;
           }
         }else{
           // inferece end
-          if(!reschedule_needed){
-            reschedule_needed = true;
+          if(!end_signal_send){
+            end_signal_send = true;
+            #if defined (minimum_debug_msgs) || defined (debug_msgs)
             std::cout << "**send end" << tx_runtime_packet.subgraph_ids_to_invoke[0] << 
               " " << tx_runtime_packet.subgraph_ids_to_invoke[1] << "\n";
+            #endif
+            if (SendPacketToRuntimeEngine(tx_runtime_packet, scheduler_engine_addr) == -1) {
+              std::cout << "sock : " << scheduler_engine_addr.sun_path << " "
+                        << scheduler_engine_addr.sun_family << "\n";
+              printf("errno : %d \n", errno);
+              return;
+            }
             if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
               std::cout << "sock : " << scheduler_addr.sun_path << " "
                         << scheduler_addr.sun_family << "\n";
@@ -529,6 +658,23 @@ void TfScheduler::Work() {
       case RuntimeState::TERMINATE: {
         std::cout << "Scheduler got terminate signal"
                   << "\n";
+        tf_runtime_packet tx_runtime_packet;
+        // tf_packet tx_packet;
+        tx_runtime_packet.runtime_id = id;
+        tx_runtime_packet.runtime_next_state = RuntimeState::TERMINATE;
+        tx_runtime_packet.inference_end = true;
+        if (SendPacketToRuntime(tx_runtime_packet, scheduler_addr) == -1) {
+          std::cout << "sock : " << scheduler_addr.sun_path << " "
+                    << scheduler_addr.sun_family << "\n";
+          printf("errno : %d \n", errno);
+          return;
+        }
+        if (SendPacketToRuntimeSecSocket(tx_runtime_packet, scheduler_addr_sec) == -1) {
+          std::cout << "sock : " << scheduler_addr_sec.sun_path << " "
+                    << scheduler_addr_sec.sun_family << "\n";
+          printf("errno : %d \n", errno);
+          return;
+        }
         run = false;
         break;
       }
@@ -592,7 +738,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
   //           rx_packet.sub_interpret_response_time);
   // }
   if (rx_packet.cur_subgraph == -1) {  // first invoke
+    #if defined (minimum_debug_msgs) || defined (debug_msgs)
     std::cout << "first invoke" << "\n";
+    #endif
     // search graph struct for optimal invokable subgraph.
     // and return it.
     // ISSUE(dff3f) : Right after GPU kernel initialization, gpu utilization
@@ -604,7 +752,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     tx_packet.prev_subgraph_id = -1;
     tx_packet.prev_co_subgraph_id = -1;
   } else {
+    #if defined (minimum_debug_msgs) || defined (debug_msgs)
     std::cout << "not first invoke" << "\n";
+    #endif
     // Search and return prev invoked subgraph with it's id.
     // latest_inference_node 갱신.
     prev_invoked_subgraph =
@@ -618,10 +768,12 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     }else if(runtime->latest_inference_node->node_start == prev_invoked_subgraph->node_start){
       // in case of recovered case.
       // Temporal flag. (must change)
+      #if defined (minimum_debug_msgs) || defined (debug_msgs)
       std::cout << runtime->latest_inference_node->node_start << " " 
                 << prev_invoked_subgraph->node_start << " "
                 << "drop" << "\n";
       tx_packet.resource_plan = -1;
+      #endif
       return;
     }else{
       if(prev_invoked_subgraph->node_end > runtime->latest_inference_node->node_end){
@@ -656,7 +808,9 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
       runtime->pre_latest_inference_node = nullptr;
       runtime->current_running_node = nullptr;
     }
+    #if defined (minimum_debug_msgs) || defined (debug_msgs)
     std::cout << "one subgraph" << "\n";
+    #endif
     clock_gettime(CLOCK_MONOTONIC, &now);
     runtime->latest_inference_timestamp.tv_sec = now.tv_sec;
     runtime->latest_inference_timestamp.tv_nsec = now.tv_nsec;
@@ -840,7 +994,9 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
   }
   // [TODO fix this logic. is this necessary?]
   if(runtime->current_running_node->resource_type == rx_p_dummy.resource_plan){
+    #if defined (minimum_debug_msgs) || defined (debug_msgs)
     std::cout << "cannot recover current inference resource." << "\n";
+    #endif
     return -1;
   }
   while (next_subgraph_to_invoke != nullptr) {
@@ -850,7 +1006,9 @@ int TfScheduler::RecoveryHandler(tf_runtime_packet& rx_p_dummy){
     if (next_subgraph_to_invoke->down != nullptr) {
       next_subgraph_to_invoke = next_subgraph_to_invoke->down;
     } else {
+      #if defined (minimum_debug_msgs) || defined (debug_msgs)
       std::cout << "no subgraph for recovery resource " << rx_p_dummy.resource_plan << "\n";
+      #endif
       return -1;
     }
   }

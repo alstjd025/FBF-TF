@@ -17,7 +17,8 @@
 // Note: activate monitoring debugger
 // #define monitoring_debugger
 
-#define debug_msgs
+// #define debug_msgs
+// #define minimum_debug_msgs
 
 namespace tflite{
 
@@ -82,7 +83,7 @@ void LiteSysMonitor::GlobalResourceMonitor(){
       #endif
       if(cpu_util_ratio < cpu_recovery_threshold && gpu_util_ratio > gpu_busy_threshold
         || gpu_util_ratio < gpu_recovery_threshold && cpu_util_ratio > cpu_busy_threshold){
-        #ifdef debug_msgs
+        #if defined (minimum_debug_msgs) || defined (debug_msgs)
         std::cout << "monitor : Do recovery trigger CPU: " << cpu_util_ratio << " GPU: " 
                   << gpu_util_ratio << "\n";
         #endif
@@ -92,7 +93,9 @@ void LiteSysMonitor::GlobalResourceMonitor(){
           return;
         }
       }else{
+        #ifdef minimum_debug_msgs
         std::cout << "monitor : no recovery occurs" << "\n";
+        #endif
       }
     }
     std::this_thread::sleep_for(std::chrono::microseconds(MONITORING_PERIOD_MS));
