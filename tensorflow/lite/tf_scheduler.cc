@@ -756,6 +756,14 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     */
     /* [IMPT] latency based resource allocation part */
     // std::cout << "CPU : " << cpu_util << " GPU : " << gpu_util << "\n"; 
+    #if defined (debug_msgs)
+    std::cout << "not first invoke" << "\n";
+    #endif
+    // Search and return prev invoked subgraph with it's id.
+    // latest_inference_node 갱신.
+    prev_invoked_subgraph =
+        SearchAndReturnNodeWithID(root_graph, rx_packet.cur_subgraph);
+    prev_base_subgraph = prev_invoked_subgraph;
     float prev_invoked_subgraph_latency = 0;
     if(rx_packet.is_secondary_socket){
       prev_invoked_subgraph_latency = rx_packet.sub_interpret_response_time;
@@ -790,14 +798,6 @@ void TfScheduler::SearchNextSubgraphtoInvoke( tf_runtime_packet& rx_packet,
     if(cpu_usage_flag){
       next_resource_plan = 3;
     }
-    #if defined (debug_msgs)
-    std::cout << "not first invoke" << "\n";
-    #endif
-    // Search and return prev invoked subgraph with it's id.
-    // latest_inference_node 갱신.
-    prev_invoked_subgraph =
-        SearchAndReturnNodeWithID(root_graph, rx_packet.cur_subgraph);
-    prev_base_subgraph = prev_invoked_subgraph;
     // 갱신 logic
     // inference 한 subgraph의 end op 와 latest_inference_node의 start op 비교
     if(runtime->latest_inference_node == nullptr){
