@@ -272,12 +272,15 @@ class TfLiteRuntime {
 
   std::condition_variable invoke_sync_cv;
   std::condition_variable data_sync_cv;
+  std::condition_variable init_sync_cv;
   std::mutex data_sync_mtx;
   std::mutex invoke_sync_mtx;
   std::mutex merge_mtx;
+  std::mutex init_mtx;
   bool is_co_execution_merged = false;
   bool is_execution_done = false;
   bool invoke_cpu = false;
+  bool is_engine_ready = false;
 
   double main_interpret_response_time = 0;
   double sub_interpret_response_time = 0;

@@ -128,8 +128,12 @@ namespace tflite{
       
       int ReceivePacketFromRuntime(tf_initialization_packet& rx_p, struct sockaddr_un& runtime_addr);
       int ReceivePacketFromRuntime(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr);
-      int ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p, struct sockaddr_un& runtime_addr,
-                                            struct sockaddr_un& runtime_addr_sec, int epfd, fd_set& read_fds);
+      int ReceivePacketFromRuntimeMultiplex(tf_runtime_packet& rx_p, 
+                                            struct sockaddr_un& runtime_addr,
+                                            struct sockaddr_un& runtime_addr_sec, 
+                                            struct sockaddr_un& scheduler_engine_addr,
+                                            int epfd, fd_set& read_fds);
+
       int ReceivePacketFromRuntime(tf_packet& rx_p, struct sockaddr_un& runtime_addr);
       
       // refresh runtime state in scheduler.

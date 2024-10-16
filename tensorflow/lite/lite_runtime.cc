@@ -2,7 +2,7 @@
 
 // #define YOLO_PARSER
 // #define mobilenet
-#define debug_print
+// #define debug_print
 // #define latency_measure
 #define partitioning_profile
 // #define yolo_branch
@@ -145,6 +145,12 @@ TfLiteRuntime::TfLiteRuntime(char* uds_runtime,
     exit(-1);
   }
   main_engine_thread = std::thread(&TfLiteRuntime::InferenceEngineStart, this);
+  std::cout << "Inference Engine initializing" << "\n";
+  {
+    std::unique_lock<std::mutex> lock_data(init_mtx);
+    init_sync_cv.wait(lock_data, [&] { return is_engine_ready; });
+  }
+  std::cout << "Engine ready" << "\n";
 };
 
 TfLiteRuntime::~TfLiteRuntime() {
@@ -237,6 +243,12 @@ void TfLiteRuntime::InferenceEngineStart(){
     std::cout << "Model partitioning ERROR"
               << "\n";
   }
+  {
+    std::unique_lock<std::mutex> lock_data(init_mtx);
+    is_engine_ready = true;
+    init_sync_cv.notify_one();
+  }
+
   //[asynch todo] inference ready
   if (Invoke() != kTfLiteOk){
     std::cout << "Invoke returned error" << "\n";
@@ -252,6 +264,9 @@ TfLiteStatus TfLiteRuntime::EngineInvoke(){
   // send engine inference request to scheduler
   tf_runtime_packet tx_packet;
   tx_packet.is_engine_start = true;
+  #ifdef debug_msgs
+  std::cout << "Send invoke request" << "\n";
+  #endif
   CreateRuntimePacketToScheduler(tx_packet, -1);
   if (SendPacketToSchedulerEngine(tx_packet) != kTfLiteOk) {  // Request invoke to scheduler.
     return kTfLiteError;
@@ -260,6 +275,7 @@ TfLiteStatus TfLiteRuntime::EngineInvoke(){
   if (ReceivePacketFromSchedulerEngine(rx_packet) != kTfLiteOk) {
     return kTfLiteError;
   }
+  return kTfLiteOk;
   // receive engine inference end from scheduler
 }
 
@@ -534,7 +550,7 @@ TfLiteStatus TfLiteRuntime::InitializeUDSEngineSocket(){
               << "\n";
     return kTfLiteError;
   }
-
+  std::cout << "send engine init" << "\n";
   tf_initialization_packet rx_packet;
   if (ReceivePacketFromSchedulerEngine(rx_packet) != kTfLiteOk) {
     std::cout << "Receiving packet from scheduler engine FAILED"
@@ -624,7 +640,7 @@ TfLiteStatus TfLiteRuntime::SendPacketToSchedulerEngine(tf_initialization_packet
   // std::cout << "RuntimeEngine : Send init packet to scheduler" << "\n";
   // #endif
   if (sendto(engine_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_initialization_packet), 0,
-             (struct sockaddr*)&engine_runtime_addr, sizeof(engine_runtime_addr)) == -1) {
+             (struct sockaddr*)&engine_scheduler_addr, sizeof(engine_scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler sec FAILED"
               << "\n";
     return kTfLiteError;
@@ -637,7 +653,7 @@ TfLiteStatus TfLiteRuntime::SendPacketToSchedulerEngine(tf_runtime_packet& tx_p)
   // std::cout << "RuntimeEngine : Send runtime packet to scheduler sec socket" << "\n";
   // #endif
   if (sendto(engine_sock, reinterpret_cast<void*>(&tx_p), sizeof(tf_runtime_packet), 0,
-             (struct sockaddr*)&engine_runtime_addr, sizeof(engine_runtime_addr)) == -1) {
+             (struct sockaddr*)&engine_scheduler_addr, sizeof(engine_scheduler_addr)) == -1) {
     std::cout << "Sending packet to scheduler sec FAILED"
               << "\n";
     return kTfLiteError;
